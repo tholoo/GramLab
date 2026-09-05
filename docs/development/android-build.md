@@ -35,8 +35,9 @@ the upstream API/hash/key declarations with inert values; it does not record the
 values in the patch queue. No real Telegram identity or production credential is used.
 
 The new application ID is `org.gramlab.android`, with a distinct unofficial label and original
-vector icon. The shared Telegram renderer, Java resources, JLatexMath implementation and native
-source are preserved. Cloud/distribution Gradle plugins and unrelated application variants are
+vector icon. The shared Telegram renderer, Java resources and JLatexMath implementation are
+preserved; the second patch adds narrow [native transport guards](android-native-guard.md).
+Cloud/distribution Gradle plugins and unrelated application variants are
 excluded from this selected build. This does not remove all cloud runtime dependencies or make
 the client ready to start: application activation is disabled until the offline patches are proven.
 
@@ -155,6 +156,14 @@ separately and repeat the contained build after reviewing any dependency changes
   offline Gradle configuration to fail on that exact artifact. The committed metadata was restored
   byte-for-byte afterward, and strict offline configuration passed again. All thirteen
   process/guest tests pass with 90.91% statement coverage.
+
+The subsequent native-guard build also completes inside containment with strict offline
+verification. A fresh two-patch export matches its changed source inputs, retains the dependency
+record and preserves all 6,666 checked UI/resource files. Its APK SHA-256 is
+`4433d32d1168bf737e194b49ebad9af78eed0886981fda308e7843b11ad98855`.
+The v1/v2 signatures verify, and the binary manifest still disables application and backup.
+The [native guard record](android-native-guard.md) separates its probe evidence from the remaining
+synthetic application startup gate.
 
 Build logs, local signing material, absolute paths, timings and live process handles belong in
 ignored `.cache/` or `artifacts/`. Preserve a live build across handoffs and poll its actual handle;

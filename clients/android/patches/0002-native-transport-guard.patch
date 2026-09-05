@@ -1,0 +1,161 @@
+diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
+--- a/TMessagesProj/build.gradle
++++ b/TMessagesProj/build.gradle
+@@ -141,6 +141,7 @@
+                 // Bound native compile memory independently of Gradle worker scheduling.
+                 arguments "-DCMAKE_JOB_POOLS=gramlab_compile=${project.findProperty('gramlabNativeJobs') ?: '2'};gramlab_link=1",
+                           '-DCMAKE_JOB_POOL_COMPILE=gramlab_compile', '-DCMAKE_JOB_POOL_LINK=gramlab_link'
++                arguments '-DGRAMLAB_OFFLINE=ON'
+                 targets 'tmessages.49'
+             }
+         }
+diff --git a/TMessagesProj/jni/CMakeLists.txt b/TMessagesProj/jni/CMakeLists.txt
+--- a/TMessagesProj/jni/CMakeLists.txt
++++ b/TMessagesProj/jni/CMakeLists.txt
+@@ -1,4 +1,6 @@
+ cmake_minimum_required(VERSION 3.16)
++
++option(GRAMLAB_OFFLINE "Reject native Telegram transport before initialization" OFF)
+ 
+ set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID -g")
+ set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -g -Wno-error=implicit-function-declaration")
+@@ -156,6 +158,11 @@
+         secureid_ocr.cpp
+         tde2e/bridge.cpp
+ )
++
++if (GRAMLAB_OFFLINE)
++    target_compile_definitions(tgnet PRIVATE GRAMLAB_OFFLINE=1)
++    target_compile_definitions(${NATIVE_LIB} PRIVATE GRAMLAB_OFFLINE=1)
++endif()
+ 
+ target_compile_options(${NATIVE_LIB} PUBLIC
+         -ffast-math -Oz -funroll-loops -ffast-math -fno-strict-aliasing -fno-math-errno)
+diff --git a/TMessagesProj/jni/TgNetWrapper.cpp b/TMessagesProj/jni/TgNetWrapper.cpp
+--- a/TMessagesProj/jni/TgNetWrapper.cpp
++++ b/TMessagesProj/jni/TgNetWrapper.cpp
+@@ -107,6 +107,14 @@
+ }
+ 
+ void sendRequest(JNIEnv *env, jclass c, jint instanceNum, jlong object, jint flags, jint datacenterId, jint connectionType, jboolean immediate, jint token) {
++#ifdef GRAMLAB_OFFLINE
++    // Reject before reading pointers, allocating requests or creating a network worker.
++    jclass failure = env->FindClass("java/lang/IllegalStateException");
++    if (failure != nullptr) {
++        env->ThrowNew(failure, "GRAMLAB_NATIVE_TRANSPORT_DISABLED");
++    }
++    return;
++#endif
+     TL_api_request *request = new TL_api_request();
+     request->request = (NativeByteBuffer *) (intptr_t) object;
+     ConnectionsManager::getInstance(instanceNum).sendRequest(request, ([instanceNum, token](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime, int64_t msgId, int32_t dcId) {
+@@ -465,6 +473,14 @@
+ }
+ 
+ void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jint apiId, jstring deviceModel, jstring systemVersion, jstring appVersion, jstring langCode, jstring systemLangCode, jstring configPath, jstring logPath, jstring regId, jstring cFingerprint, jstring installerId, jstring packageId, jint timezoneOffset, jlong userId, jboolean userPremium, jboolean enablePushConnection, jboolean hasNetwork, jint networkType, jint performanceClass) {
++#ifdef GRAMLAB_OFFLINE
++    // Reject before reading pointers, allocating requests or creating a network worker.
++    jclass failure = env->FindClass("java/lang/IllegalStateException");
++    if (failure != nullptr) {
++        env->ThrowNew(failure, "GRAMLAB_NATIVE_TRANSPORT_DISABLED");
++    }
++    return;
++#endif
+     const char *deviceModelStr = env->GetStringUTFChars(deviceModel, 0);
+     const char *systemVersionStr = env->GetStringUTFChars(systemVersion, 0);
+     const char *appVersionStr = env->GetStringUTFChars(appVersion, 0);
+diff --git a/TMessagesProj/jni/tgnet/ConnectionsManager.cpp b/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
+--- a/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
++++ b/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
+@@ -6,6 +6,7 @@
+  * Copyright Nikolai Kudashov, 2015-2018.
+  */
+ 
++#include <cstdio>
+ #include <cassert>
+ #include <cstdlib>
+ #include <sys/eventfd.h>
+@@ -3646,6 +3647,11 @@
+ }
+ 
+ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool userPremium, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType, int32_t performanceClass) {
++#ifdef GRAMLAB_OFFLINE
++    // Backstop for native callers that bypass the Java request boundary.
++    std::fputs("GRAMLAB_NATIVE_TRANSPORT_DISABLED\n", stderr);
++    std::abort();
++#endif
+     currentVersion = version;
+     currentLayer = layer;
+     currentApiId = apiId;
+diff --git a/TMessagesProj/jni/tgnet/ConnectionSocket.cpp b/TMessagesProj/jni/tgnet/ConnectionSocket.cpp
+--- a/TMessagesProj/jni/tgnet/ConnectionSocket.cpp
++++ b/TMessagesProj/jni/tgnet/ConnectionSocket.cpp
+@@ -6,6 +6,8 @@
+  * Copyright Nikolai Kudashov, 2015-2018.
+  */
+ 
++#include <cstdio>
++#include <cstdlib>
+ #include <cassert>
+ #include <unistd.h>
+ #include <fcntl.h>
+@@ -473,6 +475,11 @@
+ }
+ 
+ void ConnectionSocket::openConnection(std::string address, uint16_t port, std::string secret, bool ipv6, int32_t networkType) {
++#ifdef GRAMLAB_OFFLINE
++    // Backstop for native callers that bypass the Java request boundary.
++    std::fputs("GRAMLAB_NATIVE_TRANSPORT_DISABLED\n", stderr);
++    std::abort();
++#endif
+     currentNetworkType = networkType;
+     isIpv6 = ipv6;
+     currentAddress = address;
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/tgnet/NativeGuardProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/tgnet/NativeGuardProbe.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/tgnet/NativeGuardProbe.java
+@@ -0,0 +1,43 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.tgnet;
++
++/** app_process probe: never starts ApplicationLoader or a Telegram account. */
++public final class NativeGuardProbe {
++    private static boolean rejected(Runnable operation) {
++        try {
++            operation.run();
++            return false;
++        } catch (IllegalStateException failure) {
++            if (!"GRAMLAB_NATIVE_TRANSPORT_DISABLED".equals(failure.getMessage())) {
++                throw failure;
++            }
++            return true;
++        }
++    }
++
++    public static void main(String[] args) throws Exception {
++        System.load(args[0]);
++        // No native_init: the baseline only queues this opaque pointer, with no network worker.
++        boolean request = rejected(() -> ConnectionsManager.native_sendRequest(
++                0, 0L, 0, 0, 1, true, 1));
++        if (!request) {
++            System.out.println("{\"request_blocked\":false}");
++            System.exit(2);
++        }
++        // Null metadata makes any unguarded path fail before transport initialization.
++        boolean initialization = rejected(() -> ConnectionsManager.native_init(
++                0, 0, 0, 0, null, null, null, null, null, null, null, null, null, null, null,
++                0, 0L, false, false, false, 0, 0));
++        // Preserve upstream JNI memory operations needed by storage and rendering.
++        ConnectionsManager.native_setJava(false);
++        NativeByteBuffer buffer = new NativeByteBuffer(4);
++        buffer.writeInt32(0x12345678);
++        buffer.position(0);
++        boolean memory = buffer.readInt32(true) == 0x12345678;
++        buffer.reuse();
++        System.out.println("{\"request_blocked\":" + request
++                + ",\"initialization_blocked\":" + initialization
++                + ",\"buffer_round_trip\":" + memory + "}");
++        System.exit(request && initialization && memory ? 0 : 3);
++    }
++}

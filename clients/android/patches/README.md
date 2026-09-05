@@ -17,9 +17,14 @@ original GramLab icon/label; the shared renderer and native sources remain uncha
 The library and APK target x86_64, with bounded native compiler/linker pools. Re-export the pinned
 base and reapply the entire queue for updates; do not edit the acquired upstream checkout.
 
-**The application is deliberately disabled.** This patch is build preparation, not an offline
-client implementation. Do not enable or install it to claim synthetic startup: the native,
-background, identity and local bridge adaptations still have to be implemented and tested.
+`0002-native-transport-guard.patch` enables `GRAMLAB_OFFLINE` for the JNI and tgnet libraries.
+JNI request/init entry points reject before transport work; native init/socket entry points have
+abort backstops. A dedicated `app_process` probe checks JNI rejection and preserved buffer operations
+without installing the application. See the [native guard record](../../../docs/development/android-native-guard.md).
+
+**The application is deliberately disabled.** The queue is not yet an offline client implementation.
+Do not enable or install it to claim synthetic startup: Java/background networking, identity and
+local bridge adaptations still have to be implemented and tested.
 
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied

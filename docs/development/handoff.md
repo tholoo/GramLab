@@ -3,7 +3,7 @@
 ## Starting state
 
 GramLab has pinned development environments, an acquired Android source checkout and an
-experimental Linux process boundary with thirteen real-process tests, including a dedicated AOSP
+experimental Linux process boundary with real-process tests, including a dedicated AOSP
 guest's startup and local/external network behavior. A disabled Android preparation APK rebuilds
 from exported source and cached dependencies inside independent network containment.
 An experimental SQLite world now drives a real local bot through a small HTTP Bot API subset.
@@ -86,6 +86,18 @@ bot fixture also shares its run data mount; separate component filesystem access
 open. The current preparation manifest explicitly disables the application;
 do not enable/install it as a shortcut to synthetic startup. Preserve actual rendering and audit
 native/background networking before installing the client, even inside containment.
+
+The [native transport guard](android-native-guard.md) is now the second GPL patch. A real JNI
+request was accepted in the failing baseline probe; the guarded APK rejects both request and
+initialization entry points while preserving native buffer operations. Five Android runtime tests
+pass, including a fresh guest with local reachability and external IPv4/IPv6 denial. The probe uses
+`app_process`, without package installation or `ApplicationLoader` startup. Native abort backstops
+are compiled but not directly invoked by the test. Fresh preparation reproduces the changed
+inputs and preserves 6,666 checked UI/resource files. JNI declarations/registration remain intact.
+Next replace Java transport dispatch and direct clock/state/proxy/DNS operations, remove cloud
+startup/push/account-sync paths, and configure synthetic identity before enabling the application.
+Preserve `native_setJava(false)` for memory/delegates; it does not start the transport worker.
+All current build and guest handles completed; local paths and detailed startup leads are ignored.
 
 The full first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero

@@ -49,7 +49,10 @@ def probe_network(
     return network
 
 
-def main() -> None:
+def main(
+    extra_probe: Callable[[Callable[..., subprocess.CompletedProcess[str]]], dict[str, object]]
+    | None = None,
+) -> None:
     emulator, adb, avdmanager, image_package = sys.argv[1:]
     for variable in ("HOME", "ANDROID_USER_HOME", "ANDROID_AVD_HOME", "XDG_CACHE_HOME"):
         Path(os.environ[variable]).mkdir(parents=True, exist_ok=True)
@@ -152,6 +155,8 @@ def main() -> None:
                 ).stdout
                 observations["interfaces"] = adb_command("shell", "ip", "address").stdout
                 observations["host_interfaces"] = socket.if_nameindex()
+                if extra_probe is not None:
+                    observations["extra_probe"] = extra_probe(adb_command)
                 screenshot = subprocess.run(  # noqa: S603 — dedicated namespace/serial only
                     [adb, "-s", "emulator-5554", "exec-out", "screencap", "-p"],
                     capture_output=True,

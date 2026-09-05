@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -110,3 +112,44 @@ def test_dedicated_aosp_guest_boots_with_no_accounts(tmp_path: Path) -> None:
         }
     assert observed["host_interfaces"] == [[1, "lo"]]
     assert (tmp_path / "guest.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_native_transport_request_is_rejected_before_network_initialization(tmp_path: Path) -> None:
+    manifest = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if manifest is None or apk is None:
+        pytest.skip("Requires the Android profile and the built native probe APK")
+    if not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires an accessible KVM device")
+    profile = RuntimeProfile.load(Path(manifest))
+    toolchain = json.loads(Path("clients/android/toolchain.json").read_text())
+    image_package = (
+        f"system-images;android-{toolchain['sdk']['platform']};"
+        f"{toolchain['runtime']['imageType']};{toolchain['runtime']['abi']}"
+    )
+    shutil.copy2(apk, tmp_path / "client.apk")
+    with zipfile.ZipFile(apk) as archive:
+        (tmp_path / "libtmessages.49.so").write_bytes(archive.read("lib/x86_64/libtmessages.49.so"))
+    for name in ("android_guest.py", "android_native_guard.py"):
+        shutil.copy2(Path("tests/probes") / name, tmp_path / name)
+    result = Sandbox(profile).run(
+        [
+            profile.python,
+            "/work/android_native_guard.py",
+            profile.executables["emulator"],
+            profile.executables["adb"],
+            profile.executables["avdmanager"],
+            image_package,
+        ],
+        data=tmp_path,
+        kvm=True,
+        timeout=240,
+    )
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["extra_probe"]["returncode"] == 0, observed["extra_probe"]
+    assert json.loads(observed["extra_probe"]["stdout"]) == {
+        "request_blocked": True,
+        "initialization_blocked": True,
+        "buffer_round_trip": True,
+    }

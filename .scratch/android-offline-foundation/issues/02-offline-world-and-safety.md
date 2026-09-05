@@ -95,3 +95,16 @@ wrong-persona/world/bot authorization, malformed requests and service reopening.
 and current limits. The expanded core gate passes 27 tests with 90.72% statement coverage.
 Native guard work and Java integration continue separately; no Android rendering or complete
 foundation acceptance is claimed. Machine-specific observations remain ignored.
+
+2026-09-06 native guard follow-up: The second GPL patch enables native transport rejection in the
+GramLab build while preserving JNI bindings and renderer/storage memory operations. The corrected
+baseline probe reached the real native request boundary and failed with a normal return; after
+the patch, JNI request/init reject and the buffer round trip succeeds. All five Android runtime
+tests pass in isolation, including local/external network checks. The APK is not installed and
+the application remains disabled; the probe uses `app_process` without account or application
+startup. Both native guard builds completed offline with strict dependency checks. Fresh source
+export applies the queue, matches edited build inputs and preserves all 6,666 checked UI/resource
+files. Signature/ABI/disabled-manifest, Python static, Nix/workflow, links and privacy checks pass.
+The [guard evidence](../../../docs/development/android-native-guard.md) states the direct-native
+and remaining background/Java/startup limitations. Continue synthetic identity and Java bridge
+integration; the full foundation acceptance remains open. No remote publication occurred.
