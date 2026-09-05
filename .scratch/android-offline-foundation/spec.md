@@ -1,7 +1,7 @@
 # Android offline foundation
 
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 
 ## Objective
 
@@ -41,3 +41,8 @@ before consequential commitments. Public SDK APIs follow those findings, not spe
 
 The user approved scaffolding only in the preparation session; implementation belongs to the next
 agent initialized in GramLab. No simulator or Android functionality was implemented in that session.
+
+2026-09-05: The active goal authorizes building the full product and local commits, while retaining
+consultation for consequential choices. Ticket 01 is claimed. Source and host investigation support
+a [concrete prototype proposal](../../docs/development/android-foundation-proposal.md); its design
+choices are pending user review. No foundation acceptance criterion is claimed complete.

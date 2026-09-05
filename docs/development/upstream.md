@@ -4,6 +4,13 @@ The scaffold includes no upstream client code. These source observations were re
 2026-09-05 against moving upstream pages; they are leads, not the pinned build manifest or proof
 that the Android adapter works.
 
+Follow-up: [pinned source investigation](android-source-feasibility.md) identifies candidate
+commit `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`, source/toolchain requirements and patch paths.
+It supersedes moving-page leads for the proposed baseline, pending user review and build proof.
+Individual source files were inspected outside the repository; no full checkout or client code
+is bundled here. [Host probes](android-host-feasibility.md) supersede the initial host inventory
+below: KVM is available outside the command sandbox, but Android tooling is not provisioned.
+
 | Finding | Primary source | Consequence |
 | --- | --- | --- |
 | Official Android app source and native build requirements | [README](https://github.com/DrKLO/Telegram/blob/master/README.md) | Establish a reproducible build profile before UI claims |

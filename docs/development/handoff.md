@@ -3,8 +3,8 @@
 ## Starting state
 
 GramLab is scaffolded, not implemented. There is no simulator, Android client checkout/build,
-public Python API, runtime CLI, binary fixture set or behavioral test suite. The Git repository is
-local; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
+public Python API, runtime CLI, binary fixture set or behavioral test suite. Git has a configured
+`origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
 
 Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](../../TESTING.md),
@@ -27,7 +27,12 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## First action
 
-Claim [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
+Continue claimed [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
+Review the [concrete foundation proposal](android-foundation-proposal.md) with the user before
+implementing its consequential choices. The [source findings](android-source-feasibility.md)
+and [host capability probes](android-host-feasibility.md) are research evidence, not a completed
+Android integration. Scaffold baseline is committed as `bec0ef4`; current work is on
+`research/android-offline-seam`. No remote publication has occurred.
 Validate a pinned client/runtime and the minimal offline adapter boundary before implementing a
 wide feature catalog. Read source findings as leads, not as tested integration guarantees.
 
@@ -41,8 +46,10 @@ adaptation fails, report the exact cause and alternatives to the user; do not si
 
 ## Runtime preparation
 
-Waydroid has not been requested or enabled. Check acceleration and toolchains in the actual host,
-then request any necessary system changes. A separate setup step may fetch public source and
+Waydroid has not been requested or enabled. [Host probes](android-host-feasibility.md) confirmed
+working KVM access outside the command sandbox and a disposable network namespace; Android build
+tools and emulator are not yet provisioned. Request any necessary system changes only after
+reviewing this evidence. A separate setup step may fetch public source and
 dependencies; the resulting client/scenarios must run isolated. Never use the Telegram account
 provisioning folders or real credentials from another project.
 

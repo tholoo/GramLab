@@ -40,7 +40,7 @@ report missing Android infrastructure as unavailable coverage, not success.
 Work on a focused task branch. After the initial repository baseline exists, use a sibling Git
 worktree when parallel tasks need isolation. Keep local Markdown issues version-controlled and
 runtime artifacts ignored. Do not apply consumer application's `mp`, beta, Dokploy or remote-ref cleanup
-workflow here: GramLab is an independent repository with no remote initially.
+workflow here: GramLab is an independent repository. A configured remote does not authorize publication.
 
 Before implementation, claim the active ticket and resolve dependencies. Read existing state
 before changing files. At handoff, preserve work, report its Git state and verification precisely,
