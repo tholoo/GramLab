@@ -68,3 +68,20 @@ cached dependencies and strict verification; binary manifest, signature and nati
 passed. An intentionally wrong AGP checksum was rejected and original metadata restored. No
 client runtime success is claimed; continue the approved startup/network patch, world/bridge and
 real bot loop. Machine-specific build records remain ignored.
+
+2026-09-06 world/bot follow-up: Implemented independently owned SQLite users/private chats,
+explicit world time and seed metadata, transactional message/event/update delivery and per-bot
+acknowledgment. A separate bot process with no GramLab imports exchanges mixed Persian/English
+text over local HTTP inside the runtime boundary, persists its reply and confirms its update.
+Tests cover reopen persistence, malformed/unauthorized transitions, concurrent writers, separate
+bot queues, generated token scope and unsupported API behavior. The
+[prototype record](../../../docs/development/world-bot-prototype.md) lists exact capabilities and
+limits. No Android client activation/render/tap has occurred. Atomic client snapshots, distinct
+component data mounts, callback/edit semantics and abrupt process recovery remain open; keep the
+full foundation acceptance active.
+
+Final core gate: 22 passed, four unchanged Android tests excluded, 89.79% statement coverage.
+Strict typing (including the independent bot and orchestration), lint/format, Nix/workflow, local
+links and public-tree privacy pass. The retained synthetic transcript contains full API responses
+and world history without capabilities. The invalid-poll regression proved that option validation
+must precede acknowledgment; it now preserves pending delivery. No remote workflow was dispatched.

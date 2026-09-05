@@ -6,7 +6,8 @@ GramLab has pinned development environments, an acquired Android source checkout
 experimental Linux process boundary with thirteen real-process tests, including a dedicated AOSP
 guest's startup and local/external network behavior. A disabled Android preparation APK rebuilds
 from exported source and cached dependencies inside independent network containment.
-There is no simulator, runnable offline client, public Python API, runtime CLI or binary fixture set. Git has a configured
+An experimental SQLite world now drives a real local bot through a small HTTP Bot API subset.
+There is no runnable offline client, public simulator SDK, runtime CLI or complete binary fixture set. Git has a configured
 `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
 
@@ -53,8 +54,10 @@ accounts, reaches a local service through `10.0.2.2`, and rejects external IPv4/
 `Network is unreachable`. Its process namespace has only loopback. The captured AOSP launcher was
 inspected; this is not Telegram rendering evidence.
 
-All thirteen tests pass with 90.91% statement coverage; strict typing, lint/format, local links and
-Nix checks pass. The manual CI is configured for the core tests but has not been remotely
+The previous runtime/guest gate passed thirteen tests with 90.91% runtime-only statement coverage.
+The current expanded core/world/Bot API gate passes 22 tests with 89.79% coverage, with four
+unchanged Android-dependent tests excluded. Strict typing, lint/format, local links and Nix checks
+pass. The manual CI is configured for the core tests but has not been remotely
 dispatched. [Android build preparation](android-build.md) now exports pinned tracked source,
 sanitizes credential fields and applies a reviewed build patch for a disabled-by-default GramLab
 APK. Gradle's checksum and AGP's published module checksum match; the Java renderer and complete
@@ -67,12 +70,22 @@ AGP checksum was rejected by strict offline verification and the metadata was re
 No build or emulator remains running. Ignored `.cache/local-notes/android-build.md` records local
 artifact locations and completed handles; never assume an old observation timeout stopped a build.
 
-Next implement the approved client network/startup patch and synthetic
-world/bridge activation. The current preparation manifest explicitly disables the application;
+The [world/bot prototype](world-bot-prototype.md) now persists users/private chats, explicit time,
+messages, ordered events and per-bot update delivery. A separate bot process receives mixed
+Persian/English text through actual HTTP, replies into the same world and acknowledges delivery.
+Tests cover database reopening, rejected changes, concurrent writers, token/world/chat scope,
+malformed requests and explicit unsupported operations. Capabilities are generated independently
+of the stored seed and only their hashes persist. The seed is metadata, not a random-scenario engine.
+
+Next provide a versioned atomic client snapshot/cursor and implement the approved client
+network/startup patch and authenticated Java semantic bridge. Current snapshots and history/events
+are separate reads; do not assume they already provide a consistent client resnapshot. The trusted
+bot fixture also shares its run data mount; separate component filesystem access and quotas remain
+open. The current preparation manifest explicitly disables the application;
 do not enable/install it as a shortcut to synthetic startup. Preserve actual rendering and audit
 native/background networking before installing the client, even inside containment.
 
-The first implementation milestone is a virtual identity, real local bot response, actual Android
+The full first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero
 external egress. Do not settle for pushing static screenshots into a fake chat.
 

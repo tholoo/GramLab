@@ -2,7 +2,8 @@
 
 Status: a [Linux process boundary](runtime-boundary.md) now enforces and tests namespace/mount
 isolation for bounded processes. Dedicated AOSP guest startup, local traffic and external IPv4/IPv6
-denial are tested. Application-specific enforcement remains unimplemented; the requirements below
+denial are tested. The [world/bot prototype](world-bot-prototype.md) adds scoped local capabilities
+and contained HTTP exchange. Application-specific enforcement remains incomplete; the requirements below
 are not yet satisfied end to end.
 
 ## Boundary

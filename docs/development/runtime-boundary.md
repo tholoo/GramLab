@@ -3,7 +3,8 @@
 Ticket 02 now has an independently written Python containment runner in
 [`gramlab.runtime`](../../src/gramlab/runtime.py). It is an internal prototype interface, not
 the public world/scenario API. The pinned Android tools and a dedicated AOSP guest now run through
-it; no bot, simulator or Telegram client has. The [offline requirements](offline-safety.md) still
+it, as does the [real local bot prototype](world-bot-prototype.md). No Telegram client has.
+The [offline requirements](offline-safety.md) still
 apply to those integrations.
 
 ## Provisioning and execution

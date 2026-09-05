@@ -1,7 +1,8 @@
 # Approved Android foundation prototype
 
-Status: approved for the scoped feasibility prototype; process/guest preparation is implemented,
-and the client/world/bridge remain pending. Prepared 2026-09-05 for
+Status: approved for the scoped feasibility prototype; process/guest preparation, contained APK
+compilation and a [local world/bot exchange](world-bot-prototype.md) are implemented. The client
+activation/bridge remain pending. Prepared 2026-09-05 for
 [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
 This proposes the next feasibility work within the full product objective. It does not replace
 the foundation acceptance criteria or the broader compatibility backlog.
