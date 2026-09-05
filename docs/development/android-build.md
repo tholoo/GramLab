@@ -1,8 +1,8 @@
 # Android build preparation
 
-Status: a complete x86_64 preparation APK has compiled and passed signature/manifest inspection.
-A clean rebuild with strict dependency verification inside independent network containment is in
-progress. The preparation application is disabled; synthetic client startup is not implemented.
+Status: a complete x86_64 preparation APK has rebuilt from exported sources and cached dependencies
+with strict verification inside independent network containment. Signature/manifest inspection
+passed. The preparation application is disabled; synthetic client startup is not implemented.
 
 Read [licensing](licensing.md), [upstream maintenance](upstream.md), and
 [offline safety](offline-safety.md) first. Dependency provisioning can access public registries;
@@ -141,9 +141,20 @@ separately and repeat the contained build after reviewing any dependency changes
   the revised shared-library configuration selects x86_64, with verified compiler job pools.
 - The complete preparation APK contains only x86_64 native libraries, including
   `libtmessages.49.so`. Its signature verifies with the dedicated `GramLab Development` signer.
-  The first APK's SHA-256 is
-  `b69b819ddb51a1bb158405290339efdc7775ea285170c8cb78beb3b205cfdc6b` (96,160,665 bytes).
-  This identifies the observed build; fresh signing keys and build metadata can change APK bytes.
+  The contained build's APK SHA-256 is
+  `9c4f26abef38d55d7a345a511e7259d8c88d63acba0feeda15740561fb1a8936` (96,140,183 bytes).
+  This identifies the observed artifact, not a bit-for-bit reproducibility guarantee; signing keys,
+  paths and build metadata can change APK bytes.
+- The first contained attempt compiled Java/resources but exposed SDK Ninja's `/bin/sh`
+  requirement. The Android profile now resolves that path to pinned Bash; the boundary regression
+  failed before the change and passed afterward. Native compilation and APK packaging completed
+  inside the same independent boundary using only cached dependencies.
+- `apksigner` verified the resulting APK's v1/v2 signatures; `aapt2` inspected its binary manifest
+  and confirmed the GramLab package with application and backup disabled. No client was installed.
+- Deliberately replacing the accepted AGP JAR digest with an incorrect checksum caused strict
+  offline Gradle configuration to fail on that exact artifact. The committed metadata was restored
+  byte-for-byte afterward, and strict offline configuration passed again. All thirteen
+  process/guest tests pass with 90.91% statement coverage.
 
 Build logs, local signing material, absolute paths, timings and live process handles belong in
 ignored `.cache/` or `artifacts/`. Preserve a live build across handoffs and poll its actual handle;

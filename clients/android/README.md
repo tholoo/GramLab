@@ -3,10 +3,11 @@
 Target: a pinned, minimally patched build of [Telegram Android](https://github.com/DrKLO/Telegram),
 with real upstream UI/controllers and a dedicated local simulation bridge.
 
-**Not implemented:** no offline APK or real bot/Android runtime loop exists yet. The approved
+**Not implemented:** no runnable offline client or real bot/Android runtime loop exists yet. The approved
 source and its pinned submodules are acquired under ignored `upstream/`. The
 [patch queue](patches/README.md) and [preparation script](prepare.py) now establish a separate,
-disabled-by-default build target; see [build status](../../docs/development/android-build.md).
+disabled-by-default APK that rebuilds with external networking disabled;
+see [build evidence](../../docs/development/android-build.md).
 See [source provenance](upstream-lock.json), the
 [toolchain profile](toolchain.json), and [development setup](../../docs/development/environment.md).
 This directory's original notes are MIT; acquired/adapted Android code and

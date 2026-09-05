@@ -63,6 +63,8 @@ preparation APK compiled and passed signature/ABI inspection; its hash is in the
 [build evidence](../../../docs/development/android-build.md). Strict dependency metadata contains
 918 checksummed artifacts and is installed by fresh source preparation. A contained rebuild
 exposed Ninja's missing `/bin/sh`; a pinned Android-only shell link passed the failing regression
-and all thirteen process/guest tests (90.91% coverage). Native compilation now proceeds inside
-containment. No client runtime success is claimed; continue the live offline rebuild and full
-client/world/bot gates. Machine-specific build records remain ignored.
+and all thirteen process/guest tests (90.91% coverage). The contained rebuild then completed with
+cached dependencies and strict verification; binary manifest, signature and native ABI checks
+passed. An intentionally wrong AGP checksum was rejected and original metadata restored. No
+client runtime success is claimed; continue the approved startup/network patch, world/bridge and
+real bot loop. Machine-specific build records remain ignored.

@@ -4,7 +4,8 @@
 
 GramLab has pinned development environments, an acquired Android source checkout and an
 experimental Linux process boundary with thirteen real-process tests, including a dedicated AOSP
-guest's startup and local/external network behavior. A disabled Android preparation APK compiles.
+guest's startup and local/external network behavior. A disabled Android preparation APK rebuilds
+from exported source and cached dependencies inside independent network containment.
 There is no simulator, runnable offline client, public Python API, runtime CLI or binary fixture set. Git has a configured
 `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
@@ -35,11 +36,12 @@ provisioning and project Nix/direnv setup. Do not ask again for those same choic
 The [source findings](android-source-feasibility.md)
 and [portable host checks](android-host-feasibility.md) are preparation guidance, not a completed
 Android integration. Scaffold baseline is committed as `bec0ef4`; Nix preparation is committed
-as `3fc3b07`; the process/guest milestones are `7950caa` and `faa6f92`. Current work is on
+as `3fc3b07`; the process/guest milestones are `7950caa` and `faa6f92`; build preparation is
+`6b7dc67`. Current work is on
 `feat/android-offline-client`. No remote publication has occurred.
 The pinned SDK has been realized and its tool versions checked in a disposable network namespace;
 the source checkout and submodule pins are verified. Gradle/plugin provisioning and preparation
-APK compilation passed; contained offline rebuilding and isolated synthetic startup remain gates. Validate the minimal
+APK compilation and contained offline rebuilding passed; isolated synthetic startup remains a gate. Validate the minimal
 offline adapter boundary before implementing a wide feature catalog. Read source findings as leads, not as tested integration guarantees.
 
 The [process boundary](runtime-boundary.md) now mounts only a provisioned immutable closure and
@@ -59,12 +61,13 @@ APK. Gradle's checksum and AGP's published module checksum match; the Java rende
 x86_64 native library compiled. APK signature, ABI and disabled manifest checks passed. The
 committed dependency record contains 918 checksummed artifacts; fresh preparation installs it.
 The clean contained rebuild exposed Ninja's `/bin/sh` requirement; the pinned Android-only shell
-link passed its regression and the full guest/process suite. The offline rebuild is in progress.
-Preserve that live build: its handle and local log location are in ignored
-`.cache/local-notes/android-build.md`; revalidate the handle rather than assuming it stopped.
+link passed its regression and the full guest/process suite. The contained rebuild completed;
+its APK signature, binary manifest and x86_64 libraries were inspected. A deliberately incorrect
+AGP checksum was rejected by strict offline verification and the metadata was restored afterward.
+No build or emulator remains running. Ignored `.cache/local-notes/android-build.md` records local
+artifact locations and completed handles; never assume an old observation timeout stopped a build.
 
-Next finish the contained offline rebuild and verify its APK and strict dependency checks.
-Then implement the approved client network/startup patch and synthetic
+Next implement the approved client network/startup patch and synthetic
 world/bridge activation. The current preparation manifest explicitly disables the application;
 do not enable/install it as a shortcut to synthetic startup. Preserve actual rendering and audit
 native/background networking before installing the client, even inside containment.
