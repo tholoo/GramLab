@@ -2,9 +2,9 @@
 
 ## Starting state
 
-GramLab is scaffolded, not implemented. There is no simulator, Android client checkout/build,
-public Python API, runtime CLI, binary fixture set or behavioral test suite. Git has a configured
-`origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
+GramLab has a scaffold, pinned development flake and an acquired Android source checkout. There
+is no simulator, offline Android build, public Python API, runtime CLI, binary fixture set or
+behavioral test suite. Git has a configured `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
 
 Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](../../TESTING.md),
@@ -27,14 +27,17 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## First action
 
-Continue claimed [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
-Review the [concrete foundation proposal](android-foundation-proposal.md) with the user before
-implementing its consequential choices. The [source findings](android-source-feasibility.md)
-and [host capability probes](android-host-feasibility.md) are research evidence, not a completed
+Continue [ticket 02](../../.scratch/android-offline-foundation/issues/02-offline-world-and-safety.md).
+The user approved the [foundation proposal](android-foundation-proposal.md), source/dependency
+provisioning and project Nix/direnv setup. Do not ask again for those same choices.
+The [source findings](android-source-feasibility.md)
+and [portable host checks](android-host-feasibility.md) are preparation guidance, not a completed
 Android integration. Scaffold baseline is committed as `bec0ef4`; current work is on
 `research/android-offline-seam`. No remote publication has occurred.
-Validate a pinned client/runtime and the minimal offline adapter boundary before implementing a
-wide feature catalog. Read source findings as leads, not as tested integration guarantees.
+The pinned SDK has been realized and its tool versions checked in a disposable network namespace;
+the source checkout and submodule pins are verified. Gradle/plugin provisioning, offline APK
+compilation and actual isolated synthetic startup remain the next gates. Validate the minimal
+offline adapter boundary before implementing a wide feature catalog. Read source findings as leads, not as tested integration guarantees.
 
 The first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero
@@ -46,11 +49,10 @@ adaptation fails, report the exact cause and alternatives to the user; do not si
 
 ## Runtime preparation
 
-Waydroid has not been requested or enabled. [Host probes](android-host-feasibility.md) confirmed
-working KVM access outside the command sandbox and a disposable network namespace; Android build
-tools and emulator are not yet provisioned. Request any necessary system changes only after
-reviewing this evidence. A separate setup step may fetch public source and
-dependencies; the resulting client/scenarios must run isolated. Never use the Telegram account
+Use the [development environment](environment.md) and [runtime provenance](android-runtime-provenance.md).
+No Waydroid or host service change is assumed. Keep host-specific observations and active process
+handles in ignored `.cache/local-notes/`. Provision public source and dependencies separately;
+the resulting client/scenarios must run isolated. Never use the Telegram account
 provisioning folders or real credentials from another project.
 
 ## Where to record progress

@@ -1,28 +1,18 @@
-# Android host feasibility
+# Android host readiness
 
-Observed 2026-09-05 for foundation ticket 01. These are capability probes, not an Android
-runtime, simulator, or zero-egress certification. No bot, client, emulator or scenario was run.
+These portable checks help prepare an isolated Android environment. Store actual host inventory,
+proxy addresses, local paths and probe logs in ignored `.cache/local-notes/` or `artifacts/`.
+They are not part of the public repository or a renderer/isolation certificate.
 
-## Host observations
+## Requirements
 
-| Probe | Observed result | Implication |
-| --- | --- | --- |
-| `uname -srmo` | Linux 7.2.0, x86_64 | Candidate x86_64 emulator host |
-| `/proc/cpuinfo`, loaded modules | `svm`, `kvm_amd`, `kvm` | AMD virtualization present |
-| Open `/dev/kvm`, `KVM_GET_API_VERSION` ioctl | Read/write access; API version 12 | Kernel API usable by current user; emulator boot still untested |
-| Memory and project filesystem | About 29.2 GiB RAM and 168.7 GiB free | Start with one renderer; determine concurrency from measurement |
-| Host command lookup | `adb`, `nix`, `unshare`, `ip`, `nft` available | Some preparation tools available |
-| Host command lookup | `java`, `gradle`, `emulator`, `sdkmanager`, `avdmanager` absent from PATH | Build/runtime provisioning needed |
-| SDK configuration | `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `JAVA_HOME` unset; common SDK paths absent | No usable SDK identified; not an exhaustive filesystem inventory |
-| `systemctl is-active waydroid-container.service libvirtd.service` | Both inactive | No evidence either service is required for the proposed emulator |
-| `/dev/binder` | Absent | No Waydroid baseline established |
-| Disposable user/network namespace | Created successfully | Candidate independent network boundary |
+The initial Android profile targets x86_64 Linux with usable KVM. Check available RAM and disk
+before provisioning and begin with one renderer. The development flake provides project toolchains;
+no Waydroid or virtualization service is assumed.
 
-The command sandbox hid `/dev/kvm` and denied system bus/netlink access. Read-only host checks
-and the disposable namespace probe were repeated outside it with automatic approval. The host
-has working KVM access; do not request enabling KVM based on sandbox device visibility.
-No NixOS configuration, host routes, firewall rules, services or group membership changed.
-No ADB server was started and no personal devices or account directories were inspected.
+An execution sandbox may hide host devices or restrict netlink operations. Distinguish those
+restrictions from missing host capabilities before proposing any system configuration change.
+Never attach personal devices or reuse account data while checking readiness.
 
 ## Reproducible capability probes
 
@@ -34,7 +24,7 @@ import fcntl
 import os
 fd = os.open('/dev/kvm', os.O_RDWR | os.O_CLOEXEC)
 try:
-    print(fcntl.ioctl(fd, 0xAE00, 0))  # KVM_GET_API_VERSION; observed 12
+    print(fcntl.ioctl(fd, 0xAE00, 0))  # KVM_GET_API_VERSION
 finally:
     os.close(fd)
 PY
@@ -71,18 +61,18 @@ PY
 '
 ```
 
-Observed only `lo` with `127.0.0.1/8` and `::1/128`, no displayed routes, a successful local
-payload exchange, and `ENETUNREACH` for both reserved documentation destinations. No real
-Telegram destination was used. The namespace disappeared when its final process exited.
-This checks the host mechanism with Python sockets; native transport, DNS, redirects,
-WebSockets, WebView, media, background services and guest routing remain unverified.
+Expected result: only loopback addresses/routes, a successful local payload exchange, and
+`ENETUNREACH` for both documentation destinations. The namespace disappears when its last process
+exits. This checks the host mechanism with Python sockets; it does not verify Android native
+transport, DNS, redirects, WebSockets, WebView, media or background services.
 
 ## Runtime recommendation for review
 
 Use a dedicated Android Emulator with an x86_64 AOSP image, KVM, and an explicit software GPU
 backend initially. Pin image revision/checksum, emulator package revision, display density,
 viewport, fonts, locales, theme and animation capture policy before producing fidelity evidence.
-The current evidence does not select an exact image/emulator revision or certify any build.
+Exact package versions belong in the committed toolchain profile; successful package acquisition
+and actual emulator boot remain separate verification gates.
 Android documents KVM for Linux acceleration and explicit graphics backend selection; run the
 installed emulator's `-accel-check` before the first boot.
 [Android acceleration documentation](https://developer.android.com/studio/run/emulator-acceleration)
@@ -96,8 +86,8 @@ concrete review if project-scoped provisioning proves insufficient.
 Proposed execution boundary: put the simulator, bot, local fixture/Mini App servers, dedicated
 ADB server and emulator in one fresh network namespace per run, with loopback only and no
 veth, physical interface or default route. Network namespaces isolate interfaces, routes and
-socket port spaces. This makes a namespace a plausible outer boundary; the probe above is
-limited evidence of this host's support.
+socket port spaces. This makes a namespace a plausible outer boundary; use the probe above
+to test a prospective host before provisioning.
 [Linux network namespace documentation](https://man7.org/linux/man-pages/man7/network_namespaces.7.html)
 
 Also isolate mounts and process resources, clear inherited proxy settings and unnecessary file
@@ -114,14 +104,3 @@ allowing packets onto a host uplink. Enforce an application endpoint allowlist a
 prevents external egress but does not authorize arbitrary local access. Dedicated ADB/control
 listeners must not expose other worlds or attach personal devices. Startup must fail closed if
 isolation cannot be established. These are proposal requirements, not implemented controls.
-
-## Preparation verification
-
-- Existing scaffold committed as `bec0ef4`; task branch `research/android-offline-seam`.
-- `uv lock --check --offline` succeeded with a writable temporary cache.
-- `uv sync --locked --offline` succeeded using the pre-existing host cache outside the sandbox;
-  it installed 18 locked development packages without registry access.
-- Ruff lint and format checks passed; configuration and all 32 initial Markdown files' local
-  links validated. No Python implementation exists; pytest/mypy behavioral gates do not apply.
-- An `origin` remote exists (`git@github.com:OWNER/GramLab.git`), contrary to the initial handoff.
-  It was not fetched, pushed or otherwise queried. Publication remains unauthorized.

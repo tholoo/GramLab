@@ -1,0 +1,196 @@
+{
+  "clientRevision": "62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c",
+  "provenanceStatus": "source-acquired; license and native archive audit incomplete",
+  "submodules": [
+    {
+      "path": "TMessagesProj/jni/third_party/dav1d",
+      "revision": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
+      "rootNotices": [
+        {
+          "path": "COPYING",
+          "sha256": "dd92c3c2247c5651606fc23a5e2d6a1ebc5ace9a3e49cbde0e12f05ad1cb1ee5"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/ffmpeg",
+      "revision": "45f1910444f34b02621f9f0426ea1a538a613c41",
+      "rootNotices": [
+        {
+          "path": "COPYING.GPLv2",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "COPYING.GPLv3",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "COPYING.LGPLv2.1",
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "COPYING.LGPLv3",
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "LICENSE.md",
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/libvpx",
+      "revision": "1024874c5919305883187e2953de8fcb4c3d7fa6",
+      "rootNotices": [
+        {
+          "path": "LICENSE",
+          "sha256": "8267348d5af1262c11d1a08de2f5afc77457755f1ac658627dd9acf71011d615"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/libyuv",
+      "revision": "28ce69c2744a6aafdb58564e7b884aec3f66be5f",
+      "rootNotices": [
+        {
+          "path": "LICENSE",
+          "sha256": "2b2cc1180c7e6988328ad2033b04b80117419db9c4c584918bbb3cfec7e9364f"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/openh264",
+      "revision": "652bdb7719f30b52b08e506645a7322ff1b2cc6f",
+      "rootNotices": [
+        {
+          "path": "LICENSE",
+          "sha256": "dd5c1c9668512530fa5a96e4c29ac4033d70a7eeb0eed7a42fddb6dd794ebdbb"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/xiph/ogg",
+      "revision": "be05b13e98b048f0b5a0f5fa8ce514d56db5f822",
+      "rootNotices": [
+        {
+          "path": "COPYING",
+          "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/xiph/opus",
+      "revision": "22244de5a79bd1d6d623c32e72bf1954b56235be",
+      "rootNotices": [
+        {
+          "path": "COPYING",
+          "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551"
+        },
+        {
+          "path": "LICENSE_PLEASE_READ.txt",
+          "sha256": "7efb4989e0cd1b256229bdf2f09300c5d14e35db0e7476bfb87fac243498273d"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/third_party/xiph/opusfile",
+      "revision": "a55c164e9891a9326188b7d4d216ec9a88373739",
+      "rootNotices": [
+        {
+          "path": "COPYING",
+          "sha256": "0267ae795ab744c4e0f9c45e249440fdf2e75dac8c804f36066b28649bf74aaf"
+        }
+      ]
+    },
+    {
+      "path": "TMessagesProj/jni/tlottie",
+      "revision": "3ce946c9ede5ece8beead2edd9beab68718d990e",
+      "rootNotices": []
+    },
+    {
+      "path": "TMessagesProj/lib/jlatexmath",
+      "revision": "919e50b2f6f64b04b712cdb13d558ff9ecf9c8ed",
+      "rootNotices": [
+        {
+          "path": "COPYING",
+          "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "55a1524c2889cd2e2cdc9c345090973798782923e0dc022cb7e55e0dc2ba6e2a"
+        }
+      ]
+    }
+  ],
+  "nativeInputs": {
+    "abi": "x86_64",
+    "status": "upstream prebuilt inputs; reproducible source rebuild not established",
+    "archives": [
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libavutil.a",
+        "size": 1000126,
+        "sha256": "f9593554b2aa1837560052cfaebd1d429ae4371fe570ee051ae1a97dab56278f"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libavformat.a",
+        "size": 1022264,
+        "sha256": "efb6acd826a1e8b903f632f06d19f5a01bec5c00faa3018951af42175305126f"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libavcodec.a",
+        "size": 3260980,
+        "sha256": "a7e0a8a997c87d2b43461403a5a52e19077738e351fc6e9608bcf4de8c602f1d"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libswresample.a",
+        "size": 129642,
+        "sha256": "1785818a19eb8b5186e4df2338bdca62feef7f2b3fe9b6b66c70e77f5e74a98b"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libswscale.a",
+        "size": 1065084,
+        "sha256": "875a0301ee12e3720a6f718b95b456ff7d7ba22350b21573b77720d9ef85b7d8"
+      },
+      {
+        "path": "TMessagesProj/jni/boringssl/lib/x86_64/libcrypto.a",
+        "size": 13284166,
+        "sha256": "675304825fbc9ee5a6441b3bf894f0cfc950782517a5b4da37305b3be8a60848"
+      },
+      {
+        "path": "TMessagesProj/jni/boringssl/lib/x86_64/libssl.a",
+        "size": 14831624,
+        "sha256": "3d0dcf84b183b9910ecbe97f684f2fdd5d6bae4d91be5afcbe597e078d72c2fa"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libvpx.a",
+        "size": 3101410,
+        "sha256": "6a5385c80c7cb7c09ab60062da9ba12a0d17d37acd8b5771c19e322a48263d50"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libdav1d.a",
+        "size": 3255702,
+        "sha256": "ee090eef49c15c050f3d1d435a7e5ba8950258e9a2dc52b9d2f37b67f9be5084"
+      },
+      {
+        "path": "TMessagesProj/jni/ffmpeg/x86_64/libopus.a",
+        "size": 644628,
+        "sha256": "0ed82f80f618ea360346caa102acb64759e97ec6194556c6e2a1f440be3368dc"
+      },
+      {
+        "path": "TMessagesProj/jni/tde2e/x86_64/libtde2e.a",
+        "size": 19500120,
+        "sha256": "8f0356bc69b20e3e6fbacce47d6cb725affc47d853e99fc6ae72cec98ba7abd9"
+      },
+      {
+        "path": "TMessagesProj/jni/tde2e/x86_64/libtdutils.a",
+        "size": 19573896,
+        "sha256": "6c0194847060cef493528d4b453c4b3f54ebf00973032254db0aeab1efbe47e0"
+      },
+      {
+        "path": "TMessagesProj/jni/prebuild/x86_64/libtlottie.a",
+        "size": 5883300,
+        "sha256": "c4483f1159340d4aa69e95a2da9922bb5195b5bce005f23c02534abff7512d73"
+      }
+    ]
+  }
+}

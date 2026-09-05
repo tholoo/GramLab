@@ -1,4 +1,8 @@
 .venv/
+.direnv/
+.envrc.local
+result
+result-*
 __pycache__/
 *.py[cod]
 .pytest_cache/

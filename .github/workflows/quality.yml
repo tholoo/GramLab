@@ -7,6 +7,27 @@ permissions:
   contents: read
 
 jobs:
+  nix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - name: Evaluate declared platforms and check Nix/direnv configuration
+        run: |
+          nix flake check --all-systems --no-build
+          nix flake check
+      - name: Verify the Python development shell
+        run: |
+          nix develop --command bash -eu <<'BASH'
+          python3 --version
+          uv --version
+          test "$UV_PYTHON_DOWNLOADS" = never
+          test "$UV_PROJECT_ENVIRONMENT" = "$PWD/.venv"
+          BASH
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -1,6 +1,6 @@
-# Android foundation proposal for review
+# Approved Android foundation prototype
 
-Status: proposed, not approved or implemented. Prepared 2026-09-05 for
+Status: approved for the scoped feasibility prototype; not implemented. Prepared 2026-09-05 for
 [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
 This proposes the next feasibility work within the full product objective. It does not replace
 the foundation acceptance criteria or the broader compatibility backlog.
@@ -13,10 +13,10 @@ toolchain, rendering/callback paths and initialization hazards. The
 network namespace with local TCP and rejected external IPv4/IPv6 documentation destinations.
 Neither establishes a working Android build or renderer.
 
-| Choice for review | Recommendation | Tradeoff and proof required |
+| Approved choice | Selection | Tradeoff and proof required |
 | --- | --- | --- |
 | Client baseline | Telegram Android commit `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`, version 12.10.1, TL layer 229; separate offline application build and reviewable patch queue | Current candidate has native/build complexity; build and actual UI loop must prove applicability |
-| Runtime | One dedicated x86_64 Android Emulator, AOSP API 36 image, KVM and explicit software GPU; project-scoped provisioning | Exact emulator/image package revisions and hashes remain unresolved; measure boot/rendering before expanding the pool |
+| Runtime | One dedicated x86_64 Android Emulator, AOSP API 36 image, KVM and explicit software GPU; project-scoped provisioning | Emulator 37.1.11 and API 36 default x86_64 image revision 2 are pinned in the toolchain profile; measure boot/rendering before expanding the pool |
 | Bridge and provenance | Independently specified semantic JSON messages over authenticated local HTTP; Java adapter owns conversion to/from upstream TL objects | More explicit mapping work, but no upstream-generated TL types in the Python core; IPC does not itself resolve distribution licensing |
 | World and recovery | One SQLite database per world with transactional state, ordered events and an update-delivery outbox; explicit world clock and seed | Serializes writes initially; transaction/replay invariants must survive interruption; not a public persistence API commitment |
 | Execution isolation | Per-run network namespace containing emulator, bot and simulator; loopback only, plus mount/process isolation and endpoint allowlists | Host mechanism works in a small probe; guest routing, inherited sockets and every network-capable subsystem still need independent tests |
@@ -107,11 +107,9 @@ separate gate; simulator tests cannot substitute for it.
 ## Remaining uncertainties
 
 - No Android build, runtime boot, tap, bot loop, replay or guest egress test has run.
-- Exact emulator/image archives remain unresolved. Public metadata requests to Google's
-  `repository2-3.xml`, `repository2-1.xml`, `sys-img/android/sys-img2-3.xml` and
-  `sys-img/android/sys-img2-1.xml` returned HTTP 404 in this environment. This is a retrieval
-  limitation, not evidence the required runtime is unavailable. Resolve official metadata before
-  provisioning and commit the verified package hashes; do not guess them.
+- Runtime package metadata is resolved in the [provenance record](android-runtime-provenance.md).
+  Emulator/image acquisition and checksum checks passed; emulator boot and the rendering profile
+  remain unverified.
 - The source report identifies required paths but does not prove the complete startup RPC set,
   callback thread semantics, native bypass, rich-message mapping, or local font/media behavior.
 - The Android image's language assets and upstream locale filtering must support the Persian
@@ -119,8 +117,9 @@ separate gate; simulator tests cannot substitute for it.
 - A separate package and IPC boundary do not establish that any future combined distribution is
   MIT-only. No publishing or distribution is proposed here.
 
-Review requested: authorize the above client/runtime, bridge, persistence and isolation choices
-for this scoped feasibility prototype, including project-scoped public-source/dependency
-provisioning. The review requirement comes from [architecture boundaries](../architecture/overview.md)
-and [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md), which
-require consultation before fixing consequential choices and scoping a prototype with the user.
+Approval recorded 2026-09-05: the user approved this Android proposal and authorized using
+the session-provided local proxy for network problems during provisioning. The user also requested a
+high-quality project `flake.nix` and `.envrc`. This authorizes the scoped client/runtime, semantic
+bridge, SQLite persistence, isolation prototype and project-local source/dependency provisioning.
+Normal runs still require zero external egress. Consequential changes beyond these choices,
+host service changes and publication retain their existing review requirements.

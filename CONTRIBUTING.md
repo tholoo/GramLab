@@ -14,6 +14,12 @@ Dependency provisioning can access package registries. Normal scenario execution
 [offline safety](docs/development/offline-safety.md). Do not mistake `uv --offline` alone for
 network isolation of a bot, client, or test subprocess.
 
+The [development flake and direnv setup](docs/development/environment.md) provide pinned Python
+and Android preparation shells. Run `nix develop` for core work or `nix develop .#android` for
+the approved Android toolchain on x86_64 Linux. `nix fmt` and `nix flake check` validate Nix and
+direnv changes. Store host inventory, proxy addresses and other machine-specific notes in ignored
+`.cache/local-notes/` or run artifacts; keep committed setup and documentation portable.
+
 ```sh
 uv sync --locked
 uv run --locked ruff check .

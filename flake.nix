@@ -1,0 +1,166 @@
+{
+  description = "GramLab: reproducible Python development and isolated Android preparation";
+
+  # Intentional upgrades change this revision and regenerate flake.lock together with the
+  # Android provenance checks. No registry or developer-local NIX_PATH is used.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/9387b3fcc0c23c86661636da63faabad4235a0a6";
+
+  outputs =
+    { nixpkgs, ... }:
+    let
+      inherit (nixpkgs) lib;
+      profile = lib.importJSON ./clients/android/toolchain.json;
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
+      forAllSystems = lib.genAttrs systems;
+      packagesFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          config = {
+            # Approval is scoped to the SDK packages, not every unfree package in nixpkgs.
+            allowUnfreePredicate =
+              package: (package.meta.homepage or null) == "https://developer.android.com/tools";
+            android_sdk.accept_license = true;
+          };
+        };
+      formatSource = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./flake.nix
+          ./nix
+        ];
+      };
+      commonShell = pkgs: {
+        packages = with pkgs; [
+          python313
+          uv
+          git
+          curl
+          jq
+          ripgrep
+          nixfmt
+          shellcheck
+        ];
+        UV_PYTHON = "${pkgs.python313}/bin/python3";
+        UV_PYTHON_DOWNLOADS = "never";
+        shellHook = ''
+          export GRAMLAB_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+          export UV_PROJECT_ENVIRONMENT="$GRAMLAB_ROOT/.venv"
+          export UV_CACHE_DIR="$GRAMLAB_ROOT/.cache/uv"
+          mkdir -p "$UV_CACHE_DIR"
+        '';
+      };
+    in
+    {
+      formatter = forAllSystems (
+        system:
+        (packagesFor system).nixfmt-tree.override {
+          settings.excludes = [
+            "clients/android/upstream/**"
+            ".cache/**"
+            "artifacts/**"
+          ];
+        }
+      );
+
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = packagesFor system;
+          common = commonShell pkgs;
+          jdk = pkgs."jdk${toString profile.jvm.major}";
+          android = import ./nix/android.nix { inherit pkgs nixpkgs profile; };
+        in
+        {
+          default = pkgs.mkShellNoCC (common // { name = "gramlab-core"; });
+        }
+        // lib.optionalAttrs (system == profile.runtime.hostSystem) {
+          android = pkgs.mkShell (
+            common
+            // {
+              name = "gramlab-android";
+              packages =
+                common.packages
+                ++ (with pkgs; [
+                  android.sdk
+                  jdk
+                  gnumake
+                  pkg-config
+                  ninja
+                  unzip
+                  zip
+                  util-linux
+                  iproute2
+                ]);
+              JAVA_HOME = jdk.home;
+              ANDROID_HOME = android.home;
+              ANDROID_SDK_ROOT = android.home;
+              ANDROID_NDK_HOME = "${android.home}/ndk/${profile.sdk.ndk}";
+              ANDROID_NDK_ROOT = "${android.home}/ndk/${profile.sdk.ndk}";
+              shellHook = common.shellHook + ''
+                export GRADLE_USER_HOME="$GRAMLAB_ROOT/.cache/gradle"
+                export ANDROID_USER_HOME="$GRAMLAB_ROOT/.cache/android"
+                export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+                export PATH="${android.home}/cmake/${profile.sdk.cmake}/bin:$PATH"
+                export GRADLE_OPTS="''${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.project.android.aapt2FromMavenOverride=${android.home}/build-tools/${profile.sdk.buildTools}/aapt2"
+                mkdir -p "$GRADLE_USER_HOME" "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+              '';
+            }
+          );
+        }
+      );
+
+      packages.${profile.runtime.hostSystem}.android-sdk =
+        (import ./nix/android.nix {
+          pkgs = packagesFor profile.runtime.hostSystem;
+          inherit nixpkgs profile;
+        }).sdk;
+
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = packagesFor system;
+        in
+        {
+          nix-format =
+            pkgs.runCommand "gramlab-nix-format"
+              {
+                nativeBuildInputs = [ pkgs.nixfmt ];
+              }
+              ''
+                nixfmt --check ${formatSource}/flake.nix ${formatSource}/nix/*.nix
+                touch "$out"
+              '';
+          direnv-syntax =
+            pkgs.runCommand "gramlab-direnv-syntax"
+              {
+                nativeBuildInputs = [
+                  pkgs.bash
+                  pkgs.shellcheck
+                ];
+              }
+              ''
+                bash -n ${./.envrc}
+                shellcheck --shell=bash ${./.envrc}
+                touch "$out"
+              '';
+          workflow =
+            pkgs.runCommand "gramlab-workflow"
+              {
+                nativeBuildInputs = [
+                  pkgs.actionlint
+                  pkgs.shellcheck
+                ];
+              }
+              ''
+                actionlint ${./.github/workflows/quality.yml}
+                touch "$out"
+              '';
+        }
+      );
+    };
+}

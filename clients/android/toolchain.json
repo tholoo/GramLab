@@ -1,0 +1,40 @@
+{
+  "status": "approved-prototype",
+  "client": {
+    "repository": "https://github.com/DrKLO/Telegram.git",
+    "revision": "62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c",
+    "version": "12.10.1",
+    "schemaLayer": 229
+  },
+  "sdk": {
+    "commandLineTools": "22.0",
+    "platformTools": "37.0.1",
+    "platform": "36",
+    "buildTools": "36.0.0",
+    "ndk": "27.2.12479018",
+    "cmake": "3.22.1"
+  },
+  "runtime": {
+    "hostSystem": "x86_64-linux",
+    "emulator": "37.1.11",
+    "imageType": "default",
+    "abi": "x86_64",
+    "imageRevision": 2,
+    "imageExtensionLevel": 17
+  },
+  "jvm": {
+    "major": 17,
+    "gradle": "8.11.1",
+    "androidGradlePlugin": "8.10.1",
+    "gradlePublishedSha256": "f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6"
+  },
+  "provenance": {
+    "sdkMetadata": "https://redirector.gvt1.com/edgedl/android/repository/repository2-3.xml",
+    "imageMetadata": "https://redirector.gvt1.com/edgedl/android/repository/sys-img/android/sys-img2-3.xml",
+    "emulatorArchive": "https://developer.android.com/studio/emulator_archive",
+    "emulatorPublishedSha256": "95771e0ae431897b2a4bd2d97fa095f29a8b0624a7b216baf529f9306161c266",
+    "imagePublishedSha1": "829c076e8ff448a336097ae25a355b495ba36e2c",
+    "license": "android-sdk-license",
+    "imageObservedSha256": "e1b9d9fb665001ef27b16e57d8762a2d54aec6bff617e17506edb8676667b9da"
+  }
+}

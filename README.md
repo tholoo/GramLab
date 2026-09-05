@@ -3,7 +3,8 @@
 An offline Telegram bot laboratory: programmable simulation, faithful Android previews,
 and reproducible interaction tests.
 
-**Status: scaffold only.** There is no simulator, CLI, SDK implementation, Android fork,
+**Status: foundation preparation.** Pinned development shells and Android source provenance exist.
+There is no simulator, CLI, SDK implementation, offline Android fork,
 verified compatibility, or runnable product test suite yet. Configuration checks are not
 evidence of Telegram compatibility.
 
@@ -25,6 +26,7 @@ supported surfaces—not equivalence to every Telegram client or its private ser
 - Safety: [offline requirements](docs/development/offline-safety.md).
 - Progress: [foundation spec](.scratch/android-offline-foundation/spec.md).
 - Tooling: [contributor workflow](CONTRIBUTING.md).
+- Development shells and direnv: [environment setup](docs/development/environment.md).
 - Fidelity evidence: [compatibility matrix](docs/compatibility/matrix.md).
 
 No Telegram credentials are required or accepted by the planned default workflow. Dependency

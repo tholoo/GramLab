@@ -1,7 +1,9 @@
 # Architectural boundaries
 
-Status: approved direction, not a proven implementation. Public module APIs, bridge protocol,
-storage engine and runtime orchestrator are deliberately undecided pending the first milestone.
+Status: approved direction and foundation prototype choices, not a proven implementation. The
+[approved proposal](../development/android-foundation-proposal.md) selects a semantic bridge,
+world-owned SQLite persistence and isolated KVM emulator provisioning. Public module APIs and
+verified replay/runtime behavior remain pending the first milestone.
 
 ## Independent simulator
 
@@ -38,10 +40,12 @@ instances can observe selected personas while many virtual users act without ren
 worker counts by measured host resources. Multiple renderer instances in one world must agree on
 state; different worlds must not share messages, media IDs, clocks, update queues or consumer DBs.
 
-## Deferred implementation decisions
+## Approved prototype and remaining decisions
 
-The next agent must provide evidence and consult the user before fixing consequential choices:
-exact upstream revision/runtime baseline, bridge and schema provenance, storage/replay strategy,
-runtime provisioning, process isolation and distribution packaging. A feasibility finding is not
+The user reviewed and approved the pinned Android prototype, semantic bridge/schema boundary,
+SQLite world persistence and per-run isolation direction. See the
+[bridge/persistence decision](../adr/0004-semantic-bridge-and-world-persistence.md) and
+[toolchain profile](../../clients/android/toolchain.json). Consult the user before consequential
+changes to those choices or distribution packaging. A feasibility finding is not
 permission to switch to Web/Desktop, approximate the UI, contact real DCs or adopt a different
 license strategy. The first ticket bounds this investigation rather than leaving it unstructured.

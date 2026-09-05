@@ -1,8 +1,8 @@
 # Validate the Android offline integration boundary
 
 Type: research
-Status: needs-info
-Work state: claimed
+Status: ready-for-agent
+Work state: resolved
 Blocked by: none
 
 Read the foundation spec, handoff, safety requirements and upstream findings. Inspect the current
@@ -47,3 +47,16 @@ documented probe shell syntax and `git diff --check` passed. Independently reche
 source hashes and request/update/startup/locale paths cited in the source report. No Python
 implementation exists, so no behavioral pytest/mypy result is claimed. Next action is user review
 of the linked proposal, then approved provisioning and the isolated startup/interaction proof.
+
+2026-09-05 follow-up: user approved the Android proposal, proxy use at
+the session-provided local proxy for network problems, and requested a high-quality `flake.nix`/`.envrc`.
+Proceed with reproducible provisioning; retain the full offline startup/real-bot/Android proof.
+
+## Answer
+
+The source/runtime candidates and minimal integration boundary are reviewed and approved in the
+[foundation proposal](../../../docs/development/android-foundation-proposal.md). Exact runtime
+metadata is recorded in [provenance](../../../docs/development/android-runtime-provenance.md),
+with a pinned flake and source/submodule lock. Continue ticket 02 for isolation and synthetic
+startup, then the real bot/tap/edit/recovery proof. This resolves the research gate, not any
+Android behavior or foundation acceptance criterion.

@@ -1,12 +1,13 @@
 # Compatibility matrix
 
-Every runtime row is **planned, unimplemented, unverified**. There is no pinned client profile or
-Bot API version yet. This is a starting inventory, not an exhaustive or authoritative catalog of
+Every runtime row is **planned, unimplemented, unverified**. The approved source/toolchain baseline
+is pinned, but no rendering fidelity profile or Bot API behavior has been verified. This is a
+starting inventory, not an exhaustive or authoritative catalog of
 Telegram's current methods. Expand it from official sources at the selected version.
 
 Ticket 01 now has [source feasibility findings](../development/android-source-feasibility.md)
 and a [prototype proposal](../development/android-foundation-proposal.md). The source commit and
-API baseline are candidates only; all runtime rows remain unimplemented and unverified. Host
+API baseline are approved prototype targets only; all runtime rows remain unimplemented and unverified. Host
 KVM/network-namespace probes establish neither Android support nor scenario egress enforcement.
 
 | Surface | Required evidence before claiming support | State |
