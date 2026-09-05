@@ -1,8 +1,8 @@
 # Contributing
 
-Read [AGENTS.md](AGENTS.md) before implementation. The current repository contains only a
-scaffold. [The first ticket](.scratch/android-offline-foundation/issues/01-validate-android-seam.md)
-is the entry point for the next agent.
+Read [AGENTS.md](AGENTS.md) before implementation. The current repository contains an experimental
+process boundary and Android preparation. [The handoff](docs/development/handoff.md) identifies
+the active ticket and remaining gates.
 
 ## Development environment
 
@@ -26,11 +26,11 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 ```
 
-The project is deliberately non-packaged until a real Python implementation exists. There is no
-CLI entry point or importable SDK yet. Add packaging and public commands alongside working code.
+The experimental Python implementation is packaged with the pinned uv build backend. There is no
+CLI entry point or public simulator SDK yet. Add public commands alongside working behavior.
 
-Once source and behavioral tests exist, use focused pytest runs during development, and the
-following full checks at handoff:
+Use focused pytest runs during development, and the following full checks at handoff. Run the
+behavioral suite in the [documented outer network guard](docs/development/runtime-boundary.md):
 
 ```sh
 uv run --locked mypy src/gramlab
@@ -54,7 +54,7 @@ and update affected docs and tickets. Remote publication requires user approval.
 
 ## Automation
 
-The manually dispatched CI workflow validates scaffold configuration and Markdown links. If
-Python source exists, it also requires actual tests and runs the Python gate. It does not claim
-Android fidelity or external-egress isolation. Extend it with isolated runtime jobs as those
-capabilities are implemented; manual execution remains the initial product workflow.
+The manually dispatched CI validates configuration, Markdown links and Python static checks.
+Its Nix job runs the real Linux isolation tests and requires 80% coverage. It does not claim
+Android fidelity or guest egress isolation. Extend it as those capabilities are implemented;
+manual execution remains the initial product workflow.

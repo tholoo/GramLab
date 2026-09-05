@@ -25,6 +25,11 @@ Core shell outputs are defined for x86_64 Linux, aarch64 Linux and aarch64 macOS
 nixpkgs revision does not support x86_64 macOS. Evaluation on a platform is not evidence that
 GramLab's runtime is supported there; the initial Android profile targets x86_64 Linux only.
 
+On Linux, the shell also provides util-linux, iproute2 and a Nix-generated
+`GRAMLAB_RUNTIME_PROFILE` for the [experimental process boundary](runtime-boundary.md).
+This selects an immutable dependency closure and pinned bubblewrap executable; it does not
+start a sandbox on shell entry. Follow that page's separate behavioral verification command.
+
 ## direnv
 
 Install direnv and enable its shell hook, then run `direnv allow` in this repository. `.envrc`

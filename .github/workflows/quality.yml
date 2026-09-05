@@ -1,4 +1,4 @@
-name: Manual scaffold and Python quality
+name: Manual quality and offline runtime
 
 on:
   workflow_dispatch:
@@ -26,6 +26,13 @@ jobs:
           uv --version
           test "$UV_PYTHON_DOWNLOADS" = never
           test "$UV_PROJECT_ENVIRONMENT" = "$PWD/.venv"
+          BASH
+      - name: Provision Python and verify the real Linux isolation boundary
+        run: |
+          nix develop --command uv sync --locked
+          nix develop --command unshare --user --map-root-user --net bash -eu <<'BASH'
+          ip link set lo up
+          .venv/bin/pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
           BASH
 
   quality:
@@ -73,12 +80,5 @@ jobs:
         run: |
           uv run --locked ruff check .
           uv run --locked ruff format --check .
-      - name: Require real tests when implementation exists
-        shell: bash
-        run: |
-          if find src/gramlab -name '*.py' -print -quit | grep -q .; then
-            uv run --locked mypy src/gramlab
-            uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
-          else
-            echo 'Scaffold only: no Python implementation or behavioral test coverage yet.'
-          fi
+      - name: Strict Python type checking
+        run: uv run --locked mypy src/gramlab

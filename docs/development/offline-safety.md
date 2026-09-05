@@ -1,6 +1,8 @@
 # Offline execution requirements
 
-Status: requirements only; no enforcement implementation exists yet.
+Status: a [Linux process boundary](runtime-boundary.md) now enforces and tests namespace/mount
+isolation for bounded processes. Application and Android guest enforcement remain unimplemented;
+the requirements below are not yet satisfied end to end.
 
 ## Boundary
 

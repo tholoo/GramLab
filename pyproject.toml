@@ -1,7 +1,7 @@
 [project]
 name = "gramlab"
 version = "0.0.0"
-description = "Offline Telegram bot laboratory — scaffold, not an implemented simulator"
+description = "Offline Telegram bot laboratory — experimental runtime foundation"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 license = "MIT"
@@ -18,8 +18,9 @@ dev = [
   "ruff==0.16.5",
 ]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["uv_build==0.12.5"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 100

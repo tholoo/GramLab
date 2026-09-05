@@ -10,6 +10,9 @@ and a [prototype proposal](../development/android-foundation-proposal.md). The s
 API baseline are approved prototype targets only; all runtime rows remain unimplemented and unverified. Host
 KVM/network-namespace probes establish neither Android support nor scenario egress enforcement.
 
+The [Linux process boundary](../development/runtime-boundary.md) now has real isolation and
+cleanup tests. This is foundation evidence only; the Telegram behavior rows below remain planned.
+
 | Surface | Required evidence before claiming support | State |
 | --- | --- | --- |
 | Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Planned |

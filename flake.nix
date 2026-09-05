@@ -34,26 +34,37 @@
           ./nix
         ];
       };
-      commonShell = pkgs: {
-        packages = with pkgs; [
-          python313
-          uv
-          git
-          curl
-          jq
-          ripgrep
-          nixfmt
-          shellcheck
-        ];
-        UV_PYTHON = "${pkgs.python313}/bin/python3";
-        UV_PYTHON_DOWNLOADS = "never";
-        shellHook = ''
-          export GRAMLAB_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-          export UV_PROJECT_ENVIRONMENT="$GRAMLAB_ROOT/.venv"
-          export UV_CACHE_DIR="$GRAMLAB_ROOT/.cache/uv"
-          mkdir -p "$UV_CACHE_DIR"
-        '';
-      };
+      commonShell =
+        pkgs:
+        {
+          packages =
+            with pkgs;
+            [
+              python313
+              uv
+              git
+              curl
+              jq
+              ripgrep
+              nixfmt
+              shellcheck
+            ]
+            ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+              util-linux
+              iproute2
+            ];
+          UV_PYTHON = "${pkgs.python313}/bin/python3";
+          UV_PYTHON_DOWNLOADS = "never";
+          shellHook = ''
+            export GRAMLAB_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+            export UV_PROJECT_ENVIRONMENT="$GRAMLAB_ROOT/.venv"
+            export UV_CACHE_DIR="$GRAMLAB_ROOT/.cache/uv"
+            mkdir -p "$UV_CACHE_DIR"
+          '';
+        }
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          GRAMLAB_RUNTIME_PROFILE = import ./nix/runtime.nix { inherit pkgs; };
+        };
     in
     {
       formatter = forAllSystems (
@@ -93,8 +104,6 @@
                   ninja
                   unzip
                   zip
-                  util-linux
-                  iproute2
                 ]);
               JAVA_HOME = jdk.home;
               ANDROID_HOME = android.home;

@@ -2,9 +2,10 @@
 
 ## Starting state
 
-GramLab has a scaffold, pinned development flake and an acquired Android source checkout. There
-is no simulator, offline Android build, public Python API, runtime CLI, binary fixture set or
-behavioral test suite. Git has a configured `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
+GramLab has pinned development environments, an acquired Android source checkout and an
+experimental Linux process boundary with nine real-process tests. There is no simulator,
+offline Android build, public Python API, runtime CLI or binary fixture set. Git has a configured
+`origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
 
 Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](../../TESTING.md),
@@ -32,12 +33,20 @@ The user approved the [foundation proposal](android-foundation-proposal.md), sou
 provisioning and project Nix/direnv setup. Do not ask again for those same choices.
 The [source findings](android-source-feasibility.md)
 and [portable host checks](android-host-feasibility.md) are preparation guidance, not a completed
-Android integration. Scaffold baseline is committed as `bec0ef4`; current work is on
-`research/android-offline-seam`. No remote publication has occurred.
+Android integration. Scaffold baseline is committed as `bec0ef4`; Nix preparation is committed
+as `3fc3b07`; current work is on `feat/offline-runtime-boundary`. No remote publication has occurred.
 The pinned SDK has been realized and its tool versions checked in a disposable network namespace;
 the source checkout and submodule pins are verified. Gradle/plugin provisioning, offline APK
 compilation and actual isolated synthetic startup remain the next gates. Validate the minimal
 offline adapter boundary before implementing a wide feature catalog. Read source findings as leads, not as tested integration guarantees.
+
+The [process boundary](runtime-boundary.md) now mounts only a provisioned immutable closure and
+the selected data directory. Real tests cover local traffic, parent/external denial, filesystem
+and descriptor isolation, privilege restrictions, concurrent runs, failed setup and descendant
+cleanup. All nine tests pass with 90.10% statement coverage; strict typing, lint/format, local
+links and Nix checks pass. The manual CI is configured but has not been remotely dispatched.
+Next extend the trusted profile to the Android toolchain, prove dedicated KVM/guest startup and
+guest routing, then continue the approved synthetic activation and world implementation.
 
 The first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero

@@ -52,5 +52,7 @@ For each changed test, answer: what plausible incorrect implementation would mak
 Check that expected values are independent and the test survives behavior-preserving refactors.
 Unknown API methods must fail explicitly, never receive invented success.
 
-The scaffold has no behavioral tests. `pytest` should report no tests, not a fabricated green
-suite. Activate behavioral CI when implementation exists; do not use `passWithNoTests` equivalents.
+The first behavioral suite covers the [Linux process boundary](docs/development/runtime-boundary.md).
+Run it in the provisioned Nix shell with real namespace support. The manually dispatched CI
+requires the suite and coverage gate; unavailable containment must fail visibly. Do not use
+`passWithNoTests` equivalents or substitute these tests for Android evidence.

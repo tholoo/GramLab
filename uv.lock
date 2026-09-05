@@ -47,7 +47,7 @@ wheels = [
 [[package]]
 name = "gramlab"
 version = "0.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [

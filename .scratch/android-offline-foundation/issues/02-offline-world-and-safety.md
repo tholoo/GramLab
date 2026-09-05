@@ -32,3 +32,13 @@ realization, network-isolated Android tool version checks, source/submodule pins
 checksums passed. The SDK's duplicate legacy NDK alias was removed and rechecked. Actual world
 state, OS containment runner, synthetic Android activation and the interaction loop are still
 unimplemented. Keep host-specific records in ignored local notes, as requested by the user.
+
+2026-09-06: Implemented the experimental Linux process boundary and Python packaging on
+`feat/offline-runtime-boundary`. Nine real-process tests pass with 90.10% coverage; typing,
+lint/format, Nix/direnv/workflow checks, configuration parsing and local links pass. Regression
+tests caught symlinked data-root acceptance and premature timeout cleanup; both are fixed.
+The [runtime evidence](../../../docs/development/runtime-boundary.md) records exact capabilities,
+portable commands and remaining limits. No Android guest/client or real bot has started; world
+state and the acceptance criteria above remain open. The manual CI now requires the runtime gate
+but has not been dispatched remotely. Next extend the provisioned profile and validate dedicated
+Android guest startup/egress before synthetic activation.
