@@ -42,3 +42,12 @@ portable commands and remaining limits. No Android guest/client or real bot has 
 state and the acceptance criteria above remain open. The manual CI now requires the runtime gate
 but has not been dispatched remotely. Next extend the provisioned profile and validate dedicated
 Android guest startup/egress before synthetic activation.
+
+2026-09-06 Android follow-up: Extended the trusted Nix profile with SDK/JDK and required shell
+utilities, private Android homes and explicit KVM device opt-in. Twelve combined tests pass with
+90.65% coverage, including a fresh AOSP API 36/x86_64 guest reporting zero accounts, local TCP
+through the emulator alias and rejected external IPv4/IPv6 attempts. The AOSP launcher screenshot
+was inspected; generated state, logs, timings and screenshots remain ignored. No Telegram client,
+bot or simulator has run. Core static/Nix/direnv gates pass; full application network surfaces,
+world persistence, synthetic Telegram activation and the real interaction loop remain open.
+Continue approved Gradle/plugin provisioning and minimal offline client/bridge/world implementation.

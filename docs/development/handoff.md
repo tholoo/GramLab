@@ -3,7 +3,8 @@
 ## Starting state
 
 GramLab has pinned development environments, an acquired Android source checkout and an
-experimental Linux process boundary with nine real-process tests. There is no simulator,
+experimental Linux process boundary with twelve real-process tests, including a dedicated AOSP
+guest's startup and local/external network behavior. There is no simulator,
 offline Android build, public Python API, runtime CLI or binary fixture set. Git has a configured
 `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
@@ -43,10 +44,17 @@ offline adapter boundary before implementing a wide feature catalog. Read source
 The [process boundary](runtime-boundary.md) now mounts only a provisioned immutable closure and
 the selected data directory. Real tests cover local traffic, parent/external denial, filesystem
 and descriptor isolation, privilege restrictions, concurrent runs, failed setup and descendant
-cleanup. All nine tests pass with 90.10% statement coverage; strict typing, lint/format, local
-links and Nix checks pass. The manual CI is configured but has not been remotely dispatched.
-Next extend the trusted profile to the Android toolchain, prove dedicated KVM/guest startup and
-guest routing, then continue the approved synthetic activation and world implementation.
+cleanup. The Android profile now includes the SDK/JDK closure, required launcher utilities and
+private homes; KVM access is an explicit opt-in. A fresh AOSP guest reports API 36/x86_64 and zero
+accounts, reaches a local service through `10.0.2.2`, and rejects external IPv4/IPv6 attempts with
+`Network is unreachable`. Its process namespace has only loopback. The captured AOSP launcher was
+inspected; this is not Telegram rendering evidence.
+
+All twelve tests pass with 90.65% statement coverage; strict typing, lint/format, local links and
+Nix checks pass. The manual CI is configured for the core tests but has not been remotely
+dispatched. Next provision the pinned Gradle/plugin dependencies and implement the approved
+minimal offline client patch plus synthetic world/bridge activation. Preserve actual rendering
+and audit native/background networking before installing the client, even inside containment.
 
 The first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero

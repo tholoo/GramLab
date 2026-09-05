@@ -4,7 +4,8 @@ An offline Telegram bot laboratory: programmable simulation, faithful Android pr
 and reproducible interaction tests.
 
 **Status: experimental foundation.** Pinned development shells, Android source provenance and a
-tested Linux process isolation boundary exist. There is no simulator, public CLI/SDK, offline
+tested Linux process isolation boundary and dedicated AOSP guest startup exist. There is no
+simulator, public CLI/SDK, offline
 Android fork or verified Telegram compatibility yet. See the
 [runtime evidence and limits](docs/development/runtime-boundary.md).
 

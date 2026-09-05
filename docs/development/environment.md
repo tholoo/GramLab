@@ -28,7 +28,9 @@ GramLab's runtime is supported there; the initial Android profile targets x86_64
 On Linux, the shell also provides util-linux, iproute2 and a Nix-generated
 `GRAMLAB_RUNTIME_PROFILE` for the [experimental process boundary](runtime-boundary.md).
 This selects an immutable dependency closure and pinned bubblewrap executable; it does not
-start a sandbox on shell entry. Follow that page's separate behavioral verification command.
+start a sandbox on shell entry. The Android shell also exports `GRAMLAB_ANDROID_RUNTIME_PROFILE`
+with its immutable SDK/JDK closure and private in-sandbox homes. Follow that page's separate
+behavioral verification commands.
 
 ## direnv
 

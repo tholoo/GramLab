@@ -1,6 +1,11 @@
-{ pkgs }:
+{
+  pkgs,
+  extraPackages ? [ ],
+  executables ? { },
+  environment ? { },
+}:
 let
-  closure = pkgs.closureInfo { rootPaths = [ pkgs.python313 ]; };
+  closure = pkgs.closureInfo { rootPaths = [ pkgs.python313 ] ++ extraPackages; };
 in
 pkgs.writeText "gramlab-runtime.json" (
   builtins.toJSON {
@@ -8,5 +13,6 @@ pkgs.writeText "gramlab-runtime.json" (
     bubblewrap = "${pkgs.bubblewrap}/bin/bwrap";
     python = "${pkgs.python313}/bin/python3";
     storePaths = "${closure}/store-paths";
+    inherit executables environment;
   }
 )

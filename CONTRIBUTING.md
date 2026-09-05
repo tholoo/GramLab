@@ -33,7 +33,7 @@ Use focused pytest runs during development, and the following full checks at han
 behavioral suite in the [documented outer network guard](docs/development/runtime-boundary.md):
 
 ```sh
-uv run --locked mypy src/gramlab
+uv run --locked mypy src/gramlab tests/probes/android_guest.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

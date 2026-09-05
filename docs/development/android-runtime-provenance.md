@@ -73,10 +73,26 @@ The Android SDK package was realized through the flake. Isolated tool-version sm
 confirmed JDK 17, emulator 37.1.11, command-line tools 22.0, CMake 3.22.1 and the packaged `aapt2`.
 The default shell and actual direnv entry confirmed Python 3.13.15, uv 0.12.5 and project-local
 cache/environment paths. Nix formatting, direnv and workflow lint checks passed, along with all declared platform
-evaluations; locked Python provisioning and Ruff lint/format passed. No emulator instance, Android
-app, bot or scenario has been executed. CI has only been validated locally, not dispatched.
+evaluations; locked Python provisioning and Ruff lint/format passed. These initial checks did
+not start an emulator. The subsequent guest validation is recorded below. CI has only been
+validated locally, not dispatched.
 
 Gradle remains the upstream wrapper version 8.11.1. Its
 [published distribution checksum](https://services.gradle.org/distributions/gradle-8.11.1-bin.zip.sha256)
 is recorded in the profile; Gradle/plugin dependency provisioning and offline APK compilation are
 subsequent build gates, not covered by the SDK tool smoke checks.
+
+## Dedicated guest validation
+
+On 2026-09-06 the [process-boundary suite](runtime-boundary.md) passed twelve combined tests,
+including the actual emulator, explicit KVM access and a newly created AOSP guest. The guest
+reported API 36/x86_64, build fingerprint
+`Android/sdk_phone64_x86_64/emu64x:16/BE2A.250530.026.D1/13818094:userdebug/test-keys`,
+and zero accounts. Local TCP through the emulator's guest alias succeeded; external IPv4/IPv6
+documentation-address attempts were rejected as unreachable. Its containing network namespace
+had only loopback. A captured screenshot was inspected and showed the AOSP launcher.
+
+This used the pinned image with KVM, SwiftShader and private run data; see the boundary record
+for commands, preparation display/memory settings and diagnostic limitations. Generated AVDs,
+logs, timing observations and screenshots remain ignored. No Telegram client, local bot,
+semantic bridge or world implementation has been executed or verified by this guest preparation.

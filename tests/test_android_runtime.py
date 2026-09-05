@@ -1,0 +1,96 @@
+"""Android toolchain checks through the real containment boundary."""
+
+import json
+import os
+from pathlib import Path
+
+import pytest
+
+from gramlab.runtime import RuntimeProfile, Sandbox
+
+pytestmark = pytest.mark.android
+
+
+def test_provisioned_emulator_runs_inside_the_private_filesystem(tmp_path: Path) -> None:
+    manifest_path = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    if manifest_path is None:
+        pytest.skip("Requires the provisioned Android runtime profile from nix develop .#android")
+    profile = RuntimeProfile.load(Path(manifest_path))
+    result = Sandbox(profile).run([profile.executables["emulator"], "-version"], data=tmp_path)
+    assert result.returncode == 0, result.stderr
+    toolchain = json.loads(Path("clients/android/toolchain.json").read_text())
+    assert f"Android emulator version {toolchain['runtime']['emulator']}" in result.stdout
+
+
+def test_kvm_access_requires_explicit_opt_in(tmp_path: Path) -> None:
+    manifest_path = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    if manifest_path is None:
+        pytest.skip("Requires the Android runtime profile")
+    if not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires an accessible KVM device; no host policy changes are made")
+    profile = RuntimeProfile.load(Path(manifest_path))
+    command = [
+        profile.python,
+        "-c",
+        """
+import fcntl, json, os
+try:
+    descriptor = os.open('/dev/kvm', os.O_RDWR)
+except FileNotFoundError:
+    print(json.dumps({'kvm': 'unavailable'}))
+else:
+    try:
+        print(json.dumps({'kvm': fcntl.ioctl(descriptor, 0xAE00, 0)}))
+    finally:
+        os.close(descriptor)
+""",
+    ]
+    denied = Sandbox(profile).run(command, data=tmp_path)
+    assert denied.returncode == 0, denied.stderr
+    assert json.loads(denied.stdout) == {"kvm": "unavailable"}
+    allowed = Sandbox(profile).run(command, data=tmp_path, kvm=True)
+    assert allowed.returncode == 0, allowed.stderr
+    assert json.loads(allowed.stdout) == {"kvm": 12}
+
+
+def test_dedicated_aosp_guest_boots_with_no_accounts(tmp_path: Path) -> None:
+    manifest_path = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    if manifest_path is None:
+        pytest.skip("Requires the Android runtime profile")
+    if not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires an accessible KVM device")
+    profile = RuntimeProfile.load(Path(manifest_path))
+    toolchain = json.loads(Path("clients/android/toolchain.json").read_text())
+    image_package = (
+        f"system-images;android-{toolchain['sdk']['platform']};"
+        f"{toolchain['runtime']['imageType']};{toolchain['runtime']['abi']}"
+    )
+    result = Sandbox(profile).run(
+        [
+            profile.python,
+            "-c",
+            Path("tests/probes/android_guest.py").read_text(),
+            profile.executables["emulator"],
+            profile.executables["adb"],
+            profile.executables["avdmanager"],
+            image_package,
+        ],
+        data=tmp_path,
+        kvm=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["api"] == toolchain["sdk"]["platform"]
+    assert observed["abi"] == toolchain["runtime"]["abi"]
+    assert "Accounts: 0" in observed["accounts"]
+    assert observed["network"]["local"] == "gramlab-local-reply\n"
+    assert observed["network"]["local_error"] == ""
+    for family in ("ipv4", "ipv6"):
+        assert observed["network"][family] == {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "nc: connect: Network is unreachable\n",
+        }
+    assert observed["host_interfaces"] == [[1, "lo"]]
+    assert (tmp_path / "guest.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")

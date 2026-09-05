@@ -85,6 +85,12 @@
           common = commonShell pkgs;
           jdk = pkgs."jdk${toString profile.jvm.major}";
           android = import ./nix/android.nix { inherit pkgs nixpkgs profile; };
+          androidRuntimeTools = with pkgs; [
+            bash
+            coreutils
+            gnused
+            gawk
+          ];
         in
         {
           default = pkgs.mkShellNoCC (common // { name = "gramlab-core"; });
@@ -110,6 +116,29 @@
               ANDROID_SDK_ROOT = android.home;
               ANDROID_NDK_HOME = "${android.home}/ndk/${profile.sdk.ndk}";
               ANDROID_NDK_ROOT = "${android.home}/ndk/${profile.sdk.ndk}";
+              GRAMLAB_ANDROID_RUNTIME_PROFILE = import ./nix/runtime.nix {
+                inherit pkgs;
+                extraPackages = [
+                  android.sdk
+                  jdk
+                ]
+                ++ androidRuntimeTools;
+                executables = {
+                  emulator = "${android.home}/emulator/emulator";
+                  adb = "${android.home}/platform-tools/adb";
+                  avdmanager = "${android.home}/cmdline-tools/${profile.sdk.commandLineTools}/bin/avdmanager";
+                };
+                environment = {
+                  JAVA_HOME = jdk.home;
+                  ANDROID_HOME = android.home;
+                  ANDROID_SDK_ROOT = android.home;
+                  ANDROID_USER_HOME = "/work/android";
+                  ANDROID_AVD_HOME = "/work/android/avd";
+                  HOME = "/work/home";
+                  XDG_CACHE_HOME = "/work/cache";
+                  PATH = lib.makeBinPath (androidRuntimeTools ++ [ jdk ]);
+                };
+              };
               shellHook = common.shellHook + ''
                 export GRADLE_USER_HOME="$GRAMLAB_ROOT/.cache/gradle"
                 export ANDROID_USER_HOME="$GRAMLAB_ROOT/.cache/android"

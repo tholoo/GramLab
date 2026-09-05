@@ -14,9 +14,9 @@ import select
 import signal
 import subprocess
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO
 
@@ -28,6 +28,8 @@ class RuntimeProfile:
     bubblewrap: str
     python: str
     store_paths: tuple[str, ...]
+    executables: Mapping[str, str] = field(default_factory=dict)
+    environment: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def load(cls, path: Path) -> RuntimeProfile:
@@ -38,6 +40,8 @@ class RuntimeProfile:
             bubblewrap=manifest["bubblewrap"],
             python=manifest["python"],
             store_paths=tuple(Path(manifest["storePaths"]).read_text().splitlines()),
+            executables=manifest.get("executables", {}),
+            environment=tuple(manifest.get("environment", {}).items()),
         )
 
 
@@ -48,7 +52,7 @@ class Sandbox:
         self.profile = profile
 
     def run(
-        self, command: list[str], *, data: Path, timeout: float = 30
+        self, command: list[str], *, data: Path, timeout: float = 30, kvm: bool = False
     ) -> subprocess.CompletedProcess[str]:
         arguments = [
             self.profile.bubblewrap,
@@ -80,6 +84,10 @@ class Sandbox:
         ]
         for path in self.profile.store_paths:
             arguments.extend(("--ro-bind", path, path))
+        for name, value in self.profile.environment:
+            arguments.extend(("--setenv", name, value))
+        if kvm:
+            arguments.extend(("--dev-bind", "/dev/kvm", "/dev/kvm"))
         with _data_directory(data) as data_fd:
             arguments.extend(("--bind-fd", str(data_fd), "/work", "--chdir", "/work"))
             return _run_supervised(arguments, command, data_fd, timeout)

@@ -32,7 +32,7 @@ jobs:
           nix develop --command uv sync --locked
           nix develop --command unshare --user --map-root-user --net bash -eu <<'BASH'
           ip link set lo up
-          .venv/bin/pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
+          .venv/bin/pytest -m 'not android' --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
           BASH
 
   quality:
@@ -81,4 +81,4 @@ jobs:
           uv run --locked ruff check .
           uv run --locked ruff format --check .
       - name: Strict Python type checking
-        run: uv run --locked mypy src/gramlab
+        run: uv run --locked mypy src/gramlab tests/probes/android_guest.py

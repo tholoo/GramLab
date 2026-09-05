@@ -1,6 +1,7 @@
 # Approved Android foundation prototype
 
-Status: approved for the scoped feasibility prototype; not implemented. Prepared 2026-09-05 for
+Status: approved for the scoped feasibility prototype; process/guest preparation is implemented,
+and the client/world/bridge remain pending. Prepared 2026-09-05 for
 [ticket 01](../../.scratch/android-offline-foundation/issues/01-validate-android-seam.md).
 This proposes the next feasibility work within the full product objective. It does not replace
 the foundation acceptance criteria or the broader compatibility backlog.
@@ -106,10 +107,11 @@ separate gate; simulator tests cannot substitute for it.
 
 ## Remaining uncertainties
 
-- No Android build, runtime boot, tap, bot loop, replay or guest egress test has run.
+- The [runtime boundary](runtime-boundary.md) now has dedicated AOSP boot/local/external-network
+  evidence. No offline Telegram build, tap, bot loop or replay has run.
 - Runtime package metadata is resolved in the [provenance record](android-runtime-provenance.md).
-  Emulator/image acquisition and checksum checks passed; emulator boot and the rendering profile
-  remain unverified.
+  Emulator/image acquisition, checksum checks and dedicated guest boot passed. The Telegram
+  rendering profile remains unverified.
 - The source report identifies required paths but does not prove the complete startup RPC set,
   callback thread semantics, native bypass, rich-message mapping, or local font/media behavior.
 - The Android image's language assets and upstream locale filtering must support the Persian
