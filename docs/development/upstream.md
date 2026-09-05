@@ -1,6 +1,7 @@
 # Upstream research and maintenance
 
-The tracked repository includes no upstream client code. The approved source and ten pinned
+The tracked Android patch queue retains upstream context under its applicable licenses. The
+approved full source and ten pinned
 submodules have been acquired in ignored `clients/android/upstream/`; see the
 [source lock](../../clients/android/upstream-lock.json) for revisions and root notice hashes. These source observations were reviewed on
 2026-09-05 against moving upstream pages; they are leads, not the pinned build manifest or proof

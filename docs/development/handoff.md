@@ -3,9 +3,9 @@
 ## Starting state
 
 GramLab has pinned development environments, an acquired Android source checkout and an
-experimental Linux process boundary with twelve real-process tests, including a dedicated AOSP
-guest's startup and local/external network behavior. There is no simulator,
-offline Android build, public Python API, runtime CLI or binary fixture set. Git has a configured
+experimental Linux process boundary with thirteen real-process tests, including a dedicated AOSP
+guest's startup and local/external network behavior. A disabled Android preparation APK compiles.
+There is no simulator, runnable offline client, public Python API, runtime CLI or binary fixture set. Git has a configured
 `origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
 See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
 
@@ -35,10 +35,11 @@ provisioning and project Nix/direnv setup. Do not ask again for those same choic
 The [source findings](android-source-feasibility.md)
 and [portable host checks](android-host-feasibility.md) are preparation guidance, not a completed
 Android integration. Scaffold baseline is committed as `bec0ef4`; Nix preparation is committed
-as `3fc3b07`; current work is on `feat/offline-runtime-boundary`. No remote publication has occurred.
+as `3fc3b07`; the process/guest milestones are `7950caa` and `faa6f92`. Current work is on
+`feat/android-offline-client`. No remote publication has occurred.
 The pinned SDK has been realized and its tool versions checked in a disposable network namespace;
-the source checkout and submodule pins are verified. Gradle/plugin provisioning, offline APK
-compilation and actual isolated synthetic startup remain the next gates. Validate the minimal
+the source checkout and submodule pins are verified. Gradle/plugin provisioning and preparation
+APK compilation passed; contained offline rebuilding and isolated synthetic startup remain gates. Validate the minimal
 offline adapter boundary before implementing a wide feature catalog. Read source findings as leads, not as tested integration guarantees.
 
 The [process boundary](runtime-boundary.md) now mounts only a provisioned immutable closure and
@@ -50,11 +51,23 @@ accounts, reaches a local service through `10.0.2.2`, and rejects external IPv4/
 `Network is unreachable`. Its process namespace has only loopback. The captured AOSP launcher was
 inspected; this is not Telegram rendering evidence.
 
-All twelve tests pass with 90.65% statement coverage; strict typing, lint/format, local links and
+All thirteen tests pass with 90.91% statement coverage; strict typing, lint/format, local links and
 Nix checks pass. The manual CI is configured for the core tests but has not been remotely
-dispatched. Next provision the pinned Gradle/plugin dependencies and implement the approved
-minimal offline client patch plus synthetic world/bridge activation. Preserve actual rendering
-and audit native/background networking before installing the client, even inside containment.
+dispatched. [Android build preparation](android-build.md) now exports pinned tracked source,
+sanitizes credential fields and applies a reviewed build patch for a disabled-by-default GramLab
+APK. Gradle's checksum and AGP's published module checksum match; the Java renderer and complete
+x86_64 native library compiled. APK signature, ABI and disabled manifest checks passed. The
+committed dependency record contains 918 checksummed artifacts; fresh preparation installs it.
+The clean contained rebuild exposed Ninja's `/bin/sh` requirement; the pinned Android-only shell
+link passed its regression and the full guest/process suite. The offline rebuild is in progress.
+Preserve that live build: its handle and local log location are in ignored
+`.cache/local-notes/android-build.md`; revalidate the handle rather than assuming it stopped.
+
+Next finish the contained offline rebuild and verify its APK and strict dependency checks.
+Then implement the approved client network/startup patch and synthetic
+world/bridge activation. The current preparation manifest explicitly disables the application;
+do not enable/install it as a shortcut to synthetic startup. Preserve actual rendering and audit
+native/background networking before installing the client, even inside containment.
 
 The first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero

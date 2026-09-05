@@ -81,4 +81,4 @@ jobs:
           uv run --locked ruff check .
           uv run --locked ruff format --check .
       - name: Strict Python type checking
-        run: uv run --locked mypy src/gramlab tests/probes/android_guest.py
+        run: uv run --locked mypy src/gramlab tests/probes/android_guest.py clients/android/prepare.py

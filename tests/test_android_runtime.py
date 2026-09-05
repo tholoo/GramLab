@@ -11,6 +11,22 @@ from gramlab.runtime import RuntimeProfile, Sandbox
 pytestmark = pytest.mark.android
 
 
+def test_android_builds_can_execute_a_pinned_posix_shell(tmp_path: Path) -> None:
+    manifest_path = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    if manifest_path is None:
+        pytest.skip("Requires the provisioned Android runtime profile")
+    core = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    android = RuntimeProfile.load(Path(manifest_path))
+    command = ["/bin/sh", "-c", "printf '%s' gramlab-toolchain"]
+    absent = Sandbox(core).run(command, data=tmp_path)
+    assert absent.returncode != 0
+    assert absent.stdout == ""
+    result = Sandbox(android).run(command, data=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "gramlab-toolchain"
+    assert result.stderr == ""
+
+
 def test_provisioned_emulator_runs_inside_the_private_filesystem(tmp_path: Path) -> None:
     manifest_path = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     if manifest_path is None:

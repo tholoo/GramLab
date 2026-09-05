@@ -17,6 +17,8 @@ exposing the host's entire Nix store, home, runtime sockets or filesystem.
 The Android shell additionally exports `GRAMLAB_ANDROID_RUNTIME_PROFILE`, including the SDK,
 JDK and required shell utilities. Only this profile sets private Android home/cache locations
 and a tool PATH inside the sandbox. Neither profile inherits the operator's proxy or credentials.
+Its optional `posixShell` manifest entry resolves `/bin/sh` to pinned Bash in that closure, for
+SDK tools that invoke the conventional interpreter path. The core profile does not expose it.
 
 `Sandbox(profile).run(command, data=directory, timeout=seconds)` accepts an argument vector and
 an existing, dedicated data directory chosen by the trusted supervisor. That directory is the
@@ -100,7 +102,7 @@ claim follows from these tests. Store host-specific diagnostics in ignored local
 
 ## Dedicated Android guest evidence
 
-Combined verification on 2026-09-06 passed all twelve tests with 90.65% statement coverage.
+Combined verification on 2026-09-06 passed all thirteen tests with 90.91% statement coverage.
 The core/probe type checks, lint/format, Nix/direnv/workflow checks and platform evaluation passed.
 
 With the approved SDK already provisioned and KVM accessible, the optional Android gate is:
@@ -119,8 +121,8 @@ selects the core tests and does not claim Android coverage. To retain evidence, 
 ignored path with pytest's `--basetemp=artifacts/<run-id>`; pytest removes an existing base path,
 so never point this option at unrelated or still-needed artifacts.
 
-The three Android tests verify the pinned emulator version in the private filesystem, default
-KVM denial versus explicit API access, and creation/boot of a new account-free AOSP guest.
+The four Android tests verify the optional pinned POSIX shell, emulator version in the private
+filesystem, default KVM denial versus explicit API access, and a new account-free AOSP guest.
 [`android_guest.py`](../../tests/probes/android_guest.py) runs entirely inside the boundary,
 with its own ADB server, fixed emulator serial and new AVD. It retains tool/emulator logs, guest
 properties/routes, a screenshot and the network outcomes in the run directory. No host ADB
@@ -145,3 +147,8 @@ initial boot-complete property can precede network and launcher readiness, so th
 waits for the real local exchange with a bounded deadline. A timezone-data warning and modem
 IPv6-loopback warning remain in emulator diagnostics; their effect on the future client has not
 been established. No inherited host timezone/configuration was mounted to suppress them.
+
+A clean contained Android build exposed SDK Ninja's direct `/bin/sh` invocation. The regression
+test failed with the missing interpreter, then passed with the pinned Android-only shell link;
+the same invocation remains unavailable in the core profile. Native compilation then proceeded
+inside containment. See [the build record](android-build.md) for compilation status and provenance.

@@ -118,6 +118,7 @@
               ANDROID_NDK_ROOT = "${android.home}/ndk/${profile.sdk.ndk}";
               GRAMLAB_ANDROID_RUNTIME_PROFILE = import ./nix/runtime.nix {
                 inherit pkgs;
+                posixShell = "${pkgs.bash}/bin/sh";
                 extraPackages = [
                   android.sdk
                   jdk

@@ -30,6 +30,7 @@ class RuntimeProfile:
     store_paths: tuple[str, ...]
     executables: Mapping[str, str] = field(default_factory=dict)
     environment: tuple[tuple[str, str], ...] = ()
+    posix_shell: str | None = None
 
     @classmethod
     def load(cls, path: Path) -> RuntimeProfile:
@@ -42,6 +43,7 @@ class RuntimeProfile:
             store_paths=tuple(Path(manifest["storePaths"]).read_text().splitlines()),
             executables=manifest.get("executables", {}),
             environment=tuple(manifest.get("environment", {}).items()),
+            posix_shell=manifest.get("posixShell"),
         )
 
 
@@ -84,6 +86,9 @@ class Sandbox:
         ]
         for path in self.profile.store_paths:
             arguments.extend(("--ro-bind", path, path))
+        if self.profile.posix_shell is not None:
+            # SDK Ninja invokes /bin/sh directly. Resolve it only to the trusted closure.
+            arguments.extend(("--symlink", self.profile.posix_shell, "/bin/sh"))
         for name, value in self.profile.environment:
             arguments.extend(("--setenv", name, value))
         if kvm:

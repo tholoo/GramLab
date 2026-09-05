@@ -5,8 +5,9 @@ and reproducible interaction tests.
 
 **Status: experimental foundation.** Pinned development shells, Android source provenance and a
 tested Linux process isolation boundary and dedicated AOSP guest startup exist. There is no
-simulator, public CLI/SDK, offline
-Android fork or verified Telegram compatibility yet. See the
+simulator, public CLI/SDK, runnable offline Telegram client or verified Telegram compatibility yet.
+Pinned client source export and a disabled build target are in [preparation](docs/development/android-build.md).
+See the
 [runtime evidence and limits](docs/development/runtime-boundary.md).
 
 ## Intended experience

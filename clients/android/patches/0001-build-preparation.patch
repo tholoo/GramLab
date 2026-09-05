@@ -1,0 +1,199 @@
+diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
+index 84b82260..5965941c 100644
+--- a/TMessagesProj/build.gradle
++++ b/TMessagesProj/build.gradle
+@@ -128,6 +128,7 @@ android {
+     defaultConfig {
+         minSdkVersion 21
+         targetSdkVersion 36
++        ndk { abiFilters "x86_64" }
+ 
+         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
+ 
+@@ -137,6 +138,9 @@ android {
+             cmake {
+                 version '3.22.1'
+                 arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
++                // Bound native compile memory independently of Gradle worker scheduling.
++                arguments "-DCMAKE_JOB_POOLS=gramlab_compile=${project.findProperty('gramlabNativeJobs') ?: '2'};gramlab_link=1",
++                          '-DCMAKE_JOB_POOL_COMPILE=gramlab_compile', '-DCMAKE_JOB_POOL_LINK=gramlab_link'
+                 targets 'tmessages.49'
+             }
+         }
+@@ -254,7 +258,7 @@ def getProps(String propName) {
+         return "";
+     }
+ }
+-apply plugin: 'com.google.gms.google-services'
++// Offline application does not use cloud service provisioning.
+ 
+ task checkVisibility {
+     doFirst {
+diff --git a/TMessagesProj_GramLab/build.gradle b/TMessagesProj_GramLab/build.gradle
+new file mode 100644
+index 00000000..eea90205
+--- /dev/null
++++ b/TMessagesProj_GramLab/build.gradle
+@@ -0,0 +1,48 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++apply plugin: 'com.android.application'
++
++repositories {
++    google()
++    mavenCentral()
++}
++
++dependencies {
++    implementation project(':TMessagesProj')
++    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
++    implementation files('../TMessagesProj/libs/libgsaverification-client.aar')
++}
++
++android {
++    namespace 'org.gramlab.android'
++    compileSdk 36
++    buildToolsVersion '36.0.0'
++    ndkVersion '27.2.12479018'
++    defaultConfig {
++        applicationId 'org.gramlab.android'
++        minSdk 23
++        targetSdk 36
++        versionCode 1
++        versionName '0.0.0-offline'
++        ndk { abiFilters 'x86_64' }
++    }
++    compileOptions {
++        sourceCompatibility JavaVersion.VERSION_1_8
++        targetCompatibility JavaVersion.VERSION_1_8
++        coreLibraryDesugaringEnabled true
++    }
++    signingConfigs {
++        debug {
++            storeFile rootProject.file('.gramlab/debug.keystore')
++            storePassword 'android'
++            keyAlias 'gramlab-debug'
++            keyPassword 'android'
++        }
++    }
++    buildTypes {
++        debug {
++            debuggable true
++            minifyEnabled false
++            signingConfig signingConfigs.debug
++        }
++    }
++}
+diff --git a/TMessagesProj_GramLab/src/main/AndroidManifest.xml b/TMessagesProj_GramLab/src/main/AndroidManifest.xml
+new file mode 100644
+index 00000000..31512663
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/AndroidManifest.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++          xmlns:tools="http://schemas.android.com/tools">
++    <!-- Build preparation only. Activation is forbidden until the offline boundary is patched. -->
++    <application android:enabled="false" android:allowBackup="false"
++                 android:label="@string/gramlab_app_name"
++                 android:icon="@drawable/gramlab_launcher"
++                 android:roundIcon="@drawable/gramlab_launcher"
++                 tools:replace="android:enabled,android:allowBackup,android:label,android:icon,android:roundIcon" />
++</manifest>
+diff --git a/TMessagesProj_GramLab/src/main/res/drawable/gramlab_launcher.xml b/TMessagesProj_GramLab/src/main/res/drawable/gramlab_launcher.xml
+new file mode 100644
+index 00000000..94d68446
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/res/drawable/gramlab_launcher.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
++    <path android:fillColor="#172B3A" android:pathData="M0,0h48v48h-48z" />
++    <path android:fillColor="#53D4BB" android:pathData="M12,10h24v6h-18v16h12v-5h-7v-6h13v17h-24z" />
++</vector>
+diff --git a/TMessagesProj_GramLab/src/main/res/values/strings.xml b/TMessagesProj_GramLab/src/main/res/values/strings.xml
+new file mode 100644
+index 00000000..6ee06194
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/res/values/strings.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources><string name="gramlab_app_name">GramLab Offline (unofficial)</string></resources>
+diff --git a/build.gradle b/build.gradle
+index 8a8a11ee..07f6c433 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -2,19 +2,15 @@
+ buildscript {
+     repositories {
+         mavenCentral()
+-        google()
+-        maven { url 'https://developer.huawei.com/repo/' }
++        maven { url 'https://redirector.gvt1.com/edgedl/android/maven2/' }
+     }
+     dependencies {
+         classpath 'com.android.tools.build:gradle:8.10.1'
+-        classpath 'com.google.gms:google-services:4.3.15'
+-        classpath 'com.huawei.agconnect:agcp:1.9.1.301'
+-        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.0'
+         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"
+     }
+ }
+ repositories {
+-    google()
++    maven { url 'https://redirector.gvt1.com/edgedl/android/maven2/' }
+ }
+ 
+ // Strip JLatexMath fonts we don't ship (transitive AAR assets from
+@@ -33,4 +29,11 @@ subprojects {
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
++
++// Google's official distribution CDN; no developer-specific proxy or third-party mirror.
++allprojects {
++    repositories {
++        maven { url 'https://redirector.gvt1.com/edgedl/android/maven2/' }
++    }
++}
+diff --git a/buildSrc/build.gradle.kts b/buildSrc/build.gradle.kts
+index bf93ef10..1336f8c8 100644
+--- a/buildSrc/build.gradle.kts
++++ b/buildSrc/build.gradle.kts
+@@ -17,7 +17,7 @@ gradlePlugin {
+ }
+ 
+ repositories {
+-    google()
++    maven { url = uri("https://redirector.gvt1.com/edgedl/android/maven2/") }
+     mavenCentral()
+     gradlePluginPortal()
+ }
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 81aa1c04..44755944 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -3,3 +3,5 @@ distributionPath=wrapper/dists
+ distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
++
++distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6
+diff --git a/settings.gradle b/settings.gradle
+index f1be926e..b0a05b9e 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -1,8 +1,2 @@
+-include ':TMessagesProj'
+-include ':TMessagesProj_App'
+-include ':TMessagesProj_AppHuawei'
+-include ':TMessagesProj_AppHockeyApp'
+-include ':TMessagesProj_AppStandalone'
+-include ':TMessagesProj_AppTests'
+-include ':jlatexmath'
++include ':TMessagesProj', ':TMessagesProj_GramLab', ':jlatexmath'
+ project(':jlatexmath').projectDir = file('TMessagesProj/lib/jlatexmath/jlatexmath')

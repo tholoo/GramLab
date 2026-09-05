@@ -51,3 +51,18 @@ was inspected; generated state, logs, timings and screenshots remain ignored. No
 bot or simulator has run. Core static/Nix/direnv gates pass; full application network surfaces,
 world persistence, synthetic Telegram activation and the real interaction loop remain open.
 Continue approved Gradle/plugin provisioning and minimal offline client/bridge/world implementation.
+
+2026-09-06 build preparation: Added a pinned tracked-source exporter and GPL-preserving build
+patch queue on `feat/android-offline-client`. Fresh exports apply cleanly, refuse overwrite, omit
+upstream credential templates/ignored build data, and preserve 6,666 checked UI/resource files
+byte-for-byte. Gradle 8.11.1 passed its published checksum; AGP 8.10.1 matches official module
+checksum metadata. The official Google distribution CDN resolves the Maven endpoint failure.
+The Kotlin build plugin, JLatexMath and Telegram Java renderer compiled. The packaged manifest
+has the distinct GramLab application ID with application/backup disabled. The complete x86_64
+preparation APK compiled and passed signature/ABI inspection; its hash is in the
+[build evidence](../../../docs/development/android-build.md). Strict dependency metadata contains
+918 checksummed artifacts and is installed by fresh source preparation. A contained rebuild
+exposed Ninja's missing `/bin/sh`; a pinned Android-only shell link passed the failing regression
+and all thirteen process/guest tests (90.91% coverage). Native compilation now proceeds inside
+containment. No client runtime success is claimed; continue the live offline rebuild and full
+client/world/bot gates. Machine-specific build records remain ignored.

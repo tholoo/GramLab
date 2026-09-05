@@ -3,6 +3,7 @@
   extraPackages ? [ ],
   executables ? { },
   environment ? { },
+  posixShell ? null,
 }:
 let
   closure = pkgs.closureInfo { rootPaths = [ pkgs.python313 ] ++ extraPackages; };
@@ -13,6 +14,6 @@ pkgs.writeText "gramlab-runtime.json" (
     bubblewrap = "${pkgs.bubblewrap}/bin/bwrap";
     python = "${pkgs.python313}/bin/python3";
     storePaths = "${closure}/store-paths";
-    inherit executables environment;
+    inherit executables environment posixShell;
   }
 )

@@ -1,7 +1,8 @@
 # Licensing boundaries
 
 The root [MIT license](../../LICENSE) covers original GramLab scaffold/core/SDK work, not acquired
-third-party code. No Telegram code or assets are bundled in this scaffold.
+third-party code. The Android patch queue now includes upstream context and retains its applicable
+GPL terms with an accompanying license text. Full acquired source and generated binaries remain ignored.
 
 Android-derived components must preserve the applicable upstream license and notices. Telegram
 Android includes a [GPLv2 license](https://github.com/DrKLO/Telegram/blob/master/LICENSE); inspected
