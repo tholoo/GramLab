@@ -55,8 +55,8 @@ accounts, reaches a local service through `10.0.2.2`, and rejects external IPv4/
 inspected; this is not Telegram rendering evidence.
 
 The previous runtime/guest gate passed thirteen tests with 90.91% runtime-only statement coverage.
-The current expanded core/world/Bot API gate passes 22 tests with 89.79% coverage, with four
-unchanged Android-dependent tests excluded. Strict typing, lint/format, local links and Nix checks
+The expanded core/world/Bot API/client bridge gate passes 27 tests with 90.72% coverage. Android
+tests have a separate gate. Strict typing, lint/format, local links and Nix checks
 pass. The manual CI is configured for the core tests but has not been remotely
 dispatched. [Android build preparation](android-build.md) now exports pinned tracked source,
 sanitizes credential fields and applies a reviewed build patch for a disabled-by-default GramLab
@@ -77,9 +77,11 @@ Tests cover database reopening, rejected changes, concurrent writers, token/worl
 malformed requests and explicit unsupported operations. Capabilities are generated independently
 of the stored seed and only their hashes persist. The seed is metadata, not a random-scenario engine.
 
-Next provide a versioned atomic client snapshot/cursor and implement the approved client
-network/startup patch and authenticated Java semantic bridge. Current snapshots and history/events
-are separate reads; do not assume they already provide a consistent client resnapshot. The trusted
+The [client read boundary](client-bridge.md) now provides a versioned atomic persona snapshot and
+filtered event cursor over authenticated HTTP. Database migration preserves existing worlds and
+pending bot delivery; concurrent snapshot reads stay consistent with message writes. Use this
+boundary rather than the legacy separate snapshot/history/event reads. Next implement the approved
+client network/startup patch and authenticated Java semantic translation. The trusted
 bot fixture also shares its run data mount; separate component filesystem access and quotas remain
 open. The current preparation manifest explicitly disables the application;
 do not enable/install it as a shortcut to synthetic startup. Preserve actual rendering and audit

@@ -85,3 +85,13 @@ Strict typing (including the independent bot and orchestration), lint/format, Ni
 links and public-tree privacy pass. The retained synthetic transcript contains full API responses
 and world history without capabilities. The invalid-poll regression proved that option validation
 must precede acknowledgment; it now preserves pending delivery. No remote workflow was dispatched.
+
+2026-09-06 client read boundary: Added atomic persona snapshots with a persistent world identity,
+filtered event cursors and separate generated client capabilities over actual HTTP. The prior
+database format migrates without losing messages or pending bot updates. Five new tests cover
+complete snapshot contents, migration/reopen, hidden-event cursor advancement, concurrent writes,
+wrong-persona/world/bot authorization, malformed requests and service reopening. The
+[protocol record](../../../docs/development/client-bridge.md) defines cursor gaps, resnapshot rules
+and current limits. The expanded core gate passes 27 tests with 90.72% statement coverage.
+Native guard work and Java integration continue separately; no Android rendering or complete
+foundation acceptance is claimed. Machine-specific observations remain ignored.

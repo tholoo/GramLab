@@ -77,10 +77,11 @@ updates; each was reproduced before its correction. The manually dispatched CI w
 The current trusted bot fixture shares its run's data mount with the supervisor. Separate bot
 filesystem permissions, private component mounts and resource limits are not established yet;
 HTTP capability checks do not protect a database from code that can directly write that file.
-There is no public launcher, client control endpoint or authenticated Android bridge yet.
+There is no public launcher or client control endpoint yet. The authenticated
+[semantic client read boundary](client-bridge.md) now supplies persona-scoped snapshots and events.
 
-The participant snapshot and history/event reads are separate operations; a versioned atomic
-client snapshot/cursor is still required before Android activation. Abrupt process interruption
+The legacy participant snapshot and history/event reads remain separate operations; Android must
+use the new transactional client snapshot/cursor. Abrupt process interruption
 at delivery boundaries, actual bot/client restart reconciliation, TTL/fault behavior and replay
 remain work. The successful database reopen tests do not substitute for those cases.
 

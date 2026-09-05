@@ -9,6 +9,11 @@ a fresh AOSP guest's boot/account state and local/external networking. It requir
 shell and KVM, and skips explicitly when they are unavailable. The trusted guest probe runs
 inside the process boundary and keeps generated evidence in its isolated data directory.
 
+`test_world.py` checks persisted synthetic state and concurrent transitions. `test_bot_api.py`
+exercises actual HTTP, including a separate bot process. `test_client_bridge.py` covers atomic
+persona snapshots, journal cursors, storage migration and authenticated HTTP reads. Run them in
+the outer network guard; these contracts do not establish Android rendering fidelity.
+
 Follow [TESTING.md](../TESTING.md) as implementation continues.
 Test the simulator itself, consumers through its HTTP boundary, Android interaction/rendering,
 and their agreement. Keep runtime artifacts outside committed fixtures.
