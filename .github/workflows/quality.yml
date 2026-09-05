@@ -1,0 +1,63 @@
+name: Manual scaffold and Python quality
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
+          python-version: "3.13"
+      - name: Provision locked development tools
+        run: uv sync --locked
+      - name: Validate configuration and local Markdown links
+        run: |
+          uv run --locked python - <<'PY'
+          from pathlib import Path
+          import re
+          import tomllib
+          root = Path.cwd()
+          for name in ("pyproject.toml", "uv.lock"):
+              with (root / name).open("rb") as stream:
+                  tomllib.load(stream)
+          files = [root / name for name in
+                   ("README.md", "AGENTS.md", "CONTEXT.md", "TESTING.md", "CONTRIBUTING.md")]
+          for directory in ("docs", ".scratch", "clients", "tests", "examples", "src"):
+              files.extend(p for p in (root / directory).rglob("*.md")
+                           if "upstream" not in p.relative_to(root).parts)
+          errors = []
+          for path in files:
+              body = path.read_text(encoding="utf-8")
+              for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", body):
+                  if "://" in target or target.startswith("#"):
+                      continue
+                  target = target.split("#", 1)[0]
+                  if target and not (path.parent / target).exists():
+                      errors.append(f"{path.relative_to(root)}: {target}")
+          if errors:
+              raise SystemExit("Broken local links:\n" + "\n".join(errors))
+          print(f"Validated configuration and links in {len(files)} Markdown files.")
+          PY
+      - name: Lint and formatting
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+      - name: Require real tests when implementation exists
+        shell: bash
+        run: |
+          if find src/gramlab -name '*.py' -print -quit | grep -q .; then
+            uv run --locked mypy src/gramlab
+            uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
+          else
+            echo 'Scaffold only: no Python implementation or behavioral test coverage yet.'
+          fi

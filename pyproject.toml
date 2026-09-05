@@ -1,0 +1,48 @@
+[project]
+name = "gramlab"
+version = "0.0.0"
+description = "Offline Telegram bot laboratory — scaffold, not an implemented simulator"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "hypothesis==6.167.1",
+  "mypy==1.20.2",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==6.3.0",
+  "pytest-xdist==3.8.0",
+  "ruff==0.16.5",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["clients/android/upstream"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106", "S311"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config -q"
+testpaths = ["tests"]
+asyncio_mode = "strict"
+markers = [
+  "android: requires the isolated Android runtime",
+  "stress: explicitly selected randomized or load tests",
+  "conformance: requires separately reviewed external compatibility evidence",
+]
