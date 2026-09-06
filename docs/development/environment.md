@@ -106,6 +106,19 @@ Actionlint. The final command evaluates
 all declared platform outputs without claiming they were built on every platform. These checks
 do not replace Python behavioral tests, Android interaction evidence or egress enforcement.
 
+If a check's tool inputs are missing, inspect its provisioning plan before forcing an offline
+build. For example, substitute the host system in:
+
+```sh
+nix build --dry-run .#checks.x86_64-linux.workflow
+```
+
+Provision through the configured binary cache, then run the check. Nix's `--offline` disables
+substitution and may instead attempt a large source build when inputs are missing; it does not
+replace the separate runtime network guard. A measured workflow check needed only 2.3 MiB of
+cached tools, while the offline attempt planned hundreds of derivations. Keep cache/proxy
+configuration local. The retained development-shell profiles do not include every check's tools.
+
 For a deliberate toolchain upgrade, update the immutable nixpkgs revision in `flake.nix`, run
 `nix flake lock`, and review both the resulting lock and `clients/android/toolchain.json`. The
 Android expression checks the image revision, extension and published checksum so a nixpkgs

@@ -58,6 +58,7 @@ the report loads its images without overflow or external resources at mobile and
 The installed wheel also passes the simulation example using isolated Python import behavior.
 
 The [capture limits](scenario-captures.md) and baseline [rendering profile](android-effects-profile.md)
-remain applicable. Native inline-keyboard targeting for rich messages is not verified. HTML,
+remain applicable. The [rich inline example](../../examples/rich_inline/README.md) now adds bounded
+actual callback-keyboard targeting; it does not implement rich button blocks. HTML,
 Markdown, automatic detection, links, lists, media, custom emoji, rich buttons and streamed drafts
 remain open; this example does not establish those contracts.

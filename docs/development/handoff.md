@@ -54,6 +54,47 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
+The rich-inline worker is now merged. Its focused native evidence covers the real rich callback
+and RTL edit, rejection of an off-screen formatting-only duplicate, and an ordinary multiline
+regression identified during coordinator review. The complete multiline target is selected once
+when another plain message equals only its first line. The [input contract](scenario-input.md)
+records the conservative identity limitations; rich button blocks remain distinct unfinished work.
+The combined core gate passes 273 tests at 80.31% coverage in 45 seconds with four isolated pytest
+workers. Full lint/format, all documented strict typing scopes, the Nix workflow check, installed
+wheel rich-inline example, config/local links and tracked-tree privacy checks pass.
+
+The [original effects comparison](android-effects-profile.md) passes in 174 seconds: baseline,
+blur, glass and restored states retain equal complete rich history and guest isolation evidence.
+A geometry-changing unsent draft reaches the original LiquidGlassEffect.update on the main thread;
+its nonopaque foreground color, original captures and original controls are retained. The first
+attempt missed a cached display list; the second stopped at an optional notification sheet during
+restoration. The passing probe observes/dismisses that sheet and retains each result independently.
+No renderer, APK, default graphics profile or runtime egress permission changed. The measured
+performance class remains unobserved, and restored flags do not promise identical system pixels.
+
+The combined Android gate is **running**, with per-test durations and JUnit output retained. Its
+actual handle, log and artifact paths are in ignored `.cache/local-notes/effects-and-rich-inline.json`.
+Poll that same handle before taking another guest lock; do not restart based on an observation
+timeout. Keep both current tickets pending until combined acceptance is observed. The full gate
+includes the final effects host assertions and client/APK report provenance. Earlier intermittent
+startup failures remain unresolved. Both reviewed reports load original images at desktop/mobile
+widths without overflow or external resources. Worker evidence is preserved outside its checkout.
+
+The next independent rich-list work needs an exact official Bot API contract before worker
+assignment. A read-only review identifies native list support but no retained official JSON schema
+contents. Verify the already pinned official parser/serializer references, record the interface,
+then split independent Python validation and GPL adapter/probe ownership. Preserve the full agreed
+rich/media inventory; do not infer the Bot API vocabulary from native TL constructor names.
+
+Development observations: four-worker core runs are faster than the preceding serial checkpoint,
+but differing scope and load prevent a controlled speedup claim. Missing workflow-tool cache paths
+caused an offline Nix attempt to plan hundreds of source derivations; binary-cache provisioning
+needed only 2.3 MiB and the workflow check then passed. Follow the [environment guidance](environment.md)
+and retain local configuration outside the repository. Continue collecting native per-test times
+instead of repeating complete gates during worker iteration.
+
+## Previous rich-message checkpoint
+
 The completed first parallel rich-message batch has a passing real-bot send/edit scenario and original
 Android rendering evidence. The integrated offline APK builds in 2 minutes 15 seconds; the focused native test passes in 72 seconds, including
 complete actual serializer observations, two malformed-table rejections, live RTL editing and cold
@@ -74,12 +115,8 @@ full static checks, workflow check, local links and tracked-tree privacy checks 
 check/build/preview handles are terminal. The four bounded rich-message tickets are resolved;
 the full product goal remains active.
 
-Next, continue native rich inline targeting and the runtime effects comparison, then expand the
-remaining rich/media inventory along independently owned contracts. Native inline target selection
-still has no verified rich-message contract. The reviewed
-[effects investigation](android-effects-profile.md) identifies pinned
-performance, preference and shader gates and a one-guest comparison procedure. It changes no
-graphics defaults; native runtime values and effects-enabled captures remain unverified.
+The rich-inline and effects follow-ups above extend this checkpoint; the combined gate remains
+separate from their focused evidence. Broader rich/media work is still open.
 
 After the [reuse assessment](bot-api-reuse.md), the user chose to continue the independent simulator
 and accelerate it with parallel implementation. The research remains a reference for contracts

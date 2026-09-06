@@ -1,8 +1,8 @@
 # Inline callbacks on rich bot messages
 
 Type: task
-Status: claimed
-Work state: ready for coordinator integration — rich_inline, task/rich-inline
+Status: ready-for-agent
+Work state: integrated; combined Android gate pending
 Blocked by: none
 
 ## Ownership
@@ -116,3 +116,13 @@ messages retain conservative observed-content checks. Focused Ruff/format/mypy c
 no APK, renderer, timeout or input-retry behavior changed. The two review-run handles are terminal
 and the shared guest lock is released. Earlier feature evidence remains recorded separately;
 this follow-up ran only the requested native red/green pair, not a repeated full gate.
+
+## Coordinator integration
+
+The two frozen worker commits merge without conflicts. The coordinator reviewed the positive,
+ambiguity and ordinary multiline captures, and retained their reports outside the worker checkout.
+The positive report loads both original images at desktop/mobile widths without overflow or
+external resources. The combined core gate passes 273 tests at 80.31% coverage in 45 seconds with
+four isolated pytest workers. Full lint/format, focused strict typing and the declared Nix workflow
+check pass. The combined Android gate is running; keep acceptance pending until its result is
+observed. The earlier native startup failure remains unresolved.

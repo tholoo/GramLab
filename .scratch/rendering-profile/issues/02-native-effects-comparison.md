@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: verified focused comparison; combined Android gate pending
 Owner: coordinator
 Blocked by: none
 
@@ -46,3 +46,17 @@ The revised probe retains each phase and the breakpoint independently, dismisses
 notification sheet with Back, and keeps restoration in the same guest. Focused Ruff, format and
 strict typing pass; the complete revised native comparison remains pending. No renderer changes,
 new APK, runtime network permission or default-profile change were made.
+
+## Focused acceptance
+
+The revised complete comparison passes in 174 seconds. It verifies all four states, restored
+checkboxes/mask, equal complete history, zero accounts, battery 100 and guest egress denial. The
+original shader method is observed on the main thread with a nonopaque foreground color; the
+wrapping draft is cleared without sending. All four original captures were reviewed. The report
+loads its four original images without overflow or external resources at desktop/mobile widths.
+The source-derived performance-class inference remains separate from observed runtime values;
+restoring the two effect flags is not an identical-frame reset of system navigation/clock pixels.
+The [effects profile](../../../docs/development/android-effects-profile.md) records these limits.
+A later assertion/provenance-only update additionally checks the observed nonopaque alpha and
+records the declared client pin and actual APK hash. The combined native gate will exercise that
+final host-test version. No production or default-profile change belongs to this task.
