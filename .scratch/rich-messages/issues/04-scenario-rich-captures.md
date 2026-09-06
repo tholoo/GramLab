@@ -2,8 +2,27 @@
 
 Type: task
 Status: ready-for-agent
-Work state: unclaimed
+Work state: claimed
 Blocked by: none
+
+## Comments
+
+- Claimed by `task/rich-captures` at base `f8075d2299209807e88d96e5e906db65a310ac87`.
+- Acceptance: public scenario captures match text within each rich textual fragment, retain the
+  complete structured history, and reject metadata, cross-fragment and cross-chat matches.
+
+## Answer
+
+`capture_chat` now searches ordinary message text and validated rich-message textual fragments.
+RichText wrappers and arrays concatenate inside one field; block text, summaries, captions,
+credits and individual table cells remain separate. Nested quote/details blocks are traversed,
+while type, language, alignment and flags are excluded. Captures continue retaining the original
+structured world history.
+
+The public runner red test observed a real bot's complete rich message in authoritative history
+but an `invalid_request` capture rejection. The focused green run passes 50 capture and rich-message
+tests under the loopback-only network guard. Android accessible-text verification remains owned by
+the coordinator, and this ticket remains claimed until integrated checks pass.
 
 ## Ownership and shared contract
 
@@ -31,3 +50,12 @@ Preserve the original structured history; do not replace rich content with extra
   inside the documented outer network guard. No Android build or guest for the worker.
 - Keep this ticket claimed until coordinator integrated checks pass. Report red/green evidence,
   exact commit, owned files and open limitations according to the parallel workflow.
+
+## Coordinator integration
+
+Reviewed the frozen worker branch and merged without conflicts. The independently authored
+public rich example first fails at capture validation with complete rich history already stored;
+after integration, it and the existing/worker capture tests pass (9 tests, 10.14 seconds).
+The full four-worker core gate passes 272 tests in 73.24 seconds at 81.44% coverage. All documented
+strict type checks, lint and formatting pass. Public Android example verification remains
+pending the shared guest lock, so this task remains open at this checkpoint.

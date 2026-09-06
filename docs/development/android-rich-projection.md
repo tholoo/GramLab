@@ -114,6 +114,10 @@ One measured run spent 4.34 seconds installing, 4.04 and 3.45 seconds on cold ap
 3.20–5.06 seconds per capture, and 1.51–2.14 seconds per codec observation. These are individual
 observations, not latency percentiles. Sharing one dedicated guest across the related phases
 avoids repeated guest startup while preserving separate world and malformed-input fixtures.
-The full core gate passes 269 tests at 82.06% coverage. Generic scenario `contains` assertions
-still inspect ordinary text only; rich-only capture assertions and native inline targeting
-require follow-up before claiming the same public scenario coverage as plain messages.
+The initial full core gate passes 269 tests at 82.06% coverage. The subsequent
+[public rich capture implementation](scenario-rich-messages.md) passes its simulation checks and
+272-test core gate; its Android integration remains pending. Native rich inline targeting still
+requires follow-up. The first generated rich report mislabeled seconds as milliseconds; the
+report adapter now converts those measurements, and the separately corrected retained report
+passes browser inspection at desktop/mobile widths with all three images loaded, no overflow
+and no external resources.

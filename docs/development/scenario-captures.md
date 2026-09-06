@@ -50,7 +50,9 @@ capture = lab.capture_chat(
 ```
 
 `contains` normally requires 1–32 nonempty strings, each at most 4,096 characters. Every string must occur
-in an authoritative message. Android also requires it in a decoded UIAutomator node's text before
+in ordinary authoritative message text or one [rich text fragment](scenario-rich-messages.md).
+RichText wrappers concatenate within a field; separate blocks/cells and metadata cannot create
+a match. Android also requires it in a decoded UIAutomator node's text before
 retaining the screenshot. Prefer complete message text to distinguish a particular reply. This
 is an accessible-text condition, not an independent pixel-equivalence or layout assertion.
 

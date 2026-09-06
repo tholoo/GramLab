@@ -63,9 +63,14 @@ and [native evidence and reproduction](android-rich-projection.md). The combined
 gate is running; do not use the preceding 28-test result as evidence for this new APK. Local handles,
 fingerprints and artifact locations are retained in ignored notes.
 
-Generic scenario `contains` assertions still inspect ordinary text only, and native inline target
-selection has no verified rich-message contract. Continue those integration gaps alongside broader
-feature work. The reviewed [effects investigation](android-effects-profile.md) identifies pinned
+The follow-up public scenario capture implementation now searches rich text fragments while
+preserving structured history. Nine integrated capture tests pass, including the reusable
+[rich example](scenario-rich-messages.md) in simulation. Its full core gate passes 272 tests at
+81.44% coverage in 73 seconds with four pytest workers, compared with the preceding serial
+269-test gate's 148 seconds. This is a measured development run, not a controlled benchmark;
+the full Android gate and this new public example's native check remain pending. Native inline
+target selection still has no verified rich-message contract. Continue that integration gap
+alongside broader feature work. The reviewed [effects investigation](android-effects-profile.md) identifies pinned
 performance, preference and shader gates and a one-guest comparison procedure. It changes no
 graphics defaults; native runtime values and effects-enabled captures remain unverified.
 
