@@ -1,0 +1,185 @@
+{
+  "is_rtl": true,
+  "blocks": [
+    {
+      "type": "heading",
+      "size": 2,
+      "text": "List catalog — فهرست"
+    },
+    {
+      "type": "list",
+      "items": [
+        {
+          "label": "•",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": [
+                "سلام نیم‌فاصله English 👩‍💻 ",
+                {
+                  "type": "bold",
+                  "text": "First"
+                }
+              ]
+            }
+          ],
+          "has_checkbox": true
+        },
+        {
+          "label": "•",
+          "blocks": [],
+          "has_checkbox": true,
+          "is_checked": true
+        },
+        {
+          "label": "•",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Nested list"
+            },
+            {
+              "type": "list",
+              "items": [
+                {
+                  "label": "AA.",
+                  "blocks": [
+                    {
+                      "type": "paragraph",
+                      "text": "Alphabetic nested"
+                    }
+                  ],
+                  "value": 27,
+                  "type": "A"
+                },
+                {
+                  "label": "iv.",
+                  "blocks": [
+                    {
+                      "type": "paragraph",
+                      "text": "Roman nested"
+                    }
+                  ],
+                  "value": 4,
+                  "type": "i",
+                  "has_checkbox": true,
+                  "is_checked": true
+                },
+                {
+                  "label": "0.",
+                  "blocks": [],
+                  "value": 0,
+                  "type": "1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "items": [
+        {
+          "label": "1.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Decimal"
+            }
+          ],
+          "value": 1,
+          "type": "1"
+        },
+        {
+          "label": "z.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Lower alphabetic"
+            }
+          ],
+          "value": 26,
+          "type": "a"
+        },
+        {
+          "label": "AA.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Upper alphabetic"
+            }
+          ],
+          "value": 27,
+          "type": "A"
+        },
+        {
+          "label": "mmmcmxcix.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Lower Roman boundary"
+            }
+          ],
+          "value": 3999,
+          "type": "i"
+        },
+        {
+          "label": "IV.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Upper Roman"
+            }
+          ],
+          "value": 4,
+          "type": "I"
+        },
+        {
+          "label": "4000.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Roman decimal fallback"
+            }
+          ],
+          "value": 4000,
+          "type": "I"
+        },
+        {
+          "label": "-2147483648.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Signed minimum"
+            }
+          ],
+          "value": -2147483648,
+          "type": "1"
+        },
+        {
+          "label": "2147483647.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Signed maximum"
+            }
+          ],
+          "value": 2147483647,
+          "type": "1"
+        },
+        {
+          "label": "0.",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "Zero fallback"
+            }
+          ],
+          "value": 0,
+          "type": "a"
+        }
+      ]
+    }
+  ]
+}
