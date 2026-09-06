@@ -34,11 +34,13 @@ large semantic evidence. Input labels that become ambiguous after redaction fail
 The report is inspected at desktop/mobile widths with no external resources. Dependencies remain
 explicit selected files or the trusted provisioned closure; there is no runtime package installer.
 
-This ticket remains claimed. Connect the actual Android renderer to this command and demonstrate
-equivalent semantic scenarios plus original screenshots. Both Android modes currently fail
-explicitly; existing dedicated Android test evidence does not establish consumer-runner support.
-Consumer-requested lifecycle/fault operations and expanded dependency packaging remain follow-ups.
+The [capture milestone](../../../docs/development/scenario-captures.md) now connects headless
+Android to the same CLI and Python API. The two-conversation example has equivalent semantic
+results in both modes and original PNG/XML evidence from the actual renderer. Scenario failure
+retains its capture; Android startup timeout yields a failed report. All 138 core tests pass at
+84.30% measured coverage and all 16 Android tests pass. Static checks, Nix/workflow validation and
+offline distributions pass. Selected API tests explicitly trace real contained supervisor lines.
 
-The final core gate passes 132 tests at 87.74% measured coverage. Static checks, Nix/workflow
-validation, offline distributions and public-tree privacy/local links pass. Contained supervisor
-source is uninstrumented by coverage; its behavior is checked through actual CLI execution.
+This ticket remains claimed for SDK-controlled native input, interactive mode and the remaining
+workflow acceptance. Consumer-requested lifecycle/fault operations and expanded dependency
+packaging remain follow-ups. Interactive mode still fails explicitly during preparation.

@@ -13,9 +13,10 @@ import time
 import tomllib
 from dataclasses import asdict
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
-from gramlab.reports import Report, _Redactor, write_report
+from gramlab._android import IMAGE_PACKAGE
+from gramlab.reports import Report, Screenshot, _Redactor, write_report
 from gramlab.runtime import RuntimeProfile, Sandbox, _data_directory
 from gramlab.world import World
 
@@ -27,6 +28,8 @@ def _report_sections(evidence: dict[str, Any]) -> dict[str, Any]:
     sections = {
         "Conversation histories": evidence.get("histories", {}),
         "Process logs": evidence["processes"],
+        "Scenario captures": evidence["captures"],
+        "Android runtime": evidence["android"],
         "World state": evidence.get("world", {}),
         "Event trace": evidence.get("events", []),
         "Run configuration": evidence["configuration"],
@@ -84,8 +87,8 @@ def _inputs(manifest: Path) -> tuple[dict[str, Any], dict[str, dict[str, bytes]]
         raise ValueError("Run timeout must be positive and at most one day")
     config["timeout"] = timeout
     config.setdefault("mode", "simulation-only")
-    if config["mode"] != "simulation-only":
-        raise ValueError("This runner currently supports only simulation-only mode")
+    if config["mode"] not in ("simulation-only", "headless-android"):
+        raise ValueError("This runner supports simulation-only and headless-android modes")
     bots = config.get("bots", {})
     if not isinstance(bots, dict) or len(bots) > 64:
         raise ValueError("Bots must be a table with at most 64 entries")
@@ -130,12 +133,41 @@ def _inputs(manifest: Path) -> tuple[dict[str, Any], dict[str, dict[str, bytes]]
     return config, inputs
 
 
-def run(manifest: Path, output: Path, *, profile: RuntimeProfile) -> str:
+def run(
+    manifest: Path,
+    output: Path,
+    *,
+    profile: RuntimeProfile,
+    android_profile: RuntimeProfile | None = None,
+    android_apk: Path | None = None,
+) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
     config, inputs = _inputs(manifest)
+    apk = None
+    android_json = None
+    selected_profile = profile
+    if config["mode"] == "headless-android":
+        if android_profile is None or android_apk is None:
+            raise ValueError("Headless Android requires a trusted Android profile and approved APK")
+        if not {"adb", "emulator", "avdmanager"} <= android_profile.executables.keys():
+            raise ValueError("Android profile requires adb, emulator and avdmanager")
+        apk = _source(android_apk.absolute().parent, android_apk.name, limit=256 * 1024 * 1024)
+        if not apk.startswith(b"PK\x03\x04"):
+            raise ValueError("Android APK must be an already built APK archive")
+        android_json = json.dumps(asdict(android_profile))
+        selected_profile = android_profile
+        config["android"] = {
+            "apk_sha256": hashlib.sha256(apk).hexdigest(),
+            "profile_sha256": hashlib.sha256(android_json.encode()).hexdigest(),
+            "image_package": IMAGE_PACKAGE,
+        }
     output = output.absolute()
     with _data_directory(output.parent) as parent:
         os.mkdir(output.name, mode=0o700, dir_fd=parent)
+    if apk is not None and android_json is not None:
+        (output / "client.apk").write_bytes(apk)
+        (output / "android-profile.json").write_text(android_json)
+        del apk
     for component, selected in inputs.items():
         for relative, content in selected.items():
             destination = output / component / relative
@@ -155,8 +187,11 @@ def run(manifest: Path, output: Path, *, profile: RuntimeProfile) -> str:
     started = time.monotonic()
     observation: dict[str, Any] = {"failure": "supervisor_failed", "processes": {}}
     try:
-        result = Sandbox(profile).supervise(
-            [profile.python, "-m", "gramlab._run"], data=output, timeout=config["timeout"] + 15
+        result = Sandbox(selected_profile).supervise(
+            [profile.python, "-m", "gramlab._run"],
+            data=output,
+            timeout=config["timeout"] + 15,
+            kvm=config["mode"] == "headless-android",
         )
         if result.returncode == 0:
             observation = json.loads((output / "observation.json").read_text())
@@ -172,6 +207,8 @@ def run(manifest: Path, output: Path, *, profile: RuntimeProfile) -> str:
         "mode": config["mode"],
         "failure": failure,
         "processes": observation["processes"],
+        "captures": observation.get("captures", []),
+        "android": observation.get("android", {}),
         "sources": config["sources"],
         "configuration": {key: value for key, value in config.items() if key != "sources"},
         "profile_sha256": hashlib.sha256(profile_json.encode()).hexdigest(),
@@ -197,7 +234,7 @@ def run(manifest: Path, output: Path, *, profile: RuntimeProfile) -> str:
         Report(
             run_id=run_id,
             title="Consumer scenario run",
-            mode="simulation-only",
+            mode=cast(Literal["simulation-only", "headless-android"], config["mode"]),
             outcome=outcome,
             seed=config["seed"],
             profile={
@@ -209,9 +246,19 @@ def run(manifest: Path, output: Path, *, profile: RuntimeProfile) -> str:
             if not failure
             else f"Run failed: {failure}.",
             evidence=_report_sections(evidence),
+            screenshots=[
+                Screenshot(
+                    caption=f"Chat {capture['chat_id']} · {capture['label']}",
+                    png=(output / "captures" / (capture["label"] + ".png")).read_bytes(),
+                )
+                for capture in evidence["captures"]
+                if capture["rendered"]
+            ],
             timings={"run": evidence["elapsed_ms"]},
             limitations=(
-                "Simulation-only: no Android rendering evidence.",
+                "Simulation-only: no Android rendering evidence."
+                if config["mode"] == "simulation-only"
+                else "Only successful explicit captures provide Android rendering evidence.",
                 "Passing reflects the consumer scenario's checks and process outcomes.",
                 "Dependencies must already be present in the trusted runtime or selected files.",
                 "Large HTML sections show a labeled preview; result.json retains full evidence.",

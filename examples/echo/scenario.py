@@ -34,4 +34,7 @@ for chat, sent, text in conversations:
     ]
     if lab.history(chat["id"]) != expected:
         raise AssertionError("Conversation history differs from the expected exchange")
+    lab.capture_chat(
+        chat_id=chat["id"], label="chat-" + str(chat["id"]), contains=[text, "Echo: " + text]
+    )
 print("Verified two independent conversations, including mixed Persian/English and emoji.")

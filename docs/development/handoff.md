@@ -9,8 +9,8 @@ drives a real local bot through HTTP; its reply now renders in the actual Telegr
 application through synthetic startup and a Java semantic read adapter. The upstream chat renderer
 is preserved. A bounded real inline-tap/callback/edit and bot/client recovery loop now has
 [Android evidence](android-callbacks.md). An experimental Python scenario client exists; the
-simulation-only consumer launcher now prepares selected files and retains automatic run reports.
-Android modes in that launcher remain unfinished.
+consumer launcher now prepares selected files, runs simulation-only or headless Android scenarios,
+and retains automatic reports with original client captures. Interactive mode remains unfinished.
 
 The bounded real bot → actual Android → inline-button tap/callback → edit → bot/client recovery
 loop is the first milestone of the active goal; the wider agreed feature inventory remains open. No real accounts or DC
@@ -45,19 +45,26 @@ runtime startup retain JSON/HTML evidence. Large HTML sections use explicit prev
 retains complete state. The installed two-conversation example passes; desktop/mobile browser
 inspection finds the actual conversation evidence, no layout overflow and no external resources.
 
-Continue claimed ticket 02 by connecting actual Android observation to this consumer workflow.
-Both Android modes currently fail explicitly during preparation. Preserve the existing private
-emulator component, authoritative world and original renderer. The actual Android test harness
-still owns its separate rendering/recovery evidence; do not claim a simulation-only runner test
-proves Android support. Consumer-requested lifecycle/fault commands and broader dependency
-packaging also remain open. Local runner evidence is recorded in ignored
-`.cache/local-notes/consumer-runner.md`.
+The [scenario capture milestone](scenario-captures.md) connects the actual Android renderer to
+that workflow. `Scenario.capture_chat` retains complete semantic history in both supported modes;
+headless mode additionally verifies visible text and exports original PNG/UIAutomator evidence.
+The same two-conversation example passes in both modes. Android assertion failure retains its
+capture, and startup timeout produces a failed report. Guest startup belongs to the persistent
+supervisor thread so repeated captures remain available.
 
-The final core gate passes 132 tests at 87.74% measured coverage. Full lint/format, strict typing
-across 37 files, Nix/workflow checks, offline distributions and local-link/privacy checks pass.
-The contained supervisor's copied source is not coverage-instrumented; its behavior is exercised
-through the actual CLI. No Android source/runtime change or new guest evidence is part of this
-runner milestone. All recorded run/check handles completed.
+Continue claimed ticket 02 with SDK-controlled native input, interactive mode and the remaining
+workflow acceptance. Consumer-requested lifecycle/fault commands and broader dependency packaging
+also remain open. Preserve the private emulator component, authoritative world and original
+renderer. Local capture evidence is recorded in ignored `.cache/local-notes/scenario-captures.md`.
+
+The capture milestone passes 138 core tests at 84.30% measured coverage and all 16 Android tests.
+Full lint/format, strict typing across 41 files, Nix/workflow checks and offline distributions pass.
+An explicit test-only tracing fixture measures real contained supervisor execution for selected
+Python API tests; CLI and guest behavior checks do not imply additional line coverage. The APK
+and upstream source patches are unchanged. All run/check handles completed.
+
+Earlier control and SDK milestones established the following foundations; their test counts
+below are historical.
 
 Its [world control layer](scenario-control.md) now lets a private scenario process create users,
 chats and actions over authenticated local JSON while trusted orchestration retains the database
@@ -75,8 +82,8 @@ are tested. The private scenario and concurrent writers now use the SDK; all 100
 at 92.46% coverage, with full static checks passing. Local evidence is in ignored
 `.cache/local-notes/scenario-sdk.md`.
 
-Ticket 01 is resolved; consumer-runner ticket 02 remains claimed for Android integration and
-the remaining workflow acceptance. Selected file packaging, the simulation-only launcher,
+Ticket 01 is resolved; consumer-runner ticket 02 remains claimed for native input, interactive mode and
+the remaining workflow acceptance. Selected file packaging, simulation/headless execution,
 bounded process lifecycle and automatic reports are implemented as described above.
 Keep consumer Python in its own component; the approved per-run capability and local HTTP model
 already authorize this direction. Do not freeze a stable public API or change the architecture

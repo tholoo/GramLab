@@ -56,3 +56,10 @@ The first behavioral suite covers the [Linux process boundary](docs/development/
 Run it in the provisioned Nix shell with real namespace support. The manually dispatched CI
 requires the suite and coverage gate; unavailable containment must fail visibly. Do not use
 `passWithNoTests` equivalents or substitute these tests for Android evidence.
+
+The explicit `trace_runner` fixture observes real supervisor source lines inside containment
+for public Python runner tests, including handler threads. It stages only the original
+[stdlib trace bootstrap](tests/probes/trace_runner.py) and merges visited lines into coverage.
+It does not replace runtime behavior, add production dependencies or count consumer code as core
+coverage. Uninstrumented CLI/guest execution remains separate behavioral evidence; do not infer
+line coverage for it. Production runs never install or enable this test instrumentation.

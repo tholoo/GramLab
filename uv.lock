@@ -51,6 +51,7 @@ source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "coverage" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pytest" },
@@ -64,6 +65,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "coverage", specifier = "==7.16.0" },
     { name = "hypothesis", specifier = "==6.167.1" },
     { name = "mypy", specifier = "==1.20.2" },
     { name = "pytest", specifier = "==8.4.2" },

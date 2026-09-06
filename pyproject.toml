@@ -12,6 +12,7 @@ gramlab = "gramlab.__main__:main"
 
 [dependency-groups]
 dev = [
+  "coverage==7.16.0",
   "hypothesis==6.167.1",
   "mypy==1.20.2",
   "pytest==8.4.2",

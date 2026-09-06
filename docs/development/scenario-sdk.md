@@ -3,7 +3,8 @@
 `gramlab.scenario.Scenario` now provides Python methods for the existing
 [world control service](scenario-control.md). It runs inside a private scenario component and
 does not import world storage, launch a bot or acquire credentials. The [consumer runner](consumer-runner.md)
-now prepares selected files and launches simulation-only scenarios and bots. This is an experimental
+now prepares selected files and launches simulation-only scenarios or headless Android captures.
+This is an experimental
 interface, not a stable SDK compatibility commitment.
 
 ## Using the interface
@@ -27,7 +28,7 @@ integration harness or consumer runner starts that separate process. With the ru
 `scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes ten operations:
+The interface exposes eleven operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -41,11 +42,17 @@ The interface exposes ten operations:
 | `events` | Read ordered events after an optional cursor |
 | `create_callback` | Create a synthetic callback with an explicit durable request ID |
 | `get_callback` | Observe that callback and its answer |
+| `capture_chat` | Retain semantic evidence and original screenshots in headless Android mode |
 
 Arguments and JSON-shaped results retain the existing world contract. This is not a second Bot
 API client or a recreated Android interaction layer. A new HTTP connection is used for each call;
 shared instances can make concurrent calls without sharing a socket or response buffer. Tests
 exercise two shared clients with concurrent writers in two independent worlds.
+
+`capture_chat` requires the consumer runner's capture service. Its expected-text checks,
+artifacts, separate socket timeout and current rendering limits are documented in
+[scenario captures](scenario-captures.md). Capture failures can have uncertain artifact/client
+effects even though the operation does not create a simulated message.
 
 ## Failure contract
 

@@ -47,7 +47,13 @@ def _parameters(value: dict[str, Any]) -> None:
 
 
 class WorldControl:
-    def __init__(self, directory: Path, *, bots: Mapping[str, int] | None = None) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        *,
+        bots: Mapping[str, int] | None = None,
+        capture_chat: Callable[..., dict[str, Any]] | None = None,
+    ) -> None:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("World control requires the isolated loopback-only runtime")
         directory = directory.absolute()
@@ -144,6 +150,8 @@ class WorldControl:
                             "create_callback": world.create_callback,
                             "get_callback": world.get_callback,
                         }
+                        if capture_chat is not None:
+                            operations["capture_chat"] = capture_chat
                         operation = body["operation"]
                         if operation not in operations:
                             self.error(404, "unsupported", "Unknown world control operation")
@@ -156,6 +164,8 @@ class WorldControl:
                     self.error(
                         400, "invalid_request", "Invalid parameters or excessive JSON nesting"
                     )
+                except RuntimeError:
+                    self.error(500, "server_error", "World control operation failed")
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self._server.daemon_threads = False

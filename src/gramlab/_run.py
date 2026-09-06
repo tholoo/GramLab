@@ -11,6 +11,8 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
+from gramlab._android import Android
+from gramlab._captures import Captures
 from gramlab._control import WorldControl
 from gramlab.bot_api import BotAPIServer
 from gramlab.reports import _Redactor
@@ -40,8 +42,22 @@ def execute() -> None:
     total_bytes = 0
     failure: str | None = None
     secrets = list(tokens.values())
+    android = None
+    if config["mode"] == "headless-android":
+        android = Android(
+            RuntimeProfile(**json.loads(Path("android-profile.json").read_text())),
+            deadline=deadline,
+            secrets=secrets,
+        )
+    captures = Captures(Path("world"), render=android.capture if android is not None else None)
     try:
-        with WorldControl(Path("world"), bots=bots) as control, BotAPIServer(Path("world")) as api:
+        # Namespace processes belong to this persistent owner, never a short-lived HTTP thread.
+        if android is not None:
+            android.start()
+        with (
+            WorldControl(Path("world"), bots=bots, capture_chat=captures.capture_chat) as control,
+            BotAPIServer(Path("world")) as api,
+        ):
             secrets.append(control.capability)
             with ExitStack() as stack, selectors.DefaultSelector() as ready:
                 programs = [
@@ -113,12 +129,27 @@ def execute() -> None:
         failure = "timeout"
     except (OSError, RuntimeError):
         failure = "component_startup_failed"
+    finally:
+        if android is not None:
+            try:
+                android.close()
+            except (OSError, RuntimeError):
+                failure = failure or "android_cleanup_failed"
+    if captures.failed:
+        failure = failure or "capture_failed"
     for name, process in processes.items():
         records.setdefault(name, {"exit_code": process.returncode, "stopped_by_runner": True})
         for stream in ("stdout", "stderr"):
             records[name][stream] = buffers[name, stream].decode("utf-8", errors="replace")
             records[name][stream + "_complete"] = (name, stream) in complete
-    observation = _Redactor(secrets).clean({"failure": failure, "processes": records})
+    observation = _Redactor(secrets).clean(
+        {
+            "failure": failure,
+            "processes": records,
+            "captures": captures.records,
+            "android": android.observations if android is not None else {},
+        }
+    )
     Path("observation.json").write_text(json.dumps(observation, ensure_ascii=True, indent=2))
 
 

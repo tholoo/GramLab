@@ -147,7 +147,7 @@ def test_invalid_runs_cannot_overwrite_or_silently_change_mode(tmp_path: Path, r
     elif reason == "output_symlink":
         output.symlink_to(manifest.parent, target_is_directory=True)
     elif reason == "unsupported_mode":
-        manifest.write_text('mode = "headless-android"\n' + manifest.read_text())
+        manifest.write_text('mode = "interactive-android"\n' + manifest.read_text())
     else:
         manifest.write_text("unexpected = true\n" + manifest.read_text())
     result = invoke(manifest, output)

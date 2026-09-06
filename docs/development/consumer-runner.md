@@ -3,7 +3,8 @@
 `gramlab run` executes a declared Python scenario and real local bots in the existing offline
 runtime. It prepares selected files without importing consumer code, then starts trusted world
 services and separate private scenario/bot components. The scenario uses the
-[Python SDK](scenario-sdk.md); bots use the local HTTP Bot API. This interface remains experimental.
+[Python SDK](scenario-sdk.md); bots use the local HTTP Bot API. [Scenario captures](scenario-captures.md)
+add original screenshots in headless Android mode. This interface remains experimental.
 
 ## Run the example
 
@@ -119,12 +120,11 @@ Keep run directories ignored. Arbitrary consumer-created files are not automatic
 exports; review them before sharing. Neither the JSON nor the report claims that arbitrary secret
 encodings or secrets supplied as ordinary prose can always be detected.
 
-Only `simulation-only` is currently connected to this command. Both Android modes fail explicitly
-during preparation. The separate [actual Android tests](android-callbacks.md) retain their own
-rendering evidence; this runner produces no Android screenshots. Connecting that renderer,
-consumer-requested restarts/faults, additional dependency packaging and workload performance
-diagnostics remain active work. The recorded elapsed time covers trusted execution and cleanup,
-not an Android boot or individual Bot API latency measurement.
+`simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
+command. `interactive-android` fails explicitly during preparation. SDK-controlled native input,
+restarts/faults, expanded dependency packaging and workload diagnostics remain active work.
+Overall elapsed time covers trusted execution and cleanup; Android metadata separately records
+guest boot duration. Neither is an individual Bot API latency measurement.
 
 ## Verification
 
@@ -136,7 +136,9 @@ A large-world case preserves complete JSON evidence while keeping HTML bounded. 
 [control tests](../../tests/test_world_control.py) verify scoped, read-only named bot identities.
 The documented two-conversation example also runs through the installed console entry point.
 
-The final core gate passes 132 tests at 87.74% measured statement coverage; lint, formatting,
-strict typing, Nix/workflow checks and offline wheel/source builds pass. The copied supervisor
-executes inside containment without coverage instrumentation, so its lines are reported as
-unmeasured despite the real CLI behavior checks. No new Android run is part of this milestone.
+The capture milestone passes 138 core tests at 84.30% measured statement coverage and all 16
+Android tests; lint, formatting, strict typing, Nix/workflow checks and offline wheel/source
+builds pass. Selected Python API tests explicitly trace actual contained supervisor execution
+using the [test-only fixture](../../tests/conftest.py). CLI/guest behavior checks do not imply
+additional measured coverage. [Capture evidence](scenario-captures.md) includes semantic parity,
+two successive client personas, failure capture retention and Android startup timeout.

@@ -95,7 +95,9 @@ class Scenario:
             raise ValueError("Missing scenario control configuration") from None
         return cls(endpoint, capability=capability, world_id=world_id, timeout=timeout)
 
-    def _request(self, operation: str, parameters: dict[str, Any]) -> Any:
+    def _request(
+        self, operation: str, parameters: dict[str, Any], *, timeout: float | None = None
+    ) -> Any:
         try:
             payload = json.dumps(
                 {
@@ -115,7 +117,9 @@ class Scenario:
                 operation=operation,
                 code="invalid_request",
             ) from None
-        connection = http.client.HTTPConnection("127.0.0.1", self._port, timeout=self._timeout)
+        connection = http.client.HTTPConnection(
+            "127.0.0.1", self._port, timeout=self._timeout if timeout is None else timeout
+        )
         attempted = False
         status = None
         try:
@@ -274,6 +278,21 @@ class Scenario:
     def bots(self) -> dict[str, int]:
         """Return the manifest's bot aliases and their world identities."""
         return cast(dict[str, int], self._request("bots", {}))
+
+    def capture_chat(
+        self, *, chat_id: int, label: str, contains: list[str], timeout: float = 180
+    ) -> dict[str, Any]:
+        """Retain chat evidence, with original screenshots when Android mode is selected."""
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Capture timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request(
+                "capture_chat",
+                {"chat_id": chat_id, "label": label, "contains": contains},
+                timeout=timeout,
+            ),
+        )
 
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._request("events", {"after": after}))
