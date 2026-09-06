@@ -339,6 +339,29 @@ class Scenario:
             ),
         )
 
+    def type_message(self, *, chat_id: int, text: str, timeout: float = 180) -> dict[str, Any]:
+        """Compose and send text, retaining raw input and accepted send receipts.
+
+        Android uses the original editable node and Send control. Each call is a new action;
+        a lost response is uncertain and is never retried automatically. The experimental
+        profile rejects unsatisfied splitting/formatting contracts before input in both modes.
+        """
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Composer input timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request("type_message", {"chat_id": chat_id, "text": text}, timeout=timeout),
+        )
+
+    def start_bot_chat(self, *, chat_id: int, timeout: float = 180) -> dict[str, Any]:
+        """Press Start Bot in a new conversation, producing the ordinary /start message."""
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Start Bot timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request("start_bot_chat", {"chat_id": chat_id}, timeout=timeout),
+        )
+
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._request("events", {"after": after}))
 

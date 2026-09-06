@@ -55,8 +55,21 @@ is withheld before client shutdown. The retained negative pending message reconc
 real bot replies once. Compact acknowledgment and difference serialization checks also pass.
 Fresh patch preparation preserves all 6,666 upstream UI/resource files. The full Android gate
 passes 20 tests; it predates the [composer-text fixtures/probe](composer-text-references.md), which
-then passes seven source-derived input cases in a separate actual Android test. Scenario composer input,
-cross-mode text transformations and further interruption boundaries remain open. A screenshot
+then passes seven source-derived input cases in a separate actual Android test. The subsequent
+[scenario composer](scenario-composer.md) adds explicit Start Bot and bounded typed input, an
+independent text model matching those seven fixtures, and a passing shared simulation/Android
+example with three original captures. Its core gate passes 215 tests at 80.99% coverage. The new
+broader Android gate finishes with 21 passed and one failure in the older native interrupted-send
+case: the intended send did not reach its controlled post-commit boundary. The new consumer case
+passes again. Test-only missed-boundary diagnostics were added; a focused rerun passes unchanged,
+so the failure remains intermittent and unresolved. Two further bounded fresh trials are active;
+inspect their evidence before choosing a fix. The installed wheel's
+offline composer example, strict typing, lint/format, Nix parsing, direnv syntax and local links
+pass. Optional workflow lint is unavailable because `actionlint` is absent from the shell. The
+consumer report serves all three PNGs over local HTTP, but configured browser navigation still
+returns `ERR_FAILED`; browser layout review remains unverified and the preview server is stopped.
+Broader text transformations and further interruption boundaries
+remain open. A screenshot
 review traced the post-restart Seen checkmark to the original bot-history UI rule; it is separate
 from unchanged database read state and is not a simulated read receipt. Preserve that renderer
 behavior. The generated report's local HTTP check passes but browser navigation failed, so its

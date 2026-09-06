@@ -28,7 +28,7 @@ integration harness or consumer runner starts that separate process. With the ru
 `scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes fifteen operations:
+The interface exposes seventeen operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -44,6 +44,8 @@ The interface exposes fifteen operations:
 | `get_callback` | Observe that callback and its answer |
 | `capture_chat` | Retain semantic evidence and original screenshots in headless Android mode |
 | `tap_inline_button` | Select a callback keyboard cell, using actual input in Android mode |
+| `start_bot_chat` | Press Start Bot in a new conversation and retain its `/start` send receipt |
+| `type_message` | Compose supported text through the native editor or its semantic simulation |
 | `bot_status` | Observe a configured bot's process generation and state |
 | `stop_bot` | Hard-stop the expected bot generation and its descendants |
 | `start_bot` | Replace a stopped generation while preserving private bot files |
@@ -60,6 +62,10 @@ effects even though the operation does not create a simulated message.
 
 `tap_inline_button` also requires the consumer runner. Its row/column selection, native targeting,
 uncertain outcomes and runnable example are described in [scenario input](scenario-input.md).
+
+`start_bot_chat` and `type_message` use the runner's [composer service](scenario-composer.md).
+That document specifies raw input versus accepted messages, formatting limits, new-chat state,
+durable receipts and the actual Start Bot/composer example.
 
 The bot lifecycle methods also require the consumer runner. See [scenario lifecycle](scenario-lifecycle.md)
 for generation checks, persistent state, stop/restart uncertainty and a callback recovery example.

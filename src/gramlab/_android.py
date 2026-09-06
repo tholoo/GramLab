@@ -31,6 +31,7 @@ class Android:
         self._bridge: ClientBridge | None = None
         self._persona: int | None = None
         self._capability = ""
+        self._active_chat: int | None = None
 
     def _remaining(self, limit: float) -> float:
         remaining = min(limit, self.deadline - time.monotonic())
@@ -155,6 +156,8 @@ class Android:
             (line for line in graphics.splitlines() if line.startswith("GLES:")), "unavailable"
         )
         self._adb("install", "--no-streaming", "/work/client.apk", timeout=60)
+        self._adb("push", "/work/client.apk", "/data/local/tmp/composer-client.apk", timeout=30)
+        self._adb("shell", "chmod", "0444", "/data/local/tmp/composer-client.apk")
         package = self._adb("shell", "dumpsys", "package", "org.gramlab.android").stdout
         self.observations["package_version"] = next(
             (line.strip() for line in package.splitlines() if "versionName=" in line), "unavailable"
@@ -226,6 +229,7 @@ class Android:
         )
         if "Status: ok" not in launched.stdout:
             raise RuntimeError("Dedicated client activity failed to launch")
+        self._active_chat = chat["id"]
         return launched.stdout
 
     def _wait_ui(self, contains: list[str]) -> str:
@@ -236,17 +240,28 @@ class Android:
             ui = self._adb("shell", "cat", "/data/local/tmp/gramlab-capture.xml").stdout
             # UIAutomator produces this XML inside the dedicated guest; no external entities.
             nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314
-            if all(any(text in node.get("text", "") for node in nodes) for text in contains):
+            if all(any(text in node.get("text", "") for node in nodes) for text in contains) and (
+                contains
+                or any(
+                    node.get("package") == "org.gramlab.android"
+                    and node.get("class") == "android.widget.EditText"
+                    and node.get("enabled") == "true"
+                    for node in nodes
+                )
+            ):
                 break
             time.sleep(0.2)
         else:
+            self.observations["unmatched_ui"] = _Redactor(self.secrets).text(ui)
             raise TimeoutError("Expected text did not render in the dedicated client")
         return ui
 
     def _capture(self, chat: dict[str, Any], label: str, contains: list[str]) -> dict[str, Any]:
         started = time.monotonic()
         launched = self._open_chat(chat)
-        ui = self._wait_ui(contains)
+        with World.open(Path("world")) as world:
+            title = world.get_user(chat["bot_id"])["first_name"]
+        ui = self._wait_ui(contains or [title])
         nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314 — dedicated UIAutomator XML
         redactor = _Redactor(self.secrets)
         if any(redactor.text(value) != value for node in nodes for value in node.attrib.values()):
@@ -280,6 +295,144 @@ class Android:
         except Exception as error:
             self._record_failure("input", error)
             raise
+
+    def type_message(
+        self, chat: dict[str, Any], text: str, expected: dict[str, Any]
+    ) -> dict[str, Any]:
+        try:
+            return self._send_composer_action(chat, text, expected)
+        except Exception as error:
+            self._record_failure("composer", error)
+            raise
+
+    def start_bot_chat(self, chat: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self._send_composer_action(chat, None, {"text": "/start"})
+        except Exception as error:
+            self._record_failure("start_bot_chat", error)
+            raise
+
+    def _send_composer_action(
+        self, chat: dict[str, Any], text: str | None, expected: dict[str, Any]
+    ) -> dict[str, Any]:
+        started = time.monotonic()
+        # Starting uses the original captured first-use screen. Reopening an empty dialog
+        # can change the client's local first-use state before its Start button is pressed.
+        launched = (
+            None if text is None and self._active_chat == chat["id"] else self._open_chat(chat)
+        )
+        with World.open(Path("world")) as world:
+            title = world.get_user(chat["bot_id"])["first_name"]
+        ui = self._wait_ui([title, "Start Bot"] if text is None else [title])
+        with World.open(Path("world")) as world:
+            if world.get_chat(chat["id"]) != chat:
+                raise RuntimeError("Composer chat changed before input")
+            if text is None and world.history(chat["id"]):
+                raise RuntimeError("Start Bot conversation changed before input")
+            position = world.client_snapshot(chat["user_id"], version=2)["message_position"]
+        entered = self._click_start(ui) if text is None else self._enter_text(text)
+        return self._accepted_composer_send(
+            chat, position, expected, started, launched, ui, entered
+        )
+
+    def _enter_text(self, text: str) -> dict[str, Any]:
+        entered = json.loads(
+            self._adb(
+                "shell",
+                "-T",
+                "CLASSPATH=/data/local/tmp/composer-client.apk",
+                "/system/bin/app_process",
+                "/system/bin",
+                "org.telegram.gramlab.GramLabInput",
+                input=json.dumps(
+                    {
+                        "operation": "compose_and_send",
+                        "package": "org.gramlab.android",
+                        "expected_text": "",
+                        "text": text,
+                        "send_description": "Send",
+                    }
+                ),
+                timeout=20,
+            ).stdout
+        )
+        if entered != {
+            "ok": True,
+            "input": "accessibility",
+            "text_verified": True,
+            "send_actions": 1,
+            "uid": 2000,
+        }:
+            raise RuntimeError("Unexpected native composer input result")
+        return dict(entered)
+
+    def _click_start(self, ui: str) -> dict[str, Any]:
+        nodes = ET.fromstring(ui).iter("node")  # noqa: S314 — dedicated UIAutomator XML
+        targets = [
+            node
+            for node in nodes
+            if node.get("text") == "Start Bot"
+            and node.get("package") == "org.gramlab.android"
+            and node.get("enabled") == node.get("clickable") == "true"
+        ]
+        if len(targets) != 1:
+            raise RuntimeError("Start Bot must have one enabled accessible target")
+        bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", targets[0].get("bounds", ""))
+        if bounds is None:
+            raise RuntimeError("Start Bot has no usable bounds")
+        left, top, right, bottom = map(int, bounds.groups())
+        if not (0 <= left < right <= 320 and 80 <= top < bottom <= 583):
+            raise RuntimeError("Start Bot is not fully inside the chat viewport")
+        x, y = (left + right) // 2, (top + bottom) // 2
+        self._adb("shell", "input", "tap", str(x), str(y))
+        return {"input": "touch", "send_actions": 1, "target": targets[0].attrib, "x": x, "y": y}
+
+    def _accepted_composer_send(
+        self,
+        chat: dict[str, Any],
+        position: int,
+        expected: dict[str, Any],
+        started: float,
+        launched: str | None,
+        ui: str,
+        entered: dict[str, Any],
+    ) -> dict[str, Any]:
+        deadline = min(self.deadline, time.monotonic() + 15)
+        while time.monotonic() < deadline:
+            with World.open(Path("world")) as world:
+                snapshot = world.client_snapshot(chat["user_id"], version=2)
+            sends = [
+                send
+                for send in snapshot["sends"]
+                if send["position"] > position and send["message"]["chat_id"] == chat["id"]
+            ]
+            if sends:
+                messages = [send["message"] for send in sends]
+                if (
+                    len(messages) != 1
+                    or messages[0]["sender_id"] != chat["user_id"]
+                    or {
+                        key: value
+                        for key, value in messages[0].items()
+                        if key not in {"id", "chat_id", "sender_id", "date"}
+                    }
+                    != expected
+                ):
+                    self.observations["unexpected_composer_sends"] = _Redactor(self.secrets).clean(
+                        sends
+                    )
+                    raise RuntimeError("Native composer produced unexpected semantic messages")
+                return {
+                    "sends": sends,
+                    "android": {
+                        "input": entered,
+                        "ui": ui,
+                        "launch": launched,
+                        "elapsed_ms": (time.monotonic() - started) * 1000,
+                    },
+                }
+            time.sleep(0.05)
+        raise RuntimeError("Native composer produced no accepted send before timeout")
 
     def _tap_inline_button(
         self, chat: dict[str, Any], message: dict[str, Any], row: int, column: int

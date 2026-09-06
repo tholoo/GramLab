@@ -189,6 +189,7 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
         committed = threading.Event()
         release = threading.Event()
         accepted: list[dict[str, Any]] = []
+        forwarded: list[dict[str, Any]] = []
         target = urlsplit(configuration["endpoint"].replace("10.0.2.2", "127.0.0.1"))
 
         class HoldResponse(BaseHTTPRequestHandler):
@@ -210,6 +211,7 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     )
                     response = connection.getresponse()
                     body = response.read()
+                    forwarded.append({"method": self.command, "status": response.status})
                     if (
                         self.command == "POST"
                         and self.path == "/v2/messages"
@@ -224,8 +226,9 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-                except (ConnectionError, TimeoutError):
-                    pass  # The client is intentionally killed before receiving this response.
+                except (ConnectionError, TimeoutError) as error:
+                    # The client is intentionally killed before receiving this response.
+                    forwarded.append({"method": self.command, "failure": type(error).__name__})
                 finally:
                     connection.close()
 
@@ -270,6 +273,23 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     timeout=20,
                 )
                 if not committed.wait(5) or len(accepted) != 1:
+                    # Retain the actual missed boundary before cleanup; do not repeat Send.
+                    with World.open(Path("world")) as world:
+                        observed = world.client_snapshot(1, version=2)
+                    retain(
+                        "missed-commit.json",
+                        json.dumps(
+                            {
+                                "input": json.loads(input_result),
+                                "committed": committed.is_set(),
+                                "accepted": list(accepted),
+                                "forwarded": list(forwarded),
+                                "position": observed["message_position"],
+                                "sends": observed["sends"],
+                            }
+                        ),
+                    )
+                    screen("missed-commit")
                     raise RuntimeError(
                         "Native send did not reach the controlled post-commit boundary"
                     )

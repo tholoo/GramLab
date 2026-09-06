@@ -91,9 +91,11 @@ local APK, then run:
 
 ## Remaining acceptance
 
-Scenario composer input and simulation parity remain open. The original composer trims boundary
-spaces/newlines, interprets formatting delimiters and splits long input; raw typed text is not
-always the submitted semantic message. These transformations need explicit cross-mode proof.
+The [scenario composer](scenario-composer.md) now exposes Start Bot and bounded typed input.
+Its independent text model matches seven native fixtures, and a consumer scenario passes in both
+simulation and actual Android with matching histories, events and accepted sends. Long input,
+nested formatting, links and dice remain outside that verified profile. The original composer
+transforms raw input before sending; broader transformations still need cross-mode proof.
 Controlled acknowledgment-before-storage interruption, live gap recovery, broader targeting and
 formatting rejection cases also remain open. Track them in
 [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).

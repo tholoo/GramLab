@@ -5,7 +5,9 @@ Reviewed against Android revision `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c` on
 for the MIT simulator. The [seven original fixtures](../../tests/fixtures/composer-text.json)
 now pass the [actual composer check](../../tests/test_android_composer_text.py): exact submitted
 text/entities, persona positions and all pending bot messages agree. The focused guest case takes
-about 78 seconds. This establishes bounded native expectations, not simulation parity.
+about 78 seconds. The later [scenario composer](scenario-composer.md) checks an independently
+written model against those fixtures and adds a shared simulation/Android consumer scenario.
+That establishes parity for the documented bounded profile; broader transformations remain open.
 
 ## Typed input differs from submitted text
 
@@ -56,8 +58,9 @@ Two other paths matter for a generic scenario method:
 - A [standalone configured dice emoji](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java#L4532)
   may become dice media instead of a text request. Ordinary emoji in prose is a different case.
 
-The future scenario operation must expose accepted messages and uncertain/partial outcomes
-without retrying a physical Send action. Keep raw input and resulting semantic messages separately
-in evidence. Continue [ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md)
-with actual observations, an independently written model and cross-mode tests; preserve the
-original renderer and report upstream discrepancies explicitly.
+The scenario operation now exposes accepted messages and uncertain outcomes without retrying a
+physical Send action, retaining raw input and resulting semantic messages separately. Multi-part
+input and partial acceptance still need implementation and evidence. Continue
+[ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md) with additional
+native observations and cross-mode tests; preserve the original renderer and report upstream
+discrepancies explicitly.

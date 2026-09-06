@@ -25,6 +25,9 @@ See the
 The [inline-input example](docs/development/scenario-input.md) runs the same callback/edit scenario
 with virtual input or an actual Android button tap, retaining original before/after captures.
 
+The [composer example](docs/development/scenario-composer.md) presses Start Bot, sends formatted
+Persian/emoji text through the original composer and verifies real replies in both modes.
+
 The [bot recovery example](docs/development/scenario-lifecycle.md) stops a real bot after callback
 receipt and restarts it to handle the same pending update, preserving its private state.
 

@@ -51,7 +51,8 @@ same-persona input. Captures and native actions share one renderer lock within a
 Opening the chat currently cold-starts the client. Capturing the bot edit afterward also verifies
 that edit through restored client state; this example does not establish live-update latency.
 The dedicated harness separately verifies live callback/edit rendering and client recovery in
-[the original interaction loop](android-callbacks.md). Composer input, scrolling, non-callback
+[the original interaction loop](android-callbacks.md). [Start Bot and composer text](scenario-composer.md)
+now have separate SDK support. Scrolling, other non-callback
 buttons, interactive mode and broader lifecycle/fault controls remain unfinished.
 
 ## Runnable example and evidence

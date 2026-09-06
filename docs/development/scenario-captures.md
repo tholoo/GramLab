@@ -49,10 +49,14 @@ capture = lab.capture_chat(
 )
 ```
 
-`contains` requires 1–32 nonempty strings, each at most 4,096 characters. Every string must occur
+`contains` normally requires 1–32 nonempty strings, each at most 4,096 characters. Every string must occur
 in an authoritative message. Android also requires it in a decoded UIAutomator node's text before
 retaining the screenshot. Prefer complete message text to distinguish a particular reply. This
 is an accessible-text condition, not an independent pixel-equivalence or layout assertion.
+
+For an empty authoritative chat, `contains=[]` retains its empty history and waits for the native
+chat title. This supports observing the original Start Bot screen before the first input. The
+empty list is rejected when messages already exist; it does not disable checks on a conversation.
 
 The result contains `chat_id`, `label`, complete `history` at request time and `rendered`.
 Simulation returns `rendered=False`; successful Android captures return `True` plus `android`
@@ -93,7 +97,8 @@ app animations. They are observations, not deterministic golden images or proof 
 secret detection in pixels.
 
 `interactive-android` remains explicitly unsupported. [SDK inline-button taps](scenario-input.md)
-now use actual client input. Live viewing, composer input, more lifecycle/fault commands and
+now use actual client input, as do [Start Bot and supported composer text](scenario-composer.md).
+Live viewing, broader composer fidelity, more lifecycle/fault commands and
 multi-guest scheduling remain active work. Separate [callback/recovery tests](android-callbacks.md)
 establish live UI update/recovery behavior; captures alone do not prove that behavior.
 

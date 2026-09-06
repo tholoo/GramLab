@@ -49,6 +49,8 @@ def execute() -> None:
         Path("world"),
         lock=renderer_lock,
         tap=android.tap_inline_button if android is not None else None,
+        compose=android.type_message if android is not None else None,
+        start_chat=android.start_bot_chat if android is not None else None,
     )
     try:
         # Namespace processes belong to this persistent owner, never a short-lived HTTP thread.
@@ -60,6 +62,8 @@ def execute() -> None:
                 bots=bots,
                 capture_chat=captures.capture_chat,
                 tap_inline_button=interactions.tap_inline_button,
+                type_message=interactions.type_message,
+                start_bot_chat=interactions.start_bot_chat,
                 bot_status=processes.bot_status,
                 stop_bot=processes.stop_bot,
                 start_bot=processes.start_bot,

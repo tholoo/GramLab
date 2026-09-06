@@ -40,5 +40,13 @@ recovery with one bot reply. Fresh preparation preserves 6,666 upstream UI/resou
 The full 20-test Android gate passes, predating the new composer-text contract test, which then
 passes its seven fixtures separately. The native
 bot-history Seen display rule was verified separately from stored read state; the renderer is
-unchanged. Scenario integration, cross-mode composer semantics and additional interruption
-boundaries remain in progress; this ticket is not resolved.
+unchanged. The [scenario integration](../../../docs/development/scenario-composer.md) now passes
+a shared simulation/Android example with Start Bot, three typed sends, four real bot replies and
+three original captures. Seven native fixtures agree with the independent bounded text model.
+The new core gate passes 215 tests at 80.99% coverage. The broader Android gate finishes with
+21 passed and one failure in the older interrupted-send probe, which missed its controlled commit
+boundary. The new consumer case passes again; the installed wheel example also passes offline.
+A focused native rerun with missed-boundary diagnostics passes without a production change;
+the failure remains intermittent and unresolved. Two further bounded fresh trials are active.
+Broader composer transformations
+and additional interruption boundaries remain in progress; this ticket is not resolved.

@@ -99,3 +99,5 @@ jobs:
         run: uv run --locked mypy examples/inline
       - name: Type check the independent recovery consumer example
         run: uv run --locked mypy examples/recovery
+      - name: Type check the independent composer consumer example
+        run: uv run --locked mypy examples/composer

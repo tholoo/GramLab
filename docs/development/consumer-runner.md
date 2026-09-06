@@ -122,8 +122,10 @@ exports; review them before sharing. Neither the JSON nor the report claims that
 encodings or secrets supplied as ordinary prose can always be detected.
 
 `simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
-command. `interactive-android` fails explicitly during preparation. [SDK inline-button input](scenario-input.md) is supported; composer input,
-client restarts and broader faults, expanded dependency packaging and workload diagnostics remain active work.
+command. `interactive-android` fails explicitly during preparation. [SDK inline-button input](scenario-input.md)
+and [Start Bot/composer input](scenario-composer.md) are supported within their documented profiles;
+broader composer fidelity, client restarts and faults, expanded dependency packaging and workload
+diagnostics remain active work.
 Overall elapsed time covers trusted execution and cleanup; Android metadata separately records
 guest boot duration. Neither is an individual Bot API latency measurement.
 

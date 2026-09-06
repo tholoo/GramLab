@@ -33,10 +33,10 @@ class Captures:
             or re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", label) is None
             or _Redactor(()).text(label) != label
             or not isinstance(contains, list)
-            or not 1 <= len(contains) <= 32
+            or not 0 <= len(contains) <= 32
             or any(not isinstance(text, str) or not 1 <= len(text) <= 4096 for text in contains)
         ):
-            raise ValueError("Capture requires a chat, safe label and 1 to 32 expected texts")
+            raise ValueError("Capture requires a chat, safe label and up to 32 expected texts")
         with self._lock:
             if len(self.records) >= 8 or any(record["label"] == label for record in self.records):
                 raise ValueError("Capture labels must be unique and at most eight are supported")
@@ -45,6 +45,8 @@ class Captures:
                 if not chats:
                     raise ValueError("Capture chat does not exist")
                 history = world.history(chat_id)
+            if not contains and history:
+                raise ValueError("An empty expected-text list requires an empty chat")
             if any(not any(text in message["text"] for message in history) for text in contains):
                 raise ValueError("Expected capture text is absent from the authoritative chat")
             record: dict[str, Any] = {
