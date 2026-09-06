@@ -34,6 +34,10 @@ def write_live_gap_report(directory: Path, *, destination: Path | None = None) -
                 "Guest": f"AOSP API {guest['api']} / {guest['abi']} / image revision 2",
                 "Display": "320 x 640 / 160 dpi / swangle",
                 "Fault": "Ordinary polling held until native difference recovery is visible",
+                "Clock": f"{observed['clock_step']} seconds between action phases"
+                if observed.get("clock_step")
+                else "All messages share one world second",
+                "Synthetic backlog": str(observed.get("backlog", 0)),
                 "World": world_id,
             },
             summary="Incoming delivery is held while a virtual user acts and a real bot replies. "
@@ -73,17 +77,18 @@ def write_live_gap_report(directory: Path, *, destination: Path | None = None) -
                 Finding(
                     stage="verified",
                     title="Recovery precedes release of ordinary polling",
-                    detail="The native difference request and response match. Its contiguous "
-                    "page starts at position 1 and contains positions 2, 3 and 4. Original UI "
-                    "captures show recovery while the polling gate remains closed.",
+                    detail=f"The {len(observed['differences'])} native difference page(s) start "
+                    f"after position 1 and recover through position {observed['position'] - 3}. "
+                    "Requests, responses and contiguous positions match. Original UI captures "
+                    "show recovery while the polling gate remains closed.",
                 ),
                 Finding(
                     stage="verified",
                     title="No restart, lost message or duplicate reply",
                     detail="The process identity and single initialization remain unchanged. "
-                    "The final database has exactly seven positive message IDs, no pending "
-                    "correlation and matching seq/pts cursors at 7. The real bot receives each "
-                    "of the three user messages once and acknowledges its update queue.",
+                    f"The final database has exactly {observed['position']} positive message IDs, "
+                    "no pending correlation and matching seq/pts cursors. The real bot receives "
+                    "each of the three user messages once and acknowledges its update queue.",
                 ),
             ],
             evidence={
@@ -94,13 +99,18 @@ def write_live_gap_report(directory: Path, *, destination: Path | None = None) -
             },
             limitations=[
                 "Synthetic local evidence with no real account or Telegram DC connection.",
-                "The first difference uses the pinned client's distinct page limit. This case "
-                "does not prove every later difference, multi-page gap or concurrent persona.",
+                "The initial polling cursor remains held at 1. Difference pages use the pinned "
+                "client's first-sync limit and then advance their cursor. This controlled fixture "
+                "does not establish arbitrary fault schedules or concurrent personas.",
                 "Controlled polling holds can cause intentional read timeouts. This test does "
                 "not measure normal input latency or resolve earlier intermittent failures.",
-                "Virtual fixture input is explicitly synthetic; only the two composer sends "
-                "are actual Android input actions.",
-                "All messages share one world second. The pinned original ChatActivity inserts "
+                "The backlog and virtual user action are explicitly synthetic. Only the two "
+                "composer sends are actual Android input; three replies come from the real bot.",
+                "World time advances between action phases. Recovered older messages appear "
+                "above the newer acknowledged send, matching their dates and IDs. The final "
+                "two bot replies share a timestamp and retain their arrival order."
+                if observed.get("clock_step")
+                else "All messages share one world second. The original ChatActivity inserts "
                 "equal-date arrivals after already displayed messages, so the recovered older "
                 "messages appear below the acknowledged send. Stored IDs remain correctly ordered.",
                 "This focused result does not establish the complete Android regression gate.",

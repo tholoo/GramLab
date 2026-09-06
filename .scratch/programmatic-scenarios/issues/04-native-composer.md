@@ -103,3 +103,15 @@ reports a timeout before input and UIAutomator creates no hierarchy file. Its st
 remains unproven. Static/Nix checks and the installed wheel's offline simulation example pass.
 The APK is unchanged. All handles are terminal; the startup failure is the next diagnostic target.
 This checkpoint does not resolve the ticket or the wider product goal.
+
+
+The [expanded gap fixtures](../../../docs/development/live-gap-recovery.md) now pass distinct-minute
+ordering and a 1,000-message backlog requiring two native difference pages. The same-second and
+timed cases pass together; the paged case passes independently. Requests recover positions 2–1001
+then 1002–1004 while ordinary polling remains held. All 1,007 final native IDs and timestamps match
+the world, seq/pts reach 1007, no pending correlation remains, and the real bot replies once to each
+of three user messages. Original UI captures match the visible chronological suffix. The source
+patches, APK and core are unchanged. Full static checks pass; the preceding core/package/Nix checks
+remain applicable. The expanded 28-test Android gate is running; this ticket remains claimed.
+Eight minimal fresh-start trials also pass, including five validated method-stack observations,
+but they do not reproduce or fix the earlier intermittent startup failure. Keep its diagnostics.

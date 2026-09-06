@@ -132,6 +132,9 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                 "messages": connection.execute(
                     "SELECT uid,mid,send_state FROM messages_v2 ORDER BY uid,mid"
                 ).fetchall(),
+                "message_dates": connection.execute(
+                    "SELECT mid,date FROM messages_v2 ORDER BY mid"
+                ).fetchall(),
                 "state": connection.execute(
                     "SELECT seq,pts,date,qts FROM params WHERE id=1"
                 ).fetchone(),
@@ -391,7 +394,8 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
             "world_id": identity,
             "user_id": 1,
         }
-        if json.loads(Path("interruption.json").read_text())["boundary"] == "live_gap":
+        boundary = json.loads(Path("interruption.json").read_text())["boundary"]
+        if boundary in ("live_gap", "live_gap_timed", "live_gap_paged"):
             return live_gap(
                 configuration=configuration,
                 bot_endpoint=bot_api.base_url,
@@ -403,6 +407,8 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                 trace=trace,
                 await_sends=await_sends,
                 database=database,
+                clock_step=0 if boundary == "live_gap" else 60,
+                backlog=1000 if boundary == "live_gap_paged" else 0,
             )
         command(
             "shell",

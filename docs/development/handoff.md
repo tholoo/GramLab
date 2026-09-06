@@ -62,25 +62,32 @@ native checks pass, including both interruption cases, live-gap recovery, repeat
 seven runtime checks with guest egress isolation. The unchanged APK includes the periodic
 controller callback correction and safe exception-class traces from the preceding checkpoint.
 
-The full 26-test Android gate stops with three passed and one failed test. The first composer
-activity launch returns `Status: timeout`; UIAutomator creates no XML, then reading it fails.
-This occurs before input, so it does not reproduce a failed send. Retained launch output/logcat
-establish the startup timeout but not its cause. The earlier preference-sync stall, missed commit
-and generic 503 are not retrospectively explained by the transport corrections. Next minimize
-this startup/capture failure and retain the dump command's output and app stack on recurrence;
-do not claim that the broad gate passes or silently retry input. All current handles are terminal.
-Full strict typing, lint/format and declared Nix checks pass; all platform outputs evaluate.
-Offline distributions build, and the installed wheel's simulation composer example passes with
-the exact Nix Python interpreter. Local evidence and commands remain ignored.
+The latest [recovery fixtures](live-gap-recovery.md) add distinct-minute ordering and a
+1,000-message backlog spanning two native difference pages. The same-second and timed fixtures
+pass together; the paged fixture then passes independently in about 70 seconds. Its first page
+contains positions 2–1001, followed by 1002–1004 from cursor 1001. Polling stays held at the initial
+cursor throughout recovery. Another actual send succeeds, and the real bot replies once to all
+three user messages. The final world and native database match all 1,007 IDs and timestamps,
+seq/pts 1007 and no pending correlation. Original screenshots verify the visible chronological
+suffix; complete structured evidence verifies the off-screen backlog. The APK and core are
+unchanged. Full strict typing and lint/format pass; preceding core/package/Nix checks apply.
+The expanded 28-test Android gate is running. Poll its existing handle from ignored local notes
+before launching another guest or claiming a complete gate.
 
-The preceding [live-gap correction](live-gap-recovery.md) restores the original periodic
-`ConnectionsManager.onUpdate` independently of HTTP polling. Native difference recovery occurs
-while polling remains held, without restart. Seven messages, bot updates/replies and seq/pts 7
-agree; four original captures document the pinned equal-timestamp display order. Distinct-time
-ordering, multi-page gaps and broader composer transformations remain open. Fresh ten-patch
-preparation at that checkpoint matches the five Java inputs and preserves all 6,666 original
-UI/resource files. The current transport correction does not change those inputs or the APK.
-The full goal and ticket remain active.
+The preceding full 26-test gate stopped with three passed and one failed test: the composer
+activity launch returned `Status: timeout`, and UIAutomator created no hierarchy file. It failed
+before input. Eight subsequent minimal fresh-start trials pass, including five with a validated
+method-stack diagnostic showing the main thread idle after a successful capture. These passes
+do not identify or fix the intermittent startup cause. The earlier preference-sync stall, missed
+commit and generic 503 also remain unexplained. Keep the ignored diagnostic and retained failure
+evidence for another occurrence rather than adding speculative startup changes or input retries.
+
+The earlier [live-gap correction](live-gap-recovery.md) restores the original periodic
+`ConnectionsManager.onUpdate` independently of HTTP polling. Fresh ten-patch preparation at that
+checkpoint matches the five Java inputs and preserves all 6,666 original UI/resource files.
+Current fixture changes do not alter those inputs. Broader composer transformations, further
+partial-write boundaries and concurrent native recovery remain open. The full goal and ticket
+remain active.
 
 The previous [acknowledgment-before-storage proof](ack-storage-recovery.md) passes an actual Android
 interruption with the original storage thread held at ID-remap entry. The retained pending row,
@@ -94,8 +101,8 @@ the previous 215-test core gate remains applicable. At that checkpoint all handl
 and the six-capture
 report retains original UI evidence; browser layout review remains unverified.
 
-Diagnose the current startup failure, then continue distinct-timestamp/multi-page recovery and remaining composer
-transformations. The initial pre-storage
+Retain diagnostics for the intermittent startup failure, then continue remaining composer
+transformations and additional recovery boundaries. The initial pre-storage
 baseline attempt failed in the separate codec process and is not a valid red result at the new
 boundary. Its crash trace identifies a local bridge connection timeout; Android's Binder error
 occurred while reporting that crash. The earlier intermittent failures are not claimed fixed.

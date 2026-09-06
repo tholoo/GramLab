@@ -29,6 +29,8 @@ def live_gap(
     trace: Callable[[], list[dict[str, Any]]],
     await_sends: Callable[[int], None],
     database: Callable[[str], dict[str, Any]],
+    clock_step: int = 0,
+    backlog: int = 0,
 ) -> dict[str, Any]:
     held = threading.Event()
     release = threading.Event()
@@ -45,10 +47,17 @@ def live_gap(
             query = parse_qs(route.query)
             record: dict[str, Any] = {"method": self.command, "path": route.path}
             exchanges.append(record)
+            difference = False
             if route.path == "/v2/changes":
                 record.update(after=int(query["after"][0]), limit=int(query["limit"][0]))
-                if record["limit"] == 100 and not release.is_set():
+                difference = record["limit"] == 1000 or (
+                    not release.is_set() and record["after"] > 1
+                )
+                if record["limit"] == 100 and record["after"] == 1 and not release.is_set():
                     # Hold every ordinary poll, including retries after native read timeout.
+                    # Its cursor remains at the initial snapshot's position 1. Later
+                    # native difference pages use their intermediate cursor, so those
+                    # requests can proceed even with the same 100-message page limit.
                     # No changes, cursors, history or acknowledgments are invented or edited.
                     record["held"] = True
                     held.set()
@@ -70,7 +79,7 @@ def live_gap(
                 response = connection.getresponse()
                 body = response.read()
                 record["status"] = response.status
-                if route.path == "/v2/changes" and record["limit"] == 1000:
+                if difference:
                     result = json.loads(body)
                     differences.append(
                         {
@@ -96,7 +105,13 @@ def live_gap(
         do_GET = forward
         do_POST = forward
 
+    def advance() -> None:
+        if clock_step:
+            with World.open(Path("world")) as world:
+                world.advance_time(clock_step)
+
     def compose(text: str, count: int) -> dict[str, Any]:
+        advance()
         result = command(
             "shell",
             "-T",
@@ -123,6 +138,7 @@ def live_gap(
     bots: list[list[dict[str, Any]]] = []
 
     def reply() -> None:
+        advance()
         bot = fixture.run({"GRAMLAB_BOT_API": bot_endpoint, "GRAMLAB_BOT_TOKEN": token})
         if bot.returncode:
             raise RuntimeError("Real bot failed during live gap recovery")
@@ -158,6 +174,12 @@ def live_gap(
                 raise RuntimeError("Ordinary native polling did not enter the controlled gate")
             pids = [command("shell", "pidof", PACKAGE).strip()]
             with World.open(Path("world")) as world:
+                if clock_step:
+                    world.advance_time(clock_step)
+                for index in range(1, backlog + 1):
+                    # Synthetic history filling the first native difference page;
+                    # the following replies still come from the real bot process.
+                    world.send_message(chat_id=1, sender_id=2, text=f"Recovery backlog {index}")
                 # An explicitly synthetic action by the same persona, as on another client.
                 world.send_message(chat_id=1, sender_id=1, text="delayed message پیام")
             reply()
@@ -197,7 +219,7 @@ def live_gap(
                 if (
                     "Echo: live gap بازیابی" in final_ui
                     and "Echo: after recovery ادامه" in final_ui
-                    and sum(row["event"] == "events_applied" for row in final_trace) == 6
+                    and sum(row["event"] == "events_applied" for row in final_trace) == backlog + 6
                 ):
                     break
                 if time.monotonic() > deadline:
@@ -208,6 +230,8 @@ def live_gap(
             with World.open(Path("world")) as world:
                 snapshot = world.client_snapshot(1, version=2)
                 result = {
+                    "clock_step": clock_step,
+                    "backlog": backlog,
                     "history": world.history(1),
                     "sends": snapshot["sends"],
                     "position": snapshot["message_position"],

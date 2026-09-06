@@ -201,15 +201,25 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
     write_composer_report(tmp_path)
 
 
-def test_native_difference_recovers_withheld_messages_without_restart(tmp_path: Path) -> None:
-    observed = run_composer(tmp_path, "live_gap")
-    verify_live_gap(tmp_path, observed)
+@pytest.mark.parametrize(
+    ("clock_step", "backlog"),
+    [(0, 0), (60, 0), (60, 1000)],
+    ids=["same_second", "distinct_minutes", "multiple_pages"],
+)
+def test_native_difference_recovers_withheld_messages_without_restart(
+    tmp_path: Path, clock_step: int, backlog: int
+) -> None:
+    boundary = "live_gap_paged" if backlog else "live_gap_timed" if clock_step else "live_gap"
+    observed = run_composer(tmp_path, boundary)
+    verify_live_gap(tmp_path, observed, clock_step=clock_step, backlog=backlog)
     write_live_gap_report(tmp_path)
 
 
-def verify_live_gap(tmp_path: Path, observed: dict) -> None:
+def verify_live_gap(
+    tmp_path: Path, observed: dict, *, clock_step: int = 0, backlog: int = 0
+) -> None:
     """Verify fresh or retained observations with the same semantic and UI assertions."""
-    texts = [
+    conversation = [
         "Write a message",
         "delayed message پیام",
         "Echo: delayed message پیام",
@@ -218,16 +228,35 @@ def verify_live_gap(tmp_path: Path, observed: dict) -> None:
         "Echo: live gap بازیابی",
         "Echo: after recovery ادامه",
     ]
-    assert observed["history"] == [
-        {"id": index, "chat_id": 1, "sender_id": sender, "date": 1700000000, "text": text}
-        for index, (sender, text) in enumerate(zip([2, 1, 2, 1, 1, 2, 2], texts, strict=True), 1)
+    texts = [
+        conversation[0],
+        *[f"Recovery backlog {index}" for index in range(1, backlog + 1)],
+        *conversation[1:],
     ]
-    assert observed["position"] == 7
-    assert [send["position"] for send in observed["sends"]] == [4, 5]
+    phases = [0, *([1] * backlog), 1, 2, 3, 4, 5, 5]
+    senders = [2, *([2] * backlog), 1, 2, 1, 1, 2, 2]
+    head = backlog + 7
+    assert observed.get("clock_step", 0) == clock_step
+    assert observed.get("backlog", 0) == backlog
+    assert observed["history"] == [
+        {
+            "id": index,
+            "chat_id": 1,
+            "sender_id": sender,
+            "date": 1700000000 + phases[index - 1] * clock_step,
+            "text": text,
+        }
+        for index, (sender, text) in enumerate(zip(senders, texts, strict=True), 1)
+    ]
+    assert observed["position"] == head
+    assert [send["position"] for send in observed["sends"]] == [backlog + 4, backlog + 5]
     assert len({send["request_id"] for send in observed["sends"]}) == 2
     assert observed["pending"] == []
-    assert observed["stored"]["messages"] == [[2, index, 0] for index in range(1, 8)]
-    assert observed["stored"]["state"] == [7, 7, 1700000000, 0]
+    assert observed["stored"]["messages"] == [[2, index, 0] for index in range(1, head + 1)]
+    assert observed["stored"]["message_dates"] == [
+        [index, 1700000000 + phase * clock_step] for index, phase in enumerate(phases, 1)
+    ]
+    assert observed["stored"]["state"] == [head, head, 1700000000 + 5 * clock_step, 0]
     assert observed["stored"]["pending_correlations"] == []
     assert (
         observed["inputs"]
@@ -251,26 +280,40 @@ def verify_live_gap(tmp_path: Path, observed: dict) -> None:
     )
     assert not any(row["event"] == "events_applied" for row in recovered)
     differences = [row for row in recovered if row["method"] == "TL_updates_getDifference"]
-    assert [row["event"] for row in differences] == ["request", "response"]
-    assert differences[0]["token"] == differences[1]["token"]
+    assert [row["event"] for row in differences] == ["request", "response"] * (2 if backlog else 1)
+    for index in range(0, len(differences), 2):
+        assert differences[index]["token"] == differences[index + 1]["token"]
     assert sum(row["event"] == "initialized" for row in observed["final_trace"]) == 1
     assert sum(row["event"] == "send_completed" for row in observed["final_trace"]) == 2
-    assert observed["differences"] == [
+    expected_pages = [
         {
             "after": 1,
             "limit": 1000,
-            "cursor": 4,
-            "head": 4,
-            "positions": [2, 3, 4],
+            "cursor": 1001 if backlog else 4,
+            "head": backlog + 4,
+            "positions": list(range(2, 1002)) if backlog else [2, 3, 4],
             "status": 200,
         }
     ]
+    if backlog:
+        expected_pages.append(
+            {
+                "after": 1001,
+                "limit": 100,
+                "cursor": 1004,
+                "head": 1004,
+                "positions": [1002, 1003, 1004],
+                "status": 200,
+            }
+        )
+    assert observed["differences"] == expected_pages
     assert "delayed message" not in observed["withheld_ui"]
-    for text in texts[1:4]:
+    assert "Recovery backlog" not in observed["withheld_ui"]
+    for text in conversation[1:4]:
         assert text in observed["recovered_ui"]
-    for text in texts[5:]:
+    for text in conversation[5:]:
         assert text in observed["final_ui"]
-    for index, expected_ids in enumerate(([2], [4, 5])):
+    for index, expected_ids in enumerate(([backlog + 2], [backlog + 4, backlog + 5])):
         transcript = observed["bots"][index]
         polls = [row for row in transcript if row["method"] == "getUpdates"]
         assert [
@@ -281,12 +324,12 @@ def verify_live_gap(tmp_path: Path, observed: dict) -> None:
             expected_ids
         )
     # Pinned ChatActivity inserts equal-date arrivals before existing equal-date rows
-    # in its reverse list, even when their IDs are older (line 25800). All fixture
-    # messages share one world second. Preserve this stock display policy separately
-    # from the authoritative ID order asserted above; do not rewrite dates to hide it.
+    # in its reverse list, even when their IDs are older (line 25800). The original
+    # fixture retains that policy. A separate fixture advances world time before
+    # each action phase and checks older-date insertion against the same stock UI.
     for name, expected_ids in (
-        ("gap-recovered", [1, 4, 2, 3]),
-        ("gap-replied", [1, 4, 2, 3, 5, 6, 7]),
+        ("gap-recovered", [1, 2, 3, 4] if clock_step else [1, 4, 2, 3]),
+        ("gap-replied", [1, 2, 3, 4, 5, 6, 7] if clock_step else [1, 4, 2, 3, 5, 6, 7]),
     ):
         nodes = ET.fromstring((tmp_path / f"{name}.xml").read_text()).iter("node")  # noqa: S314
         rendered = [
@@ -294,7 +337,14 @@ def verify_live_gap(tmp_path: Path, observed: dict) -> None:
             for node in nodes
             if "\nSent at " in node.get("text", "") or "\nReceived at " in node.get("text", "")
         ]
-        assert rendered == [texts[index - 1] for index in expected_ids]
+        if backlog:
+            # A viewport exposes only the tail; full world and stored replica above
+            # independently require every recovered message, including the first page.
+            visible_history = texts[: backlog + 4] if name == "gap-recovered" else texts
+            assert len(rendered) >= 3
+            assert rendered == visible_history[-len(rendered) :]
+        else:
+            assert rendered == [texts[index - 1] for index in expected_ids]
     for name in ("gap-before", "gap-withheld", "gap-recovered", "gap-replied"):
         assert (tmp_path / f"{name}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 

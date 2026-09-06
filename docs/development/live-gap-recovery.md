@@ -1,9 +1,10 @@
 # Native recovery while incoming delivery is held
 
-The original single-send Android regression now passes after restoring the omitted periodic
-controller callback. The initial failing run and a separate second-send diagnostic isolate that
-missing callback. The broader Android gate stops with three passed tests and a failure in the existing Unicode
-composer case: the third send returns 503 and does not commit. Its root cause is not yet known.
+The original one-send regression passes after restoring the omitted periodic controller callback.
+Additional native fixtures now pass distinct-timestamp ordering and a 1,000-message backlog spanning
+two difference pages. The APK, controller and renderer are unchanged by those fixture additions.
+The expanded 28-test Android gate is running; earlier intermittent startup/send failures remain
+unresolved. See [transport reliability](android-transport-reliability.md) for their separate evidence.
 
 ## Reproduction and cause
 
@@ -48,10 +49,12 @@ The [host test](../../tests/test_android_composer.py) requires the original one-
 - Four original screenshots and structured evidence appear in the existing HTML report format.
 
 The pinned client's first difference requests at least 1,000 positions, and the adapter caps it at
-1,000. Ordinary polling requests 100. The proxy uses that difference to select the held responses;
-the probe first verifies that startup has not already consumed the first native difference. It
-never fabricates holes, modifies responses or edits the replica. Later difference pages require
-separate cases because they can use the ordinary page limit.
+1,000. Ordinary polling requests 100 and stays at the initial snapshot cursor 1 while held.
+The proxy holds that request, including retries. The second native difference page uses its
+intermediate cursor 1001, allowing it to proceed despite also requesting 100 positions. The probe
+first verifies that startup has not consumed the first difference. This selects requests without
+fabricating holes, modifying responses or editing the replica. It is a controlled fresh-start
+fixture, not a general fault scheduler for arbitrary polling/difference states.
 
 Run with the [retained Android shell](environment.md), approved APK and
 [outer network guard](runtime-boundary.md):
@@ -60,7 +63,7 @@ Run with the [retained Android shell](environment.md), approved APK and
 .venv/bin/pytest tests/test_android_composer.py -k native_difference
 ```
 
-## Verified focused result
+## Initial verified focused result
 
 The contained strict offline build completes, and the original focused case passes in about
 70 seconds. Its unmodified difference response contains positions 2, 3 and 4; the same process
@@ -77,14 +80,49 @@ arrived message ahead of an existing equal-date entry in its reverse list, regar
 positive ID ordering. The displayed order is therefore 1, 4, 2, 3 after recovery, and
 1, 4, 2, 3, 5, 6, 7 after the remaining replies. The test records that exact upstream display
 behavior separately from correct authoritative/stored ID order. No renderer change or invented
-timestamp hides it; ordering across distinct timestamps requires another fixture.
+timestamp hides it. The separate clock fixture below verifies ordering across distinct timestamps.
+
+## Distinct timestamps and multi-page recovery
+
+The expanded host test retains the original same-second case and adds two fixtures using the
+world's existing `advance_time` operation. Time advances by one minute before the virtual action,
+first bot reply, first composer send, second composer send and final bot batch. The final two bot
+replies intentionally share a timestamp. There is no post-hoc timestamp rewrite or renderer patch.
+
+The small timed fixture requires world and native message dates at offsets
+`[0, 60, 120, 180, 240, 300, 300]` seconds. The original UI displays IDs 1–4 after recovery and 1–7
+after the final replies, placing the delayed older messages above the newer acknowledged send.
+Both the same-second and distinct-minute cases pass in the focused run.
+
+The multi-page fixture inserts 1,000 explicitly synthetic bot-history messages while polling is
+held, then performs the same virtual-user/real-bot/actual-composer loop. The native requests and
+unmodified HTTP responses are required to match these pages:
+
+| Request cursor | Limit | Returned positions | Returned cursor | Head |
+| --- | --- | --- | --- | --- |
+| 1 | 1000 | 2–1001 | 1001 | 1004 |
+| 1001 | 100 | 1002–1004 | 1004 | 1004 |
+
+The actual Android case passes in about 70 seconds, including guest startup. Each native request
+correlates with its response, no polling event applies before recovery, and the process identity
+and single initialization stay unchanged. A later actual send succeeds. The real bot receives
+only the three user messages, replies once to each and empties its update queue; synthetic backlog
+entries are not presented as bot-process output.
+
+The final world and copied native SQLite database contain all 1,007 positive messages, matching
+per-message timestamps and seq/pts 1007, with no pending correlation. The visible UI matches the
+chronological suffix of that complete history; a viewport screenshot is not used as proof for the
+1,000 off-screen entries. Four original captures, full structured observations and the controlled
+HTTP transcript appear in the existing report. Complete strict typing and lint/format pass.
+The core, APK, source patches and Nix inputs are unchanged; the preceding core/package/Nix checks
+remain applicable. The full expanded Android gate is still running.
 
 ## Limits
 
 The controlled hold can cause expected native read timeouts and abandoned proxy responses. Those
 observations are separate from the earlier intermittent local connection and startup failures.
-This case does not establish multi-page differences, concurrent personas, all partial writes or
-normal input latency. The restored callback uses real scheduling, matching the existing native
+These cases do not establish arbitrary-length gap schedules, concurrent personas, all partial
+writes or normal input latency. The restored callback uses real scheduling, matching the existing native
 gap wait; fully deterministic Android timing remains unproven. Generated artifacts and local
 runtime details stay ignored. No real account, DC connection or external fallback is used.
 
