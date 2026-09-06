@@ -10,12 +10,53 @@ from typing import Any
 from android_guest import main
 from rich_round_trip import run
 
+from gramlab.client_bridge import ClientBridge
+from gramlab.world import World
+
 
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     capability = ""
     launches: dict[str, str] = {}
     codecs: dict[str, Any] = {}
     timings: dict[str, float] = {}
+
+    def configure_codec(configuration: dict[str, Any]) -> None:
+        nonlocal capability
+        capability = configuration["capability"]
+        adb(
+            "shell",
+            "-T",
+            "sh",
+            "-c",
+            "'umask 077; cat > /data/local/tmp/gramlab-rich-config.json'",
+            input=json.dumps(
+                configuration
+                | {"endpoint": configuration["endpoint"].replace("127.0.0.1", "10.0.2.2")}
+            ),
+        )
+
+    def catalog() -> None:
+        with World.create(Path("catalog-world"), seed=17, now=1700000000) as world:
+            world.create_user(first_name="Sara", language_code="fa")
+            world.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
+            world.open_private_chat(user_id=1, bot_id=2)
+            world.send_rich_message(
+                chat_id=1,
+                sender_id=2,
+                rich_message=json.loads(Path("rich-message-catalog.json").read_text())
+                | {"skip_entity_detection": True},
+            )
+            token, world_id = world.issue_client_token(1), world.world_id
+        with ClientBridge(Path("catalog-world")) as bridge:
+            configure_codec(
+                {
+                    "endpoint": bridge.base_url,
+                    "capability": token,
+                    "world_id": world_id,
+                    "user_id": 1,
+                }
+            )
+            codec("catalog")
 
     def codec(name: str) -> None:
         start = time.monotonic()
@@ -120,14 +161,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             input=local_config,
         )
         adb("push", "/work/client.apk", "/data/local/tmp/gramlab-rich.apk", timeout=30)
-        adb(
-            "shell",
-            "-T",
-            "sh",
-            "-c",
-            "'umask 077; cat > /data/local/tmp/gramlab-rich-config.json'",
-            input=local_config,
-        )
+        configure_codec(configuration)
         codec("initial")
         launch("initial")
         return screen("initial")
@@ -148,7 +182,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         }
 
     try:
-        return run(show, observe)
+        result = run(show, observe)
+        adb("shell", "am", "force-stop", "org.gramlab.android")
+        catalog()
+        return result
     finally:
         guest("shell", "am", "force-stop", "org.gramlab.android")
         guest("shell", "rm", "-f", "/data/local/tmp/gramlab-rich-config.json")

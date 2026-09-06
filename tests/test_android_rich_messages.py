@@ -29,6 +29,9 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
     )
     stage_rich_scenario(tmp_path, core)
     shutil.copy2(apk, tmp_path / "client.apk")
+    shutil.copy2(
+        "clients/android/fixtures/rich-message.json", tmp_path / "rich-message-catalog.json"
+    )
     (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
     for name in ("emulator_process.py", "android_guest.py", "android_rich_messages.py"):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
@@ -58,6 +61,12 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
         assert rich["id"] == 2 and rich["text"] == ""
         assert rich["rich_message"] == scene[phase]
         assert "rich_message" not in messages[1]
+    catalog = client["codecs"]["catalog"]["messages"]
+    assert len(catalog) == 1
+    assert catalog[0]["id"] == 1 and catalog[0]["text"] == ""
+    assert catalog[0]["rich_message"] == json.loads(
+        Path("clients/android/fixtures/rich-message.json").read_text()
+    )
     for phase in ("initial", "edited", "restarted"):
         assert "Rich blocks" in client[phase]
         if phase != "initial":
