@@ -103,6 +103,7 @@ Start Bot touch and three accessibility Send actions. Original before/after scre
 retained. The core gate passes 215 tests at 80.99% coverage; the installed wheel's example also
 passes offline. The full Android gate has 21 passes, including this consumer case, and one failure
 in the older interrupted-send probe. Its focused rerun passes without a production change, so that
-intermittent failure remains open; current diagnostic trials are recorded in the handoff. Original
+intermittent failure remains open. Three bounded diagnostic trials finish with two passes and one
+distinct startup failure before input; the handoff records both unresolved conditions. Original
 PNGs were inspected directly. The report serves all three embedded images over local HTTP, but
 configured browser navigation fails, leaving browser layout review unverified.

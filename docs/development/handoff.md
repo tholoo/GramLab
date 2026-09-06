@@ -69,7 +69,11 @@ passes again. Test-only missed-boundary diagnostics were added; a focused rerun 
 so the failure remains intermittent and unresolved. The next trial fails earlier, before input:
 activity startup times out and the retained ANR dump shows the main thread in a preference-file
 sync. Do not conflate that distinct startup failure with the missed send. The final bounded trial
-is awaiting toolchain preparation; inspect ignored notes for the live handle before acting.
+passes after toolchain preparation, again without a production change. These two focused passes
+do not resolve either intermittent failure. Keep the targeted diagnostics for the next occurrence;
+continue the unimplemented composer/recovery contracts without claiming a fully passing gate.
+All current diagnostic, provisioning and preview handles are terminal. Both development profiles
+are retained; the Android profile's closure includes the actual restored SDK executables.
 The installed wheel's
 offline composer example, strict typing, lint/format, Nix parsing, direnv syntax and local links
 pass. The declared Nix checks, including Actionlint, now pass; all platform outputs also evaluate.

@@ -49,6 +49,8 @@ boundary. The new consumer case passes again; the installed wheel example also p
 A focused native rerun with missed-boundary diagnostics passes without a production change;
 the failure remains intermittent and unresolved. The next trial fails before input during activity
 startup, with the main thread in preference-file sync. That is a distinct failure; the final bounded
-trial is awaiting toolchain preparation. No production change or timing workaround is claimed.
+trial passes after toolchain preparation, without a production change or timing workaround.
+All three diagnostic trials are terminal: two pass and one fails before input. Both intermittent
+failures remain unresolved, with targeted evidence retained for subsequent investigation.
 Broader composer transformations
 and additional interruption boundaries remain in progress; this ticket is not resolved.

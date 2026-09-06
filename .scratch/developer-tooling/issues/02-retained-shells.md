@@ -27,6 +27,8 @@ and [parallel workflow](../../../docs/development/parallel-work.md) document its
 
 Actual offline default-shell execution reports Python 3.13 and the registered persistent Nix
 root. A real child exit status of 7 is preserved. Help and invalid-shell rejection, Bash syntax,
-ShellCheck, all-platform flake evaluation and the three host-platform Nix checks pass. Android
-dependency restoration is still running independently; no new Android runtime pass is claimed by
-this helper verification. Host settings and runtime containment are unchanged.
+ShellCheck, all-platform flake evaluation and the three host-platform Nix checks pass. After
+dependency restoration, the actual Android profile also registers its persistent root. Its closure
+contains the restored ADB, AVD manager and emulator executables. That proves retained provisioning,
+not Android behavior; runtime tests remain separate. Host settings and runtime containment are
+unchanged.
