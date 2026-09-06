@@ -242,3 +242,26 @@ Contained offline build, APK signature/manifest/ABI, static/Nix/workflow and loc
 checks pass. Public docs are independent of private consumer projects; local inventory and
 generated evidence remain ignored. All handles completed. This ticket and the full goal remain
 active for quotas/control-port/media safety, client writes, broader recovery and compatibility.
+
+2026-09-06 older-message recovery started: test the agreed actual Android and public HTTP/world
+boundaries with a real bot editing a cached older reply while the client is stopped, followed by
+a new latest reply. Reconcile the authoritative snapshot through upstream storage before chat
+startup, preserving the existing application database and renderer. This extends the approved
+resnapshot recovery direction; durable command/cursor and deletion recovery remain separate gates.
+
+Older-message recovery completed: the six-patch client visibly retained an older reply's original
+text/button after restart despite the world containing its edit and a newer reply. The seventh
+GPL patch now feeds all snapshot histories through the upstream history-storage API before chat
+startup, using the existing queue barrier and retaining the application database. Two cold
+restarts show the corrected bold Persian/English reply, removed button and all four messages
+exactly once. The same real-bot scenario has identical complete semantic results without Android.
+An observation assertion was corrected to inspect UIAutomator text as well as descriptions.
+
+All 66 core tests pass at 91.56% coverage and all thirteen Android tests pass. Fresh seven-patch
+preparation matches Java inputs/strict metadata and preserves 6,666 UI/resource files. Contained
+offline build, APK signatures/manifest/ABI, static/Nix/workflow and local-link/privacy gates pass;
+the final repeated-restart screen was inspected. See the
+[recovery contract and limitations](../../../docs/development/android-history-recovery.md).
+All handles completed. Per-history cache transactions do not establish a durable atomic replica
+cursor, deletion recovery or recovery after every partial write. Quotas, control-port/media safety,
+client writes and broader scenario/report/compatibility acceptance remain active. No publication.

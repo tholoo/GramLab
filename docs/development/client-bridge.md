@@ -2,8 +2,9 @@
 
 Status: the Python side of the approved Android bridge has authenticated HTTP reads and
 transactionally consistent snapshots. The [Java snapshot adapter](android-semantic-bridge.md)
-translates plain-text snapshots into the actual Android application. The server now adds
-[callback commands and edits](callback-world.md); their Android translation is still pending.
+translates snapshots into the actual Android application, with
+[callback commands and live edits](android-callbacks.md), [formatting entities](formatted-text.md)
+and [older-history startup reconciliation](android-history-recovery.md).
 This protocol is independently owned; upstream TL objects belong in the separately licensed
 Android adapter, not the MIT core.
 
@@ -74,6 +75,8 @@ Snapshots currently include full history and have no pagination or resource quot
 fixtures now have [private component filesystems](component-boundary.md), while world services
 and emulator orchestration remain trusted. A bot killed before callback handling can restart and complete
 delivery. The [Android callback loop](android-callbacks.md) now demonstrates actual tapping, live
-Java message edits and recovery of the latest edited message after client restart. Recovery after
-partial mutations, atomic local projection/cursor transactions, older cached-message reconciliation
-and live participant changes remain foundation gates.
+Java message edits and recovery of the latest edited message after client restart. The subsequent
+[history recovery case](android-history-recovery.md) verifies an older cached reply edited while
+the client is stopped, alongside newer replies and repeated cold restarts. Recovery after partial
+mutations, atomic local projection/cursor transactions, deletion handling and live participant
+changes remain foundation gates.

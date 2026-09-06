@@ -35,10 +35,12 @@ behavioral suite in the [documented outer network guard](docs/development/runtim
 uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py \
   tests/probes/android_client_bridge.py tests/probes/android_application.py \
   tests/probes/android_callbacks.py tests/probes/android_formatting.py \
+  tests/probes/android_recovery.py tests/probes/recovery_round_trip.py \
   tests/probes/bot_round_trip.py tests/probes/callback_round_trip.py \
   tests/probes/long_poll_bot.py tests/probes/formatted_round_trip.py \
   tests/probes/component_bot.py tests/probes/emulator_process.py \
   tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py tests/fixtures/formatted_bot.py \
+  tests/fixtures/recovery_bot.py \
   clients/android/prepare.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```

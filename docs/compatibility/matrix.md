@@ -34,7 +34,7 @@ do not establish Telegram rendering or protocol conformance.
 | Mini Apps | Actual local app, Android WebView host bridge, launch/auth fixtures and egress blocking | Planned |
 | Business/payments/Stars/gifts | Source-derived scope; explicit local simulation vs unsupported settlement | Planned |
 | Localization | User/chat/bot/client language combinations; Persian/English, RTL/LTR and text expansion | Planned |
-| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; real tap followed by bot SIGKILL/replay and visible latest-message edit after Android restart; broader cache and partial mutation recovery planned |
+| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; real tap followed by bot SIGKILL/replay; latest and older cached replies recover after Android restart, including edits during downtime; deletion, multi-dialog and partial mutation recovery planned |
 | Faults/limits | Documented validation plus labeled injections, byte/UTF-16 limits, 429/delay/ambiguous outcomes | Planned |
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Planned |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Planned |

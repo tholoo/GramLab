@@ -1,0 +1,25 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -15,6 +15,7 @@
+ import org.telegram.tgnet.TLRPC;
+ import org.telegram.tgnet.Vector;
+ import org.telegram.tgnet.tl.TL_bots;
++import org.telegram.ui.ChatActivity;
+ 
+ import java.io.File;
+ import java.nio.charset.StandardCharsets;
+@@ -115,6 +116,13 @@
+         // check=2 preserves existing pinned state and closes only the supplied message hole.
+         MessagesStorage storage = MessagesStorage.getInstance(0);
+         storage.putDialogs(current.dialogs, 2);
++        // Dialog seeding replaces only the top message. Reconcile every supplied history
++        // before opening the chat so edits made while stopped cannot survive in older rows.
++        // The complete snapshot is newest-first; use the stock history path and hole handling.
++        for (Map.Entry<Long, TLRPC.TL_messages_messages> history : current.histories.entrySet()) {
++            storage.putMessages(history.getValue(), history.getKey(),
++                    MessagesController.LOAD_AROUND_MESSAGE, 0, false, ChatActivity.MODE_DEFAULT, 0);
++        }
+         CountDownLatch stored = new CountDownLatch(1);
+         storage.getStorageQueue().postRunnable(stored::countDown);
+         try {

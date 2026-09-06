@@ -47,6 +47,11 @@ Snapshot/history and live edits share the same conversion. See the
 edits and restart observations. The patch changes only the adapter and probe; upstream message
 cells, fonts and resources remain unchanged.
 
+`0007-reconcile-cached-history.patch` refreshes all snapshot messages through upstream history
+storage before opening a chat. See the [older-message recovery record](../../../docs/development/android-history-recovery.md)
+for bot edits made during client downtime, subsequent messages and repeated cold restarts. The
+patch retains the client database and changes only the adapter runtime class.
+
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied
 into this patch queue. No personal configuration from ignored upstream files is exported.

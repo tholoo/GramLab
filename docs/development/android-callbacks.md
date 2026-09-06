@@ -53,6 +53,8 @@ This test establishes recovery of the latest edited message in one private chat.
 establish recovery of every older cached message, a durable atomic replica cursor, or recovery
 after every possible partial bot mutation. The [world callback tests](callback-world.md) cover
 stale data, duplicate requests, wrong actors, byte limits and concurrent/reopened retries.
+The later [history recovery follow-up](android-history-recovery.md) also verifies an older reply
+edited during client downtime and repeated startup reconciliation through upstream storage.
 
 ## Behavioral evidence
 

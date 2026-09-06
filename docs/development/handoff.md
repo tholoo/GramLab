@@ -139,8 +139,23 @@ All build/test handles are terminal; ignored `.cache/local-notes/formatting.md` 
 artifact paths and diagnostics. Links, parse modes, media/custom emoji and the RichMessage block
 API remain open. Keep the full goal active; this is a formatting milestone, not full acceptance.
 
-Continue ticket 02's resource quotas, per-component control-port restrictions and media isolation, client text writes, older
-cached-message reconciliation and durable replica/command recovery. The current cursor is in
+The [older-history recovery follow-up](android-history-recovery.md) now fixes an observed stale
+cache: a real bot edits an older reply and sends a newer one while Android is stopped. Startup
+reconciles all snapshot histories through upstream storage, retaining the database. Two cold
+restarts show corrected text/entities, removed keyboard and all four messages exactly once.
+The same scenario has identical complete bot/world results without Android. The seventh GPL
+patch changes only the adapter runtime class; the existing storage queue barrier precedes events.
+
+All 66 core tests pass at 91.56% coverage and all thirteen Android tests pass. Fresh seven-patch
+export reproduces Java inputs and strict metadata, preserving 6,666 upstream UI/resource files.
+Contained build, APK signature/manifest/ABI, static/Nix/workflow and local-link/privacy checks pass.
+The final repeated-restart screenshot was inspected. All handles are terminal; ignored
+`.cache/local-notes/cache-recovery.md` records diagnostics and `.cache/local-notes/client-write-leads.md`
+holds source leads for the remaining composer/correlation work. Public scenarios/SDK and reports
+still need implementation; the working real loop currently lives in internal probes and fixtures.
+
+Continue ticket 02's resource quotas, per-component control-port restrictions and media isolation,
+client text writes, deletion/multi-dialog recovery and durable replica/command recovery. The current cursor is in
 memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and
 presence semantics, pagination, media and Mini Apps remain unsupported. The first bounded loop
 is evidence toward ticket 03, whose selected rich/media/emoji case remains open. Full source and
