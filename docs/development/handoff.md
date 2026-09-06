@@ -35,6 +35,16 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## First action
 
+The [HTML report follow-up](reports.md) adds an experimental original report writer and a runnable
+documentation example. The actual recovery scenario emits complete semantic evidence and three
+original Android screenshots after its assertions pass. Report tests cover malicious text,
+credential redaction, bounded PNG validation and exclusive concurrent publication. The core gate
+passes 73 tests at 91.47% coverage; the focused actual Android recovery case passes. The client
+and APK are unchanged from the prior thirteen-test Android gate. Browser inspection covers desktop
+and mobile layouts, loaded captures, disclosure controls and inert malicious text. This does not
+complete automatic failure reporting, scenario SDK, concurrency or performance acceptance.
+Local artifacts and completed handles are recorded in ignored `.cache/local-notes/reports.md`.
+
 Continue [ticket 02](../../.scratch/android-offline-foundation/issues/02-offline-world-and-safety.md).
 The user approved the [foundation proposal](android-foundation-proposal.md), source/dependency
 provisioning and project Nix/direnv setup. Do not ask again for those same choices.

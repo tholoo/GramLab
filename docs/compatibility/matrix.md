@@ -37,7 +37,7 @@ do not establish Telegram rendering or protocol conformance.
 | Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; real tap followed by bot SIGKILL/replay; latest and older cached replies recover after Android restart, including edits during downtime; deletion, multi-dialog and partial mutation recovery planned |
 | Faults/limits | Documented validation plus labeled injections, byte/UTF-16 limits, 429/delay/ambiguous outcomes | Planned |
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Planned |
-| Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Planned |
+| Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Partial: [self-contained recovery report](../development/reports.md) with original Android screenshots, structured evidence, credential redaction and measured app-launch times; failure collection, workload percentiles and separated latency diagnosis planned |
 
 Track fidelity on two separate axes: implementation state (planned/implemented) and evidence
 (documented/observed/verified/approximate/unsupported). Each claim needs exact versions, a scenario,

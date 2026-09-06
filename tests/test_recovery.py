@@ -6,6 +6,7 @@ import shutil
 from dataclasses import asdict
 from pathlib import Path
 
+from recovery_report import write_recovery_report
 from test_android_recovery import assert_recovery_result
 
 from gramlab.runtime import RuntimeProfile, Sandbox
@@ -27,4 +28,7 @@ def test_real_bot_older_edit_and_new_reply_match_the_android_recovery_scenario(
     )
     assert result.returncode == 0, result.stderr
     (tmp_path / "recovery-result.json").write_text(result.stdout)
-    assert_recovery_result(json.loads(result.stdout))
+    observed = json.loads(result.stdout)
+    assert_recovery_result(observed)
+    report = write_recovery_report(tmp_path, observed, mode="simulation-only")
+    assert "Ordered world events" in report.read_text()

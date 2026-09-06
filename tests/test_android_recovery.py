@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import pytest
+from recovery_report import write_recovery_report
 
 from gramlab.runtime import RuntimeProfile, Sandbox
 
@@ -141,3 +142,5 @@ def test_android_recovers_older_edits_and_newer_replies_without_duplicates(tmp_p
     assert "Accounts: 0" in observed["client"]["accounts"]
     for launch in observed["client"]["launches"].values():
         assert "Status: ok" in launch and "LaunchState: COLD" in launch
+    report = write_recovery_report(tmp_path, observed, mode="headless-android")
+    assert report.read_text().count("data:image/png;base64,") == 3

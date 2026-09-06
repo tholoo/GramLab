@@ -11,7 +11,9 @@ The Android APK [builds inside network containment](docs/development/android-bui
 Its [native transport guard](docs/development/android-native-guard.md) has real JNI probe evidence.
 The [Java snapshot adapter](docs/development/android-semantic-bridge.md) receives real bot replies
 as client TL objects. [Synthetic application startup](docs/development/android-application.md) now
-renders that conversation in the actual client; the tap/callback/edit loop remains open.
+renders that conversation in the actual client. The [callback loop](docs/development/android-callbacks.md)
+verifies a real tap, bot edit and restart recovery. [Local HTML reports](docs/development/reports.md)
+retain semantic results and original Android screenshots from a recovery scenario.
 See the [world/bot prototype and its limits](docs/development/world-bot-prototype.md).
 See the
 [runtime evidence and limits](docs/development/runtime-boundary.md).
