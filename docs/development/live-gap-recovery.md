@@ -3,7 +3,7 @@
 The original one-send regression passes after restoring the omitted periodic controller callback.
 Additional native fixtures now pass distinct-timestamp ordering and a 1,000-message backlog spanning
 two difference pages. The APK, controller and renderer are unchanged by those fixture additions.
-The expanded 28-test Android gate is running; earlier intermittent startup/send failures remain
+The expanded Android gate passes all 28 tests; earlier intermittent startup/send failures remain
 unresolved. See [transport reliability](android-transport-reliability.md) for their separate evidence.
 
 ## Reproduction and cause
@@ -115,7 +115,9 @@ chronological suffix of that complete history; a viewport screenshot is not used
 1,000 off-screen entries. Four original captures, full structured observations and the controlled
 HTTP transcript appear in the existing report. Complete strict typing and lint/format pass.
 The core, APK, source patches and Nix inputs are unchanged; the preceding core/package/Nix checks
-remain applicable. The full expanded Android gate is still running.
+remain applicable. The full expanded Android gate passes all 28 tests in about 21 minutes,
+including all three live-gap fixtures and the original interruption and consumer cases. Seven
+report regressions pass; local links and public-tree privacy checks pass. All handles are terminal.
 
 ## Limits
 

@@ -112,6 +112,8 @@ then 1002–1004 while ordinary polling remains held. All 1,007 final native IDs
 the world, seq/pts reach 1007, no pending correlation remains, and the real bot replies once to each
 of three user messages. Original UI captures match the visible chronological suffix. The source
 patches, APK and core are unchanged. Full static checks pass; the preceding core/package/Nix checks
-remain applicable. The expanded 28-test Android gate is running; this ticket remains claimed.
+remain applicable. The expanded Android gate passes all 28 tests in about 21 minutes, including
+all three gap fixtures, both interruption cases and the consumer scenarios. Seven report tests,
+local links and privacy checks pass. All handles are terminal; this ticket remains claimed.
 Eight minimal fresh-start trials also pass, including five validated method-stack observations,
 but they do not reproduce or fix the earlier intermittent startup failure. Keep its diagnostics.

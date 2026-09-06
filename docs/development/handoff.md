@@ -71,8 +71,10 @@ three user messages. The final world and native database match all 1,007 IDs and
 seq/pts 1007 and no pending correlation. Original screenshots verify the visible chronological
 suffix; complete structured evidence verifies the off-screen backlog. The APK and core are
 unchanged. Full strict typing and lint/format pass; preceding core/package/Nix checks apply.
-The expanded 28-test Android gate is running. Poll its existing handle from ignored local notes
-before launching another guest or claiming a complete gate.
+The expanded Android gate passes all 28 tests in about 21 minutes. Both interruption cases, all
+three live-gap fixtures, native codec/formatting/runtime checks and consumer scenarios pass.
+All current run/check handles are terminal. This is a passing integration checkpoint, not proof
+that the earlier intermittent startup/send failures can no longer occur.
 
 The preceding full 26-test gate stopped with three passed and one failed test: the composer
 activity launch returned `Status: timeout`, and UIAutomator created no hierarchy file. It failed
