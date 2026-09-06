@@ -2,8 +2,27 @@
 
 Type: task
 Status: ready-for-agent
-Work state: unclaimed
+Work state: claimed
 Blocked by: none
+
+## Comments
+
+- Claimed by `task/rich-captures` at base `f8075d2299209807e88d96e5e906db65a310ac87`.
+- Acceptance: public scenario captures match text within each rich textual fragment, retain the
+  complete structured history, and reject metadata, cross-fragment and cross-chat matches.
+
+## Answer
+
+`capture_chat` now searches ordinary message text and validated rich-message textual fragments.
+RichText wrappers and arrays concatenate inside one field; block text, summaries, captions,
+credits and individual table cells remain separate. Nested quote/details blocks are traversed,
+while type, language, alignment and flags are excluded. Captures continue retaining the original
+structured world history.
+
+The public runner red test observed a real bot's complete rich message in authoritative history
+but an `invalid_request` capture rejection. The focused green run passes 50 capture and rich-message
+tests under the loopback-only network guard. Android accessible-text verification remains owned by
+the coordinator, and this ticket remains claimed until integrated checks pass.
 
 ## Ownership and shared contract
 

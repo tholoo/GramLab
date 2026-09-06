@@ -12,6 +12,39 @@ from gramlab.reports import _Redactor
 from gramlab.world import World
 
 
+def _rich_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "".join(_rich_text(child) for child in value)
+    return _rich_text(value["text"])
+
+
+def _rich_fragments(rich_message: dict[str, Any]) -> list[str]:
+    fragments: list[str] = []
+    pending = list(reversed(rich_message["blocks"]))
+    while pending:
+        block = pending.pop()
+        for name in ("text", "summary", "caption", "credit"):
+            if name in block:
+                fragments.append(_rich_text(block[name]))
+        if "blocks" in block:
+            pending.extend(reversed(block["blocks"]))
+        if "cells" in block:
+            for row in block["cells"]:
+                for cell in row:
+                    if "text" in cell:
+                        fragments.append(_rich_text(cell["text"]))
+    return fragments
+
+
+def _message_fragments(message: dict[str, Any]) -> list[str]:
+    fragments = [message["text"]]
+    if "rich_message" in message:
+        fragments.extend(_rich_fragments(message["rich_message"]))
+    return fragments
+
+
 class Captures:
     def __init__(
         self,
@@ -47,7 +80,10 @@ class Captures:
                 history = world.history(chat_id)
             if not contains and history:
                 raise ValueError("An empty expected-text list requires an empty chat")
-            if any(not any(text in message["text"] for message in history) for text in contains):
+            fragments = [
+                fragment for message in history for fragment in _message_fragments(message)
+            ]
+            if any(not any(text in fragment for fragment in fragments) for text in contains):
                 raise ValueError("Expected capture text is absent from the authoritative chat")
             record: dict[str, Any] = {
                 "chat_id": chat_id,
