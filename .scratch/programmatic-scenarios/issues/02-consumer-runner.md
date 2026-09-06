@@ -42,7 +42,7 @@ retains its capture; Android startup timeout yields a failed report. All 138 cor
 offline distributions pass. Selected API tests explicitly trace real contained supervisor lines.
 
 This ticket remains claimed for composer input, interactive mode and the remaining
-workflow acceptance. Consumer-requested lifecycle/fault operations and expanded dependency
+workflow acceptance. Client lifecycle controls, broader fault operations and expanded dependency
 packaging remain follow-ups. Interactive mode still fails explicitly during preparation.
 
 The [inline-input follow-up](../../../docs/development/scenario-input.md) now exposes message/row/
@@ -59,3 +59,16 @@ The ambiguous-target case retains its failure and earlier screenshots without an
 Ruff, format, 44-file typing, Nix/workflow checks, offline builds and privacy/local links pass.
 Desktop/mobile report inspection verifies loaded original captures without external resources.
 The APK and client-derived patches are unchanged. This ticket and the broader goal remain open.
+
+The [lifecycle follow-up](../../../docs/development/scenario-lifecycle.md) now exposes
+generation-checked bot status, explicit hard stop and restart through a supervisor-thread queue.
+The real bot resumes the same unacknowledged callback without repeating the native action.
+Private state and per-generation logs are preserved. Concurrent/stale stop requests, detached
+child cleanup and aggregate log limits across generations pass real-process tests. The focused
+Android case has matching world/history/lifecycle results and original before/after captures.
+
+Final lifecycle verification: 151 core tests pass at 81.88% coverage; all 19 Android tests pass.
+Ruff/format, 47-file typing, Nix/workflow checks, offline builds and privacy/local links pass.
+Desktop/mobile report review confirms original captures and lifecycle evidence. The APK and
+client-derived patches remain unchanged. This ticket remains claimed for the remaining consumer
+workflow; the full product goal remains active.

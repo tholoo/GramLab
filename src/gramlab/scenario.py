@@ -12,7 +12,7 @@ from typing import Any, Self, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
-_READS = {"snapshot", "history", "events", "get_callback", "bots"}
+_READS = {"snapshot", "history", "events", "get_callback", "bots", "bot_status"}
 _REJECTIONS = {400: "invalid_request", 401: "unauthorized", 404: "unsupported", 409: "wrong_world"}
 
 
@@ -278,6 +278,32 @@ class Scenario:
     def bots(self) -> dict[str, int]:
         """Return the manifest's bot aliases and their world identities."""
         return cast(dict[str, int], self._request("bots", {}))
+
+    def bot_status(self, name: str) -> dict[str, Any]:
+        """Observe one configured bot's current process generation."""
+        return cast(dict[str, Any], self._request("bot_status", {"name": name}))
+
+    def stop_bot(self, name: str, *, generation: int) -> dict[str, Any]:
+        """Hard-stop the expected generation, including its detached descendants."""
+        return cast(
+            dict[str, Any],
+            self._request(
+                "stop_bot",
+                {"name": name, "generation": generation},
+                timeout=30,
+            ),
+        )
+
+    def start_bot(self, name: str, *, generation: int) -> dict[str, Any]:
+        """Start a successor to a stopped generation, preserving private bot files."""
+        return cast(
+            dict[str, Any],
+            self._request(
+                "start_bot",
+                {"name": name, "generation": generation},
+                timeout=30,
+            ),
+        )
 
     def capture_chat(
         self, *, chat_id: int, label: str, contains: list[str], timeout: float = 180

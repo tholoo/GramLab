@@ -95,5 +95,7 @@ gate passes 91 tests at 92.07% statement coverage. Strict typing, lint/format, N
 local links and public-tree privacy checks pass. There are no Android/client/APK changes or new
 Android runs in this milestone; it is control/process evidence, not new rendering evidence.
 
-Resource quotas, per-component port restrictions, full consumer packaging, Android connection
-through the future scenario SDK, fault replay and automatic failure reports remain open.
+The later [consumer runner](consumer-runner.md) connects this control boundary to Android captures,
+native inline input, [bot stop/recovery](scenario-lifecycle.md) and automatic failure reports.
+Resource quotas, per-component port restrictions, expanded dependency packaging and broader fault
+replay remain open. The counts above describe the historical control foundation.

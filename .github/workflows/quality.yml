@@ -96,3 +96,5 @@ jobs:
           tests/probes/trace_runner.py
       - name: Type check the independent inline consumer example
         run: uv run --locked mypy examples/inline
+      - name: Type check the independent recovery consumer example
+        run: uv run --locked mypy examples/recovery

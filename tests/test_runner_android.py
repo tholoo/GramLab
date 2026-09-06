@@ -250,3 +250,47 @@ if lab.events() != before:
     assert len(callbacks) == 1 and callbacks[0]["data"]["data"] == "confirm"
     assert len(recorded["captures"]) == 2
     assert (output / "report.html").read_text().count("data:image/png;base64,") == 2
+
+
+def test_consumer_recovers_pending_callback_after_bot_crash_in_both_modes(tmp_path: Path):
+    from test_runner_lifecycle import recovery_project
+
+    profile = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if profile is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires the provisioned Android profile, approved APK and KVM")
+    manifest = recovery_project(tmp_path / "project")
+    results = []
+    for mode in ("simulation-only", "headless-android"):
+        manifest.write_text(
+            Path("examples/recovery/android.toml")
+            .read_text()
+            .replace('mode = "headless-android"', f'mode = "{mode}"')
+        )
+        output = tmp_path / mode
+        outcome = run(
+            manifest,
+            output,
+            profile=RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"])),
+            android_profile=RuntimeProfile.load(Path(profile)),
+            android_apk=Path(apk),
+        )
+        recorded = json.loads((output / "result.json").read_text())
+        assert outcome == "passed", recorded
+        results.append(recorded)
+    simulation, android = results
+    assert simulation["world"] == android["world"]
+    assert simulation["histories"] == android["histories"]
+    assert simulation["lifecycle"] == android["lifecycle"]
+    assert [event["operation"] for event in android["lifecycle"]] == ["stop_bot", "start_bot"]
+    assert len(android["interactions"]) == 1 and android["interactions"][0]["native"]
+    assert len([event for event in android["events"] if event["type"] == "callback.created"]) == 1
+    assert android["processes"]["bot:recovery"]["stopped_by_scenario"]
+    assert android["processes"]["bot:recovery#2"]["generation"] == 2
+    assert [capture["label"] for capture in android["captures"]] == [
+        "before-crash",
+        "after-recovery",
+    ]
+    assert all(capture["rendered"] for capture in android["captures"])
+    report = (tmp_path / "headless-android/report.html").read_text()
+    assert report.count("data:image/png;base64,") == 2

@@ -22,6 +22,12 @@ See the [world/bot prototype and its limits](docs/development/world-bot-prototyp
 See the
 [runtime evidence and limits](docs/development/runtime-boundary.md).
 
+The [inline-input example](docs/development/scenario-input.md) runs the same callback/edit scenario
+with virtual input or an actual Android button tap, retaining original before/after captures.
+
+The [bot recovery example](docs/development/scenario-lifecycle.md) stops a real bot after callback
+receipt and restarts it to handle the same pending update, preserving its private state.
+
 ## Intended experience
 
 Run an actual local bot against a simulated Bot API with virtual users and chats. Use the
@@ -50,6 +56,3 @@ No Android runtime setup is needed to read or extend this scaffold.
 Original core/SDK work is intended to use MIT. Android-derived components retain applicable
 upstream copyleft terms. See [licensing boundaries](docs/development/licensing.md).
 GramLab is independent and is not affiliated with or endorsed by Telegram.
-
-The [inline-input example](docs/development/scenario-input.md) runs the same callback/edit scenario
-with virtual input or an actual Android button tap, retaining original before/after captures.

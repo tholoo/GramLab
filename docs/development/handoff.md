@@ -77,8 +77,24 @@ Desktop/mobile report review confirms loaded original captures and no external r
 horizontal overflow. The approved APK fingerprint is unchanged. All run/check handles are terminal;
 ignored `.cache/local-notes/inline-input.md` records local evidence and the stopped preview server.
 
+The [bot lifecycle follow-up](scenario-lifecycle.md) adds generation-checked `bot_status`,
+`stop_bot` and `start_bot`. Requests go through the persistent supervisor thread; replacements
+keep their bot identity/capability and private files while receiving a fresh process namespace.
+Per-generation process logs and accepted lifecycle actions remain in reports. An explicit stop
+completes descendant cleanup; stale and concurrent requests cannot stop a replacement generation.
+A real bot resumes the same callback after receipt and before acknowledgment, with equivalent
+world/history/lifecycle results and original actual Android captures. Restarts share the run's
+aggregate log budget. No APK or client-derived source changes were required.
+
+The final lifecycle gate passes 151 core tests at 81.88% measured coverage and all 19 Android
+tests. Full lint/format, strict typing across 47 files in three independent example-compatible
+invocations, Nix/workflow checks, offline distributions and privacy/local links pass. Desktop/mobile
+report inspection confirms original captures, lifecycle evidence and no external resources or
+horizontal overflow. All handles are terminal, including the stopped report-preview server.
+Ignored `.cache/local-notes/lifecycle.md` records the local artifacts and verification commands.
+
 Continue claimed ticket 02 with composer input, scrolling, interactive mode and the remaining
-workflow acceptance. Consumer-requested lifecycle/fault commands and broader dependency packaging
+workflow acceptance. Client lifecycle controls, broader fault schedules and dependency packaging
 also remain open. Preserve the private emulator component, authoritative world and original
 renderer. Local capture evidence is recorded in ignored `.cache/local-notes/scenario-captures.md`.
 

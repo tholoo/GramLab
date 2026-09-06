@@ -28,7 +28,7 @@ integration harness or consumer runner starts that separate process. With the ru
 `scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes twelve operations:
+The interface exposes fifteen operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -44,6 +44,9 @@ The interface exposes twelve operations:
 | `get_callback` | Observe that callback and its answer |
 | `capture_chat` | Retain semantic evidence and original screenshots in headless Android mode |
 | `tap_inline_button` | Select a callback keyboard cell, using actual input in Android mode |
+| `bot_status` | Observe a configured bot's process generation and state |
+| `stop_bot` | Hard-stop the expected bot generation and its descendants |
+| `start_bot` | Replace a stopped generation while preserving private bot files |
 
 Arguments and JSON-shaped results retain the existing world contract. This is not a second Bot
 API client or a recreated Android interaction layer. A new HTTP connection is used for each call;
@@ -57,6 +60,9 @@ effects even though the operation does not create a simulated message.
 
 `tap_inline_button` also requires the consumer runner. Its row/column selection, native targeting,
 uncertain outcomes and runnable example are described in [scenario input](scenario-input.md).
+
+The bot lifecycle methods also require the consumer runner. See [scenario lifecycle](scenario-lifecycle.md)
+for generation checks, persistent state, stop/restart uncertainty and a callback recovery example.
 
 ## Failure contract
 

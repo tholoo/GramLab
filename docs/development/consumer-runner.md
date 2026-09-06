@@ -89,15 +89,16 @@ has private files and PID/mount namespaces. The supervisor owns the world databa
 consumer code cannot read their files through `/work` or `/proc`. Provisioned profile environment
 and the explicit component variables are the only supplied environment settings.
 
-Bots start before the scenario. Updates remain queued while a bot initializes. A nonzero bot or
-scenario exit fails the run. A zero-exit bot is allowed, including one-shot consumers. Once the
+Bots start before the scenario. Updates remain queued while a bot initializes. An unexpected nonzero bot or
+scenario exit fails the run. [Explicit scenario stops](scenario-lifecycle.md) are recorded separately
+and allow generation-checked bot recovery. A zero-exit bot is allowed, including one-shot consumers. Once the
 scenario exits successfully, still-running bots and all component descendants are terminated and
 waited for. Expected bot cleanup does not turn a successful scenario into a failure. A passing run
 means the scenario's own checks succeeded and no process failure was observed before cleanup.
 It does not independently establish Telegram conformance or correctness of an empty scenario.
 
-Stdout/stderr are drained while components run. Each stream is limited to 1 MiB, with a 2 MiB
-aggregate run limit; exceeding either fails the run and stops its components. Process evidence
+Stdout/stderr are drained while components run. Each generation’s stream is limited to 1 MiB, with a 2 MiB
+aggregate run limit across all generations; exceeding either fails the run and stops its components. Process evidence
 includes exit codes, whether the runner stopped the process, and whether each stream reached EOF
 before cleanup. Logs stopped early are explicitly incomplete. Consumer-created files remain in
 their private run directories; filesystem, memory and process quotas are not implemented yet.
@@ -122,7 +123,7 @@ encodings or secrets supplied as ordinary prose can always be detected.
 
 `simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
 command. `interactive-android` fails explicitly during preparation. [SDK inline-button input](scenario-input.md) is supported; composer input,
-restarts/faults, expanded dependency packaging and workload diagnostics remain active work.
+client restarts and broader faults, expanded dependency packaging and workload diagnostics remain active work.
 Overall elapsed time covers trusted execution and cleanup; Android metadata separately records
 guest boot duration. Neither is an individual Bot API latency measurement.
 
@@ -136,7 +137,7 @@ A large-world case preserves complete JSON evidence while keeping HTML bounded. 
 [control tests](../../tests/test_world_control.py) verify scoped, read-only named bot identities.
 The documented two-conversation example also runs through the installed console entry point.
 
-The inline-input milestone passes 147 core tests at 81.86% measured statement coverage and all 18
+The lifecycle milestone passes 151 core tests at 81.88% measured statement coverage and all 19
 Android tests; lint, formatting, strict typing, Nix/workflow checks and offline wheel/source
 builds pass. Selected Python API tests explicitly trace actual contained supervisor execution
 using the [test-only fixture](../../tests/conftest.py). CLI/guest behavior checks do not imply
