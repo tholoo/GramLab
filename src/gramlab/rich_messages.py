@@ -16,7 +16,10 @@ _BLOCK_FIELDS = {
     "pullquote": ({"text"}, {"credit"}),
     "table": ({"cells"}, {"caption", "is_bordered", "is_striped", "is_compact"}),
     "details": ({"summary", "blocks"}, {"is_open"}),
+    "list": ({"items"}, set()),
 }
+
+_LIST_TYPES = frozenset(("a", "A", "i", "I", "1"))
 
 
 def _object(value: Any, required: set[str], optional: set[str]) -> dict[str, Any]:
@@ -104,10 +107,93 @@ def _cell(value: Any) -> dict[str, Any]:
     return result
 
 
-def _blocks(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list) or not value:
+def _blocks(value: Any, *, allow_empty: bool = False) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or (not value and not allow_empty):
         raise ValueError("GRAMLAB_UNSUPPORTED: rich blocks must be a non-empty array")
     return [_block(block) for block in value]
+
+
+def _alphabetic_label(value: int, *, uppercase: bool) -> str:
+    letters = []
+    offset = ord("A" if uppercase else "a")
+    while value > 0:
+        value, remainder = divmod(value - 1, 26)
+        letters.append(chr(offset + remainder))
+    return "".join(reversed(letters))
+
+
+def _roman_label(value: int, *, uppercase: bool) -> str:
+    numerals = (
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    )
+    parts = []
+    for number, numeral in numerals:
+        count, value = divmod(value, number)
+        parts.append(numeral * count)
+    label = "".join(parts)
+    return label if uppercase else label.lower()
+
+
+def _ordered_label(kind: str, value: int) -> str:
+    if kind in ("a", "A") and value > 0:
+        label = _alphabetic_label(value, uppercase=kind == "A")
+    elif kind in ("i", "I") and 0 < value < 4000:
+        label = _roman_label(value, uppercase=kind == "I")
+    else:
+        label = str(value)
+    return f"{label}."
+
+
+def _list_item(value: Any) -> tuple[dict[str, Any], bool]:
+    obj = _object(
+        value,
+        {"blocks"},
+        {"has_checkbox", "is_checked", "value", "type"},
+    )
+    kind = obj.get("type", "")
+    if not isinstance(kind, str) or (kind and kind not in _LIST_TYPES):
+        raise ValueError("Invalid rich list item type")
+    number = obj.get("value", 0)
+    if type(number) is not int or not -(2**31) <= number < 2**31:
+        raise ValueError("Rich list item value must be a signed 32-bit integer")
+
+    ordered = bool(kind)
+    result: dict[str, Any] = {
+        "label": _ordered_label(kind, number) if ordered else "•",
+        "blocks": _blocks(obj["blocks"], allow_empty=True),
+    }
+    flags: dict[str, Any] = {}
+    _flag(obj, flags, "has_checkbox")
+    _flag(obj, flags, "is_checked")
+    if flags.get("has_checkbox"):
+        result["has_checkbox"] = True
+        if flags.get("is_checked"):
+            result["is_checked"] = True
+    if ordered:
+        result["type"] = kind
+        result["value"] = number
+    return result, ordered
+
+
+def _list_items(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not value:
+        raise ValueError("GRAMLAB_UNSUPPORTED: rich list items must be a non-empty array")
+    converted = [_list_item(item) for item in value]
+    if any(ordered != converted[0][1] for _, ordered in converted[1:]):
+        raise ValueError("Rich list items must agree on orderedness")
+    return [item for item, _ in converted]
 
 
 def _block(value: Any) -> dict[str, Any]:
@@ -126,6 +212,8 @@ def _block(value: Any) -> dict[str, Any]:
                 result[name] = text
     if "blocks" in obj:
         result["blocks"] = _blocks(obj["blocks"])
+    if kind == "list":
+        result["items"] = _list_items(obj["items"])
     if kind == "heading":
         if type(obj["size"]) is not int or not 1 <= obj["size"] <= 6:
             raise ValueError("Rich heading size must be between 1 and 6")

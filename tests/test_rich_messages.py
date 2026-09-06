@@ -21,6 +21,354 @@ def rich(blocks, **fields):
     return {"blocks": blocks, "skip_entity_detection": True, **fields}
 
 
+def test_list_items_are_normalized_through_the_world_boundary(tmp_path):
+    payload = rich(
+        [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "blocks": [{"type": "paragraph", "text": "First"}],
+                        "type": "A",
+                        "value": 1,
+                        "has_checkbox": True,
+                        "is_checked": True,
+                    },
+                    {"blocks": [], "type": "i", "value": 4},
+                ],
+            }
+        ]
+    )
+    expected = {
+        "blocks": [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "label": "A.",
+                        "blocks": [{"type": "paragraph", "text": "First"}],
+                        "has_checkbox": True,
+                        "is_checked": True,
+                        "type": "A",
+                        "value": 1,
+                    },
+                    {"label": "iv.", "blocks": [], "type": "i", "value": 4},
+                ],
+            }
+        ]
+    }
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+
+    assert sent["rich_message"] == expected
+
+
+def test_ordered_list_labels_cover_case_boundaries_and_signed_values(tmp_path):
+    payload = rich(
+        [
+            {
+                "type": "list",
+                "items": [
+                    {"blocks": [], "type": "a", "value": 1},
+                    {"blocks": [], "type": "a", "value": 26},
+                    {"blocks": [], "type": "a", "value": 27},
+                    {"blocks": [], "type": "a", "value": 0},
+                    {"blocks": [], "type": "A", "value": 26},
+                    {"blocks": [], "type": "A", "value": 27},
+                    {"blocks": [], "type": "A", "value": -5},
+                    {"blocks": [], "type": "A"},
+                    {"blocks": [], "type": "i", "value": 1},
+                    {"blocks": [], "type": "i", "value": 0},
+                    {"blocks": [], "type": "i", "value": 3999},
+                    {"blocks": [], "type": "i", "value": 4000},
+                    {"blocks": [], "type": "I", "value": 4},
+                    {"blocks": [], "type": "I", "value": -8},
+                    {"blocks": [], "type": "I", "value": 3999},
+                    {"blocks": [], "type": "I", "value": 4000},
+                    {"blocks": [], "type": "1"},
+                    {"blocks": [], "type": "1", "value": -1},
+                    {"blocks": [], "type": "1", "value": -(2**31)},
+                    {"blocks": [], "type": "1", "value": 2**31 - 1},
+                ],
+            }
+        ]
+    )
+    expected_items = [
+        {"label": "a.", "blocks": [], "type": "a", "value": 1},
+        {"label": "z.", "blocks": [], "type": "a", "value": 26},
+        {"label": "aa.", "blocks": [], "type": "a", "value": 27},
+        {"label": "0.", "blocks": [], "type": "a", "value": 0},
+        {"label": "Z.", "blocks": [], "type": "A", "value": 26},
+        {"label": "AA.", "blocks": [], "type": "A", "value": 27},
+        {"label": "-5.", "blocks": [], "type": "A", "value": -5},
+        {"label": "0.", "blocks": [], "type": "A", "value": 0},
+        {"label": "i.", "blocks": [], "type": "i", "value": 1},
+        {"label": "0.", "blocks": [], "type": "i", "value": 0},
+        {"label": "mmmcmxcix.", "blocks": [], "type": "i", "value": 3999},
+        {"label": "4000.", "blocks": [], "type": "i", "value": 4000},
+        {"label": "IV.", "blocks": [], "type": "I", "value": 4},
+        {"label": "-8.", "blocks": [], "type": "I", "value": -8},
+        {"label": "MMMCMXCIX.", "blocks": [], "type": "I", "value": 3999},
+        {"label": "4000.", "blocks": [], "type": "I", "value": 4000},
+        {"label": "0.", "blocks": [], "type": "1", "value": 0},
+        {"label": "-1.", "blocks": [], "type": "1", "value": -1},
+        {"label": "-2147483648.", "blocks": [], "type": "1", "value": -(2**31)},
+        {"label": "2147483647.", "blocks": [], "type": "1", "value": 2**31 - 1},
+    ]
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+
+    assert sent["rich_message"] == {"blocks": [{"type": "list", "items": expected_items}]}
+
+
+def test_list_marker_and_checkbox_changes_create_visible_edits(tmp_path):
+    blocks = [{"type": "paragraph", "text": "Same body"}]
+    initial = rich(
+        [
+            {
+                "type": "list",
+                "items": [{"blocks": blocks, "type": "a", "value": 1}],
+            }
+        ]
+    )
+    changed = rich(
+        [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "blocks": blocks,
+                        "type": "A",
+                        "value": 1,
+                        "has_checkbox": True,
+                        "is_checked": True,
+                    }
+                ],
+            }
+        ]
+    )
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=initial)
+        edited = world.edit_message(
+            chat_id=1,
+            message_id=sent["id"],
+            bot_id=2,
+            rich_message=changed,
+        )
+        assert edited["rich_message"] == {
+            "blocks": [
+                {
+                    "type": "list",
+                    "items": [
+                        {
+                            "label": "A.",
+                            "blocks": [{"type": "paragraph", "text": "Same body"}],
+                            "has_checkbox": True,
+                            "is_checked": True,
+                            "type": "A",
+                            "value": 1,
+                        }
+                    ],
+                }
+            ]
+        }
+        assert [change["type"] for change in world.client_changes(1, after=0)["changes"]] == [
+            "message.created",
+            "message.edited",
+        ]
+
+
+def test_unordered_lists_normalize_flags_and_recurse_through_nested_blocks(tmp_path):
+    payload = rich(
+        [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "blocks": [
+                            {
+                                "type": "blockquote",
+                                "credit": {"type": "italic", "text": "نویسنده"},
+                                "blocks": [
+                                    {
+                                        "type": "list",
+                                        "items": [
+                                            {
+                                                "blocks": [
+                                                    {
+                                                        "type": "paragraph",
+                                                        "text": [
+                                                            "راست ",
+                                                            {"type": "bold", "text": "left"},
+                                                        ],
+                                                    }
+                                                ],
+                                                "type": "I",
+                                                "value": 9,
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                        "value": -(2**31),
+                        "type": "",
+                        "has_checkbox": False,
+                        "is_checked": True,
+                    },
+                    {
+                        "blocks": [],
+                        "value": 2**31 - 1,
+                        "has_checkbox": True,
+                        "is_checked": False,
+                    },
+                    {"blocks": [], "is_checked": True},
+                    {
+                        "blocks": [{"type": "footer", "text": "پایان end"}],
+                        "has_checkbox": True,
+                        "is_checked": True,
+                    },
+                ],
+            }
+        ],
+        is_rtl=True,
+    )
+    expected = {
+        "blocks": [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "label": "•",
+                        "blocks": [
+                            {
+                                "type": "blockquote",
+                                "credit": {"type": "italic", "text": "نویسنده"},
+                                "blocks": [
+                                    {
+                                        "type": "list",
+                                        "items": [
+                                            {
+                                                "label": "IX.",
+                                                "blocks": [
+                                                    {
+                                                        "type": "paragraph",
+                                                        "text": [
+                                                            "راست ",
+                                                            {"type": "bold", "text": "left"},
+                                                        ],
+                                                    }
+                                                ],
+                                                "type": "I",
+                                                "value": 9,
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                    {"label": "•", "blocks": [], "has_checkbox": True},
+                    {"label": "•", "blocks": []},
+                    {
+                        "label": "•",
+                        "blocks": [{"type": "footer", "text": "پایان end"}],
+                        "has_checkbox": True,
+                        "is_checked": True,
+                    },
+                ],
+            }
+        ],
+        "is_rtl": True,
+    }
+    pristine = copy.deepcopy(payload)
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+        assert payload == pristine
+        assert sent["rich_message"] == expected
+        payload["blocks"].clear()
+        sent["rich_message"]["blocks"].clear()
+        assert world.get_message(1, 1)["rich_message"] == expected
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        {"type": "list", "items": []},
+        {"type": "list", "items": None},
+        {"type": "list", "items": {}},
+        {"type": "list", "items": ["item"]},
+        {"type": "list", "items": [{}]},
+        {"type": "list", "items": [{"blocks": None}]},
+        {"type": "list", "items": [{"blocks": "text"}]},
+        {"type": "list", "items": [{"blocks": [], "label": "•"}]},
+        {"type": "list", "items": [{"blocks": [], "unknown": True}]},
+        {"type": "list", "items": [{"blocks": [], "type": None}]},
+        {"type": "list", "items": [{"blocks": [], "type": True}]},
+        {"type": "list", "items": [{"blocks": [], "type": "x"}]},
+        {"type": "list", "items": [{"blocks": [], "type": "aa"}]},
+        {"type": "list", "items": [{"blocks": [], "value": None}]},
+        {"type": "list", "items": [{"blocks": [], "value": True}]},
+        {"type": "list", "items": [{"blocks": [], "value": "1"}]},
+        {"type": "list", "items": [{"blocks": [], "value": -(2**31) - 1}]},
+        {"type": "list", "items": [{"blocks": [], "value": 2**31}]},
+        {"type": "list", "items": [{"blocks": [], "has_checkbox": 1}]},
+        {"type": "list", "items": [{"blocks": [], "is_checked": "true"}]},
+        {
+            "type": "list",
+            "items": [{"blocks": []}, {"blocks": [], "type": "1"}],
+        },
+        {
+            "type": "list",
+            "items": [{"blocks": [], "type": ""}, {"blocks": [], "type": "A"}],
+        },
+        {"type": "list", "items": [{"blocks": []}], "unknown": True},
+    ],
+)
+def test_invalid_list_input_and_edits_leave_world_state_and_ids_unchanged(tmp_path, block):
+    with world_at(tmp_path / "world") as world:
+        message = world.send_rich_message(
+            chat_id=1,
+            sender_id=2,
+            rich_message=rich([{"type": "paragraph", "text": "Original"}]),
+        )
+        before = (
+            world.history(1),
+            world.client_snapshot(1, version=2),
+            world.client_changes(1, after=0),
+            world.events(),
+        )
+        with pytest.raises(ValueError):
+            world.send_rich_message(chat_id=1, sender_id=2, rich_message=rich([block]))
+        with pytest.raises(ValueError):
+            world.edit_message(
+                chat_id=1,
+                message_id=message["id"],
+                bot_id=2,
+                rich_message=rich([block]),
+            )
+        assert (
+            world.history(1),
+            world.client_snapshot(1, version=2),
+            world.client_changes(1, after=0),
+            world.events(),
+        ) == before
+        assert world.send_message(chat_id=1, sender_id=2, text="After rejection")["id"] == 2
+
+
+def test_list_expansion_cannot_exceed_existing_node_budget(tmp_path):
+    payload = rich([{"type": "list", "items": [{"blocks": []} for _ in range(2000)]}])
+    with world_at(tmp_path / "world") as world:
+        before = world.client_snapshot(1, version=2), world.events()
+        with pytest.raises(ValueError, match="GRAMLAB_UNSUPPORTED: rich content node limit"):
+            world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+        assert (world.client_snapshot(1, version=2), world.events()) == before
+
+
 def test_canonical_table_defaults_flags_and_detached_inputs(tmp_path):
     original = rich(
         [

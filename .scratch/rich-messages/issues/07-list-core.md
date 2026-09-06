@@ -2,8 +2,10 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
+
+Assigned to: `task/rich-list-core`
 
 ## Ownership and interface
 
@@ -49,3 +51,18 @@ tests and relevant lint/format; existing test files are not strict-typed, so do 
 their unrelated typing scope. No full core or Android gate, APK build or guest is assigned.
 Commit owned files and return exact red/green evidence, limits and a frozen clean branch. Leave
 this ticket claimed until coordinator acceptance.
+
+## Worker evidence
+
+`task/rich-list-core` implements the pinned list input and canonical output contract through the
+existing rich-message validator. World and real HTTP tests cover recursive ordered/unordered lists,
+all five label types, boundary and fallback values, checkboxes, empty item block arrays, detached
+objects, atomic rejection, durable send/edit/callback state, snapshots, changes, reopen, ownership,
+ordinary/rich transitions, no-op normalization, and the existing expanded-output node budget.
+
+The initial World test failed at the assigned base with `GRAMLAB_UNSUPPORTED: rich block type`.
+After implementation, 30 list-selected World/API cases pass under the loopback-only guard. The
+complete two-file focused set passes 81 cases with the pre-existing Unicode property case excluded;
+that unchanged case separately exceeds its 200 ms Hypothesis deadline at about 243–248 ms while the
+coordinator's Android gate is running. Scoped Ruff lint/format and mypy for the changed source pass.
+No Android, native, full-core, guest, APK, or shared-document gate was run by this worker.
