@@ -54,13 +54,12 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
-The first parallel rich-message batch now has a passing real-bot send/edit scenario and original
-Android rendering evidence. The full core gate passes 269 tests at 82.06% coverage. The integrated
-offline APK builds in 2 minutes 15 seconds; the focused native test passes in 72 seconds, including
+The completed first parallel rich-message batch has a passing real-bot send/edit scenario and original
+Android rendering evidence. The integrated offline APK builds in 2 minutes 15 seconds; the focused native test passes in 72 seconds, including
 complete actual serializer observations, two malformed-table rejections, live RTL editing and cold
 restart. All three original screenshots were inspected. See [the precise API subset](rich-messages.md)
 and [native evidence and reproduction](android-rich-projection.md). The combined Android regression
-gate is running; do not use the preceding 28-test result as evidence for this new APK. Local handles,
+gate passes all 29 tests without skips in 27 minutes on the new APK. Local handles,
 fingerprints and artifact locations are retained in ignored notes.
 
 The follow-up public scenario capture implementation now searches rich text fragments while
@@ -68,9 +67,17 @@ preserving structured history. Nine integrated capture tests pass, including the
 [rich example](scenario-rich-messages.md) in simulation. Its full core gate passes 272 tests at
 81.44% coverage in 73 seconds with four pytest workers, compared with the preceding serial
 269-test gate's 148 seconds. This is a measured development run, not a controlled benchmark;
-the full Android gate and this new public example's native check remain pending. Native inline
-target selection still has no verified rich-message contract. Continue that integration gap
-alongside broader feature work. The reviewed [effects investigation](android-effects-profile.md) identifies pinned
+the 29-test Android regression gate also passes. This new public example's native check passes
+in 65 seconds, with equal simulation/Android world, history and events. All three original
+captures and the report were inspected. The installed wheel passes the simulation example;
+full static checks, workflow check, local links and tracked-tree privacy checks pass. All current
+check/build/preview handles are terminal. The four bounded rich-message tickets are resolved;
+the full product goal remains active.
+
+Next, continue native rich inline targeting and the runtime effects comparison, then expand the
+remaining rich/media inventory along independently owned contracts. Native inline target selection
+still has no verified rich-message contract. The reviewed
+[effects investigation](android-effects-profile.md) identifies pinned
 performance, preference and shader gates and a one-guest comparison procedure. It changes no
 graphics defaults; native runtime values and effects-enabled captures remain unverified.
 
@@ -81,7 +88,10 @@ rich-message rendering and rendering-profile work along agreed interfaces before
 Prioritize useful feature breadth and rich-message rendering;
 retain the recovery diagnostics for new failure evidence instead of repeating successful gates.
 
-Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).
+## Earlier composer and recovery milestones
+
+The [native composer ticket](../../.scratch/programmatic-scenarios/issues/04-native-composer.md)
+retains additional open boundaries. The historical checks below explain its current evidence.
 The latest [transport diagnosis](android-transport-reliability.md) isolates two failures in an
 independent codec loop: local handshakes stall with the pinned emulator's Netsim forwarding,
 and Android can attempt to reuse the bridge's closed HTTP connection. Both launchers now select

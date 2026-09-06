@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: none
 
 ## Comments
@@ -59,3 +59,14 @@ after integration, it and the existing/worker capture tests pass (9 tests, 10.14
 The full four-worker core gate passes 272 tests in 73.24 seconds at 81.44% coverage. All documented
 strict type checks, lint and formatting pass. Public Android example verification remains
 pending the shared guest lock, so this task remains open at this checkpoint.
+
+## Accepted integration
+
+The public Android example passes in 64.85 seconds, preserving complete world/history/event
+parity with simulation. Its three original screenshots were inspected. The generated report
+passes mobile/desktop browser inspection with three loaded original images, no overflow and
+no external resources. The installed wheel passes the simulation example with all three
+semantic captures. The preceding 29-test Android regression gate passes on the same APK;
+no rebuild was needed for this Python-only integration. This bounded capture ticket is resolved;
+native rich inline targeting, collapsed/off-screen visibility controls and the wider inventory
+remain open.

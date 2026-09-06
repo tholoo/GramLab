@@ -49,9 +49,13 @@ carry their full `rich_message`; ordinary internal `text` remains empty.
 The worker's public consumer tests cover positive fragments and rejection of absent, metadata-only,
 cross-block, cross-cell and other-chat text without overwriting earlier evidence. The independent
 [example test](../../tests/test_runner_rich_example.py) compares complete initial and edited history
-with a separate fixture, then compares simulation and Android world, history and events. The nine integrated capture tests pass, including the real-bot public example in simulation;
-the full core gate passes 272 tests at 81.44% coverage. Native integration of this new public
-example is still pending the shared guest gate.
+with a separate fixture, then compares simulation and Android world, history and events. The nine
+integrated capture tests pass, including the real-bot public example in simulation;
+the full core gate passes 272 tests at 81.44% coverage. The public Android example passes in
+64.85 seconds on the same APK that passes the 29-test regression gate. Its complete world,
+history and events match simulation. All three original captures were visually inspected;
+the report loads its images without overflow or external resources at mobile and desktop widths.
+The installed wheel also passes the simulation example using isolated Python import behavior.
 
 The [capture limits](scenario-captures.md) and baseline [rendering profile](android-effects-profile.md)
 remain applicable. Native inline-keyboard targeting for rich messages is not verified. HTML,

@@ -28,6 +28,11 @@ with virtual input or an actual Android button tap, retaining original before/af
 The [composer example](docs/development/scenario-composer.md) presses Start Bot, sends formatted
 Persian/emoji text through the original composer and verifies real replies in both modes.
 
+The [rich-message example](docs/development/scenario-rich-messages.md) sends bilingual structured
+blocks and edits them to RTL, retaining equivalent semantic results and original Android captures.
+The supported subset includes headings, formatted text, tables and nested quotations; broader
+rich-message features remain explicit gaps.
+
 The [bot recovery example](docs/development/scenario-lifecycle.md) stops a real bot after callback
 receipt and restarts it to handle the same pending update, preserving its private state.
 

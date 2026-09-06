@@ -61,7 +61,8 @@ quotation, followed by a live RTL edit and cold restart. Visual inspection confi
 captures. Actual native serialization also preserves the complete ten-block catalog, and both
 malformed table fixtures fail with `GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE`. Catalog serialization
 is not evidence that every catalog block has been visually reviewed. The combined Android
-regression gate remains required before closing this integration.
+regression gate now passes all 29 tests with no skips in 1,630.71 seconds. Existing formatting,
+callbacks, composer input and controlled recovery boundaries retain passing evidence.
 
 `BridgeProbe` observes `rich_message` only after actual native message serialization and
 `TLdeserialize`. Its recursive observer reads native classes, flags, text, rows and nested blocks;
@@ -116,7 +117,8 @@ observations, not latency percentiles. Sharing one dedicated guest across the re
 avoids repeated guest startup while preserving separate world and malformed-input fixtures.
 The initial full core gate passes 269 tests at 82.06% coverage. The subsequent
 [public rich capture implementation](scenario-rich-messages.md) passes its simulation checks and
-272-test core gate; its Android integration remains pending. Native rich inline targeting still
+272-test core gate; its separate Android consumer integration also passes in 65 seconds with
+matching semantic evidence and three visually inspected original captures. Native rich inline targeting still
 requires follow-up. The first generated rich report mislabeled seconds as milliseconds; the
 report adapter now converts those measurements, and the separately corrected retained report
 passes browser inspection at desktop/mobile widths with all three images loaded, no overflow

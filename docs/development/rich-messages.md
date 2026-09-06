@@ -83,8 +83,9 @@ unshare --user --map-root-user --net bash -eu -c \
 
 The integrated real-bot scenario and [native projection checks](android-rich-projection.md) now
 pass, including original send/edit/restart captures. The full core gate passes 269 tests at
-82.06% coverage. The combined Android regression gate remains in progress; broader rich-content
-rendering and generic scenario assertions are still separate required evidence.
+82.06% coverage. The combined Android regression gate passes all 29 tests without skips. Broader rich-content
+rendering remains separate required evidence. The [public scenario example](scenario-rich-messages.md)
+also passes in both modes with complete equivalent semantic outcomes and original captures.
 
 ## Contract provenance
 

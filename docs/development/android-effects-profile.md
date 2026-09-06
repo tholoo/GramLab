@@ -140,7 +140,8 @@ preferences to the baseline profile.
 
 ## Development cost
 
-The latest recorded complete Android gate contains 28 tests and takes about 21 minutes, while the
+The rich-message checkpoint's complete Android gate contains 29 tests and takes about 27 minutes,
+while the
 focused application probe has one guest boot and already retains launch, hierarchy and screenshot
 evidence. Reusing that guest for baseline and enabled captures avoids a second boot and avoids an
 APK rebuild because the comparison uses upstream settings. Static source/profile checks should run

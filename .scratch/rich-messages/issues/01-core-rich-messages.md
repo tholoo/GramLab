@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: rich-core (task/rich-core)
 
 Implementing the acceptance and owned files below; coordinator retains integrated acceptance.
@@ -59,3 +59,11 @@ Reviewed core and native changes pass the integrated real-bot contract. The full
 passes with complete codec catalog, explicit invalid-table rejection and visually inspected
 send/edit/cold-restart captures. Shared documentation records the precise supported boundary.
 The combined Android gate is still running; keep this ticket open until its required checks pass.
+
+## Accepted integration
+
+The integrated APK passes the full 29-test Android gate with no skipped tests in 1,630.71 seconds.
+This includes the rich send/live-edit/restart and complete codec cases, existing plain formatting,
+callbacks, composer input and controlled recovery boundaries. Core, static and package checks
+recorded above pass. This closes this bounded ticket; broader rich surfaces and the full GramLab
+feature inventory remain open. Generic public rich capture acceptance is tracked separately in 04.
