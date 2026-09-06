@@ -37,7 +37,7 @@ requires a loopback-only interface list. The authoritative isolation mechanism i
 | `sendMessage` | Plain text and callback-only inline keyboards in existing private chats |
 | `editMessageText` | Sending bot edits its text/keyboard atomically; returns the persisted message |
 | `answerCallbackQuery` | Durable answer to its own query; text/alert with caching disabled |
-| Transport | Case-insensitive methods, GET query parameters and POST JSON; other content types are explicitly unsupported |
+| Transport | Case-insensitive methods, GET/POST query parameters, POST JSON and URL-encoded forms; serialized keyboard/entity parameters; [encoding evidence and limits](bot-request-encoding.md) |
 | Rejection | Unknown methods/parameters, wrong bot, duplicate JSON fields and oversized integer identifiers fail without state changes |
 
 The baseline is [Bot API 10.3](https://core.telegram.org/bots/api). Identity/message shapes and

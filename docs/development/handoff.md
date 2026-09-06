@@ -35,6 +35,15 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## First action
 
+The [Bot API request encoding follow-up](bot-request-encoding.md) now accepts URL-encoded forms,
+query-only POST and serialized keyboard/entity values. Textual callback Booleans follow the
+inspected server argument behavior. Invalid UTF-8 and malformed nested JSON fail before mutations
+or update acknowledgment; a UTF-16 poll regression previously consumed delivery incorrectly.
+The independent formatting bot uses forms and retains the same complete simulation/Android
+expectations. All 82 core tests pass at 91.99% coverage, and the focused actual Android
+formatting/edit/restart case passes. The client/APK is unchanged. Detailed local evidence and
+completed handles are in ignored `.cache/local-notes/request-encoding.md`.
+
 The [HTML report follow-up](reports.md) adds an experimental original report writer and a runnable
 documentation example. The actual recovery scenario emits complete semantic evidence and three
 original Android screenshots after its assertions pass. Report tests cover malicious text,

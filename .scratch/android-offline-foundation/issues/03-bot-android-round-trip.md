@@ -30,3 +30,16 @@ inline button through a real Android tap, a killed/restarted bot, live edit and 
 client cold restart. Simulation-only and Android share exact semantic expectations. The selected
 rich-message/media/emoji case, broader language combinations and ticket 02's remaining safety
 acceptance are still open; this does not close this ticket.
+
+2026-09-06 request-encoding follow-up: extend the existing HTTP boundary to accept standard
+URL-encoded forms and serialized complex parameters under the selected Bot API 10.3 baseline.
+Verify complete responses and world effects, rejected malformed/ambiguous input and the real
+bot/Android path. This changes transport decoding within the approved model; broader method,
+media and framework compatibility remain separate requirements.
+
+Encoding follow-up verified: [HTTP evidence](../../../docs/development/bot-request-encoding.md)
+now covers UTF-8 forms/query/JSON, serialized keyboard/entities and textual callback Booleans.
+The invalid UTF-16 poll baseline incorrectly acknowledged pending updates; the corrected decoder
+rejects it without state changes. All 82 core tests pass at 91.99% coverage, and a fresh actual
+Android formatting/edit/restart scenario passes with the real form-encoded bot. The client/APK
+is unchanged. This is partial compatibility progress; the full ticket acceptance remains open.

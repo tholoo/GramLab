@@ -72,6 +72,22 @@ def _json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _form_parameters(value: str) -> dict[str, Any]:
+    fields = parse_qs(value, keep_blank_values=True, max_num_fields=64, errors="strict")
+    if any(len(values) != 1 for values in fields.values()):
+        raise ValueError("Repeated request parameters are unsupported")
+    return {key: values[0] for key, values in fields.items()}
+
+
+def _json_value(value: str | bytes) -> Any:
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="strict")
+    try:
+        return json.loads(value, object_pairs_hook=_json_object)
+    except RecursionError:
+        raise ValueError("Request JSON exceeds the nesting limit") from None
+
+
 class _PollInterrupted(Exception):
     def __init__(self, status: int, description: str) -> None:
         super().__init__(description)
@@ -139,6 +155,9 @@ def _dispatch(
         raise LookupError("GRAMLAB_UNSUPPORTED: Bot API method")
     if parameters.keys() - supported[method]:
         raise ValueError("GRAMLAB_UNSUPPORTED: Bot API parameters")
+    for name in ("reply_markup", "entities"):
+        if isinstance(parameters.get(name), str):
+            parameters[name] = _json_value(parameters[name])
     if method == "getme":
         return world.get_user(bot_id)
     if method == "getupdates":
@@ -153,11 +172,14 @@ def _dispatch(
     if method == "answercallbackquery":
         if "callback_query_id" not in parameters:
             raise ValueError("callback_query_id is required")
+        show_alert = parameters.get("show_alert", False)
+        if isinstance(show_alert, str):
+            show_alert = show_alert.strip().lower() in {"true", "yes", "1"}
         world.answer_callback(
             bot_id=bot_id,
             callback_id=parameters["callback_query_id"],
             text=parameters.get("text", ""),
-            show_alert=parameters.get("show_alert", False),
+            show_alert=show_alert,
             cache_time=_integer(parameters.get("cache_time", 0), "cache_time"),
         )
         return True
@@ -259,12 +281,7 @@ class BotAPIServer:
                                 401, {"ok": False, "error_code": 401, "description": "Unauthorized"}
                             )
                             return
-                        fields = parse_qs(url.query, keep_blank_values=True, max_num_fields=64)
-                        if any(len(values) != 1 for values in fields.values()):
-                            raise ValueError("Repeated request parameters are unsupported")
-                        parameters: dict[str, Any] = {
-                            key: values[0] for key, values in fields.items()
-                        }
+                        parameters = _form_parameters(url.query)
                         if self.command == "POST":
                             if "Transfer-Encoding" in self.headers:
                                 raise ValueError("Transfer-Encoding is unsupported")
@@ -275,11 +292,16 @@ class BotAPIServer:
                             if len(raw) != length:
                                 raise ValueError("Incomplete request body")
                             content_type = self.headers.get_content_type()
-                            if content_type != "application/json":
+                            if not raw and "Content-Type" not in self.headers:
+                                body = {}
+                            elif content_type == "application/json":
+                                body = _json_value(raw)
+                                if not isinstance(body, dict):
+                                    raise ValueError("Request body must be a JSON object")
+                            elif content_type == "application/x-www-form-urlencoded":
+                                body = _form_parameters(raw.decode("utf-8", errors="strict"))
+                            else:
                                 raise ValueError("GRAMLAB_UNSUPPORTED: request content type")
-                            body = json.loads(raw, object_pairs_hook=_json_object)
-                            if not isinstance(body, dict):
-                                raise ValueError("Request body must be a JSON object")
                             if parameters.keys() & body.keys():
                                 raise ValueError("Repeated request parameters are unsupported")
                             parameters.update(body)

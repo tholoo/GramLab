@@ -82,6 +82,10 @@ tracked separately.
 
 ## Reproduction
 
+The independent formatting bot now uses [form-encoded Bot API requests](bot-request-encoding.md)
+with serialized entity arrays. Its original semantic and Android assertions are unchanged; a
+fresh focused renderer/restart run verifies this transport as well as the earlier JSON baseline.
+
 Use the [contained build procedure](android-build.md) with the complete patch queue and set
 `GRAMLAB_ANDROID_PROBE_APK` to the resulting local APK. Use fresh artifact directories:
 

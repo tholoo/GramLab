@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 endpoint = urlsplit(os.environ["GRAMLAB_BOT_API"])
 if endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1":
@@ -20,8 +20,15 @@ def call(method: str, parameters: dict[str, Any]) -> Any:
         connection.request(
             "POST",
             f"/bot{token}/{method}",
-            json.dumps(parameters),
-            {"Content-Type": "application/json"},
+            urlencode(
+                {
+                    name: json.dumps(value, ensure_ascii=False)
+                    if isinstance(value, (dict, list))
+                    else value
+                    for name, value in parameters.items()
+                }
+            ),
+            {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
         )
         response = connection.getresponse()
         body = json.loads(response.read())

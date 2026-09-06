@@ -197,7 +197,7 @@ def test_callback_retries_share_one_durable_query_and_only_its_bot_can_answer(
         for actor, changes in [
             (other_token, {}),
             (token, {"text": "x" * 201}),
-            (token, {"show_alert": "false"}),
+            (token, {"show_alert": ["false"]}),
             (token, {"cache_time": 1}),
             (token, {"url": "https://example.com"}),
         ]:
