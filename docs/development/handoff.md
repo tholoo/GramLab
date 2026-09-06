@@ -45,6 +45,15 @@ runtime inputs and evidence separate from tracked tickets. The full product goal
 
 ## First action
 
+Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).
+The [independent version 2 send boundary](client-sends.md) now has durable request receipts,
+persona message positions and atomic version 4→5 migration. Seven initial failures establish
+the missing contract; 53 focused tests and the full 186-test core gate pass, with 82.55% coverage.
+The actual baseline Android Send action reaches its unsupported request error. The GPL composer,
+client sequence/recovery and Unicode accessibility integration is being built and tested; do not
+claim that native composer support has passed. Keep its work separate from the previously proven
+callback/recovery milestone below. Ignored local composer notes retain current handles and evidence.
+
 Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).
 The [consumer runner](consumer-runner.md) now provides `gramlab run` and `python -m gramlab run`
 with a TOML manifest, selected source/data files, private scenario/bot processes, named bot IDs,

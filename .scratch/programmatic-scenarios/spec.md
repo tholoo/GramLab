@@ -33,3 +33,4 @@ alone does not satisfy this specification. Do not freeze the experimental SDK as
 - [02: Consumer runner and artifacts](issues/02-consumer-runner.md)
 - [03: Native composer acknowledgment references](issues/03-composer-references.md)
 - [04: Native composer sends and durable recovery](issues/04-native-composer.md)
+- [05: Android Unicode input tooling references](issues/05-input-tooling-references.md)

@@ -42,15 +42,25 @@ class ClientBridge:
 
             def reply(self, status: int, body: dict[str, Any]) -> None:
                 payload = json.dumps(body).encode("utf-8")
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Content-Length", str(len(payload)))
-                self.end_headers()
-                self.wfile.write(payload)
+                try:
+                    self.send_response(status)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (ConnectionError, TimeoutError):
+                    # Committed commands remain recoverable when their response is lost.
+                    pass
 
             def error(self, status: int, code: str, message: str) -> None:
-                self.reply(status, {"schema": 1, "error": {"code": code, "message": message}})
+                self.reply(
+                    status,
+                    {
+                        "schema": 2 if self.path.startswith("/v2/") else 1,
+                        "error": {"code": code, "message": message},
+                    },
+                )
 
             def do_GET(self) -> None:
                 self.handle_operation()
@@ -58,28 +68,33 @@ class ClientBridge:
             def do_POST(self) -> None:
                 self.handle_operation()
 
-            def callback_parameters(self) -> dict[str, Any]:
+            def command_parameters(
+                self,
+                required: set[str],
+                optional: set[str],
+                maximum: int,
+            ) -> dict[str, Any]:
                 lengths = self.headers.get_all("Content-Length", [])
                 if len(lengths) != 1 or "Transfer-Encoding" in self.headers:
-                    raise ValueError("Callback requires one bounded Content-Length")
+                    raise ValueError("Client command requires one bounded Content-Length")
                 length = int(lengths[0])
-                if not 0 < length <= 16384:
-                    raise ValueError("Callback body exceeds the prototype limit")
+                if not 0 < length <= maximum:
+                    raise ValueError("Client command body exceeds the prototype limit")
                 if self.headers.get_content_type() != "application/json":
-                    raise ValueError("Callback requires application/json")
+                    raise ValueError("Client command requires application/json")
                 raw = self.rfile.read(length)
                 if len(raw) != length:
-                    raise ValueError("Incomplete callback body")
-                body = json.loads(raw.decode("utf-8"), object_pairs_hook=_json_object)
-                if not isinstance(body, dict) or body.keys() != {
-                    "request_id",
-                    "chat_id",
-                    "message_id",
-                    "data",
-                }:
-                    raise ValueError(
-                        "Callback requires only request_id, chat_id, message_id and data"
-                    )
+                    raise ValueError("Incomplete client command body")
+                try:
+                    body = json.loads(raw.decode("utf-8"), object_pairs_hook=_json_object)
+                except RecursionError:
+                    raise ValueError("Client command exceeds the JSON nesting limit") from None
+                if (
+                    not isinstance(body, dict)
+                    or required - body.keys()
+                    or body.keys() - required - optional
+                ):
+                    raise ValueError("Client command has missing or unsupported fields")
                 return body
 
             def handle_operation(self) -> None:
@@ -101,20 +116,39 @@ class ClientBridge:
                         if any(len(values) != 1 for values in fields.values()):
                             raise ValueError("Repeated client parameters are unsupported")
                         if self.command == "POST":
-                            if url.path != "/v1/callbacks":
+                            if url.path not in ("/v1/callbacks", "/v2/messages"):
                                 self.error(404, "unsupported", "Unknown client bridge operation")
                                 return
                             if fields:
-                                raise ValueError("Callback does not accept query parameters")
-                            callback = world.create_callback(
-                                user_id=persona, **self.callback_parameters()
-                            )
-                            result = {
-                                "schema": 1,
-                                "world_id": world.world_id,
-                                "user_id": persona,
-                                "callback": callback,
-                            }
+                                raise ValueError("Client command does not accept query parameters")
+                            if url.path == "/v2/messages":
+                                sent = world.send_client_message(
+                                    user_id=persona,
+                                    **self.command_parameters(
+                                        {"request_id", "chat_id", "text"}, {"entities"}, 65536
+                                    ),
+                                )
+                                result = {
+                                    "schema": 2,
+                                    "world_id": world.world_id,
+                                    "user_id": persona,
+                                    "send": sent,
+                                }
+                            else:
+                                callback = world.create_callback(
+                                    user_id=persona,
+                                    **self.command_parameters(
+                                        {"request_id", "chat_id", "message_id", "data"},
+                                        set(),
+                                        16384,
+                                    ),
+                                )
+                                result = {
+                                    "schema": 1,
+                                    "world_id": world.world_id,
+                                    "user_id": persona,
+                                    "callback": callback,
+                                }
                         elif url.path.startswith("/v1/callbacks/"):
                             if fields:
                                 raise ValueError("Callback does not accept query parameters")
@@ -127,11 +161,13 @@ class ClientBridge:
                                 "user_id": persona,
                                 "callback": callback,
                             }
-                        elif url.path == "/v1/snapshot":
+                        elif url.path in ("/v1/snapshot", "/v2/snapshot"):
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
-                            result = world.client_snapshot(persona)
-                        elif url.path == "/v1/events":
+                            result = world.client_snapshot(
+                                persona, version=2 if url.path.startswith("/v2/") else 1
+                            )
+                        elif url.path in ("/v1/events", "/v2/changes"):
                             if "after" not in fields or fields.keys() - {"after", "limit"}:
                                 raise ValueError("Events require after and optionally limit")
                             try:
@@ -141,7 +177,10 @@ class ClientBridge:
                                 raise ValueError(
                                     "Client cursor and limit must be integers"
                                 ) from None
-                            result = world.client_events(persona, after=after, limit=limit)
+                            if url.path == "/v2/changes":
+                                result = world.client_changes(persona, after=after, limit=limit)
+                            else:
+                                result = world.client_events(persona, after=after, limit=limit)
                         else:
                             self.error(404, "unsupported", "Unknown client bridge operation")
                             return

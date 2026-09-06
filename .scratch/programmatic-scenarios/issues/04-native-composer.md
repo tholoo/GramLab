@@ -30,3 +30,8 @@ Keep the actual composer, send helper, controller and renderer. No DC/account us
 The world remains the single authority and Android remains a recoverable replica, as approved in
 [ADR 0004](../../../docs/adr/0004-semantic-bridge-and-world-persistence.md). This implements its
 request correlation and client cursor obligations; it does not widen into an MTProto server.
+
+Progress: [the independent send boundary](../../../docs/development/client-sends.md) has seven
+new behavioral tests, 53 focused passing regressions and a full core gate of 186 tests at 82.55%
+coverage. Native integration, actual input and interruption gates remain in progress. The old
+APK's actual Send action reaches the unsupported request error; it does not commit a world send.

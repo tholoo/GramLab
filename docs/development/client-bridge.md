@@ -5,6 +5,8 @@ transactionally consistent snapshots. The [Java snapshot adapter](android-semant
 translates snapshots into the actual Android application, with
 [callback commands and live edits](android-callbacks.md), [formatting entities](formatted-text.md)
 and [older-history startup reconciliation](android-history-recovery.md).
+The independent [version 2 send contract](client-sends.md) adds durable text commands and
+per-persona message positions; its native composer integration is still being verified.
 This protocol is independently owned; upstream TL objects belong in the separately licensed
 Android adapter, not the MIT core.
 
@@ -27,10 +29,11 @@ disabled. Capabilities must stay out of reports, URLs and screenshots.
 | `GET /v1/snapshot` | `schema`, `world_id`, `user_id`, `cursor`, `now`, `users`, `chats`, `messages` |
 | `GET /v1/events?after=N&limit=L` | `schema`, `world_id`, `user_id`, `cursor`, `head`, `events` |
 
-Schema is currently `1`. Unknown routes return 404; missing/invalid capabilities return 401;
+These legacy routes retain schema `1`. Unknown routes return 404; missing/invalid capabilities return 401;
 unsupported, repeated or invalid query parameters return 400. Errors contain
 `{"schema":1,"error":{"code":"…","message":"…"}}`. Callback command routes are defined in the [callback protocol](callback-world.md). Client
-message submission, media transport and general control operations remain unimplemented.
+message submission is available through the version 2 contract. Media transport and general
+client control operations remain unimplemented.
 
 ## Snapshot and cursor contract
 

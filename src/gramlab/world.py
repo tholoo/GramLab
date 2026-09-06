@@ -49,6 +49,23 @@ _CALLBACK_TABLE = """
     )
 """
 
+_CLIENT_CHANGES_TABLE = """
+    CREATE TABLE client_changes (
+        user_id INTEGER NOT NULL REFERENCES users(id), position INTEGER NOT NULL,
+        event_sequence INTEGER NOT NULL UNIQUE REFERENCES events(sequence),
+        PRIMARY KEY(user_id, position)
+    )
+"""
+_CLIENT_SENDS_TABLE = """
+    CREATE TABLE client_sends (
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        chat_id INTEGER NOT NULL REFERENCES chats(id), request_id TEXT NOT NULL,
+        request_body TEXT NOT NULL, body TEXT NOT NULL, position INTEGER NOT NULL,
+        PRIMARY KEY(user_id, chat_id, request_id),
+        FOREIGN KEY(user_id, position) REFERENCES client_changes(user_id, position)
+    )
+"""
+
 
 def _inline_keyboard(markup: dict[str, Any] | None) -> dict[str, Any] | None:
     if markup is None:
@@ -122,7 +139,9 @@ class World:
                     type TEXT NOT NULL, body TEXT NOT NULL
                 );
                 {_CALLBACK_TABLE};
-                PRAGMA user_version=4;
+                {_CLIENT_CHANGES_TABLE};
+                {_CLIENT_SENDS_TABLE};
+                PRAGMA user_version=5;
             """)
             with connection:
                 connection.execute(
@@ -166,7 +185,22 @@ class World:
                             "ALTER TABLE bots ADD COLUMN allowed_updates TEXT NOT NULL DEFAULT '[]'"
                         )
                         connection.execute("PRAGMA user_version=4")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 4:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 4:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 4:
+                        connection.execute(_CLIENT_CHANGES_TABLE)
+                        connection.execute(_CLIENT_SENDS_TABLE)
+                        connection.execute(
+                            "INSERT INTO client_changes(user_id, position, event_sequence) "
+                            "SELECT chats.user_id, ROW_NUMBER() OVER "
+                            "(PARTITION BY chats.user_id ORDER BY events.sequence), "
+                            "events.sequence FROM events JOIN chats "
+                            "ON chats.id=json_extract(events.body, '$.chat_id') "
+                            "WHERE events.type IN ('message.created', 'message.edited')"
+                        )
+                        connection.execute("PRAGMA user_version=5")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 5:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -306,8 +340,21 @@ class World:
         return int(row[0])
 
     def _emit(self, kind: str, data: dict[str, Any]) -> None:
-        self._connection.execute(
+        event = self._connection.execute(
             "INSERT INTO events(type, body) VALUES (?, ?)", (kind, json.dumps(data))
+        )
+        if kind in ("message.created", "message.edited"):
+            user_id = self.get_chat(data["chat_id"])["user_id"]
+            self._connection.execute(
+                "INSERT INTO client_changes VALUES (?, ?, ?)",
+                (user_id, self._message_position(user_id) + 1, event.lastrowid),
+            )
+
+    def _message_position(self, user_id: int) -> int:
+        return int(
+            self._connection.execute(
+                "SELECT COALESCE(MAX(position), 0) FROM client_changes WHERE user_id=?", (user_id,)
+            ).fetchone()[0]
         )
 
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:
@@ -345,34 +392,95 @@ class World:
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            chat = self.get_chat(chat_id)
-            self.get_user(sender_id)
-            if sender_id not in (chat["user_id"], chat["bot_id"]):
-                raise ValueError("Sender is not a participant in this chat")
-            if reply_markup is not None and sender_id != chat["bot_id"]:
+            if reply_markup is not None and sender_id != self.get_chat(chat_id)["bot_id"]:
                 raise ValueError("Only bots can attach inline keyboards")
-            message_id = self._connection.execute(
-                "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat_id,)
-            ).fetchone()[0]
-            now = self._connection.execute("SELECT now FROM configuration").fetchone()[0]
-            message: dict[str, Any] = {
-                "id": message_id,
-                "chat_id": chat_id,
-                "sender_id": sender_id,
-                "date": now,
-                "text": text,
-            }
-            if keyboard is not None:
-                message["reply_markup"] = keyboard
-            if formatting is not None:
-                message["entities"] = formatting
-            self._connection.execute(
-                "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
+            return self._insert_message(
+                chat_id=chat_id,
+                sender_id=sender_id,
+                text=text,
+                keyboard=keyboard,
+                formatting=formatting,
             )
-            self._emit("message.created", message)
-            if sender_id == chat["user_id"]:
-                self._enqueue_update(chat["bot_id"], "message", message)
+
+    def _insert_message(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        text: str,
+        keyboard: dict[str, Any] | None,
+        formatting: list[dict[str, Any]] | None,
+    ) -> dict[str, Any]:
+        """Insert validated content inside the caller's existing writer transaction."""
+        chat = self.get_chat(chat_id)
+        self.get_user(sender_id)
+        if sender_id not in (chat["user_id"], chat["bot_id"]):
+            raise ValueError("Sender is not a participant in this chat")
+        message_id = self._connection.execute(
+            "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat_id,)
+        ).fetchone()[0]
+        now = self._connection.execute("SELECT now FROM configuration").fetchone()[0]
+        message: dict[str, Any] = {
+            "id": message_id,
+            "chat_id": chat_id,
+            "sender_id": sender_id,
+            "date": now,
+            "text": text,
+        }
+        if keyboard is not None:
+            message["reply_markup"] = keyboard
+        if formatting is not None:
+            message["entities"] = formatting
+        self._connection.execute(
+            "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
+        )
+        self._emit("message.created", message)
+        if sender_id == chat["user_id"]:
+            self._enqueue_update(chat["bot_id"], "message", message)
         return message
+
+    def send_client_message(
+        self,
+        *,
+        user_id: int,
+        chat_id: int,
+        request_id: str,
+        text: str,
+        entities: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        if (
+            not isinstance(request_id, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
+        ):
+            raise ValueError("Client request_id must be 1 to 128 ASCII identifier characters")
+        if not isinstance(text, str) or not 1 <= len(text) <= 4096:
+            raise ValueError("Text must contain 1 to 4096 characters")
+        text.encode("utf-8", errors="strict")
+        formatting = formatting_entities(text, entities)
+        command = json.dumps({"text": text, "entities": formatting}, sort_keys=True)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            if self.get_user(user_id)["is_bot"] or self.get_chat(chat_id)["user_id"] != user_id:
+                raise ValueError("Client send is not available to this persona")
+            previous = self._connection.execute(
+                "SELECT request_body, body FROM client_sends "
+                "WHERE user_id=? AND chat_id=? AND request_id=?",
+                (user_id, chat_id, request_id),
+            ).fetchone()
+            if previous is not None:
+                if previous[0] != command:
+                    raise ValueError("Request ID already identifies another client send")
+                return dict(json.loads(previous[1]))
+            message = self._insert_message(
+                chat_id=chat_id, sender_id=user_id, text=text, keyboard=None, formatting=formatting
+            )
+            position = self._message_position(user_id)
+            result = {"request_id": request_id, "position": position, "message": message}
+            self._connection.execute(
+                "INSERT INTO client_sends VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, chat_id, request_id, command, json.dumps(result), position),
+            )
+            return result
 
     def history(self, chat_id: int) -> list[dict[str, Any]]:
         self.get_chat(chat_id)
@@ -624,7 +732,9 @@ class World:
             ],
         }
 
-    def client_snapshot(self, user_id: int) -> dict[str, Any]:
+    def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
+        if type(version) is not int or version not in (1, 2):
+            raise ValueError("Unsupported client snapshot version")
         with self._connection:
             # Pin one SQLite read snapshot before reading either data or its journal cursor.
             self._connection.execute("BEGIN")
@@ -644,8 +754,8 @@ class World:
                 )
             ]
             visible_users = {user_id, *(chat["bot_id"] for chat in chats)}
-            return {
-                "schema": 1,
+            result = {
+                "schema": version,
                 "world_id": world_id,
                 "user_id": user_id,
                 "cursor": cursor,
@@ -653,6 +763,56 @@ class World:
                 "users": [self.get_user(identifier) for identifier in sorted(visible_users)],
                 "chats": chats,
                 "messages": [message for chat in chats for message in self.history(chat["id"])],
+            }
+            if version == 2:
+                result["message_position"] = self._message_position(user_id)
+                result["sends"] = [
+                    json.loads(row[0])
+                    for row in self._connection.execute(
+                        "SELECT body FROM client_sends WHERE user_id=? ORDER BY position",
+                        (user_id,),
+                    )
+                ]
+            return result
+
+    def client_changes(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
+        if type(after) is not int or not 0 <= after < 2**63:
+            raise ValueError("Invalid client message position")
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("Client change limit must be between 1 and 1000")
+        with self._connection:
+            self._connection.execute("BEGIN")
+            if self.get_user(user_id)["is_bot"]:
+                raise ValueError("Client personas must be virtual users")
+            head = self._message_position(user_id)
+            if after > head:
+                raise ValueError(
+                    "Client message position is ahead of this world; resnapshot required"
+                )
+            world_id, now = self._connection.execute(
+                "SELECT world_id, now FROM configuration"
+            ).fetchone()
+            rows = self._connection.execute(
+                "SELECT c.position, e.type, e.body, s.request_id FROM client_changes c "
+                "JOIN events e ON e.sequence=c.event_sequence "
+                "LEFT JOIN client_sends s ON s.user_id=c.user_id AND s.position=c.position "
+                "WHERE c.user_id=? AND c.position>? ORDER BY c.position LIMIT ?",
+                (user_id, after, limit),
+            ).fetchall()
+            changes = []
+            for position, kind, body, request_id in rows:
+                change = {"position": position, "type": kind, "data": json.loads(body)}
+                if request_id is not None:
+                    change["request_id"] = request_id
+                changes.append(change)
+            return {
+                "schema": 2,
+                "world_id": world_id,
+                "user_id": user_id,
+                "cursor": rows[-1][0] if rows else after,
+                "head": head,
+                "now": now,
+                "changes": changes,
             }
 
     def client_events(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
