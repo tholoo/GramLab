@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import xml.etree.ElementTree as ET
 from dataclasses import asdict
 from pathlib import Path
 
@@ -169,6 +170,20 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
     assert "LaunchState: COLD" in loss["launch"]
     assert "lost response بازیابی" in loss["recovered_ui"]
     assert "Echo: lost response بازیابی" in loss["reply_ui"]
+    for phase, status in (
+        ("after-compose", "Not seen"),
+        ("after-composer-restart", "Seen"),
+        ("after-lost-response-reply", "Seen"),
+    ):
+        # Pinned ChatActivity marks loaded outgoing bot messages read in memory (line 21015).
+        # Preserve that native display policy; it is separate from stored read state above.
+        nodes = ET.fromstring((tmp_path / f"{phase}.xml").read_text()).iter("node")  # noqa: S314
+        baseline = [
+            node.get("text", "")
+            for node in nodes
+            if node.get("text", "").startswith("composer-baseline\n")
+        ]
+        assert baseline == [f"composer-baseline\nSent at 10:13 PM, {status}\n"], phase
     for name in ("before-compose", "after-compose", "after-composer-restart"):
         assert (tmp_path / f"{name}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     write_composer_report(tmp_path)

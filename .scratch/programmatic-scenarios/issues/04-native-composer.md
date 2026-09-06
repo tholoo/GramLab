@@ -37,5 +37,8 @@ coverage. The [focused native case](../../../docs/development/android-composer.m
 actual Unicode sends, distinct equal-text actions, stale-draft rejection, compact acknowledgment
 and difference serialization, retained client state across restart, and response-loss-after-commit
 recovery with one bot reply. Fresh preparation preserves 6,666 upstream UI/resource files.
-Scenario integration, cross-mode composer semantics, additional interruption boundaries and the
-full Android gate remain in progress; this ticket is not resolved.
+The full 20-test Android gate passes, predating the new composer-text contract test, which then
+passes its seven fixtures separately. The native
+bot-history Seen display rule was verified separately from stored read state; the renderer is
+unchanged. Scenario integration, cross-mode composer semantics and additional interruption
+boundaries remain in progress; this ticket is not resolved.

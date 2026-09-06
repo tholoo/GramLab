@@ -53,10 +53,14 @@ The [native composer focused case](android-composer.md) now passes actual multil
 equal-text distinct sends, stale-draft rejection, cold restart and a committed send whose response
 is withheld before client shutdown. The retained negative pending message reconciles once and a
 real bot replies once. Compact acknowledgment and difference serialization checks also pass.
-Fresh patch preparation preserves all 6,666 upstream UI/resource files. Existing Android
-regressions are being checked; the full gate, scenario composer API, cross-mode input semantics
-and further interruption boundaries remain open. Ignored composer notes retain current handles
-and original captures; do not confuse a focused pass with completed ticket acceptance.
+Fresh patch preparation preserves all 6,666 upstream UI/resource files. The full Android gate
+passes 20 tests; it predates the [composer-text fixtures/probe](composer-text-references.md), which
+then passes seven source-derived input cases in a separate actual Android test. Scenario composer input,
+cross-mode text transformations and further interruption boundaries remain open. A screenshot
+review traced the post-restart Seen checkmark to the original bot-history UI rule; it is separate
+from unchanged database read state and is not a simulated read receipt. Preserve that renderer
+behavior. The generated report's local HTTP check passes but browser navigation failed, so its
+browser layout review is unverified. Ignored notes retain active handles and original evidence.
 
 Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).
 The [consumer runner](consumer-runner.md) now provides `gramlab run` and `python -m gramlab run`

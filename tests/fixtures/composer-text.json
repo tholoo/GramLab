@@ -1,0 +1,54 @@
+[
+  {
+    "name": "boundary-space-lf",
+    "input": " \nhello سلام\n ",
+    "message": {"text": "hello سلام"}
+  },
+  {
+    "name": "other-whitespace",
+    "input": "\t\r hello \r\t",
+    "message": {"text": "\t\r hello \r\t"}
+  },
+  {
+    "name": "independent-styles",
+    "input": "**bold** __italic__ ||secret|| ~~gone~~",
+    "message": {
+      "text": "bold italic secret gone",
+      "entities": [
+        {"type": "bold", "offset": 0, "length": 4},
+        {"type": "italic", "offset": 5, "length": 6},
+        {"type": "spoiler", "offset": 12, "length": 6},
+        {"type": "strikethrough", "offset": 19, "length": 4}
+      ]
+    }
+  },
+  {
+    "name": "inline-code",
+    "input": "before `hello` after",
+    "message": {
+      "text": "before hello after",
+      "entities": [{"type": "code", "offset": 7, "length": 5}]
+    }
+  },
+  {
+    "name": "inside-style-whitespace",
+    "input": "**  hi  **",
+    "message": {
+      "text": "hi",
+      "entities": [{"type": "bold", "offset": 0, "length": 2}]
+    }
+  },
+  {
+    "name": "unmatched-delimiter",
+    "input": "unmatched **hello",
+    "message": {"text": "unmatched **hello"}
+  },
+  {
+    "name": "unicode-style",
+    "input": "**سلام 👩🏽‍💻**",
+    "message": {
+      "text": "سلام 👩🏽‍💻",
+      "entities": [{"type": "bold", "offset": 0, "length": 12}]
+    }
+  }
+]

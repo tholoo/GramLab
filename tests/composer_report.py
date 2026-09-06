@@ -89,6 +89,8 @@ def write_composer_report(directory: Path, *, destination: Path | None = None) -
             limitations=[
                 "Synthetic local evidence; no real account or Telegram DC connection.",
                 "This focused case does not establish the full Android regression gate.",
+                "The original client marks loaded outgoing bot messages as Seen in memory. "
+                "The extra checkmark after restart is not a simulated peer read receipt.",
                 "Scenario.type_message and simulation parity remain unfinished.",
                 "Ack-before-storage interruption, live gap recovery and broader formatting "
                 "input boundaries require further tests.",
