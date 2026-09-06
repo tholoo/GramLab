@@ -1,0 +1,929 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -32,17 +32,22 @@
+         public final long persona;
+         public final long cursor;
+         public final int now;
++        public final int messagePosition;
++        public final ArrayList<SendResult> sends;
+         public final TLRPC.TL_messages_dialogs dialogs;
+         public final Map<Long, TLRPC.TL_messages_messages> histories;
+         public final Map<Long, Long> chatIdsByPeer;
+ 
+-        private Snapshot(String worldId, long persona, long cursor, int now,
++        private Snapshot(String worldId, long persona, long cursor, int now, int messagePosition,
++                ArrayList<SendResult> sends,
+                 TLRPC.TL_messages_dialogs dialogs,
+                 Map<Long, TLRPC.TL_messages_messages> histories, Map<Long, Long> chatIdsByPeer) {
+             this.worldId = worldId;
+             this.persona = persona;
+             this.cursor = cursor;
+             this.now = now;
++            this.messagePosition = messagePosition;
++            this.sends = sends;
+             this.dialogs = dialogs;
+             this.histories = Collections.unmodifiableMap(histories);
+             this.chatIdsByPeer = Collections.unmodifiableMap(chatIdsByPeer);
+@@ -100,6 +105,9 @@
+         require(message.id > 0);
+         message.from_id = peer(sender);
+         message.out = sender == persona;
++        // No peer read receipt exists in the supported world profile. Keep the stock
++        // send acknowledgment's unread state when rebuilding the replica from history.
++        message.unread = message.out;
+         message.peer_id = peer(message.out ? bot : persona);
+         message.dialog_id = bot;
+         message.date = integer(record, "date");
+@@ -251,6 +259,7 @@
+                 try (java.io.OutputStream output = connection.getOutputStream()) { output.write(payload); }
+             }
+             int status = connection.getResponseCode();
++            if (status == 400) throw new IllegalArgumentException("GRAMLAB_BRIDGE_HTTP_400");
+             if (status != 200) {
+                 throw new IllegalStateException("GRAMLAB_BRIDGE_HTTP_" + status);
+             }
+@@ -267,17 +276,18 @@
+         } finally {
+             connection.disconnect();
+         }
+-        require(integer(body, "schema") == 1 && worldId.equals(body.getString("world_id"))
++        require(integer(body, "schema") == (path.startsWith("/v2/") ? 2 : 1) && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+         return body;
+     }
+ 
+     public static Snapshot connect(JSONObject configuration) throws Exception {
+-        JSONObject body = exchange(configuration, "/v1/snapshot", null);
++        JSONObject body = exchange(configuration, "/v2/snapshot", null);
+         String worldId = configuration.getString("world_id");
+         long persona = identifier(configuration, "user_id");
+-        fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages");
+-        require(integer(body, "schema") == 1 && worldId.equals(body.getString("world_id"))
++        fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages",
++                "message_position", "sends");
++        require(integer(body, "schema") == 2 && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+         long cursor = nonnegative(body, "cursor");
+         int now = integer(body, "now");
+@@ -364,15 +374,73 @@
+                 dialogs.messages.add(top);
+             }
+         }
+-        return new Snapshot(worldId, persona, cursor, now, dialogs, histories, chatIdsByPeer);
++        ArrayList<SendResult> sends = new ArrayList<>();
++        Snapshot result = new Snapshot(worldId, persona, cursor, now, integer(body, "message_position"),
++                sends, dialogs, histories, chatIdsByPeer);
++        records = body.getJSONArray("sends");
++        int previous = 0;
++        for (int index = 0; index < records.length(); index++) {
++            SendResult send = sendResult(records.getJSONObject(index), result);
++            require(send.position > previous && send.position <= result.messagePosition);
++            previous = send.position;
++            sends.add(send);
++        }
++        return result;
++    }
++
++    public static final class SendResult {
++        public final String requestId;
++        public final int position;
++        public final long peer;
++        public final TLRPC.TL_message message;
++        private SendResult(String requestId, int position, long peer, TLRPC.TL_message message) {
++            this.requestId = requestId; this.position = position; this.peer = peer; this.message = message;
++        }
++        public long randomId() {
++            try {
++                long value = Long.parseLong(requestId);
++                return value != 0 && Long.toString(value).equals(requestId) ? value : 0;
++            } catch (NumberFormatException nonNativeRequest) { return 0; }
++        }
++        public TLRPC.TL_updateShortSentMessage acknowledgment() {
++            TLRPC.TL_updateShortSentMessage result = new TLRPC.TL_updateShortSentMessage();
++            result.out = true;
++            result.flags = 1 << 1;
++            result.id = message.id;
++            result.date = message.date;
++            result.pts = position;
++            result.pts_count = 1;
++            result.entities.addAll(message.entities);
++            if (!result.entities.isEmpty()) result.flags |= 1 << 7;
++            return result;
++        }
++    }
++
++    public static final class Change {
++        public final int position;
++        public final TLRPC.Update update;
++        public final SendResult send;
++        private Change(int position, TLRPC.Update update, SendResult send) {
++            this.position = position; this.update = update; this.send = send;
++        }
++        public TLRPC.TL_updates envelope(Snapshot state, int date) {
++            TLRPC.TL_updates result = new TLRPC.TL_updates();
++            result.seq = position;
++            result.date = date;
++            result.users.addAll(state.dialogs.users);
++            result.chats.addAll(state.dialogs.chats);
++            result.updates.add(update);
++            return result;
++        }
+     }
+ 
+     public static final class EventBatch {
+-        public final long cursor;
++        public final int cursor;
++        public final int head;
+         public final int now;
+-        public final ArrayList<TLRPC.Update> updates;
+-        private EventBatch(long cursor, int now, ArrayList<TLRPC.Update> updates) {
+-            this.cursor = cursor; this.now = now; this.updates = updates;
++        public final ArrayList<Change> changes;
++        private EventBatch(int cursor, int head, int now, ArrayList<Change> changes) {
++            this.cursor = cursor; this.head = head; this.now = now; this.changes = changes;
+         }
+     }
+ 
+@@ -383,54 +451,152 @@
+         throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_CHAT");
+     }
+ 
+-    public static EventBatch events(JSONObject configuration, Snapshot state, long after) throws Exception {
+-        require(after >= 0);
+-        JSONObject body = exchange(configuration, "/v1/events?after=" + after, null);
+-        fields(body, "schema", "world_id", "user_id", "cursor", "head", "events");
+-        long cursor = nonnegative(body, "cursor");
+-        require(cursor >= after && cursor <= nonnegative(body, "head"));
+-        int now = state.now;
+-        ArrayList<TLRPC.Update> updates = new ArrayList<>();
+-        JSONArray events = body.getJSONArray("events");
++    private static SendResult sendResult(JSONObject record, Snapshot state) throws JSONException {
++        fields(record, "request_id", "position", "message");
++        String id = record.getString("request_id");
++        require(id.matches("[A-Za-z0-9_-]{1,128}"));
++        int position = integer(record, "position");
++        require(position > 0);
++        JSONObject data = record.getJSONObject("message");
++        long peer = peerForChat(state, identifier(data, "chat_id"));
++        TLRPC.TL_message message = message(data, state.persona, peer);
++        require(message.out && message.edit_date == 0);
++        return new SendResult(id, position, peer, message);
++    }
++
++    public static EventBatch events(JSONObject configuration, Snapshot state, long after, int limit) throws Exception {
++        require(after >= 0 && after <= Integer.MAX_VALUE && limit > 0 && limit <= 1000);
++        JSONObject body = exchange(configuration, "/v2/changes?after=" + after + "&limit=" + limit, null);
++        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes");
++        int cursor = integer(body, "cursor");
++        int head = integer(body, "head");
++        require(cursor >= after && cursor <= head);
++        ArrayList<Change> changes = new ArrayList<>();
++        JSONArray records = body.getJSONArray("changes");
++        require(records.length() <= limit);
+         long previous = after;
+-        for (int i = 0; i < events.length(); i++) {
+-            JSONObject event = events.getJSONObject(i);
+-            fields(event, "sequence", "type", "data");
+-            long sequence = identifier(event, "sequence");
+-            require(sequence > previous && sequence <= cursor);
+-            previous = sequence;
+-            String type = event.getString("type");
+-            JSONObject data = event.getJSONObject("data");
+-            if ("message.created".equals(type) || "message.edited".equals(type)) {
+-                long peer = peerForChat(state, identifier(data, "chat_id"));
+-                TLRPC.TL_message message = message(data, state.persona, peer);
+-                if ("message.created".equals(type)) {
+-                    TL_update.TL_updateNewMessage update = new TL_update.TL_updateNewMessage();
+-                    update.message = message;
+-                    updates.add(update);
+-                } else {
+-                    TL_update.TL_updateEditMessage update = new TL_update.TL_updateEditMessage();
+-                    update.message = message;
+-                    updates.add(update);
++        for (int index = 0; index < records.length(); index++) {
++            JSONObject record = records.getJSONObject(index);
++            fields(record, "position", "type", "data", "request_id");
++            int position = integer(record, "position");
++            require(position == previous + 1 && position <= cursor);
++            previous = position;
++            String type = record.getString("type");
++            JSONObject data = record.getJSONObject("data");
++            long peer = peerForChat(state, identifier(data, "chat_id"));
++            TLRPC.TL_message message = message(data, state.persona, peer);
++            TLRPC.Update update;
++            SendResult send = null;
++            if ("message.created".equals(type)) {
++                TL_update.TL_updateNewMessage created = new TL_update.TL_updateNewMessage();
++                created.message = message;
++                created.pts = position; created.pts_count = 1;
++                update = created;
++                if (record.has("request_id")) {
++                    send = sendResult(new JSONObject().put("request_id", record.get("request_id"))
++                            .put("position", position).put("message", data), state);
+                 }
+-            } else if ("clock.advanced".equals(type)) {
+-                fields(data, "now");
+-                now = Math.max(now, integer(data, "now"));
+-            } else if ("callback.created".equals(type)) {
+-                fields(data, "id", "user_id", "chat_id", "message", "data", "chat_instance");
+-                require(identifier(data, "user_id") == state.persona);
+-                peerForChat(state, identifier(data, "chat_id"));
+-            } else if ("callback.answered".equals(type)) {
+-                fields(data, "id", "user_id", "answer");
+-                require(identifier(data, "user_id") == state.persona);
+-                answer(data.getJSONObject("answer"));
+-            } else {
+-                // New participants require snapshot reconciliation, which is a separate capability.
+-                throw new UnsupportedOperationException("GRAMLAB_UNSUPPORTED_CLIENT_EVENT");
+-            }
+-        }
+-        // These are semantic controller inputs, not fabricated MTProto packets or pts values.
+-        return new EventBatch(cursor, now, updates);
++            } else if ("message.edited".equals(type)) {
++                require(!record.has("request_id"));
++                TL_update.TL_updateEditMessage edited = new TL_update.TL_updateEditMessage();
++                edited.message = message;
++                edited.pts = position; edited.pts_count = 1;
++                update = edited;
++            } else throw new UnsupportedOperationException("GRAMLAB_UNSUPPORTED_CLIENT_CHANGE");
++            changes.add(new Change(position, update, send));
++        }
++        require(previous == cursor);
++        return new EventBatch(cursor, head, integer(body, "now"), changes);
++    }
++
++    public static TLRPC.TL_updates_state state(int position, int date) {
++        TLRPC.TL_updates_state result = new TLRPC.TL_updates_state();
++        // Supported private-message changes each occupy one pts and one full update envelope.
++        result.pts = position; result.seq = position; result.date = date;
++        result.qts = 0; result.unread_count = 0;
++        return result;
++    }
++
++    public static TLRPC.updates_Difference difference(JSONObject configuration, Snapshot snapshot,
++            TLRPC.TL_updates_getDifference query) throws Exception {
++        if ((query.flags & ~1) != 0 || query.qts != 0) throw new UnsupportedOperationException();
++        require(query.pts >= 0 && query.date >= 0 && ((query.flags & 1) == 0 || query.pts_total_limit > 0));
++        EventBatch batch = events(configuration, snapshot, query.pts,
++                (query.flags & 1) == 0 ? 100 : Math.min(query.pts_total_limit, 1000));
++        TLRPC.updates_Difference result;
++        if (batch.cursor < batch.head) {
++            TLRPC.TL_updates_differenceSlice slice = new TLRPC.TL_updates_differenceSlice();
++            slice.intermediate_state = state(batch.cursor, batch.now);
++            result = slice;
++        } else {
++            TLRPC.TL_updates_difference complete = new TLRPC.TL_updates_difference();
++            complete.state = state(batch.cursor, batch.now);
++            result = complete;
++        }
++        result.users.addAll(snapshot.dialogs.users);
++        result.chats.addAll(snapshot.dialogs.chats);
++        for (Change change : batch.changes) {
++            result.other_updates.add(change.update);
++        }
++        return result;
++    }
++
++    private static JSONArray outgoingEntities(ArrayList<TLRPC.MessageEntity> values, String text) throws JSONException {
++        require(values != null);
++        JSONArray records = new JSONArray();
++        for (TLRPC.MessageEntity entity : values) {
++            String type;
++            if (entity instanceof TLRPC.TL_messageEntityBold) type = "bold";
++            else if (entity instanceof TLRPC.TL_messageEntityItalic) type = "italic";
++            else if (entity instanceof TLRPC.TL_messageEntityUnderline) type = "underline";
++            else if (entity instanceof TLRPC.TL_messageEntityStrike) type = "strikethrough";
++            else if (entity instanceof TLRPC.TL_messageEntitySpoiler) type = "spoiler";
++            else if (entity instanceof TLRPC.TL_messageEntityCode) type = "code";
++            else if (entity instanceof TLRPC.TL_messageEntityPre) type = "pre";
++            else if (entity instanceof TLRPC.TL_messageEntityBlockquote)
++                type = entity.collapsed ? "expandable_blockquote" : "blockquote";
++            else throw new UnsupportedOperationException();
++            JSONObject record = new JSONObject().put("type", type).put("offset", entity.offset).put("length", entity.length);
++            if (type.equals("pre") && entity.language != null && !entity.language.isEmpty())
++                record.put("language", entity.language);
++            records.put(record);
++        }
++        entities(records, text);
++        ArrayList<JSONObject> ordered = new ArrayList<>();
++        for (int index = 0; index < records.length(); index++) ordered.add(records.getJSONObject(index));
++        ordered.sort((left, right) -> left.optInt("offset") != right.optInt("offset")
++                ? Integer.compare(left.optInt("offset"), right.optInt("offset"))
++                : Integer.compare(right.optInt("length"), left.optInt("length")));
++        return new JSONArray(ordered);
++    }
++
++    public static SendResult send(JSONObject configuration, Snapshot state,
++            TLRPC.TL_messages_sendMessage query) throws Exception {
++        if (!(query.peer instanceof TLRPC.TL_inputPeerUser) || (query.flags & ~((1 << 1) | (1 << 3) | (1 << 7) | (1 << 13))) != 0
++                || query.silent || query.background || query.noforwards || query.update_stickersets_order
++                || query.invert_media || query.allow_paid_floodskip || query.reply_to != null
++                || query.reply_markup != null || query.schedule_date != 0 || query.schedule_repeat_period != 0
++                || query.send_as != null && !(query.send_as instanceof TLRPC.TL_inputPeerSelf)
++                    && !(query.send_as instanceof TLRPC.TL_inputPeerUser && query.send_as.user_id == state.persona)
++                || query.quick_reply_shortcut != null || query.effect != 0
++                || query.allow_paid_stars != 0 || query.suggested_post != null || query.rich_message != null
++                || query.ephemeralReceiverBotId != 0) throw new UnsupportedOperationException();
++        require(state.chatIdsByPeer.containsKey(query.peer.user_id) && query.random_id != 0
++                && query.message != null && !query.message.isEmpty()
++                && query.message.codePointCount(0, query.message.length()) <= 4096
++                && query.message.equals(new String(query.message.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8)));
++        JSONArray entities = outgoingEntities(query.entities, query.message);
++        long chat = state.chatIdsByPeer.get(query.peer.user_id);
++        String id = Long.toString(query.random_id);
++        JSONObject parameters = new JSONObject().put("request_id", id).put("chat_id", chat)
++                .put("text", query.message).put("entities", entities);
++        JSONObject body = exchange(configuration, "/v2/messages", parameters);
++        fields(body, "schema", "world_id", "user_id", "send");
++        SendResult result = sendResult(body.getJSONObject("send"), state);
++        require(result.requestId.equals(id) && result.peer == query.peer.user_id
++                && result.message.message.equals(query.message));
++        require(outgoingEntities(result.message.entities, result.message.message).toString().equals(entities.toString()));
++        return result;
+     }
+ 
+     private static TLRPC.TL_messages_botCallbackAnswer answer(JSONObject data) throws JSONException {
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabInput.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabInput.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabInput.java
+@@ -0,0 +1,165 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import android.app.UiAutomation;
++import android.os.Bundle;
++import android.os.HandlerThread;
++import android.os.Looper;
++import android.os.Process;
++import android.os.SystemClock;
++import android.view.accessibility.AccessibilityNodeInfo;
++import org.json.JSONObject;
++import java.io.ByteArrayOutputStream;
++import java.nio.ByteBuffer;
++import java.nio.charset.CodingErrorAction;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.Arrays;
++
++/** Dedicated-guest shell input through the original application's accessibility actions. */
++public final class GramLabInput {
++    private static final class Rejected extends IllegalArgumentException {
++        final String reason;
++        Rejected(String reason) { this.reason = reason; }
++    }
++
++    private static void require(boolean valid, String reason) {
++        if (!valid) throw new Rejected(reason);
++    }
++
++    private static boolean action(AccessibilityNodeInfo node, int id) {
++        for (AccessibilityNodeInfo.AccessibilityAction candidate : node.getActionList())
++            if (candidate.getId() == id) return true;
++        return false;
++    }
++
++    private static void collect(AccessibilityNodeInfo node, String target, String description,
++            boolean editable, ArrayList<AccessibilityNodeInfo> matches) {
++        if (node == null) return;
++        if (target.contentEquals(node.getPackageName() == null ? "" : node.getPackageName())
++                && node.isVisibleToUser() && node.isEnabled() && !node.isPassword()
++                && (editable ? node.isEditable() && action(node, AccessibilityNodeInfo.ACTION_SET_TEXT)
++                : description.contentEquals(node.getContentDescription() == null ? "" : node.getContentDescription())
++                    && action(node, AccessibilityNodeInfo.ACTION_CLICK))) matches.add(node);
++        for (int index = 0; index < node.getChildCount(); index++) collect(node.getChild(index), target, description, editable, matches);
++    }
++
++    private static AccessibilityNodeInfo unique(UiAutomation automation, String target, String description, boolean editable) {
++        long deadline = SystemClock.elapsedRealtime() + 5000;
++        while (true) {
++            AccessibilityNodeInfo root = automation.getRootInActiveWindow();
++            if (root != null) {
++                require(target.contentEquals(root.getPackageName() == null ? "" : root.getPackageName()), "wrong_window");
++                ArrayList<AccessibilityNodeInfo> matches = new ArrayList<>();
++                collect(root, target, description, editable, matches);
++                require(matches.size() <= 1, editable ? "composer_not_unique" : "send_not_unique");
++                if (matches.size() == 1) return matches.get(0);
++                require(SystemClock.elapsedRealtime() < deadline, editable ? "composer_missing" : "send_missing");
++            } else require(SystemClock.elapsedRealtime() < deadline, "window_unavailable");
++            // Readiness polling never repeats a text or send action. The stock composer
++            // exposes its animated Send control asynchronously after accepting new text.
++            SystemClock.sleep(50);
++        }
++    }
++
++    private static CharSequence text(AccessibilityNodeInfo node) {
++        // The pinned EditTextBoldCursor replaces empty accessibility text with its hint.
++        // Underlying TextView selection/movement metadata still distinguishes an empty
++        // editor from literal text equal to that hint. Never probe by changing selection.
++        boolean empty = node.getTextSelectionStart() == -1 && node.getTextSelectionEnd() == -1
++                && node.getMovementGranularities() == 0
++                && !action(node, AccessibilityNodeInfo.ACTION_SET_SELECTION)
++                && !action(node, AccessibilityNodeInfo.ACTION_NEXT_AT_MOVEMENT_GRANULARITY)
++                && !action(node, AccessibilityNodeInfo.ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY);
++        return node.isShowingHintText() || node.getText() == null || empty ? "" : node.getText();
++    }
++
++    private static String string(JSONObject input, String key) throws Exception {
++        Object value = input.get(key);
++        require(value instanceof String, "invalid_text");
++        String text = (String) value;
++        require(text.equals(new String(text.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8)), "invalid_unicode");
++        return text;
++    }
++
++    public static void main(String[] arguments) {
++        UiAutomation automation = null;
++        HandlerThread callbacks = null;
++        boolean connected = false;
++        String phase = "validation";
++        JSONObject targetState = new JSONObject();
++        int exit = 1;
++        try {
++            require(arguments.length == 0 && Process.myUid() == 2000, "shell_required");
++            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
++            byte[] buffer = new byte[4096];
++            int count;
++            while ((count = System.in.read(buffer)) != -1) {
++                require(bytes.size() + count <= 65536, "input_too_large");
++                bytes.write(buffer, 0, count);
++            }
++            String encoded = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
++                    .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes.toByteArray())).toString();
++            JSONObject input = new JSONObject(encoded);
++            HashSet<String> keys = new HashSet<>(Arrays.asList("operation", "package", "expected_text", "text", "send_description"));
++            Iterator<String> names = input.keys();
++            while (names.hasNext()) require(keys.remove(names.next()), "invalid_fields");
++            require(keys.isEmpty(), "invalid_fields");
++            require("compose_and_send".equals(string(input, "operation")), "invalid_operation");
++            String target = string(input, "package");
++            require("org.gramlab.android".equals(target), "wrong_package");
++            String expected = string(input, "expected_text");
++            String text = string(input, "text");
++            String description = string(input, "send_description");
++            require(!text.isEmpty() && text.codePointCount(0, text.length()) <= 4096 && !description.isEmpty(), "invalid_text");
++            phase = "connect";
++            Looper.prepareMainLooper();
++            callbacks = new HandlerThread("GramLabInputCallbacks");
++            callbacks.start();
++            Class<?> connectionType = Class.forName("android.app.IUiAutomationConnection");
++            Object connection = Class.forName("android.app.UiAutomationConnection").getConstructor().newInstance();
++            automation = UiAutomation.class.getConstructor(Looper.class, connectionType).newInstance(callbacks.getLooper(), connection);
++            UiAutomation.class.getMethod("connectWithTimeout", int.class, long.class).invoke(automation, 1, 5000L);
++            connected = true;
++            phase = "target";
++            AccessibilityNodeInfo composer = unique(automation, target, description, true);
++            targetState.put("text_length", composer.getText() == null ? 0 : composer.getText().length())
++                    .put("hint_present", composer.getHintText() != null)
++                    .put("showing_hint", composer.isShowingHintText())
++                    .put("selection_start", composer.getTextSelectionStart())
++                    .put("selection_end", composer.getTextSelectionEnd())
++                    .put("set_selection", action(composer, AccessibilityNodeInfo.ACTION_SET_SELECTION));
++            require(expected.contentEquals(text(composer)), "stale_composer");
++            phase = "set_text";
++            Bundle replacement = new Bundle();
++            replacement.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
++            require(composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, replacement), "text_action_rejected");
++            composer = unique(automation, target, description, true);
++            require(text.contentEquals(text(composer)), "text_changed");
++            phase = "send";
++            AccessibilityNodeInfo send = unique(automation, target, description, false);
++            // Never retry: a false return or process interruption can still have an uncertain outcome.
++            require(send.performAction(AccessibilityNodeInfo.ACTION_CLICK), "send_action_rejected");
++            System.out.println(new JSONObject().put("ok", true).put("input", "accessibility")
++                    .put("text_verified", true).put("send_actions", 1).put("uid", Process.myUid()));
++            exit = 0;
++        } catch (Exception failure) {
++            // Exception text and request bodies can contain scenario text; retain only bounded metadata.
++            String reason = failure instanceof Rejected ? ((Rejected) failure).reason : failure.getClass().getSimpleName();
++            System.out.println("{\"ok\":false,\"phase\":\"" + phase + "\",\"error\":\"" + reason
++                    + "\",\"target\":" + targetState + "}");
++        } finally {
++            try {
++                if (connected) UiAutomation.class.getMethod("disconnect").invoke(automation);
++            } catch (Exception failure) { exit = 1; }
++            if (callbacks != null) {
++                callbacks.quitSafely();
++                try { callbacks.join(2000); } catch (InterruptedException failure) { Thread.currentThread().interrupt(); exit = 1; }
++                if (callbacks.isAlive()) exit = 1;
++            }
++        }
++        System.exit(exit);
++    }
++}
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -5,6 +5,8 @@
+ import android.os.SystemClock;
+ import org.json.JSONObject;
+ import org.telegram.messenger.BuildConfig;
++import org.telegram.messenger.AndroidUtilities;
++import org.telegram.messenger.GramLabSendRecovery;
+ import org.telegram.messenger.MessagesController;
+ import org.telegram.messenger.MessagesStorage;
+ import org.telegram.messenger.UserConfig;
+@@ -21,6 +23,9 @@
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.util.Map;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.CountDownLatch;
+@@ -41,10 +46,12 @@
+     private static final ExecutorService worker = Executors.newSingleThreadExecutor(
+             action -> new Thread(action, "GramLabBridge"));
+     private static final Map<Long, Pending> pending = new ConcurrentHashMap<>();
++    private static final Map<String, Pending> sending = new ConcurrentHashMap<>();
+ 
+     private static final class Pending {
+         final int account;
+         volatile int guid;
++        String sendKey;
+         Pending(int account) { this.account = account; }
+     }
+ 
+@@ -89,7 +96,7 @@
+             }
+             snapshot = loaded;
+             worldTime = loaded.now;
+-            eventCursor = loaded.cursor;
++            eventCursor = loaded.messagePosition;
+             trace("initialized", "snapshot", 0, 0);
+         } catch (Exception failure) {
+             String reason = failure instanceof StartupRejected
+@@ -123,15 +130,23 @@
+             storage.putMessages(history.getValue(), history.getKey(),
+                     MessagesController.LOAD_AROUND_MESSAGE, 0, false, ChatActivity.MODE_DEFAULT, 0);
+         }
+-        CountDownLatch stored = new CountDownLatch(1);
+-        storage.getStorageQueue().postRunnable(stored::countDown);
++        CompletableFuture<ArrayList<GramLabSendRecovery.Correction>> stored = new CompletableFuture<>();
++        storage.getStorageQueue().postRunnable(() -> {
++            try {
++                ArrayList<GramLabSendRecovery.Correction> corrections = GramLabSendRecovery.store(0, current.sends);
++                storage.setLastPtsValue(current.messagePosition);
++                storage.setLastSeqValue(current.messagePosition);
++                storage.setLastDateValue(current.now);
++                storage.setLastQtsValue(0);
++                storage.saveDiffParams(current.messagePosition, current.messagePosition, current.now, 0);
++                storage.getStorageQueue().postRunnable(() -> stored.complete(corrections));
++            } catch (Exception failure) { stored.completeExceptionally(failure); }
++        });
+         try {
+-            if (!stored.await(10, TimeUnit.SECONDS)) {
+-                throw new IllegalStateException("GRAMLAB_DIALOG_CACHE_TIMEOUT");
+-            }
+-        } catch (InterruptedException interrupted) {
+-            Thread.currentThread().interrupt();
+-            throw new IllegalStateException("GRAMLAB_DIALOG_CACHE_INTERRUPTED");
++            GramLabSendRecovery.complete(0, stored.get(10, TimeUnit.SECONDS));
++        } catch (Exception failure) {
++            if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
++            throw new IllegalStateException("GRAMLAB_REPLICA_RECONCILIATION_FAILED");
+         }
+         startEventLoop();
+     }
+@@ -143,30 +158,66 @@
+             long after = eventCursor;
+             try {
+                 GramLabBridge.Snapshot current = requireSnapshot();
+-                GramLabBridge.EventBatch batch = GramLabBridge.events(configuration, current, after);
+-                CountDownLatch applied = new CountDownLatch(1);
+-                Utilities.stageQueue.postRunnable(() -> {
+-                    try {
+-                        if (eventCursor != after) return;
+-                        // Apply an authoritative semantic difference through the stock controller.
+-                        // Global journal positions are never passed as Telegram pts/seq values.
+-                        if (!batch.updates.isEmpty() && !MessagesController.getInstance(0).processUpdateArray(
+-                                batch.updates, current.dialogs.users, current.dialogs.chats, true, batch.now)) {
+-                            trace("event_rejected", "controller", 0, 0);
++                GramLabBridge.EventBatch batch = GramLabBridge.events(configuration, current, after, 100);
++                for (GramLabBridge.Change change : batch.changes) {
++                    if (change.send != null && sending.containsKey(sendKey(change.send.peer, change.send.requestId))) break;
++                    // Correlation is scoped to peer before invoking stock remapping. A lost response
++                    // may leave a negative row even though this message already exists in history.
++                    if (change.send != null) reconcile(0, java.util.Collections.singletonList(change.send));
++                    CompletableFuture<Boolean> applied = new CompletableFuture<>();
++                    Utilities.stageQueue.postRunnable(() -> {
++                        if (eventCursor != change.position - 1L || change.send != null
++                                && sending.containsKey(sendKey(change.send.peer, change.send.requestId))) {
++                            applied.complete(false);
+                             return;
+                         }
+-                        worldTime = Math.max(worldTime, batch.now);
+-                        eventCursor = batch.cursor;
+-                        if (!batch.updates.isEmpty()) trace("events_applied", "messages", 0, batch.updates.size());
+-                    } finally {
+-                        applied.countDown();
+-                    }
+-                });
+-                if (!applied.await(5, TimeUnit.SECONDS)) trace("event_wait_timeout", "controller", 0, 0);
++                        try {
++                            MessagesStorage storage = MessagesStorage.getInstance(0);
++                            // A stock difference can already have applied this prefix while polling.
++                            if (storage.getLastPtsValue() < change.position || storage.getLastSeqValue() < change.position)
++                                MessagesController.getInstance(0).processUpdates(change.envelope(current, batch.now), false);
++                            eventCursor = change.position;
++                            worldTime = Math.max(worldTime, batch.now);
++                            trace("events_applied", "messages", 0, 1);
++                            applied.complete(true);
++                        } catch (Exception failure) { applied.completeExceptionally(failure); }
++                    });
++                    if (!applied.get(5, TimeUnit.SECONDS)) break;
++                }
++                worldTime = Math.max(worldTime, batch.now);
+             } catch (Exception failure) {
+                 trace("event_error", failure.getClass().getSimpleName(), 0, 0);
+             }
+         }, 0, 250, TimeUnit.MILLISECONDS);
++    }
++
++    private static String sendKey(long peer, String requestId) { return peer + ":" + requestId; }
++
++    private static void reconcile(int account, List<GramLabBridge.SendResult> sends) throws Exception {
++        CompletableFuture<Void> done = new CompletableFuture<>();
++        MessagesStorage.getInstance(account).getStorageQueue().postRunnable(() -> {
++            try {
++                ArrayList<GramLabSendRecovery.Correction> corrections = GramLabSendRecovery.store(account, sends);
++                AndroidUtilities.runOnUIThread(() -> {
++                    try {
++                        GramLabSendRecovery.complete(account, corrections);
++                        done.complete(null);
++                    } catch (Exception failure) { done.completeExceptionally(failure); }
++                });
++            } catch (Exception failure) { done.completeExceptionally(failure); }
++        });
++        done.get(5, TimeUnit.SECONDS);
++    }
++
++    private static void releaseAfterAcknowledgment(Pending owner, boolean accepted) {
++        if (owner.sendKey == null) return;
++        // The send delegate queues UI work, which queues storage, which queues final UI
++        // notifications. Follow all three queues before allowing this send's live envelope.
++        AndroidUtilities.runOnUIThread(() -> MessagesStorage.getInstance(owner.account)
++                .getStorageQueue().postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
++                    sending.remove(owner.sendKey, owner);
++                    trace(accepted ? "send_completed" : "send_settled", "storage", owner.account, 0);
++                })));
+     }
+ 
+     private static GramLabBridge.Snapshot requireSnapshot() {
+@@ -226,6 +277,23 @@
+         }
+         String method = request.getClass().getSimpleName();
+         trace("request", method, account, token);
++        if (account == 0 && request instanceof TLRPC.TL_messages_sendMessage) {
++            TLRPC.TL_messages_sendMessage query = (TLRPC.TL_messages_sendMessage) request;
++            owner.sendKey = sendKey(query.peer == null ? 0 : query.peer.user_id, Long.toString(query.random_id));
++            // Native retries are serialized by the stock send helper; retain one in-flight owner.
++            if (sending.putIfAbsent(owner.sendKey, owner) != null) {
++                Utilities.stageQueue.postRunnable(() -> {
++                    TLRPC.TL_error error = new TLRPC.TL_error();
++                    error.code = 400; error.text = "RANDOM_ID_DUPLICATE";
++                    try {
++                        if (!pending.remove(key, owner)) return;
++                        if (completion != null) completion.run(null, error);
++                        if (timestamped != null) timestamped.run(null, error, now() * 1000L);
++                    } finally { request.freeResources(); }
++                });
++                return;
++            }
++        }
+         worker.execute(() -> {
+             TLObject response = null;
+             TLRPC.TL_error error = null;
+@@ -235,7 +303,10 @@
+                         || request instanceof TLRPC.TL_messages_getHistory
+                         || request instanceof TLRPC.TL_users_getUsers
+                         || request instanceof TLRPC.TL_users_getFullUser
+-                        || request instanceof TLRPC.TL_messages_getBotCallbackAnswer)) {
++                        || request instanceof TLRPC.TL_messages_getBotCallbackAnswer
++                        || request instanceof TLRPC.TL_messages_sendMessage
++                        || request instanceof TLRPC.TL_updates_getState
++                        || request instanceof TLRPC.TL_updates_getDifference)) {
+                     throw new UnsupportedOperationException();
+                 }
+                 GramLabBridge.Snapshot current = GramLabBridge.connect(configuration);
+@@ -244,6 +315,20 @@
+                 if (request instanceof TLRPC.TL_messages_getBotCallbackAnswer) {
+                     response = GramLabBridge.callback(configuration, current,
+                             (TLRPC.TL_messages_getBotCallbackAnswer) request);
++                } else if (request instanceof TLRPC.TL_messages_sendMessage) {
++                    response = GramLabBridge.send(configuration, current,
++                            (TLRPC.TL_messages_sendMessage) request).acknowledgment();
++                } else if (request instanceof TLRPC.TL_updates_getState) {
++                    response = GramLabBridge.state(current.messagePosition, current.now);
++                } else if (request instanceof TLRPC.TL_updates_getDifference) {
++                    // Recover correlations separately: TL updateMessageID has no peer field,
++                    // while the semantic send key intentionally includes its destination.
++                    ArrayList<GramLabBridge.SendResult> recoverable = new ArrayList<>();
++                    for (GramLabBridge.SendResult send : current.sends)
++                        if (!sending.containsKey(sendKey(send.peer, send.requestId))) recoverable.add(send);
++                    reconcile(account, recoverable);
++                    response = GramLabBridge.difference(configuration, current,
++                            (TLRPC.TL_updates_getDifference) request);
+                 } else {
+                     response = dispatch(request, current);
+                 }
+@@ -263,13 +348,16 @@
+             final TLObject result = response;
+             final TLRPC.TL_error failure = error;
+             Utilities.stageQueue.postRunnable(() -> {
++                boolean delivered = false;
+                 try {
+                     if (!pending.remove(key, owner)) return;
++                    delivered = true;
+                     trace(failure == null ? "response" : "error_" + failure.code,
+                             method, account, token);
+                     if (completion != null) completion.run(result, failure);
+                     if (timestamped != null) timestamped.run(result, failure, now() * 1000L);
+                 } finally {
++                    releaseAfterAcknowledgment(owner, delivered && failure == null);
+                     request.freeResources();
+                 }
+             });
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/GramLabSendRecovery.java b/TMessagesProj/src/main/java/org/telegram/messenger/GramLabSendRecovery.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/GramLabSendRecovery.java
+@@ -0,0 +1,68 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.messenger;
++
++import org.telegram.SQLite.SQLiteCursor;
++import org.telegram.gramlab.GramLabBridge;
++import org.telegram.tgnet.TLRPC;
++import java.util.ArrayList;
++import java.util.List;
++
++/** Scoped replica reconciliation using the stock storage and send-helper completion paths. */
++public final class GramLabSendRecovery {
++    public static final class Correction {
++        final int oldId;
++        final GramLabBridge.SendResult send;
++        Correction(int oldId, GramLabBridge.SendResult send) { this.oldId = oldId; this.send = send; }
++    }
++
++    /** Call on the account storage queue, after authoritative history backfill when restarting. */
++    public static ArrayList<Correction> store(int account, List<GramLabBridge.SendResult> sends) throws Exception {
++        MessagesStorage storage = MessagesStorage.getInstance(account);
++        if (Thread.currentThread() != storage.getStorageQueue()) throw new IllegalStateException("GRAMLAB_STORAGE_THREAD");
++        ArrayList<Correction> corrections = new ArrayList<>();
++        for (GramLabBridge.SendResult send : sends) {
++            if (send.randomId() == 0) continue;
++            SQLiteCursor cursor = storage.getDatabase().queryFinalized(
++                    "SELECT r.mid FROM randoms_v2 r JOIN messages_v2 m ON m.mid=r.mid AND m.uid=r.uid "
++                    + "WHERE r.random_id=? AND r.uid=? AND r.mid<0", send.randomId(), send.peer);
++            Integer oldId = null;
++            try {
++                if (cursor.next()) oldId = cursor.intValue(0);
++                if (cursor.next()) throw new IllegalStateException("GRAMLAB_AMBIGUOUS_SEND_CORRELATION");
++            } finally { cursor.dispose(); }
++            if (oldId == null) continue;
++            long[] mapped = storage.updateMessageStateAndId(send.randomId(), send.peer, oldId,
++                    send.message.id, send.message.date, false, 0, 0);
++            if (mapped == null || mapped[0] != send.peer || mapped[1] != oldId)
++                throw new IllegalStateException("GRAMLAB_SEND_REMAP_FAILED");
++            ArrayList<TLRPC.Message> messages = new ArrayList<>();
++            messages.add(send.message);
++            storage.putMessages(messages, true, false, false, 0, 0, 0);
++            cursor = storage.getDatabase().queryFinalized(
++                    "SELECT mid, send_state FROM messages_v2 WHERE uid=? AND mid IN (?, ?)",
++                    send.peer, oldId, send.message.id);
++            try {
++                if (!cursor.next() || cursor.intValue(0) != send.message.id || cursor.intValue(1) != 0 || cursor.next())
++                    throw new IllegalStateException("GRAMLAB_SEND_REMAP_NOT_STORED");
++            } finally { cursor.dispose(); }
++            corrections.add(new Correction(oldId, send));
++        }
++        return corrections;
++    }
++
++    /** Call on UI only after every storage correction is complete. */
++    public static void complete(int account, List<Correction> corrections) {
++        if (corrections.isEmpty()) return;
++        SendMessagesHelper helper = SendMessagesHelper.getInstance(account);
++        NotificationCenter notifications = NotificationCenter.getInstance(account);
++        for (Correction correction : corrections) {
++            GramLabBridge.SendResult send = correction.send;
++            helper.processSentMessage(correction.oldId);
++            helper.removeFromSendingMessages(correction.oldId, false);
++            notifications.postNotificationName(NotificationCenter.messageReceivedByServer,
++                    correction.oldId, send.message.id, send.message, send.peer, 0L, -1, false);
++            notifications.postNotificationName(NotificationCenter.messageReceivedByServer2,
++                    correction.oldId, send.message.id, send.message, send.peer, 0L, -1, false);
++        }
++    }
++}
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/ComposerProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/ComposerProbe.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/ComposerProbe.java
+@@ -0,0 +1,100 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import org.json.JSONArray;
++import org.json.JSONObject;
++import org.telegram.messenger.ApplicationLoader;
++import org.telegram.tgnet.SerializedData;
++import org.telegram.tgnet.TLRPC;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Paths;
++import java.util.Arrays;
++
++/** Pinned TL acknowledgment/difference serialization against a separate synthetic world. */
++public final class ComposerProbe {
++    private static void require(boolean valid) {
++        if (!valid) throw new IllegalStateException("GRAMLAB_COMPOSER_CODEC_FAILED");
++    }
++
++    private static TLRPC.TL_messages_sendMessage command(long peer, long randomId) {
++        TLRPC.TL_messages_sendMessage query = new TLRPC.TL_messages_sendMessage();
++        TLRPC.TL_inputPeerUser target = new TLRPC.TL_inputPeerUser();
++        target.user_id = peer;
++        query.peer = target;
++        query.random_id = randomId;
++        query.message = "hello سلام 👩🏽‍💻";
++        query.clear_draft = true;
++        query.send_as = new TLRPC.TL_inputPeerSelf();
++        query.flags = 1 << 3;
++        TLRPC.TL_messageEntityBold entity = new TLRPC.TL_messageEntityBold();
++        entity.offset = 0; entity.length = 5;
++        query.entities.add(entity);
++        return query;
++    }
++
++    private static byte[] encode(TLRPC.Updates response) {
++        SerializedData data = new SerializedData();
++        response.serializeToStream(data);
++        return data.toByteArray();
++    }
++
++    public static void main(String[] arguments) throws Exception {
++        JSONObject config = new JSONObject(new String(Files.readAllBytes(Paths.get(arguments[0])), StandardCharsets.UTF_8));
++        GramLabBridge.Snapshot initial = GramLabBridge.connect(config);
++        require(initial.messagePosition == 0 && initial.sends.isEmpty());
++        long peer = initial.chatIdsByPeer.keySet().iterator().next();
++        ApplicationLoader.applicationLoaderInstance = new ApplicationLoader() {
++            @Override protected boolean isAndroidTestEnv() { return true; }
++        };
++        TLRPC.TL_messages_sendMessage query = command(peer, -42);
++        GramLabBridge.SendResult first = GramLabBridge.send(config, initial, query);
++        byte[] encoded = encode(first.acknowledgment());
++        require(Arrays.equals(encoded, encode(GramLabBridge.send(config, initial, query).acknowledgment())));
++        SerializedData data = new SerializedData(encoded);
++        TLRPC.Updates ack = TLRPC.Updates.TLdeserialize(data, data.readInt32(true), true);
++        require(ack instanceof TLRPC.TL_updateShortSentMessage && ack.out && ack.id == 1
++                && ack.pts == 1 && ack.pts_count == 1 && ack.entities.size() == 1
++                && ack.entities.get(0).offset == 0 && ack.entities.get(0).length == 5);
++        int rejected = 0;
++        for (int bit : new int[] {0, 2, 5, 6, 10, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24}) {
++            TLRPC.TL_messages_sendMessage invalid = command(peer, 100 + bit);
++            invalid.flags |= 1 << bit;
++            try { GramLabBridge.send(config, initial, invalid); }
++            catch (UnsupportedOperationException expected) { rejected++; }
++        }
++        query.message = "changed payload";
++        try { GramLabBridge.send(config, initial, query); }
++        catch (IllegalArgumentException expected) { rejected++; }
++        TLRPC.TL_messages_sendMessage alternate = command(peer, 200);
++        TLRPC.TL_inputPeerUser sender = new TLRPC.TL_inputPeerUser();
++        sender.user_id = peer;
++        alternate.send_as = sender;
++        try { GramLabBridge.send(config, initial, alternate); }
++        catch (UnsupportedOperationException expected) { rejected++; }
++        require(rejected == 17 && GramLabBridge.connect(config).messagePosition == 1);
++        GramLabBridge.send(config, initial, command(peer, 43));
++        TLRPC.TL_updates_getDifference difference = new TLRPC.TL_updates_getDifference();
++        difference.flags = 1; difference.pts_total_limit = 1; difference.date = initial.now;
++        JSONArray pages = new JSONArray();
++        for (int index = 0; index < 2; index++) {
++            difference.pts = index;
++            TLRPC.updates_Difference page = GramLabBridge.difference(config, initial, difference);
++            SerializedData writer = new SerializedData();
++            page.serializeToStream(writer);
++            SerializedData reader = new SerializedData(writer.toByteArray());
++            page = TLRPC.updates_Difference.TLdeserialize(reader, reader.readInt32(true), true);
++            TLRPC.TL_updates_state state = index == 0 ? page.intermediate_state : page.state;
++            require(page.other_updates.size() == 1 && state.pts == index + 1 && state.seq == index + 1
++                    && state.qts == 0 && state.date == initial.now);
++            pages.put(new JSONObject().put("type", page.getClass().getSimpleName())
++                    .put("pts", state.pts).put("seq", state.seq).put("changes", page.other_updates.size()));
++        }
++        GramLabBridge.Snapshot last = GramLabBridge.connect(config);
++        require(last.messagePosition == 2 && last.sends.size() == 2);
++        System.out.println(new JSONObject().put("rejected", rejected).put("sends", last.sends.size())
++                .put("pages", pages).put("ack", new JSONObject().put("id", ack.id).put("date", ack.date)
++                    .put("pts", ack.pts).put("pts_count", ack.pts_count).put("out", ack.out)
++                    .put("flags", ack.flags).put("entity", ack.entities.get(0).getClass().getSimpleName())));
++    }
++}

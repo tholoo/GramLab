@@ -1,8 +1,10 @@
 # Android Unicode input tooling references
 
-Reviewed 2026-09-06. Static SDK inspection and official source establish a candidate independent
-shell helper; they do not prove that it runs in GramLab's guest. No package acquisition, builds,
-client/guest launches, UI edits or runtime networking occurred.
+Reviewed 2026-09-06. The initial static SDK and official-source review established a candidate
+independent shell helper without package acquisition or runtime execution. Subsequent
+[focused guest integration](android-composer.md) now proves connection, repeated Unicode input,
+original Send activation and the stale-literal-hint rejection described below. Source findings
+and remaining proposed checks are distinguished from that bounded runtime evidence.
 
 ## Candidate and source boundary
 
@@ -108,3 +110,32 @@ input filtering, timeout and repeated connect/disconnect after failures. UI text
 does not prove message acceptance; pair this with the
 [composer acknowledgment contract](android-composer-references.md). Preserve upstream code and
 state the remaining unavailable cases explicitly.
+
+## Integration findings
+
+The initial guest checks reached reflective connection but exposed a root-readiness race.
+AOSP's own [DumpCommand](https://android.googlesource.com/platform/frameworks/base/+/99b01a65cc4c104933788b3143285ab6bae65827/cmds/uiautomator/cmds/uiautomator/src/com/android/commands/uiautomator/DumpCommand.java#86)
+waits for idle before looking up the active root. Successful connection establishes the client
+connection, not an available window. A bounded read-only wait may resolve a missing root;
+an unexpected package must still be rejected. Foreground screenshots alone do not establish
+the package returned by the active-window lookup.
+
+The pinned [EditTextBoldCursor override](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Components/EditTextBoldCursor.java#L1265)
+exposes an empty editor's custom hint as node text without marking it as showing a hint.
+Comparing text to a localized hint is unsafe: a draft can contain that literal text. The
+[AOSP TextView metadata](https://android.googlesource.com/platform/frameworks/base/+/99b01a65cc4c104933788b3143285ab6bae65827/core/java/android/widget/TextView.java#14255)
+retains a useful distinction. Selection/movement actions and movement granularities are supplied
+only for nonempty underlying text; the
+[View selection initialization](https://android.googlesource.com/platform/frameworks/base/+/99b01a65cc4c104933788b3143285ab6bae65827/core/java/android/view/View.java#11524)
+likewise leaves empty text selection undefined. Telegram's later hint substitution preserves
+these fields.
+
+The conservative pinned-client predicate combines selection indices `-1/-1`, zero movement
+granularities and absence of selection and next/previous movement actions, after verifying one
+enabled editable non-password node. A literal `Message` draft at cursor zero must fail this
+predicate. Do not execute selection actions to inspect emptiness; those actions can move the
+cursor and start selection mode. This source-derived predicate is not a general guarantee for
+arbitrary custom widgets, and separate validation/action calls are not an atomic compare-and-set
+against concurrent user edits. The focused guest test now verifies this literal-draft rejection
+and successful known-draft replacement. Broader wrong-window, ambiguous-control and concurrent-edit
+cases remain unverified.

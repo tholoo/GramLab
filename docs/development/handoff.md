@@ -49,10 +49,14 @@ Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issue
 The [independent version 2 send boundary](client-sends.md) now has durable request receipts,
 persona message positions and atomic version 4→5 migration. Seven initial failures establish
 the missing contract; 53 focused tests and the full 186-test core gate pass, with 82.55% coverage.
-The actual baseline Android Send action reaches its unsupported request error. The GPL composer,
-client sequence/recovery and Unicode accessibility integration is being built and tested; do not
-claim that native composer support has passed. Keep its work separate from the previously proven
-callback/recovery milestone below. Ignored local composer notes retain current handles and evidence.
+The [native composer focused case](android-composer.md) now passes actual multilingual sends,
+equal-text distinct sends, stale-draft rejection, cold restart and a committed send whose response
+is withheld before client shutdown. The retained negative pending message reconciles once and a
+real bot replies once. Compact acknowledgment and difference serialization checks also pass.
+Fresh patch preparation preserves all 6,666 upstream UI/resource files. Existing Android
+regressions are being checked; the full gate, scenario composer API, cross-mode input semantics
+and further interruption boundaries remain open. Ignored composer notes retain current handles
+and original captures; do not confuse a focused pass with completed ticket acceptance.
 
 Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).
 The [consumer runner](consumer-runner.md) now provides `gramlab run` and `python -m gramlab run`

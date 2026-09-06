@@ -5,3 +5,4 @@
 0005-inline-callbacks-and-live-edits.patch
 0006-formatting-entities.patch
 0007-reconcile-cached-history.patch
+0008-native-composer-and-client-sequences.patch

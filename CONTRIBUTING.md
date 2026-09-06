@@ -38,6 +38,7 @@ uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/andr
   tests/probes/android_client_bridge.py tests/probes/android_application.py \
   tests/probes/android_callbacks.py tests/probes/android_formatting.py \
   tests/probes/android_recovery.py tests/probes/recovery_round_trip.py \
+  tests/probes/android_composer.py tests/composer_report.py \
   tests/probes/bot_round_trip.py tests/probes/callback_round_trip.py \
   tests/probes/long_poll_bot.py tests/probes/formatted_round_trip.py \
   tests/probes/component_bot.py tests/probes/emulator_process.py \

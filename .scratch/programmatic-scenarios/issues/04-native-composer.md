@@ -33,5 +33,9 @@ request correlation and client cursor obligations; it does not widen into an MTP
 
 Progress: [the independent send boundary](../../../docs/development/client-sends.md) has seven
 new behavioral tests, 53 focused passing regressions and a full core gate of 186 tests at 82.55%
-coverage. Native integration, actual input and interruption gates remain in progress. The old
-APK's actual Send action reaches the unsupported request error; it does not commit a world send.
+coverage. The [focused native case](../../../docs/development/android-composer.md) now passes
+actual Unicode sends, distinct equal-text actions, stale-draft rejection, compact acknowledgment
+and difference serialization, retained client state across restart, and response-loss-after-commit
+recovery with one bot reply. Fresh preparation preserves 6,666 upstream UI/resource files.
+Scenario integration, cross-mode composer semantics, additional interruption boundaries and the
+full Android gate remain in progress; this ticket is not resolved.
