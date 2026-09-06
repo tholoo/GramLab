@@ -89,3 +89,17 @@ on the diagnostic APK with the expanded UI assertions in about 93 seconds. All h
 terminal; the full gate remains unproven. This ticket and the full
 product goal remain open. Distinct-timestamp ordering, multi-page gaps, broader input semantics and the
 earlier intermittent reliability failures still need evidence.
+
+
+The [transport follow-up](../../../docs/development/android-transport-reliability.md) now separates
+codec verification from composer startup. Repeated isolated codecs reproduce Netsim handshake
+stalls and a distinct closed-connection reuse failure. Built-in Virtio Wi-Fi forwarding plus an
+explicit bridge close header pass eight independent native codec worlds (72 HTTP requests).
+The core wire regression verifies real EOF, complete success/error responses and unchanged world
+state after rejections. All 14 focused core tests and 216 full core tests pass at 81.09% coverage.
+All 11 focused Android checks pass, including both interruptions, live-gap recovery and guest
+isolation. The full 26-test Android gate stops with three passed and one failed: activity launch
+reports a timeout before input and UIAutomator creates no hierarchy file. Its startup root cause
+remains unproven. Static/Nix checks and the installed wheel's offline simulation example pass.
+The APK is unchanged. All handles are terminal; the startup failure is the next diagnostic target.
+This checkpoint does not resolve the ticket or the wider product goal.

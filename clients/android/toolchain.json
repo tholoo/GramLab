@@ -20,7 +20,8 @@
     "imageType": "default",
     "abi": "x86_64",
     "imageRevision": 2,
-    "imageExtensionLevel": 17
+    "imageExtensionLevel": 17,
+    "wifiPacketStream": false
   },
   "jvm": {
     "major": 17,

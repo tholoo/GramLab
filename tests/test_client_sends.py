@@ -343,3 +343,70 @@ def test_snapshot_position_correlations_and_messages_are_one_committed_version(t
         pending.result(timeout=5)
     with World.open(directory) as world:
         assert world.client_snapshot(1, version=2)["message_position"] == 40
+
+
+def test_nonpersistent_bridge_advertises_close_for_success_and_rejections(tmp_path):
+    directory = tmp_path / "world"
+    world_id, token, _ = client_world(directory)
+    command = {"chat_id": 1, "request_id": "101", "text": "connection contract"}
+    sent = {
+        "request_id": "101",
+        "position": 1,
+        "message": {"id": 1, "chat_id": 1, "sender_id": 1, "date": 100, "text": command["text"]},
+    }
+    cases = [
+        (token, "/v2/messages", command, 200, envelope(world_id) | {"send": sent}),
+        (
+            "wrong-capability",
+            "/v2/messages",
+            command,
+            401,
+            {
+                "schema": 2,
+                "error": {"code": "unauthorized", "message": "Client capability required"},
+            },
+        ),
+        (
+            token,
+            "/v2/unknown",
+            command,
+            404,
+            {
+                "schema": 2,
+                "error": {"code": "unsupported", "message": "Unknown client bridge operation"},
+            },
+        ),
+        (
+            token,
+            "/v2/messages",
+            {},
+            400,
+            {
+                "schema": 2,
+                "error": {
+                    "code": "invalid_request",
+                    "message": "Client command has missing or unsupported fields",
+                },
+            },
+        ),
+    ]
+    with ClientBridge(directory) as server:
+        url = urlsplit(server.base_url)
+        for capability, path, parameters, status, expected in cases:
+            payload = json.dumps(parameters).encode()
+            headers = (
+                f"POST {path} HTTP/1.1\r\nHost: localhost\r\n"
+                f"Authorization: Bearer {capability}\r\nConnection: keep-alive\r\n"
+                f"Content-Type: application/json\r\nContent-Length: {len(payload)}\r\n\r\n"
+            )
+            with socket.create_connection((url.hostname, url.port), timeout=5) as connection:
+                connection.sendall(headers.encode() + payload)
+                response = http.client.HTTPResponse(connection)
+                response.begin()
+                assert (response.status, json.loads(response.read())) == (status, expected)
+                # Observe the actual EOF, not just a header or Python's will_close inference.
+                assert connection.recv(1) == b""
+                assert response.getheader("Connection", "").lower() == "close"
+    with World.open(directory) as world:
+        assert world.history(1) == [sent["message"]]
+        assert world.poll_updates(2) == [{"update_id": 1, "message": sent["message"]}]

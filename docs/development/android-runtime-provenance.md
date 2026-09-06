@@ -96,3 +96,11 @@ This used the pinned image with KVM, SwiftShader and private run data; see the b
 for commands, preparation display/memory settings and diagnostic limitations. Generated AVDs,
 logs, timing observations and screenshots remain ignored. No Telegram client, local bot,
 semantic bridge or world implementation has been executed or verified by this guest preparation.
+
+
+The subsequent [transport correction](android-transport-reliability.md) selects the same pinned
+emulator's built-in Virtio Wi-Fi forwarding with `-feature -WiFiPacketStream`. The toolchain records
+`wifiPacketStream: false`; both launchers apply the flag. Emulator/image versions and containment
+remain unchanged. All seven runtime checks pass with that selection, including actual guest local
+reachability and external IPv4/IPv6 rejection. Four additional focused composer/codec checks pass;
+the full Android gate remains incomplete because of an activity-startup timeout before input.

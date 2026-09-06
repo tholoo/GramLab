@@ -57,6 +57,10 @@ def main() -> None:
         "-dns-server",
         "192.0.2.53",
         "-no-metrics",
+        # The pinned Netsim forwarding path stalls local TCP handshakes. Keep
+        # Virtio Wi-Fi, using the emulator's built-in forwarding implementation.
+        "-feature",
+        "-WiFiPacketStream",
     ]
     with Path("emulator.log").open("w") as log:
         os.dup2(log.fileno(), 1)

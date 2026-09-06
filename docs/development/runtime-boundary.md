@@ -164,3 +164,12 @@ A clean contained Android build exposed SDK Ninja's direct `/bin/sh` invocation.
 test failed with the missing interpreter, then passed with the pinned Android-only shell link;
 the same invocation remains unavailable in the core profile. Native compilation then proceeded
 inside containment. See [the build record](android-build.md) for compilation status and provenance.
+
+The pinned emulator now uses its built-in Virtio Wi-Fi forwarding implementation through
+`-feature -WiFiPacketStream` in both consumer and test launchers. Controlled
+[transport diagnostics](android-transport-reliability.md) distinguish Netsim handshake stalls from
+HTTP connection-reuse failures. This changes forwarding within the same dedicated guest/network
+boundary; the emulator version and guest image remain pinned. All 11 focused native checks pass,
+including both composer interruptions, live-gap recovery, repeated codecs and the seven runtime
+checks with guest egress isolation. The broader Android gate remains incomplete because of a
+separate activity-startup timeout before composer input.

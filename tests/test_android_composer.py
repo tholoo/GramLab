@@ -125,24 +125,6 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
         assert observed[phase]["outgoing_read_state"] == [[2, 2], [3, 2], [4, 2]]
     assert all("LaunchState: COLD" in launch for launch in observed["launches"])
     assert "Echo:" in observed["restarted"]
-    if boundary == "before_ack":
-        assert observed["codec"] == {
-            "rejected": 17,
-            "sends": 2,
-            "ack": {
-                "id": 1,
-                "date": 1700000000,
-                "pts": 1,
-                "pts_count": 1,
-                "out": True,
-                "flags": 130,
-                "entity": "TL_messageEntityBold",
-            },
-            "pages": [
-                {"type": "TL_updates_differenceSlice", "pts": 1, "seq": 1, "changes": 1},
-                {"type": "TL_updates_difference", "pts": 2, "seq": 2, "changes": 1},
-            ],
-        }
     loss = observed["loss"]
     assert loss["boundary"] == boundary
     assert loss["input"] == observed["inputs"][0]
@@ -315,3 +297,25 @@ def verify_live_gap(tmp_path: Path, observed: dict) -> None:
         assert rendered == [texts[index - 1] for index in expected_ids]
     for name in ("gap-before", "gap-withheld", "gap-recovered", "gap-replied"):
         assert (tmp_path / f"{name}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_native_codec_round_trip_without_application_startup(tmp_path: Path) -> None:
+    observed = run_composer(tmp_path, "codec")
+    expected = {
+        "rejected": 17,
+        "sends": 2,
+        "ack": {
+            "id": 1,
+            "date": 1700000000,
+            "pts": 1,
+            "pts_count": 1,
+            "out": True,
+            "flags": 130,
+            "entity": "TL_messageEntityBold",
+        },
+        "pages": [
+            {"type": "TL_updates_differenceSlice", "pts": 1, "seq": 1, "changes": 1},
+            {"type": "TL_updates_difference", "pts": 2, "seq": 2, "changes": 1},
+        ],
+    }
+    assert observed["codecs"] == [expected] * 8

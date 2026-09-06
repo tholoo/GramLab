@@ -147,8 +147,8 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                 ],
             }
 
-    def codec() -> dict[str, Any]:
-        directory = Path("codec-world")
+    def codec(index: int) -> dict[str, Any]:
+        directory = Path(f"codec-world-{index}")
         with World.create(directory, seed=19, now=1700000000) as world:
             world.create_user(first_name="Codec persona")
             world.create_user(first_name="Codec bot", is_bot=True)
@@ -181,7 +181,7 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     "/data/local/tmp/composer-codec.json",
                     timeout=30,
                 )
-                return dict(json.loads(retain("composer-codec.json", result)))
+                return dict(json.loads(retain(f"composer-codec-{index}.json", result)))
             finally:
                 command("shell", "rm", "-f", "/data/local/tmp/composer-codec.json")
 
@@ -230,6 +230,7 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                             return
                     self.send_response(response.status)
                     self.send_header("Content-Type", "application/json")
+                    self.send_header("Connection", "close")
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
@@ -365,6 +366,13 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
             "reply_ui": reply_ui,
             "launch": recovered_launch,
         }
+
+    if json.loads(Path("interruption.json").read_text())["boundary"] == "codec":
+        command("push", "/work/client.apk", "/data/local/tmp/composer-client.apk", timeout=30)
+        command("shell", "chmod", "0444", "/data/local/tmp/composer-client.apk")
+        # Repeated fresh worlds expose the observed native connection-reuse and
+        # forwarding failures without launching the unrelated chat application.
+        return {"codecs": [codec(index) for index in range(8)]}
 
     with World.create(Path("world"), seed=17, now=1700000000) as world:
         world.create_user(first_name="Sara", language_code="fa")
@@ -506,11 +514,6 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
             "launches": launches,
             "restarted": restarted,
             "loss": interrupted_send(configuration, bot_api.base_url, token, fixture),
-            # The independent serialization probe belongs to the original pre-ack case;
-            # the new storage interruption does not need to repeat that separate contract.
-            "codec": codec()
-            if json.loads(Path("interruption.json").read_text())["boundary"] == "before_ack"
-            else None,
         }
 
 

@@ -47,8 +47,8 @@ pre-storage cases. The latter verifies:
 - A real local bot sees one update and replies once; complete history and original captures remain
   in the existing report. The report identifies which interruption boundary was exercised.
 
-The independent TL serialization/rejection probe runs in the original pre-acknowledgment case;
-the pre-storage case does not duplicate that separate contract. Both cases retain the normal
+The independent TL serialization/rejection probe now runs in its own
+[codec transport test](android-transport-reliability.md), separately from both interruption cases. Both cases retain the normal
 Unicode, repeated-send, stale-draft and cold-restart checks.
 
 The focused JVM case passes in about two seconds; the focused Android case passes in about

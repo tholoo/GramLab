@@ -84,6 +84,7 @@ def live_gap(
                     )
                 self.send_response(response.status)
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Connection", "close")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
