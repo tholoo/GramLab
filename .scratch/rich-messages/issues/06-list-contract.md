@@ -1,8 +1,8 @@
 # Confirm the official rich-list contract
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: ready-for-review
+Work state: completed by `rich-list-references` on `task/rich-list-references`
 Blocked by: none
 
 ## Ownership
@@ -31,3 +31,15 @@ package dependency, source pin or fidelity-profile change is authorized by this 
 Commit only the owned note and ticket, check local links/privacy/diff, report exact reviewed
 revisions and unavailable facts, and leave the branch frozen for coordinator review. Do not run
 tests, build an APK, launch a guest or merge another branch for this research task.
+
+## Result
+
+The [reference note](../../../docs/development/rich-list-references.md) records the exact single
+`list` discriminator, recursive block item shape, checkbox fields, all five ordered label types,
+integer/default behavior, mixed-ordering rejection and canonical output. It distinguishes the
+Bot API interface from the richer pinned native schema and proposes disjoint core, GPL adapter and
+capture ownership.
+
+The pinned sources do not establish live production acceptance or size limits, nor Android pixel,
+wrapping, interaction or accessibility behavior. Those remain explicit integration gaps. No
+account, DC, guest, build, dependency or source pin was used or changed for this review.
