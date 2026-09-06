@@ -1,0 +1,127 @@
+{
+  "initial": {
+    "blocks": [
+      {
+        "type": "heading",
+        "size": 2,
+        "text": "Rich blocks"
+      },
+      {
+        "type": "paragraph",
+        "text": [
+          "Hello ",
+          {
+            "type": "bold",
+            "text": "GramLab"
+          },
+          " — سلام دنیا"
+        ]
+      },
+      {
+        "type": "table",
+        "is_bordered": true,
+        "cells": [
+          [
+            {
+              "text": "Language",
+              "is_header": true,
+              "align": "left",
+              "valign": "top"
+            },
+            {
+              "text": "Value",
+              "is_header": true,
+              "align": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "text": "فارسی",
+              "align": "right",
+              "valign": "top"
+            },
+            {
+              "text": "۱۲۳",
+              "align": "center",
+              "valign": "top"
+            }
+          ]
+        ]
+      },
+      {
+        "type": "blockquote",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "text": "Original Android rendering"
+          }
+        ]
+      }
+    ]
+  },
+  "edited": {
+    "is_rtl": true,
+    "blocks": [
+      {
+        "type": "heading",
+        "size": 2,
+        "text": "Rich blocks updated"
+      },
+      {
+        "type": "paragraph",
+        "text": [
+          "سلام ",
+          {
+            "type": "italic",
+            "text": "GramLab"
+          },
+          " — English فارسی"
+        ]
+      },
+      {
+        "type": "table",
+        "is_bordered": true,
+        "is_striped": true,
+        "is_compact": true,
+        "cells": [
+          [
+            {
+              "text": "زبان",
+              "is_header": true,
+              "align": "right",
+              "valign": "top"
+            },
+            {
+              "text": "Value",
+              "is_header": true,
+              "align": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "text": "فارسی",
+              "align": "right",
+              "valign": "top"
+            },
+            {
+              "text": "۴۵۶",
+              "align": "center",
+              "valign": "top"
+            }
+          ]
+        ]
+      },
+      {
+        "type": "blockquote",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "text": "Edited rich message"
+          }
+        ]
+      }
+    ]
+  }
+}
