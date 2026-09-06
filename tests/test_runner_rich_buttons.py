@@ -13,11 +13,18 @@ from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
 
 
-def project(directory: Path) -> Path:
+def project(directory: Path, *, example: str = "rich_inline") -> Path:
     directory.mkdir()
     for name in ("run.toml", "bot.py", "scenario.py"):
-        shutil.copy2(Path("examples/rich_inline") / name, directory / name)
+        shutil.copy2(Path("examples") / example / name, directory / name)
     return directory / "run.toml"
+
+
+def require_android() -> None:
+    profile = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if profile is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires the provisioned Android profile, approved APK and KVM")
 
 
 def verify(result: dict[str, Any], *, native: bool) -> None:
@@ -121,6 +128,7 @@ def test_rich_inline_real_bot_callback_and_edit(tmp_path: Path) -> None:
 
 @pytest.mark.android
 def test_rich_inline_native_callback_matches_simulation(tmp_path: Path) -> None:
+    require_android()
     manifest = project(tmp_path / "project")
     simulation = execute(manifest, tmp_path / "simulation", native=False)
     verify(simulation, native=False)
@@ -150,6 +158,7 @@ def test_rich_inline_native_callback_matches_simulation(tmp_path: Path) -> None:
 
 @pytest.mark.android
 def test_offscreen_rich_duplicate_rejects_before_input(tmp_path: Path) -> None:
+    require_android()
     manifest = project(tmp_path / "project")
     # The second response changes rich styling but keeps the accessible content identical.
     bot = manifest.parent / "bot.py"
@@ -201,3 +210,64 @@ expect(lab.events() == before, "Ambiguous input caused a world mutation")
     assert len(result["captures"]) == 3
     assert result["captures"][-1]["android"]["ui"].count("Heading 2, Rich choice") == 1
     assert (tmp_path / "android/report.html").read_text().count("data:image/png;base64,") == 3
+
+
+@pytest.mark.android
+def test_plain_multiline_target_ignores_another_messages_first_line(tmp_path: Path) -> None:
+    require_android()
+    manifest = project(tmp_path / "project", example="inline")
+    bot = manifest.parent / "bot.py"
+    bot.write_text(bot.read_text().replace("Choose an option — تأیید", "Choose an option\\nتأیید"))
+    scenario = manifest.parent / "scenario.py"
+    scenario.write_text(
+        scenario.read_text().replace(
+            "lab.capture_chat(",
+            'lab.send_message(chat_id=chat["id"], sender_id=lab.bots()["inline"], '
+            'text="Choose an option")\nlab.capture_chat(',
+            1,
+        )
+    )
+    simulation = execute(manifest, tmp_path / "simulation", native=False)
+    android = execute(manifest, tmp_path / "android", native=True)
+    for result in (simulation, android):
+        assert result["outcome"] == "passed", result
+        history = result["histories"]["1"]
+        assert history == [
+            {"id": 1, "chat_id": 1, "sender_id": 2, "date": 1700000000, "text": "سلام hello"},
+            {
+                "id": 2,
+                "chat_id": 1,
+                "sender_id": 1,
+                "date": 1700000000,
+                "edit_date": 1700000000,
+                "text": "Selected: confirm ✓",
+            },
+            {"id": 3, "chat_id": 1, "sender_id": 1, "date": 1700000000, "text": "Choose an option"},
+        ]
+        assert len(result["interactions"]) == 1
+        callback = result["interactions"][0]["callback"]
+        original = {
+            "id": 2,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "Choose an option\nتأیید",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [
+                        {"text": "Cancel", "callback_data": "cancel"},
+                        {"text": "Confirm", "callback_data": "wrong"},
+                    ],
+                    [{"text": "Confirm", "callback_data": "confirm"}],
+                ]
+            },
+        }
+        assert callback["message"] == original and callback["data"] == "confirm"
+        assert result["captures"][0]["history"][1] == original
+        callbacks = [event for event in result["events"] if event["type"] == "callback.created"]
+        assert len(callbacks) == 1 and callbacks[0]["data"]["message"] == original
+    for key in ("world", "histories"):
+        assert simulation[key] == android[key]
+    target = android["interactions"][0]["android"]["target"]
+    assert target["class"] == "android.widget.Button" and target["text"] == "Confirm"
+    assert (tmp_path / "android/report.html").read_text().count("data:image/png;base64,") == 2

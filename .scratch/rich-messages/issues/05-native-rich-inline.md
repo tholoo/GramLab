@@ -96,3 +96,23 @@ The coordinator owns shared documentation/matrix and CI/contributor typing-list 
 example README records usage and native identity limits. The full integrated gate remains the
 coordinator's responsibility. The initial unrelated startup failure remains unresolved; later
 passes do not establish its cause or claim a startup fix.
+
+
+## Coordinator review follow-up
+
+The native tests now use the existing infrastructure guard: unavailable Android profile, approved
+APK or KVM yields an explicit skip before starting a run. A missing-APK check confirms all three
+marked tests skip.
+
+Review identified an ordinary-message regression in whole-history ambiguity scanning: another
+plain message equal to the first line of a multiline target was treated as a duplicate. The new
+real-bot native regression retains that separate first-line message without a keyboard and must
+still select the complete multiline target once. The native red first rendered both messages, then falsely rejected the requested multiline
+target as ambiguous without creating a callback. After restoring exact full-text equality for
+ordinary/ordinary comparisons, the same native test passes in 71 seconds with one actual tap,
+complete original callback content, bot edit, identical simulation/Android world and history,
+and two original captures. Both green captures were inspected. Comparisons involving rich
+messages retain conservative observed-content checks. Focused Ruff/format/mypy checks pass;
+no APK, renderer, timeout or input-retry behavior changed. The two review-run handles are terminal
+and the shared guest lock is released. Earlier feature evidence remains recorded separately;
+this follow-up ran only the requested native red/green pair, not a repeated full gate.
