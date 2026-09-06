@@ -151,3 +151,20 @@ Static/Nix/workflow, links and public-tree privacy checks pass. See the
 [callback record](../../../docs/development/callback-world.md) for supported fields and deliberate
 limits. Actual Android keyboard/callback/live-edit translation, partial-mutation recovery,
 component filesystem boundaries and wider compatibility remain open. Keep the full goal active.
+
+2026-09-06 actual Android callback follow-up: the fifth GPL patch translates inline keyboards,
+callback requests/answers and ordered live message edits through the existing controller. A real
+tap creates the query, a bot killed after receipt replays it on restart, and the visible edited
+message survives a client cold restart. The shared simulation-only scenario has the same exact
+history and answer. Native emulator crashes were traced to generated graphics code; the documented
+SwiftShader-through-ANGLE software mode passes under the pinned app/emulator/image/display and
+independent isolation. The guest reports its actual graphics backend. Observation fixes wait for
+both messages and decode UIAutomator XML without relaxing assertions.
+
+All eight Android tests pass, including existing network/JNI/bridge/startup rejection checks.
+All 34 core tests pass at 91.47% coverage. Fresh preparation matches both adapter inputs and strict
+dependency metadata, preserving 6,666 upstream UI/resource files. Static/Nix/workflow, signature,
+manifest/ABI, local links and public-tree privacy checks pass. Screenshots and machine-specific
+diagnostics remain ignored. See the [callback evidence](../../../docs/development/android-callbacks.md).
+This ticket remains active: component mounts/quotas, media isolation, older cache/replica recovery
+and the wider compatibility/license acceptance are unfinished. No remote publication.

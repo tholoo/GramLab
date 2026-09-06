@@ -101,6 +101,7 @@ def test_dedicated_aosp_guest_boots_with_no_accounts(tmp_path: Path) -> None:
     observed = json.loads(result.stdout)
     assert observed["api"] == toolchain["sdk"]["platform"]
     assert observed["abi"] == toolchain["runtime"]["abi"]
+    assert "ANGLE" in observed["graphics"] and "SwiftShader" in observed["graphics"]
     assert "Accounts: 0" in observed["accounts"]
     assert observed["network"]["local"] == "gramlab-local-reply\n"
     assert observed["network"]["local_error"] == ""

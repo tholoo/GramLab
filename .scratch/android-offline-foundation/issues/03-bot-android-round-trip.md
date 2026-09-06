@@ -23,3 +23,10 @@ Implement only the methods required by the milestone with real validation and ex
 
 Bot API and client object mappings need independent expected fixtures. The server model must not
 silently accept unsupported operations simply to satisfy the UI.
+
+2026-09-06 partial evidence while ticket 02 remains active: the
+[actual callback loop](../../../docs/development/android-callbacks.md) now drives an accessible
+inline button through a real Android tap, a killed/restarted bot, live edit and answer, then a
+client cold restart. Simulation-only and Android share exact semantic expectations. The selected
+rich-message/media/emoji case, broader language combinations and ticket 02's remaining safety
+acceptance are still open; this does not close this ticket.

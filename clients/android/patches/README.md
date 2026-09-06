@@ -31,8 +31,14 @@ replace application request dispatch or activate synthetic lifecycle startup by 
 replaces Java read request dispatch and disables cloud startup/transport paths. Its restricted
 manifest enables the existing launch activity in a dedicated contained guest. See the
 [application evidence and limits](../../../docs/development/android-application.md).
-The real conversation renders; client writes, live updates and the tap/callback/edit loop remain
-open. Never install or run this build outside the required containment.
+The real plain-text conversation renders at this step. Never install or run this build outside
+the required containment.
+
+`0005-inline-callbacks-and-live-edits.patch` translates inline callback keyboards and edit dates,
+routes actual callback requests through authenticated HTTP and applies ordered semantic message
+events through the existing controller. See the [callback/edit evidence](../../../docs/development/android-callbacks.md)
+for the software graphics profile, real tap, interrupted bot recovery, visible edit and client
+restart, along with the narrower recovery and unsupported-operation limits.
 
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied

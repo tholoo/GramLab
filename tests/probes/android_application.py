@@ -108,7 +108,10 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, obj
                 )
                 if dumped.returncode == 0:
                     ui = adb("shell", "cat", "/data/local/tmp/gramlab-ui.xml").stdout
-                    if "Echo: سلام hello" in ui:
+                    if (
+                        ui.count('text="Echo: سلام hello') == 1
+                        and ui.count('text="سلام hello') == 1
+                    ):
                         break
                 time.sleep(1)
         adb("shell", "screencap", "-p", "/data/local/tmp/gramlab-ui.png")

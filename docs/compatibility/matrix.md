@@ -2,7 +2,8 @@
 
 An experimental [world/Bot API subset](../development/world-bot-prototype.md) now has local
 real-process evidence. [Synthetic Android startup](../development/android-application.md) renders
-a real plain-text bot exchange in the pinned client. Broader rendering fidelity and external
+a real plain-text bot exchange in the pinned client. The [Android callback loop](../development/android-callbacks.md)
+adds a real tap, callback answer, visible edit and bounded restart recovery. Broader rendering fidelity and external
 Bot API conformance remain unverified. This is a
 starting inventory, not an exhaustive or authoritative catalog of
 Telegram's current methods. Expand it from official sources at the selected version.
@@ -19,7 +20,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | --- | --- | --- |
 | Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Partial: local polling/acknowledgment; long polling and webhooks planned |
 | Messages/commands/deep links/replies | Full requests, entities, state effects and Android behavior | Partial: private plain-text HTTP exchange and actual Android rendering; entities planned |
-| Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Partial: callback-only HTTP keyboards, durable queries/answers and bot edits; actual Android tap pending |
+| Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Partial: callback-only keyboards, real Android tap/answer/edit, durable queries and HTTP stale/duplicate/wrong-actor checks; other button types planned |
 | Inline queries/results | Supported private/group/channel combinations and client result rendering | Planned |
 | Contexts/permissions | Private/group/supergroup/channel, privacy, admin, block/remove, migration, topics | Partial: private bot/chat capability checks |
 | Rich messages | Versioned API exposure, actual Android rich blocks/buttons/media and RTL | Planned |
@@ -29,7 +30,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | Mini Apps | Actual local app, Android WebView host bridge, launch/auth fixtures and egress blocking | Planned |
 | Business/payments/Stars/gifts | Source-derived scope; explicit local simulation vs unsupported settlement | Planned |
 | Localization | User/chat/bot/client language combinations; Persian/English, RTL/LTR and text expansion | Planned |
-| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; Android force-stop/relaunch and bot SIGKILL before callback handling; partial mutation recovery planned |
+| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; real tap followed by bot SIGKILL/replay and visible latest-message edit after Android restart; broader cache and partial mutation recovery planned |
 | Faults/limits | Documented validation plus labeled injections, byte/UTF-16 limits, 429/delay/ambiguous outcomes | Planned |
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Planned |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Planned |

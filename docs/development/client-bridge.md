@@ -72,6 +72,8 @@ The expanded 2026-09-06 core gate passes 34 tests with 91.47% statement coverage
 
 Snapshots currently include full history and have no pagination or resource quotas. The trusted
 fixture's data mount is still shared; HTTP authorization does not protect the database against
-code with direct filesystem access. A bot killed before callback handling can restart and complete delivery. Recovery after partial
-mutations, local projection transactions, live Java update translation and the actual Android
-tap/callback/edit loop remain foundation gates.
+code with direct filesystem access. A bot killed before callback handling can restart and complete
+delivery. The [Android callback loop](android-callbacks.md) now demonstrates actual tapping, live
+Java message edits and recovery of the latest edited message after client restart. Recovery after
+partial mutations, atomic local projection/cursor transactions, older cached-message reconciliation
+and live participant changes remain foundation gates.

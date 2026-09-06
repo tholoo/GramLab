@@ -7,6 +7,7 @@ import selectors
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -16,13 +17,17 @@ from gramlab.client_bridge import ClientBridge
 from gramlab.world import World
 
 
-def run() -> dict[str, Any]:
+def run(
+    interact: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    observe: Callable[[], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     directory = Path("world")
     with World.create(directory, seed=11, now=1700000000) as world:
         world.create_user(first_name="Sara", language_code="fa")
         world.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
         world.open_private_chat(user_id=1, bot_id=2)
         token, capability = world.issue_bot_token(2), world.issue_client_token(1)
+        world_id = world.world_id
         world.send_message(chat_id=1, sender_id=1, text="سلام hello")
     with BotAPIServer(directory) as server, ClientBridge(directory) as bridge:
         environment = {**os.environ, "GRAMLAB_BOT_API": server.base_url, "GRAMLAB_BOT_TOKEN": token}
@@ -84,10 +89,20 @@ def run() -> dict[str, Any]:
                 wait_event("prompt_ready")
                 with World.open(directory) as world:
                     world.advance_time(5)
-                before = client(
-                    "/v1/callbacks",
-                    {"request_id": "tap-1", "chat_id": 1, "message_id": 2, "data": "confirm"},
-                )
+                if interact is None:
+                    before = client(
+                        "/v1/callbacks",
+                        {"request_id": "tap-1", "chat_id": 1, "message_id": 2, "data": "confirm"},
+                    )
+                else:
+                    before = interact(
+                        {
+                            "endpoint": bridge.base_url,
+                            "capability": capability,
+                            "world_id": world_id,
+                            "user_id": 1,
+                        }
+                    )
                 wait_event("callback_received")
                 bot.kill()
                 tail, error = bot.communicate(timeout=5)
@@ -119,6 +134,8 @@ def run() -> dict[str, Any]:
                 "bot_before": records,
                 "bot_after": [json.loads(line) for line in recovered.stdout.splitlines()],
             }
+        if observe is not None:
+            result["client"] = observe()
         serialized = json.dumps(result)
         if token in serialized or capability in serialized or token in recovered.stderr:
             raise RuntimeError("Callback evidence contains a capability")

@@ -7,10 +7,11 @@ experimental Linux process boundary with real-process and dedicated AOSP guest t
 Android dependencies rebuild offline under strict verification. An experimental SQLite world
 drives a real local bot through HTTP; its reply now renders in the actual Telegram Android
 application through synthetic startup and a Java semantic read adapter. The upstream chat renderer
-is preserved. There is no public simulator SDK/CLI or complete interaction loop yet.
+is preserved. A bounded real inline-tap/callback/edit and bot/client recovery loop now has
+[Android evidence](android-callbacks.md). There is no public simulator SDK/CLI yet.
 
-The active goal remains the real bot → actual Android → real inline-button tap/callback → edit →
-bot/client recovery loop, followed by the wider agreed feature inventory. No real accounts or DC
+The bounded real bot → actual Android → inline-button tap/callback → edit → bot/client recovery
+loop is the first milestone of the active goal; the wider agreed feature inventory remains open. No real accounts or DC
 connections are permitted. Git has a configured `origin`; remote publication is not authorized.
 Host-specific settings, proxy addresses, process handles and generated artifacts stay ignored.
 
@@ -65,16 +66,35 @@ Storage version 3 preserves prior world identity/outbox and handles concurrent m
 bot killed after receiving a callback restarts, receives the same pending update, then edits,
 answers and acknowledges it. The new core gate passes 34 tests at 91.47% coverage; all seven
 existing Android tests still pass. New typing/workflow checks and public-tree privacy pass.
-This does not yet add Android keyboard/edited-message conversion or actual tapping.
+The [Android callback follow-up](android-callbacks.md) now adds keyboard/edit conversion, real
+callback dispatch and ordered live message events through the original controller. The actual
+button tap creates a callback; a bot killed before handling resumes the same update, edits and
+answers, and the edited message survives a client cold restart. The world and Android modes use
+the same semantic scenario. The fifth GPL patch changes only the two GramLab adapter classes.
+Fresh preparation matches both and preserves all 6,666 checked upstream UI/resource files.
 
-Next implement Android keyboard conversion, client callback dispatch and live edit updates through
-the same world. The current Java adapter rejects the new optional keyboard/edit fields explicitly;
-continue at that GPL boundary before claiming the full loop. Unknown RPCs must keep explicit failures. Do not assign the world event cursor to Telegram
-`pts`, invent empty successful responses to silence startup queries, or edit the renderer to
-compensate for incomplete state. Current support excludes read-state/presence semantics, broader
-pagination, Android callback/edit, media and Mini Apps. Component data mounts/quotas and complete license
-and source reconstruction audits remain open. The trusted bot fixture shares the supervisor's
-run data mount; do not describe it as separately filesystem-isolated.
+The legacy software graphics path crashed the emulator with SIGSEGV after inline input. A core
+dump localized the fault to generated graphics code; exact shader symbols were unavailable.
+The documented `swangle` mode (SwiftShader through ANGLE) passes the focused interaction loop
+under the same approved software-GPU direction and pinned app/emulator/image/display. The guest
+reports its actual graphics backend. Do not conflate earlier legacy-profile screenshots with a
+pixel-equivalence baseline. The full gate also exposed an observation race: wait for both messages,
+not just the cached bot reply, and decode UIAutomator XML entities when matching text.
+
+The final eight-test Android gate passes, including the real callback case and existing network,
+JNI, bridge and startup rejection tests. Python static, Nix/direnv/workflow, fresh preparation,
+APK signature/manifest/ABI, local links and public-tree privacy checks pass. Machine observations,
+crash diagnostics and generated UI evidence stay in ignored directories.
+The separate core gate passes 34 tests at 91.47% coverage. All build/test handles have completed;
+local artifact locations and completed handles are in ignored `.cache/local-notes/callback-world.md`.
+
+Continue ticket 02's component data mounts/quotas and media isolation, client text writes, older
+cached-message reconciliation and durable replica/command recovery. The current cursor is in
+memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and
+presence semantics, pagination, media and Mini Apps remain unsupported. The first bounded loop
+is evidence toward ticket 03, whose selected rich/media/emoji case remains open. Full source and
+license reconstruction audits and the wider versioned compatibility/scenario/report inventory
+remain active. Unknown operations must retain explicit failures; no remote publication.
 
 ## Earlier milestone history
 

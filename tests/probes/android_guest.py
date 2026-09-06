@@ -87,7 +87,7 @@ def main(
         "-no-boot-anim",
         "-no-snapshot",
         "-gpu",
-        "swiftshader",
+        "swangle",
         "-accel",
         "on",
         "-cores",
@@ -145,11 +145,19 @@ def main(
                     "fingerprint": ("shell", "getprop", "ro.build.fingerprint"),
                     "nc_help": ("shell", "toybox", "nc", "--help"),
                     "accounts": ("shell", "dumpsys", "account"),
+                    "graphics": ("shell", "dumpsys", "SurfaceFlinger"),
                 }.items():
                     observation = adb_command(*arguments)
                     if observation.returncode:
                         raise RuntimeError(f"Guest observation {name} failed: {observation.stderr}")
-                    observations[name] = observation.stdout.strip()
+                    if name == "graphics":
+                        observations[name] = next(
+                            line
+                            for line in observation.stdout.splitlines()
+                            if line.startswith("GLES:")
+                        )
+                    else:
+                        observations[name] = observation.stdout.strip()
                 observations["network"] = probe_network(adb_command)
                 observations["routes"] = adb_command(
                     "shell", "ip", "route", "show", "table", "all"
@@ -168,6 +176,9 @@ def main(
                 observations["boot_seconds"] = time.monotonic() - started
                 Path("guest.json").write_text(json.dumps(observations, indent=2) + "\n")
                 print(json.dumps(observations), flush=True)
+            except BaseException:
+                print(f"Dedicated guest exit on failure: {guest.poll()}", file=sys.stderr)
+                raise
             finally:
                 if guest.poll() is None:
                     guest.terminate()

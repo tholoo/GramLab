@@ -1,0 +1,387 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -1,10 +1,13 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ package org.telegram.gramlab;
+ 
++import android.os.SystemClock;
+ import org.json.JSONArray;
+ import org.json.JSONException;
+ import org.json.JSONObject;
+ import org.telegram.tgnet.TLRPC;
++import org.telegram.tgnet.tl.TL_keyboard;
++import org.telegram.tgnet.tl.TL_update;
+ 
+ import java.io.ByteArrayOutputStream;
+ import java.io.InputStream;
+@@ -12,7 +15,9 @@
+ import java.net.Proxy;
+ import java.net.URL;
+ import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
+ import java.util.Arrays;
++import java.util.UUID;
+ import java.util.Collections;
+ import java.util.HashSet;
+ import java.util.Iterator;
+@@ -86,7 +91,63 @@
+         return peer;
+     }
+ 
+-    public static Snapshot connect(JSONObject configuration) throws Exception {
++    private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
++        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date");
++        long sender = identifier(record, "sender_id");
++        require(sender == persona || sender == bot);
++        TLRPC.TL_message message = new TLRPC.TL_message();
++        message.id = integer(record, "id");
++        require(message.id > 0);
++        message.from_id = peer(sender);
++        message.out = sender == persona;
++        message.peer_id = peer(message.out ? bot : persona);
++        message.dialog_id = bot;
++        message.date = integer(record, "date");
++        message.message = record.getString("text");
++        require(!message.message.isEmpty());
++        message.media = new TLRPC.TL_messageMediaEmpty();
++        message.flags = (1 << 8) | (1 << 9);
++        if (record.has("edit_date")) {
++            message.edit_date = integer(record, "edit_date");
++            require(message.edit_date >= message.date);
++            message.flags |= 1 << 15;
++        }
++        if (record.has("reply_markup")) {
++            require(sender == bot);
++            message.reply_markup = keyboard(record.getJSONObject("reply_markup"));
++            message.flags |= 1 << 6;
++        }
++        return message;
++    }
++
++    private static TLRPC.TL_replyInlineMarkup keyboard(JSONObject value) throws JSONException {
++        fields(value, "inline_keyboard");
++        TLRPC.TL_replyInlineMarkup result = new TLRPC.TL_replyInlineMarkup();
++        JSONArray rows = value.getJSONArray("inline_keyboard");
++        for (int rowIndex = 0; rowIndex < rows.length(); rowIndex++) {
++            JSONArray buttons = rows.getJSONArray(rowIndex);
++            TL_keyboard.TL_keyboardInlineButtonRow row = new TL_keyboard.TL_keyboardInlineButtonRow();
++            for (int buttonIndex = 0; buttonIndex < buttons.length(); buttonIndex++) {
++                JSONObject record = buttons.getJSONObject(buttonIndex);
++                fields(record, "text", "callback_data");
++                require(record.get("text") instanceof String && record.get("callback_data") instanceof String);
++                TL_keyboard.TL_keyboardInlineButton button = new TL_keyboard.TL_keyboardInlineButton();
++                button.text = record.getString("text");
++                require(!button.text.isEmpty());
++                TL_keyboard.TL_inlineButtonTypeCallback type = new TL_keyboard.TL_inlineButtonTypeCallback();
++                type.data = record.getString("callback_data").getBytes(StandardCharsets.UTF_8);
++                require(type.data.length > 0 && type.data.length <= 64);
++                button.type = type;
++                row.buttons.add(button);
++            }
++            require(!row.buttons.isEmpty());
++            result.rows.add(row);
++        }
++        require(!result.rows.isEmpty());
++        return result;
++    }
++
++    private static JSONObject exchange(JSONObject configuration, String path, JSONObject parameters) throws Exception {
+         fields(configuration, "endpoint", "capability", "world_id", "user_id");
+         URL endpoint = new URL(configuration.getString("endpoint"));
+         require("http".equals(endpoint.getProtocol())
+@@ -99,7 +160,7 @@
+         require(capability.matches("gramlab-client_[A-Za-z0-9_-]{43}"));
+         long persona = identifier(configuration, "user_id");
+         String worldId = configuration.getString("world_id");
+-        URL target = new URL(endpoint, "/v1/snapshot");
++        URL target = new URL(endpoint, path);
+         HttpURLConnection connection = (HttpURLConnection) target.openConnection(Proxy.NO_PROXY);
+         connection.setInstanceFollowRedirects(false);
+         connection.setConnectTimeout(3000);
+@@ -107,8 +168,18 @@
+         connection.setUseCaches(false);
+         connection.setRequestProperty("Authorization", "Bearer " + capability);
+         connection.setRequestProperty("Accept", "application/json");
++        byte[] payload = parameters == null ? null : parameters.toString().getBytes(StandardCharsets.UTF_8);
++        if (payload != null) {
++            connection.setRequestMethod("POST");
++            connection.setDoOutput(true);
++            connection.setFixedLengthStreamingMode(payload.length);
++            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
++        }
+         JSONObject body;
+         try {
++            if (payload != null) {
++                try (java.io.OutputStream output = connection.getOutputStream()) { output.write(payload); }
++            }
+             int status = connection.getResponseCode();
+             if (status != 200) {
+                 throw new IllegalStateException("GRAMLAB_BRIDGE_HTTP_" + status);
+@@ -126,6 +197,15 @@
+         } finally {
+             connection.disconnect();
+         }
++        require(integer(body, "schema") == 1 && worldId.equals(body.getString("world_id"))
++                && identifier(body, "user_id") == persona);
++        return body;
++    }
++
++    public static Snapshot connect(JSONObject configuration) throws Exception {
++        JSONObject body = exchange(configuration, "/v1/snapshot", null);
++        String worldId = configuration.getString("world_id");
++        long persona = identifier(configuration, "user_id");
+         fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages");
+         require(integer(body, "schema") == 1 && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+@@ -197,24 +277,12 @@
+         }
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "chat_id", "sender_id", "date", "text");
++            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date");
+             long chat = identifier(record, "chat_id");
+             require(peersByChat.containsKey(chat));
+             long bot = peersByChat.get(chat);
+-            long sender = identifier(record, "sender_id");
+-            require(sender == persona || sender == bot);
+-            TLRPC.TL_message message = new TLRPC.TL_message();
+-            message.id = integer(record, "id");
+-            require(message.id > 0 && seen.get(chat).add(message.id));
+-            message.from_id = peer(sender);
+-            message.out = sender == persona;
+-            message.peer_id = peer(message.out ? bot : persona);
+-            message.dialog_id = bot;
+-            message.date = integer(record, "date");
+-            message.message = record.getString("text");
+-            require(!message.message.isEmpty());
+-            message.media = new TLRPC.TL_messageMediaEmpty();
+-            message.flags = (1 << 8) | (1 << 9);
++            TLRPC.TL_message message = message(record, persona, bot);
++            require(seen.get(chat).add(message.id));
+             histories.get(bot).messages.add(message);
+         }
+         for (Map.Entry<Long, Long> entry : peersByChat.entrySet()) {
+@@ -228,4 +296,118 @@
+         }
+         return new Snapshot(worldId, persona, cursor, now, dialogs, histories, chatIdsByPeer);
+     }
++
++    public static final class EventBatch {
++        public final long cursor;
++        public final int now;
++        public final ArrayList<TLRPC.Update> updates;
++        private EventBatch(long cursor, int now, ArrayList<TLRPC.Update> updates) {
++            this.cursor = cursor; this.now = now; this.updates = updates;
++        }
++    }
++
++    private static long peerForChat(Snapshot state, long chat) {
++        for (Map.Entry<Long, Long> entry : state.chatIdsByPeer.entrySet()) {
++            if (entry.getValue() == chat) return entry.getKey();
++        }
++        throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_CHAT");
++    }
++
++    public static EventBatch events(JSONObject configuration, Snapshot state, long after) throws Exception {
++        require(after >= 0);
++        JSONObject body = exchange(configuration, "/v1/events?after=" + after, null);
++        fields(body, "schema", "world_id", "user_id", "cursor", "head", "events");
++        long cursor = nonnegative(body, "cursor");
++        require(cursor >= after && cursor <= nonnegative(body, "head"));
++        int now = state.now;
++        ArrayList<TLRPC.Update> updates = new ArrayList<>();
++        JSONArray events = body.getJSONArray("events");
++        long previous = after;
++        for (int i = 0; i < events.length(); i++) {
++            JSONObject event = events.getJSONObject(i);
++            fields(event, "sequence", "type", "data");
++            long sequence = identifier(event, "sequence");
++            require(sequence > previous && sequence <= cursor);
++            previous = sequence;
++            String type = event.getString("type");
++            JSONObject data = event.getJSONObject("data");
++            if ("message.created".equals(type) || "message.edited".equals(type)) {
++                long peer = peerForChat(state, identifier(data, "chat_id"));
++                TLRPC.TL_message message = message(data, state.persona, peer);
++                if ("message.created".equals(type)) {
++                    TL_update.TL_updateNewMessage update = new TL_update.TL_updateNewMessage();
++                    update.message = message;
++                    updates.add(update);
++                } else {
++                    TL_update.TL_updateEditMessage update = new TL_update.TL_updateEditMessage();
++                    update.message = message;
++                    updates.add(update);
++                }
++            } else if ("clock.advanced".equals(type)) {
++                fields(data, "now");
++                now = Math.max(now, integer(data, "now"));
++            } else if ("callback.created".equals(type)) {
++                fields(data, "id", "user_id", "chat_id", "message", "data", "chat_instance");
++                require(identifier(data, "user_id") == state.persona);
++                peerForChat(state, identifier(data, "chat_id"));
++            } else if ("callback.answered".equals(type)) {
++                fields(data, "id", "user_id", "answer");
++                require(identifier(data, "user_id") == state.persona);
++                answer(data.getJSONObject("answer"));
++            } else {
++                // New participants require snapshot reconciliation, which is a separate capability.
++                throw new UnsupportedOperationException("GRAMLAB_UNSUPPORTED_CLIENT_EVENT");
++            }
++        }
++        // These are semantic controller inputs, not fabricated MTProto packets or pts values.
++        return new EventBatch(cursor, now, updates);
++    }
++
++    private static TLRPC.TL_messages_botCallbackAnswer answer(JSONObject data) throws JSONException {
++        fields(data, "text", "show_alert", "cache_time");
++        require(data.get("text") instanceof String && data.get("show_alert") instanceof Boolean);
++        require(integer(data, "cache_time") == 0);
++        String text = data.getString("text");
++        require(text.codePointCount(0, text.length()) <= 200);
++        TLRPC.TL_messages_botCallbackAnswer result = new TLRPC.TL_messages_botCallbackAnswer();
++        result.alert = data.getBoolean("show_alert");
++        if (!text.isEmpty()) { result.message = text; result.flags |= 1; }
++        if (result.alert) result.flags |= 1 << 1;
++        result.cache_time = 0;
++        return result;
++    }
++
++    public static TLRPC.TL_messages_botCallbackAnswer callback(JSONObject configuration, Snapshot state,
++            TLRPC.TL_messages_getBotCallbackAnswer query) throws Exception {
++        if (query.peer == null || !state.chatIdsByPeer.containsKey(query.peer.user_id)
++                || query.game || query.password != null || (query.flags & ~1) != 0) {
++            throw new UnsupportedOperationException();
++        }
++        require(query.msg_id > 0 && query.data != null && query.data.length > 0 && query.data.length <= 64);
++        String data = new String(query.data, StandardCharsets.UTF_8);
++        require(Arrays.equals(query.data, data.getBytes(StandardCharsets.UTF_8)));
++        long chat = state.chatIdsByPeer.get(query.peer.user_id);
++        JSONObject parameters = new JSONObject().put("request_id", UUID.randomUUID().toString())
++                .put("chat_id", chat).put("message_id", query.msg_id).put("data", data);
++        JSONObject body = exchange(configuration, "/v1/callbacks", parameters);
++        long deadline = SystemClock.elapsedRealtime() + 15000;
++        String id = null;
++        while (true) {
++            fields(body, "schema", "world_id", "user_id", "callback");
++            JSONObject record = body.getJSONObject("callback");
++            fields(record, "id", "user_id", "chat_id", "message", "data", "chat_instance", "answer");
++            String receivedId = record.getString("id");
++            require(receivedId.matches("[A-Za-z0-9_-]{1,128}") && (id == null || id.equals(receivedId)));
++            id = receivedId;
++            require(identifier(record, "user_id") == state.persona && identifier(record, "chat_id") == chat
++                    && identifier(record.getJSONObject("message"), "id") == query.msg_id
++                    && data.equals(record.getString("data")));
++            if (!record.isNull("answer")) return answer(record.getJSONObject("answer"));
++            if (SystemClock.elapsedRealtime() >= deadline) {
++                throw new IllegalStateException("GRAMLAB_CALLBACK_ANSWER_TIMEOUT");
++            }
++            Thread.sleep(100);
++            body = exchange(configuration, "/v1/callbacks/" + id, null);
++        }
++    }
+ }
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -20,6 +20,7 @@
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.util.Map;
++import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.CountDownLatch;
+ import java.util.concurrent.ExecutorService;
+@@ -30,6 +31,11 @@
+ public final class GramLabRuntime {
+     private static volatile GramLabBridge.Snapshot snapshot;
+     private static JSONObject configuration;
++    private static volatile int worldTime;
++    private static volatile long eventCursor;
++    private static boolean eventLoopStarted;
++    private static final ScheduledExecutorService eventWorker = Executors.newSingleThreadScheduledExecutor(
++            action -> new Thread(action, "GramLabEvents"));
+     private static File directory;
+     private static final ExecutorService worker = Executors.newSingleThreadExecutor(
+             action -> new Thread(action, "GramLabBridge"));
+@@ -81,6 +87,8 @@
+                         java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+             }
+             snapshot = loaded;
++            worldTime = loaded.now;
++            eventCursor = loaded.cursor;
+             trace("initialized", "snapshot", 0, 0);
+         } catch (Exception failure) {
+             String reason = failure instanceof StartupRejected
+@@ -117,6 +125,40 @@
+             Thread.currentThread().interrupt();
+             throw new IllegalStateException("GRAMLAB_DIALOG_CACHE_INTERRUPTED");
+         }
++        startEventLoop();
++    }
++
++    private static synchronized void startEventLoop() {
++        if (eventLoopStarted) return;
++        eventLoopStarted = true;
++        eventWorker.scheduleWithFixedDelay(() -> {
++            long after = eventCursor;
++            try {
++                GramLabBridge.Snapshot current = requireSnapshot();
++                GramLabBridge.EventBatch batch = GramLabBridge.events(configuration, current, after);
++                CountDownLatch applied = new CountDownLatch(1);
++                Utilities.stageQueue.postRunnable(() -> {
++                    try {
++                        if (eventCursor != after) return;
++                        // Apply an authoritative semantic difference through the stock controller.
++                        // Global journal positions are never passed as Telegram pts/seq values.
++                        if (!batch.updates.isEmpty() && !MessagesController.getInstance(0).processUpdateArray(
++                                batch.updates, current.dialogs.users, current.dialogs.chats, true, batch.now)) {
++                            trace("event_rejected", "controller", 0, 0);
++                            return;
++                        }
++                        worldTime = Math.max(worldTime, batch.now);
++                        eventCursor = batch.cursor;
++                        if (!batch.updates.isEmpty()) trace("events_applied", "messages", 0, batch.updates.size());
++                    } finally {
++                        applied.countDown();
++                    }
++                });
++                if (!applied.await(5, TimeUnit.SECONDS)) trace("event_wait_timeout", "controller", 0, 0);
++            } catch (Exception failure) {
++                trace("event_error", failure.getClass().getSimpleName(), 0, 0);
++            }
++        }, 0, 250, TimeUnit.MILLISECONDS);
+     }
+ 
+     private static GramLabBridge.Snapshot requireSnapshot() {
+@@ -125,7 +167,7 @@
+         return current;
+     }
+ 
+-    public static int now() { return requireSnapshot().now; }
++    public static int now() { requireSnapshot(); return worldTime; }
+ 
+     public static synchronized void trace(String event, String method, int account, int token) {
+         if (directory == null) return;
+@@ -184,12 +226,19 @@
+                 if (!(request instanceof TLRPC.TL_messages_getDialogs
+                         || request instanceof TLRPC.TL_messages_getHistory
+                         || request instanceof TLRPC.TL_users_getUsers
+-                        || request instanceof TLRPC.TL_users_getFullUser)) {
++                        || request instanceof TLRPC.TL_users_getFullUser
++                        || request instanceof TLRPC.TL_messages_getBotCallbackAnswer)) {
+                     throw new UnsupportedOperationException();
+                 }
+                 GramLabBridge.Snapshot current = GramLabBridge.connect(configuration);
+                 snapshot = current;
+-                response = dispatch(request, current);
++                worldTime = Math.max(worldTime, current.now);
++                if (request instanceof TLRPC.TL_messages_getBotCallbackAnswer) {
++                    response = GramLabBridge.callback(configuration, current,
++                            (TLRPC.TL_messages_getBotCallbackAnswer) request);
++                } else {
++                    response = dispatch(request, current);
++                }
+             } catch (UnsupportedOperationException unsupported) {
+                 error = new TLRPC.TL_error();
+                 error.code = 501;

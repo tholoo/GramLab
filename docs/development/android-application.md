@@ -109,3 +109,7 @@ The contained offline build completed, v1/v2 signatures verify, and the binary m
 x86_64 libraries were inspected. The observed local APK has SHA-256
 `a123bc68f9fea6c4b27aa2c9d9a9bbe9a0a07316d95597789e047f81a2a63df4`.
 This identifies test evidence, not a reproducible release artifact or distribution approval.
+
+The subsequent [callback/edit milestone](android-callbacks.md) extends this startup with real inline
+input, live edits and bounded bot/client recovery. It uses SwiftShader through ANGLE after a native
+crash in the legacy software graphics path. Earlier evidence above retains its original profile.
