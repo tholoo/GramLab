@@ -30,6 +30,8 @@ def test_synthetic_world_opens_the_real_client_chat(tmp_path: Path) -> None:
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
+    shutil.copy2("tests/probes/emulator_process.py", tmp_path / "emulator_process.py")
     component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
     (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
     shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")

@@ -36,6 +36,8 @@ def test_real_android_tap_replays_after_bot_kill_and_renders_the_edit_after_clie
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
+    shutil.copy2("tests/probes/emulator_process.py", tmp_path / "emulator_process.py")
     component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
     (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
     shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")
@@ -58,6 +60,13 @@ def test_real_android_tap_replays_after_bot_kill_and_renders_the_edit_after_clie
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "bot" / "launch-count").read_text() == "2"
     guest = json.loads(result.stdout)
+    assert guest["emulator_filesystem"] == {
+        "world_visible": False,
+        "bot_visible": False,
+        "private_avd_visible": True,
+        "same_pid_namespace": False,
+        "same_network": True,
+    }
     assert "ANGLE" in guest["graphics"] and "SwiftShader" in guest["graphics"]
     observed = guest["extra_probe"]
     assert observed["killed"] == -signal.SIGKILL

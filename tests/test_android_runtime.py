@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import zipfile
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -83,7 +84,14 @@ def test_dedicated_aosp_guest_boots_with_no_accounts(tmp_path: Path) -> None:
         f"system-images;android-{toolchain['sdk']['platform']};"
         f"{toolchain['runtime']['imageType']};{toolchain['runtime']['abi']}"
     )
-    result = Sandbox(profile).run(
+    (tmp_path / "world-secret").write_text("synthetic authoritative world data")
+    (tmp_path / "bot-secret").write_text("synthetic private bot state")
+    shutil.copytree(
+        "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
+    shutil.copy2("tests/probes/emulator_process.py", tmp_path / "emulator_process.py")
+    result = Sandbox(profile).supervise(
         [
             profile.python,
             "-c",
@@ -99,6 +107,13 @@ def test_dedicated_aosp_guest_boots_with_no_accounts(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     observed = json.loads(result.stdout)
+    assert observed["emulator_filesystem"] == {
+        "world_visible": False,
+        "bot_visible": False,
+        "private_avd_visible": True,
+        "same_pid_namespace": False,
+        "same_network": True,
+    }
     assert observed["api"] == toolchain["sdk"]["platform"]
     assert observed["abi"] == toolchain["runtime"]["abi"]
     assert "ANGLE" in observed["graphics"] and "SwiftShader" in observed["graphics"]
@@ -133,7 +148,12 @@ def test_native_transport_request_is_rejected_before_network_initialization(tmp_
         (tmp_path / "libtmessages.49.so").write_bytes(archive.read("lib/x86_64/libtmessages.49.so"))
     for name in ("android_guest.py", "android_native_guard.py"):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
-    result = Sandbox(profile).run(
+    shutil.copytree(
+        "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
+    shutil.copy2("tests/probes/emulator_process.py", tmp_path / "emulator_process.py")
+    result = Sandbox(profile).supervise(
         [
             profile.python,
             "/work/android_native_guard.py",
@@ -154,3 +174,61 @@ def test_native_transport_request_is_rejected_before_network_initialization(tmp_
         "initialization_blocked": True,
         "buffer_round_trip": True,
     }
+
+
+@pytest.mark.parametrize("supervisor_kvm", [False, True])
+def test_component_kvm_requires_both_outer_and_component_opt_in(
+    tmp_path: Path, supervisor_kvm: bool
+) -> None:
+    manifest = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    if manifest is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires the Android profile and accessible KVM")
+    profile = RuntimeProfile.load(Path(manifest))
+    shutil.copytree(
+        "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    (tmp_path / "profile.json").write_text(json.dumps(asdict(profile)))
+    data = tmp_path / "component"
+    data.mkdir()
+    (data / "probe.py").write_text(
+        """
+import fcntl, json, os
+try:
+    descriptor = os.open('/dev/kvm', os.O_RDWR)
+except FileNotFoundError:
+    print(json.dumps({'kvm': 'unavailable'}))
+else:
+    try:
+        print(json.dumps({'kvm': fcntl.ioctl(descriptor, 0xAE00, 0)}))
+    finally:
+        os.close(descriptor)
+"""
+    )
+    (tmp_path / "supervisor.py").write_text(
+        """
+import json, pathlib
+from gramlab.runtime import RuntimeProfile, Sandbox
+profile = RuntimeProfile(**json.loads(pathlib.Path('profile.json').read_text()))
+command = [profile.python, '/work/probe.py']
+results = []
+with Sandbox(profile).component(command, data=pathlib.Path('component')) as child:
+    stdout, stderr = child.communicate(timeout=5)
+    results.append({'returncode': child.returncode, 'stdout': stdout, 'stderr': stderr})
+with Sandbox(profile).component(command, data=pathlib.Path('component'), kvm=True) as child:
+    stdout, stderr = child.communicate(timeout=5)
+    results.append({'returncode': child.returncode, 'stdout': stdout, 'stderr': stderr})
+print(json.dumps(results))
+"""
+    )
+    result = Sandbox(profile).supervise(
+        [profile.python, "/work/supervisor.py"], data=tmp_path, kvm=supervisor_kvm
+    )
+    assert result.returncode == 0, result.stderr
+    denied, requested = json.loads(result.stdout)
+    assert denied == {"returncode": 0, "stdout": '{"kvm": "unavailable"}\n', "stderr": ""}
+    if supervisor_kvm:
+        assert requested == {"returncode": 0, "stdout": '{"kvm": 12}\n', "stderr": ""}
+    else:
+        assert requested["returncode"] != 0
+        assert requested["stdout"] == ""
+        assert "/dev/kvm" in requested["stderr"]

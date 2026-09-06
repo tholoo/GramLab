@@ -4,7 +4,8 @@ Ticket 02 now has an independently written Python containment runner in
 [`gramlab.runtime`](../../src/gramlab/runtime.py). It is an internal prototype interface, not
 the public world/scenario API. The pinned Android tools and a dedicated AOSP guest now run through
 it, as does the [real bot/Android callback loop](android-callbacks.md). Real bots now use
-[private component filesystems and process namespaces](component-boundary.md) within the run.
+[private component filesystems and process namespaces](component-boundary.md) within the run;
+the emulator now uses a separate component with explicit KVM access as well.
 The [offline requirements](offline-safety.md) still
 apply to those integrations.
 
@@ -133,6 +134,11 @@ filesystem, default KVM denial versus explicit API access, and a new account-fre
 with its own ADB server, fixed emulator serial and new AVD. It retains tool/emulator logs, guest
 properties/routes, a screenshot and the network outcomes in the run directory. No host ADB
 server, personal device, account or pre-existing AVD is accessible.
+
+The current [component follow-up](component-boundary.md#emulator-filesystem-follow-up) keeps ADB
+in trusted run orchestration and moves AVD creation/QEMU into a private component. Emulator and
+AVD-manager logs now live under `emulator/` in each retained run. The actual QEMU root/PID/network
+observations distinguish filesystem separation from shared local service reachability.
 
 The preparation profile uses emulator 37.1.11, AOSP API 36 default x86_64 revision 2, KVM,
 SwiftShader, two virtual CPUs and 2048 MiB guest memory. The observed default display is 320×640

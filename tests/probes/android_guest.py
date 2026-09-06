@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import socket
 import socketserver
 import subprocess
@@ -10,6 +11,36 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
+
+from gramlab.runtime import RuntimeProfile, Sandbox
+
+
+def probe_emulator_filesystem() -> dict[str, object]:
+    """Observe the running QEMU process through this trusted supervisor's /proc."""
+    processes = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            executable = (entry / "exe").readlink()
+        except FileNotFoundError:
+            continue
+        if executable.name in ("qemu-system-x86_64", "qemu-system-x86_64-headless"):
+            processes.append(entry)
+    if len(processes) != 1:
+        raise RuntimeError(f"Expected one dedicated QEMU process, found {len(processes)}")
+    process = processes[0]
+    root = process / "root"
+    return {
+        "world_visible": any(
+            (root / name).exists() for name in ("work/world-secret", "work/world")
+        ),
+        "bot_visible": any((root / name).exists() for name in ("work/bot-secret", "work/bot")),
+        "private_avd_visible": (root / "work/avd/config.ini").is_file(),
+        "same_pid_namespace": (process / "ns/pid").readlink()
+        == Path("/proc/self/ns/pid").readlink(),
+        "same_network": (process / "ns/net").readlink() == Path("/proc/self/ns/net").readlink(),
+    }
 
 
 def probe_network(
@@ -56,137 +87,94 @@ def main(
     emulator, adb, avdmanager, image_package = sys.argv[1:]
     for variable in ("HOME", "ANDROID_USER_HOME", "ANDROID_AVD_HOME", "XDG_CACHE_HOME"):
         Path(os.environ[variable]).mkdir(parents=True, exist_ok=True)
-    print("Creating dedicated AVD from the cached system image", file=sys.stderr, flush=True)
-    prepared = subprocess.run(  # noqa: S603 — trusted profile executables
-        [
-            avdmanager,
-            "create",
-            "avd",
-            "--name",
-            "gramlab-probe",
-            "--package",
-            image_package,
-            "--path",
-            "/work/avd",
-        ],
-        input="no\n",
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    Path("avdmanager.log").write_text(prepared.stdout + prepared.stderr)
-    if prepared.returncode:
-        raise RuntimeError(f"AVD creation failed: {prepared.stdout}\n{prepared.stderr}")
-    command = [
-        emulator,
-        "-avd",
-        "gramlab-probe",
-        "-no-window",
-        "-no-audio",
-        "-no-boot-anim",
-        "-no-snapshot",
-        "-gpu",
-        "swangle",
-        "-accel",
-        "on",
-        "-cores",
-        "2",
-        "-memory",
-        "2048",
-        "-port",
-        "5554",
-        "-camera-back",
-        "none",
-        "-camera-front",
-        "none",
-        "-dns-server",
-        "192.0.2.53",
-        "-no-metrics",
-    ]
+    profile = RuntimeProfile(**json.loads(Path("emulator-profile.json").read_text()))
+    data = Path("emulator")
+    data.mkdir()
+    shutil.copy2("emulator_process.py", data / "emulator_process.py")
+    command = [profile.python, "/work/emulator_process.py", emulator, avdmanager, image_package]
     print("Starting the isolated AOSP guest", file=sys.stderr, flush=True)
     started = time.monotonic()
-    with Path("emulator.log").open("w") as log:
-        with subprocess.Popen(  # noqa: S603 — trusted profile, fixed emulator arguments
-            command, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT
-        ) as guest:
-            try:
+    with Sandbox(profile).component(command, data=data, kvm=True) as guest:
+        try:
 
-                def adb_command(
-                    *arguments: str, timeout: float = 10, input: str | None = None
-                ) -> subprocess.CompletedProcess[str]:
-                    return subprocess.run(  # noqa: S603 — dedicated namespace/serial only
-                        [adb, "-s", "emulator-5554", *arguments],
-                        capture_output=True,
-                        text=True,
-                        input=input,
-                        timeout=timeout,
-                        check=False,
-                    )
-
-                ready = False
-                while time.monotonic() - started < 120:
-                    if guest.poll() is not None:
-                        raise RuntimeError(
-                            f"Emulator exited {guest.returncode}:\n"
-                            + Path("emulator.log").read_text()
-                        )
-                    boot = adb_command("shell", "getprop", "sys.boot_completed")
-                    if boot.returncode == 0 and boot.stdout.strip() == "1":
-                        ready = True
-                        break
-                    time.sleep(1)
-                if not ready:
-                    raise RuntimeError("Guest did not complete boot within 120 seconds")
-                observations: dict[str, object] = {}
-                for name, arguments in {
-                    "api": ("shell", "getprop", "ro.build.version.sdk"),
-                    "abi": ("shell", "getprop", "ro.product.cpu.abi"),
-                    "fingerprint": ("shell", "getprop", "ro.build.fingerprint"),
-                    "nc_help": ("shell", "toybox", "nc", "--help"),
-                    "accounts": ("shell", "dumpsys", "account"),
-                    "graphics": ("shell", "dumpsys", "SurfaceFlinger"),
-                }.items():
-                    observation = adb_command(*arguments)
-                    if observation.returncode:
-                        raise RuntimeError(f"Guest observation {name} failed: {observation.stderr}")
-                    if name == "graphics":
-                        observations[name] = next(
-                            line
-                            for line in observation.stdout.splitlines()
-                            if line.startswith("GLES:")
-                        )
-                    else:
-                        observations[name] = observation.stdout.strip()
-                observations["network"] = probe_network(adb_command)
-                observations["routes"] = adb_command(
-                    "shell", "ip", "route", "show", "table", "all"
-                ).stdout
-                observations["interfaces"] = adb_command("shell", "ip", "address").stdout
-                observations["host_interfaces"] = socket.if_nameindex()
-                if extra_probe is not None:
-                    observations["extra_probe"] = extra_probe(adb_command)
-                screenshot = subprocess.run(  # noqa: S603 — dedicated namespace/serial only
-                    [adb, "-s", "emulator-5554", "exec-out", "screencap", "-p"],
+            def adb_command(
+                *arguments: str, timeout: float = 10, input: str | None = None
+            ) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(  # noqa: S603 — dedicated namespace/serial only
+                    [adb, "-s", "emulator-5554", *arguments],
                     capture_output=True,
-                    timeout=10,
-                    check=True,
+                    text=True,
+                    input=input,
+                    timeout=timeout,
+                    check=False,
                 )
-                Path("guest.png").write_bytes(screenshot.stdout)
-                observations["boot_seconds"] = time.monotonic() - started
-                Path("guest.json").write_text(json.dumps(observations, indent=2) + "\n")
-                print(json.dumps(observations), flush=True)
-            except BaseException:
-                print(f"Dedicated guest exit on failure: {guest.poll()}", file=sys.stderr)
-                raise
-            finally:
-                if guest.poll() is None:
-                    guest.terminate()
-                    try:
-                        guest.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        guest.kill()
-                        guest.wait()
+
+            ready = False
+            while time.monotonic() - started < 120:
+                if guest.poll() is not None:
+                    raise RuntimeError(
+                        f"Emulator exited {guest.returncode}:\n"
+                        + (
+                            (data / "emulator.log").read_text()
+                            if (data / "emulator.log").exists()
+                            else guest.communicate(timeout=5)[1]
+                        )
+                    )
+                boot = adb_command("shell", "getprop", "sys.boot_completed")
+                if boot.returncode == 0 and boot.stdout.strip() == "1":
+                    ready = True
+                    break
+                time.sleep(1)
+            if not ready:
+                raise RuntimeError("Guest did not complete boot within 120 seconds")
+            observations: dict[str, object] = {}
+            for name, arguments in {
+                "api": ("shell", "getprop", "ro.build.version.sdk"),
+                "abi": ("shell", "getprop", "ro.product.cpu.abi"),
+                "fingerprint": ("shell", "getprop", "ro.build.fingerprint"),
+                "nc_help": ("shell", "toybox", "nc", "--help"),
+                "accounts": ("shell", "dumpsys", "account"),
+                "graphics": ("shell", "dumpsys", "SurfaceFlinger"),
+            }.items():
+                observation = adb_command(*arguments)
+                if observation.returncode:
+                    raise RuntimeError(f"Guest observation {name} failed: {observation.stderr}")
+                if name == "graphics":
+                    observations[name] = next(
+                        line for line in observation.stdout.splitlines() if line.startswith("GLES:")
+                    )
+                else:
+                    observations[name] = observation.stdout.strip()
+            observations["network"] = probe_network(adb_command)
+            observations["routes"] = adb_command(
+                "shell", "ip", "route", "show", "table", "all"
+            ).stdout
+            observations["interfaces"] = adb_command("shell", "ip", "address").stdout
+            observations["host_interfaces"] = socket.if_nameindex()
+            if extra_probe is not None:
+                observations["extra_probe"] = extra_probe(adb_command)
+            observations["emulator_filesystem"] = probe_emulator_filesystem()
+            screenshot = subprocess.run(  # noqa: S603 — dedicated namespace/serial only
+                [adb, "-s", "emulator-5554", "exec-out", "screencap", "-p"],
+                capture_output=True,
+                timeout=10,
+                check=True,
+            )
+            Path("guest.png").write_bytes(screenshot.stdout)
+            observations["boot_seconds"] = time.monotonic() - started
+            Path("guest.json").write_text(json.dumps(observations, indent=2) + "\n")
+            print(json.dumps(observations), flush=True)
+        except BaseException:
+            print(f"Dedicated guest exit on failure: {guest.poll()}", file=sys.stderr)
+            raise
+        finally:
+            if guest.poll() is None:
+                guest.terminate()
+                try:
+                    guest.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    guest.kill()
+                    guest.wait()
 
 
 if __name__ == "__main__":

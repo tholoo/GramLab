@@ -24,9 +24,9 @@ image and display pins. No host GPU or personal desktop/device is used.
 
 The [process boundary](runtime-boundary.md), native guards, restricted startup and authenticated
 numeric local HTTP endpoint remain mandatory. Runtime execution has only loopback in its parent
-network namespace. Dependency provisioning is separate. Bot launches now use
-[private component mounts and PID namespaces](component-boundary.md); emulator host filesystem
-separation and resource quotas remain unfinished.
+network namespace. Dependency provisioning is separate. Bot and emulator launches now use
+[separate component mounts and PID namespaces](component-boundary.md). Resource quotas and
+per-component control-port restrictions remain unfinished.
 
 ## Translation and lifecycle
 

@@ -185,3 +185,18 @@ Android tests pass. Static/Nix/workflow checks pass; upstream code and APK are u
 [the component contract](../../../docs/development/component-boundary.md). Resource quotas,
 emulator host mount separation, media/network surfaces and broader recovery remain open. No
 remote publication; machine-specific observations and generated state remain ignored.
+
+2026-09-06 emulator component follow-up: moved AVD creation and the pinned QEMU host process into
+a private component; the trusted world/ADB supervisor retains orchestration. A real QEMU-root
+regression first exposed readable world/bot sentinels and a shared PID namespace. The separated
+runtime retains its AVD while world/bot paths disappear, its PID namespace differs and its local
+network remains shared. KVM now has an explicit component option requiring outer opt-in as well;
+default children cannot open it, and requesting an absent outer device fails without execution.
+
+All ten Android tests pass, including nested KVM rejection/access and the actual tap/edit/restart
+case with world/bot files hidden from QEMU. Edit and restart screenshots were inspected. All 42
+core tests pass at 90.64% coverage; static, Nix, workflow, local links and public-tree privacy
+checks pass. No Android source/APK rebuild or host configuration change was needed. See
+[the emulator boundary evidence](../../../docs/development/component-boundary.md#emulator-filesystem-follow-up).
+Resource quotas, same-run control-port restrictions, media safety and wider recovery/API coverage
+remain unfinished. Keep this ticket and the full goal active; no remote publication.

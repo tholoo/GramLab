@@ -1,4 +1,4 @@
-# Private bot components on an isolated run network
+# Private runtime components on an isolated run network
 
 The [runtime boundary](runtime-boundary.md) now distinguishes trusted orchestration from bot
 execution. Real bot fixtures run in their own filesystem and PID namespaces while reaching the
@@ -6,9 +6,9 @@ world's authenticated HTTP service through the enclosing run's loopback network.
 state persists separately from the world database and Android artifacts.
 
 This extends the approved per-run namespace/mount direction; it is an internal foundation API.
-The world services, fixture preparation, emulator and ADB orchestration remain trusted. The
-emulator host process has not yet moved into a separate component mount. Resource quotas and
-general untrusted scenario packaging remain open.
+The world services, fixture preparation and ADB orchestration remain trusted. The emulator host
+process now has its own component mount and PID namespace, separate from the world and bots.
+Resource quotas and general untrusted scenario packaging remain open.
 
 ## Execution contract
 
@@ -34,6 +34,11 @@ profile's read-only dependency closure. It inherits the run's network rather tha
 disconnected second network. It receives only profile defaults and explicitly selected environment
 values, never the supervisor's inherited environment or open descriptors. No KVM device is
 exposed to bot components.
+
+The explicit `kvm=True` component option exposes only `/dev/kvm`, for the approved emulator.
+Both the outer supervisor and the selected component must opt in. An outer KVM device does not
+automatically appear in children; requesting one when the outer runtime omitted it fails setup
+without executing the component command.
 
 The component path still uses descriptor-based, symlink-rejecting data-root selection. The
 supervisor must select dedicated directories with appropriate contents; namespace isolation does
@@ -93,6 +98,33 @@ belong in this public record.
 
 Same-run components share network reachability; authenticated service capabilities still govern
 world/persona access. There is no per-port firewall or CPU/memory/disk/output quota yet. Bots can
-still consume resources or disrupt services they can reach. Emulator host filesystem separation,
-media/archive validation, WebViews and broader application network surfaces remain separate gates.
+still consume resources or disrupt services they can reach. Media/archive validation, WebViews
+and broader application network surfaces remain separate gates.
 This milestone does not close ticket 02 or establish complete hostile-workload containment.
+
+## Emulator filesystem follow-up
+
+[`emulator_process.py`](../../tests/probes/emulator_process.py) creates the AVD and executes the
+pinned emulator inside a new private `emulator/` component directory. Its Android home/cache,
+AVD, startup logs and emulator log remain there. The enclosing trusted probe keeps its own ADB
+home and writes scenario evidence outside that directory. The guest still reaches world services
+on the enclosing offline run network. SDK/image/graphics/display inputs are unchanged.
+
+The regression observes the running QEMU process's actual root and namespace links through
+the trusted supervisor's `/proc`. Before separation, world and bot sentinel files were visible
+and QEMU shared the supervisor's PID namespace. With the component, its AVD remains visible but
+world/bot paths are absent, its PID namespace differs and its network namespace remains shared.
+The callback test repeats the observation after the real world and private bot state exist.
+This tests the active emulator process rather than inferring isolation from launcher arguments.
+
+Component cleanup uses the existing pidfd lifecycle, including emulator descendants. Normal
+probe teardown terminates the component launcher and then waits for namespace cleanup. Logs are
+written directly inside the private directory rather than accumulating emulator output in a pipe;
+disk/output quotas are still absent. ADB, world services and artifact interpretation remain trusted.
+Same-run ports, including emulator control and ADB, are not separated by a per-component firewall.
+
+Follow-up verification on 2026-09-06 passes all ten Android tests, including both nested KVM
+opt-in cases and the actual callback/edit/bot-and-client restart. The inspected edit/restart
+screenshots preserve the expected mixed-language conversation. All 42 core tests still pass at
+90.64% statement coverage. Ruff, strict typing, Nix platform evaluation and local checks pass.
+The APK and upstream patch queue are unchanged; this milestone required no Android rebuild.

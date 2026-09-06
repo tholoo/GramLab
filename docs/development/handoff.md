@@ -100,7 +100,17 @@ and all eight Android tests. Static and Nix/direnv/workflow checks pass. The APK
 adapter are unchanged. All build/test handles have completed; ignored
 `.cache/local-notes/component-boundary.md` records the local evidence locations.
 
-Continue ticket 02's resource quotas, emulator host mount separation and media isolation, client text writes, older
+The emulator now runs in a separate component with its own AVD, Android home/cache and logs.
+The actual QEMU process's root cannot see world/bot files and has a distinct PID namespace while
+retaining the run network. KVM requires explicit outer and component opt-in; missing outer access
+fails setup without running the child. The real callback case repeats filesystem observations
+after world and bot state exist. All ten Android tests pass, as do 42 core tests at 90.64% coverage,
+static checks and Nix/direnv/workflow validation. Edit/restart screenshots were inspected. The
+APK and source patches are unchanged. All handles completed; local evidence is recorded in ignored
+`.cache/local-notes/emulator-component.md`. See the
+[emulator follow-up](component-boundary.md#emulator-filesystem-follow-up).
+
+Continue ticket 02's resource quotas, per-component control-port restrictions and media isolation, client text writes, older
 cached-message reconciliation and durable replica/command recovery. The current cursor is in
 memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and
 presence semantics, pagination, media and Mini Apps remain unsupported. The first bounded loop

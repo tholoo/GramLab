@@ -91,12 +91,14 @@ class Sandbox:
         data: Path,
         environment: Mapping[str, str] | None = None,
         startup_timeout: float = 10,
+        kvm: bool = False,
     ) -> Iterator[subprocess.Popen[str]]:
         """Open a private component inside trusted orchestration's offline network.
 
         The enclosing supervisor bounds total lifetime. Callers bound their interactive I/O;
         leaving this context kills and waits for the component's entire PID namespace.
         Only explicit environment values and this component's /work directory are supplied.
+        KVM requires explicit selection in both the outer supervisor and this component.
         """
         if os.environ.get("GRAMLAB_SUPERVISOR_NETNS") != os.readlink("/proc/self/ns/net") or [
             name for _, name in socket.if_nameindex()
@@ -104,7 +106,7 @@ class Sandbox:
             raise RuntimeError("Components require a trusted isolated run supervisor")
         if environment and "GRAMLAB_SUPERVISOR_NETNS" in environment:
             raise ValueError("The supervisor namespace marker is reserved")
-        arguments = self._arguments(shared_network=True)
+        arguments = self._arguments(shared_network=True, kvm=kvm)
         for name, value in (environment or {}).items():
             arguments.extend(("--setenv", name, value))
         with _data_directory(data) as data_fd:

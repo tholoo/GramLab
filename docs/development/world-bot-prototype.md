@@ -80,8 +80,9 @@ updates; each was reproduced before its correction. The manually dispatched CI w
 
 Real bot fixtures now use [private component mounts and PID namespaces](component-boundary.md)
 on the run's isolated network. Their private writable state persists across restart; the world
-database remains in trusted orchestration. Resource quotas and separate emulator host mounts
-remain open; HTTP capabilities and filesystem isolation serve different purposes.
+database remains in trusted orchestration. The emulator also has its own component mounts;
+resource quotas and per-component port restrictions remain open. HTTP capabilities and
+filesystem isolation serve different purposes.
 There is no public launcher or client control endpoint yet. The authenticated
 [semantic client read boundary](client-bridge.md) now supplies persona-scoped snapshots and events.
 
