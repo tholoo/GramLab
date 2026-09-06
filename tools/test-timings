@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""Summarize and compare pytest JUnit XML case durations."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from pathlib import Path
+from typing import NoReturn
+
+
+class ReportError(ValueError):
+    """A report does not satisfy the supported pytest JUnit shape."""
+
+
+@dataclass(frozen=True)
+class Case:
+    identity: str
+    classname: str
+    name: str
+    duration: float
+    outcome: str
+    attributes: dict[str, str]
+
+    def json(self) -> dict[str, object]:
+        return {
+            "id": self.identity,
+            "classname": self.classname,
+            "name": self.name,
+            "outcome": self.outcome,
+            "duration_seconds": self.duration,
+            "attributes": self.attributes,
+        }
+
+
+@dataclass(frozen=True)
+class Report:
+    root_attributes: dict[str, str]
+    suites: list[dict[str, object]]
+    cases: dict[str, Case]
+
+
+def fail(message: str) -> NoReturn:
+    raise ReportError(message)
+
+
+def local_tag(element: ET.Element) -> str:
+    if "}" in element.tag:
+        fail(f"XML namespaces are unsupported ({element.tag!r})")
+    return element.tag
+
+
+def duration(value: str | None, context: str, *, required: bool) -> float | None:
+    if value is None:
+        if required:
+            fail(f"{context} is missing required time attribute")
+        return None
+    try:
+        parsed = float(value)
+    except ValueError:
+        fail(f"{context} has malformed duration {value!r}")
+    if not math.isfinite(parsed) or parsed < 0:
+        fail(f"{context} has negative or nonfinite duration {value!r}")
+    return parsed
+
+
+def parse_case(element: ET.Element, suite_name: str) -> Case:
+    classname = element.get("classname")
+    name = element.get("name")
+    if not classname or not name:
+        fail(f"testcase in suite {suite_name!r} requires nonempty classname and name")
+    identity = f"{classname}::{name}"
+    elapsed = duration(element.get("time"), f"testcase {identity!r}", required=True)
+    if elapsed is None:
+        fail(f"testcase {identity!r} has no duration")
+
+    outcome_markers = []
+    allowed = {"failure", "error", "skipped", "system-out", "system-err", "properties"}
+    for child in element:
+        tag = local_tag(child)
+        if tag not in allowed:
+            fail(f"testcase {identity!r} has unsupported child {tag!r}")
+        if tag in {"failure", "error", "skipped"}:
+            outcome_markers.append(tag)
+    if len(outcome_markers) > 1:
+        fail(f"testcase {identity!r} has ambiguous outcomes {outcome_markers!r}")
+    outcome = outcome_markers[0] if outcome_markers else "passed"
+    return Case(identity, classname, name, elapsed, outcome, dict(element.attrib))
+
+
+def parse_report(path: Path) -> Report:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        fail(f"cannot read {path}: {exc}")
+    if b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
+        fail(f"{path} uses unsupported DTD or entity declarations")
+    try:
+        # Entity declarations and DTDs are rejected above before the stdlib parser sees them.
+        root = ET.fromstring(raw)  # noqa: S314
+    except ET.ParseError as exc:
+        fail(f"cannot parse {path}: {exc}")
+
+    root_tag = local_tag(root)
+    if root_tag == "testsuite":
+        suite_elements = [root]
+    elif root_tag == "testsuites":
+        suite_elements = []
+        for child in root:
+            tag = local_tag(child)
+            if tag != "testsuite":
+                fail(f"testsuites root has unsupported child {tag!r}")
+            suite_elements.append(child)
+        if not suite_elements:
+            fail("testsuites root contains no testsuite")
+    else:
+        fail(f"unsupported root element {root_tag!r}; expected testsuite or testsuites")
+
+    cases: dict[str, Case] = {}
+    suites: list[dict[str, object]] = []
+    allowed_suite_children = {"testcase", "properties", "system-out", "system-err"}
+    for index, suite in enumerate(suite_elements):
+        suite_name = suite.get("name", f"suite[{index}]")
+        suite_time = duration(suite.get("time"), f"testsuite {suite_name!r}", required=False)
+        suite_case_count = 0
+        for child in suite:
+            tag = local_tag(child)
+            if tag not in allowed_suite_children:
+                fail(f"testsuite {suite_name!r} has unsupported child {tag!r}")
+            if tag != "testcase":
+                continue
+            case = parse_case(child, suite_name)
+            if case.identity in cases:
+                fail(f"duplicate testcase identity {case.identity!r}")
+            cases[case.identity] = case
+            suite_case_count += 1
+        suites.append(
+            {
+                "attributes": dict(suite.attrib),
+                "time_seconds": suite_time,
+                "case_count": suite_case_count,
+            }
+        )
+    return Report(dict(root.attrib), suites, cases)
+
+
+def summarize(report: Report, limit: int) -> dict[str, object]:
+    slowest = sorted(report.cases.values(), key=lambda case: (-case.duration, case.identity))
+    return {
+        "root_attributes": report.root_attributes,
+        "suites": report.suites,
+        "case_count": len(report.cases),
+        "case_duration_sum_seconds": math.fsum(case.duration for case in report.cases.values()),
+        "slowest": [case.json() for case in slowest[:limit]],
+    }
+
+
+def compare(current: Report, baseline: Report, limit: int) -> dict[str, object]:
+    current_ids = set(current.cases)
+    baseline_ids = set(baseline.cases)
+    matched_ids = current_ids & baseline_ids
+    added = sorted(
+        (current.cases[identity] for identity in current_ids - baseline_ids),
+        key=lambda case: (-case.duration, case.identity),
+    )
+    removed = sorted(
+        (baseline.cases[identity] for identity in baseline_ids - current_ids),
+        key=lambda case: (-case.duration, case.identity),
+    )
+    changes: list[dict[str, str | float]] = [
+        {
+            "id": identity,
+            "baseline_duration_seconds": baseline.cases[identity].duration,
+            "current_duration_seconds": current.cases[identity].duration,
+            "delta_seconds": round(
+                current.cases[identity].duration - baseline.cases[identity].duration, 12
+            ),
+            "baseline_outcome": baseline.cases[identity].outcome,
+            "current_outcome": current.cases[identity].outcome,
+        }
+        for identity in matched_ids
+    ]
+    changes.sort(key=lambda change: (-abs(float(change["delta_seconds"])), str(change["id"])))
+    return {
+        "baseline": summarize(baseline, limit),
+        "matched_count": len(matched_ids),
+        "added_count": len(added),
+        "removed_count": len(removed),
+        "duration_changes": changes[:limit],
+        "added": [case.json() for case in added[:limit]],
+        "removed": [case.json() for case in removed[:limit]],
+    }
+
+
+def positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def parser() -> argparse.ArgumentParser:
+    argument_parser = argparse.ArgumentParser(
+        description="Summarize a pytest JUnit XML report and optionally compare an earlier report."
+    )
+    argument_parser.add_argument("report", type=Path, help="current pytest JUnit XML report")
+    argument_parser.add_argument(
+        "--baseline", type=Path, help="earlier pytest JUnit XML report to compare"
+    )
+    argument_parser.add_argument(
+        "--limit", type=positive_int, default=10, help="maximum entries per case list (default: 10)"
+    )
+    return argument_parser
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    try:
+        current = parse_report(arguments.report)
+        result: dict[str, object] = {
+            "schema": 1,
+            "current": summarize(current, arguments.limit),
+        }
+        if arguments.baseline is not None:
+            result["comparison"] = compare(
+                current, parse_report(arguments.baseline), arguments.limit
+            )
+    except ReportError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    json.dump(result, sys.stdout, indent=2, sort_keys=True, allow_nan=False)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
