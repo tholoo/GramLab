@@ -21,6 +21,3 @@ redistribution license. Use original/deterministically generated fixtures where 
 Follow upstream's [branding guidance](https://github.com/DrKLO/Telegram/blob/master/README.md):
 identify GramLab as unofficial and use distinct app branding. Do not reuse Telegram's standard
 logo as GramLab's logo. Preserve in-chat rendering fidelity without implying affiliation.
-
-consumer application informed the quality principles and initial tooling choices. Its runtime code,
-credentials, game assets and deployment scripts have not been copied or relicensed here.

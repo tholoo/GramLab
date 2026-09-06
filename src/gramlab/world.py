@@ -16,6 +16,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from gramlab.entities import formatting_entities
+
 _CALLBACK_TABLE = """
     CREATE TABLE callbacks (
         id TEXT PRIMARY KEY,
@@ -303,10 +305,12 @@ class World:
         sender_id: int,
         text: str,
         reply_markup: dict[str, Any] | None = None,
+        entities: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(text, str) or not 1 <= len(text) <= 4096:
             raise ValueError("Text must contain 1 to 4096 characters")
         text.encode("utf-8", errors="strict")
+        formatting = formatting_entities(text, entities)
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -329,6 +333,8 @@ class World:
             }
             if keyboard is not None:
                 message["reply_markup"] = keyboard
+            if formatting is not None:
+                message["entities"] = formatting
             self._connection.execute(
                 "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
             )
@@ -373,10 +379,12 @@ class World:
         bot_id: int,
         text: str,
         reply_markup: dict[str, Any] | None = None,
+        entities: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(text, str) or not 1 <= len(text) <= 4096:
             raise ValueError("Text must contain 1 to 4096 characters")
         text.encode("utf-8", errors="strict")
+        formatting = formatting_entities(text, entities)
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -386,13 +394,20 @@ class World:
             message = self.get_message(chat_id, message_id)
             if message["sender_id"] != bot_id:
                 raise ValueError("Only the sending bot can edit this message")
-            if message["text"] == text and message.get("reply_markup") == keyboard:
+            if (
+                message["text"] == text
+                and message.get("reply_markup") == keyboard
+                and message.get("entities") == formatting
+            ):
                 raise ValueError("MESSAGE_NOT_MODIFIED")
             message["text"] = text
             message["edit_date"] = self._connection.execute(
                 "SELECT now FROM configuration"
             ).fetchone()[0]
             message.pop("reply_markup", None)
+            message.pop("entities", None)
+            if formatting is not None:
+                message["entities"] = formatting
             if keyboard is not None:
                 message["reply_markup"] = keyboard
             self._connection.execute(

@@ -1,0 +1,133 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -92,7 +92,7 @@
+     }
+ 
+     private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
+-        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date");
++        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities");
+         long sender = identifier(record, "sender_id");
+         require(sender == persona || sender == bot);
+         TLRPC.TL_message message = new TLRPC.TL_message();
+@@ -107,6 +107,10 @@
+         require(!message.message.isEmpty());
+         message.media = new TLRPC.TL_messageMediaEmpty();
+         message.flags = (1 << 8) | (1 << 9);
++        if (record.has("entities")) {
++            message.entities = entities(record.getJSONArray("entities"), message.message);
++            if (!message.entities.isEmpty()) message.flags |= 1 << 7;
++        }
+         if (record.has("edit_date")) {
+             message.edit_date = integer(record, "edit_date");
+             require(message.edit_date >= message.date);
+@@ -118,6 +122,72 @@
+             message.flags |= 1 << 6;
+         }
+         return message;
++    }
++
++    private static boolean boundary(String text, int index) {
++        return index >= 0 && index <= text.length() && !(index > 0 && index < text.length()
++                && Character.isHighSurrogate(text.charAt(index - 1))
++                && Character.isLowSurrogate(text.charAt(index)));
++    }
++
++    private static ArrayList<TLRPC.MessageEntity> entities(JSONArray values, String text) throws JSONException {
++        ArrayList<TLRPC.MessageEntity> result = new ArrayList<>();
++        for (int index = 0; index < values.length(); index++) {
++            JSONObject record = values.getJSONObject(index);
++            require(record.get("type") instanceof String);
++            String kind = record.getString("type");
++            if (kind.equals("pre")) fields(record, "type", "offset", "length", "language");
++            else fields(record, "type", "offset", "length");
++            TLRPC.MessageEntity entity;
++            switch (kind) {
++                case "bold": entity = new TLRPC.TL_messageEntityBold(); break;
++                case "italic": entity = new TLRPC.TL_messageEntityItalic(); break;
++                case "underline": entity = new TLRPC.TL_messageEntityUnderline(); break;
++                case "strikethrough": entity = new TLRPC.TL_messageEntityStrike(); break;
++                case "spoiler": entity = new TLRPC.TL_messageEntitySpoiler(); break;
++                case "code": entity = new TLRPC.TL_messageEntityCode(); break;
++                case "pre":
++                    entity = new TLRPC.TL_messageEntityPre();
++                    require(!record.has("language") || record.get("language") instanceof String);
++                    entity.language = record.optString("language", "");
++                    break;
++                case "blockquote":
++                case "expandable_blockquote":
++                    entity = new TLRPC.TL_messageEntityBlockquote();
++                    entity.collapsed = kind.equals("expandable_blockquote");
++                    break;
++                default: throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_DATA");
++            }
++            entity.offset = integer(record, "offset");
++            entity.length = integer(record, "length");
++            require(entity.length > 0 && boundary(text, entity.offset)
++                    && (long) entity.offset + entity.length <= text.length()
++                    && boundary(text, entity.offset + entity.length));
++            result.add(entity);
++        }
++        result.sort((left, right) -> left.offset != right.offset
++                ? Integer.compare(left.offset, right.offset) : Integer.compare(right.length, left.length));
++        java.util.ArrayDeque<TLRPC.MessageEntity> active = new java.util.ArrayDeque<>();
++        int quotes = 0;
++        for (TLRPC.MessageEntity entity : result) {
++            while (!active.isEmpty() && active.peekLast().offset + active.peekLast().length <= entity.offset) {
++                if (active.removeLast() instanceof TLRPC.TL_messageEntityBlockquote) quotes--;
++            }
++            if (!active.isEmpty()) {
++                TLRPC.MessageEntity parent = active.peekLast();
++                require(entity.offset + entity.length <= parent.offset + parent.length);
++                require(!(entity instanceof TLRPC.TL_messageEntityCode)
++                        && !(entity instanceof TLRPC.TL_messageEntityPre)
++                        && !(parent instanceof TLRPC.TL_messageEntityCode)
++                        && !(parent instanceof TLRPC.TL_messageEntityPre));
++            }
++            if (entity instanceof TLRPC.TL_messageEntityBlockquote) {
++                require(quotes == 0);
++                quotes++;
++            }
++            active.addLast(entity);
++        }
++        return result;
+     }
+ 
+     private static TLRPC.TL_replyInlineMarkup keyboard(JSONObject value) throws JSONException {
+@@ -277,7 +347,7 @@
+         }
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date");
++            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities");
+             long chat = identifier(record, "chat_id");
+             require(peersByChat.containsKey(chat));
+             long bot = peersByChat.get(chat);
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -59,10 +59,22 @@
+             TLRPC.messages_Messages history = TLRPC.messages_Messages.TLdeserialize(
+                     stream, stream.readInt32(true), true);
+             for (TLRPC.Message message : history.messages) {
+-                messages.put(new JSONObject().put("id", message.id)
++                JSONObject observed = new JSONObject().put("id", message.id)
+                         .put("sender_id", message.from_id.user_id)
+                         .put("recipient_id", message.peer_id.user_id).put("out", message.out)
+-                        .put("date", message.date).put("text", message.message));
++                        .put("date", message.date).put("text", message.message);
++                if (!message.entities.isEmpty()) {
++                    JSONArray entities = new JSONArray();
++                    for (TLRPC.MessageEntity entity : message.entities) {
++                        JSONObject value = new JSONObject().put("kind", entity.getClass().getSimpleName())
++                                .put("offset", entity.offset).put("length", entity.length);
++                        if (entity instanceof TLRPC.TL_messageEntityPre) value.put("language", entity.language);
++                        if (entity instanceof TLRPC.TL_messageEntityBlockquote) value.put("collapsed", entity.collapsed);
++                        entities.put(value);
++                    }
++                    observed.put("entities", entities);
++                }
++                messages.put(observed);
+             }
+         }
+         System.out.println(new JSONObject().put("persona", snapshot.persona)

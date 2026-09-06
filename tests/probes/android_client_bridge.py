@@ -38,6 +38,10 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, obj
         )
         if bot.returncode:
             raise RuntimeError("Local bot did not complete")
+    if Path("formatting.json").exists():
+        formatting = json.loads(Path("formatting.json").read_text())
+        with World.open(directory) as world:
+            world.edit_message(chat_id=1, message_id=2, bot_id=2, **formatting)
     with ClientBridge(directory) as server:
         config = {
             "endpoint": server.base_url.replace("127.0.0.1", "10.0.2.2"),

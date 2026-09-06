@@ -221,3 +221,24 @@ client patch, persistence-schema or host configuration change was needed. See
 [the polling contract and limits](../../../docs/development/bot-long-polling.md). Runtime quotas,
 control-port/media gates and broader compatibility/scenario/report acceptance remain open; this
 ticket and the full goal remain active. No remote publication.
+
+2026-09-06 formatted-text follow-up started: validate explicit non-link formatting entities at the
+existing Bot API/world boundary, preserve UTF-16 ranges through persistence/events and translate
+them inside the existing GPL Android adapter. Verify actual rendering and edits/restart with the
+unchanged upstream message cells. This is ordinary message formatting, not a claim that the newer
+RichMessage block API, media or custom-emoji document/entitlement handling is complete.
+
+Formatting follow-up completed: nine explicit entity types now persist through messages, updates,
+snapshots and live edits. Invalid UTF-16/range/nesting input leaves state and IDs unchanged;
+duplicate canonical edits reject and omission removes formatting. A real bot performs a
+formatting-only edit in the shared simulation-only/Android scenario. The pinned serializer retains
+all types and metadata, and the unchanged Android cells render the edit through cold restart.
+Before/after/restarted screenshots were inspected. The expandable quote's flag is verified;
+long-quote expansion interaction remains open. See [the contract and evidence](../../../docs/development/formatted-text.md).
+
+All 65 core tests pass at 91.56% coverage; all twelve Android tests pass. Fresh six-patch export
+reproduces the two adapter/probe inputs and strict metadata, preserving 6,666 UI/resource files.
+Contained offline build, APK signature/manifest/ABI, static/Nix/workflow and local-link/privacy
+checks pass. Public docs are independent of private consumer projects; local inventory and
+generated evidence remain ignored. All handles completed. This ticket and the full goal remain
+active for quotas/control-port/media safety, client writes, broader recovery and compatibility.

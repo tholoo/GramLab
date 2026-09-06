@@ -1,10 +1,11 @@
 # Product requirements
 
-Status: approved direction; all runtime capabilities below remain unimplemented.
+Status: approved direction; current implementation and evidence are tracked in the
+[compatibility matrix](../compatibility/matrix.md).
 
-GramLab is a reusable offline Telegram bot testing library and laboratory, not a consumer application game
-harness. consumer application is a prospective demanding consumer. Support real bot processes through a
-local Bot API boundary without requiring their implementation language to match GramLab.
+GramLab is a reusable offline Telegram bot testing library and laboratory for independently
+developed bots. Support real bot processes through a local Bot API boundary without requiring
+their implementation language to match GramLab.
 
 ## Execution and fidelity
 

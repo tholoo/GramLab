@@ -33,7 +33,7 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
         "date": message["date"],
         "text": message["text"],
     }
-    for field in ("reply_markup", "edit_date"):
+    for field in ("reply_markup", "edit_date", "entities"):
         if field in message:
             result[field] = message[field]
     return result
@@ -131,8 +131,8 @@ def _dispatch(
     supported = {
         "getme": set(),
         "getupdates": {"offset", "limit", "timeout"},
-        "sendmessage": {"chat_id", "text", "reply_markup"},
-        "editmessagetext": {"chat_id", "message_id", "text", "reply_markup"},
+        "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
+        "editmessagetext": {"chat_id", "message_id", "text", "reply_markup", "entities"},
         "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
     }
     if method not in supported:
@@ -175,6 +175,7 @@ def _dispatch(
                 bot_id=bot_id,
                 text=parameters["text"],
                 reply_markup=parameters.get("reply_markup"),
+                entities=parameters.get("entities"),
             ),
         )
     return _message(
@@ -184,6 +185,7 @@ def _dispatch(
             sender_id=bot_id,
             text=parameters["text"],
             reply_markup=parameters.get("reply_markup"),
+            entities=parameters.get("entities"),
         ),
     )
 

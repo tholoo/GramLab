@@ -40,6 +40,13 @@ events through the existing controller. See the [callback/edit evidence](../../.
 for the software graphics profile, real tap, interrupted bot recovery, visible edit and client
 restart, along with the narrower recovery and unsupported-operation limits.
 
+`0006-formatting-entities.patch` translates nine explicit non-link formatting types, validates
+UTF-16 ranges and exposes the pinned serializer's entity output in the existing bridge probe.
+Snapshot/history and live edits share the same conversion. See the
+[formatting evidence](../../../docs/development/formatted-text.md) for actual text-only formatting
+edits and restart observations. The patch changes only the adapter and probe; upstream message
+cells, fonts and resources remain unchanged.
+
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied
 into this patch queue. No personal configuration from ignored upstream files is exported.

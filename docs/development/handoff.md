@@ -122,6 +122,23 @@ or source-patch changes were needed. All handles are terminal; ignored
 `.cache/local-notes/long-polling.md` records detailed local evidence. Poll ownership is per server;
 filters, negative offsets, expiry, webhook coordination and production flood timing remain open.
 
+The [formatting follow-up](formatted-text.md) adds nine explicit non-link entity types at the
+Bot API/world boundary, with UTF-16 validation, canonical lists and atomic formatting-only edits.
+The sixth GPL patch translates those entities through the shared snapshot/history/event adapter.
+A real private bot edits only formatting; the actual Android chat shows emphasis, spoilers, code
+and quote blocks, retained after cold restart. Simulation-only and Android modes verify the same
+complete final semantic state. The pinned TL serializer preserves all nine types, code language
+and the expandable quote flag. Long-quote expansion gestures remain unverified.
+
+All 65 core tests pass at 91.56% coverage and all twelve Android tests pass. Fresh six-patch export
+matches both Java inputs and strict dependency metadata, preserving 6,666 upstream UI/resource
+files. The contained offline build, APK signature/manifest/ABI, static/Nix/workflow and
+local-link/privacy gates pass. Final formatting and callback restart screens were inspected.
+Public documentation now describes GramLab independently of private consumer projects.
+All build/test handles are terminal; ignored `.cache/local-notes/formatting.md` records local
+artifact paths and diagnostics. Links, parse modes, media/custom emoji and the RichMessage block
+API remain open. Keep the full goal active; this is a formatting milestone, not full acceptance.
+
 Continue ticket 02's resource quotas, per-component control-port restrictions and media isolation, client text writes, older
 cached-message reconciliation and durable replica/command recovery. The current cursor is in
 memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and

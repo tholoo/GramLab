@@ -7,8 +7,7 @@ the active ticket and remaining gates.
 ## Development environment
 
 Use Python 3.13 and uv. `pyproject.toml` defines the development tools; `uv.lock` records their
-resolution. These initial tool versions match the inspected consumer application environment, not a claim
-that they are the newest versions. No consumer application runtime dependency is included.
+resolution. Tool upgrades should update the lockfile and pass the required checks together.
 
 Dependency provisioning can access package registries. Normal scenario execution must follow
 [offline safety](docs/development/offline-safety.md). Do not mistake `uv --offline` alone for
@@ -35,11 +34,12 @@ behavioral suite in the [documented outer network guard](docs/development/runtim
 ```sh
 uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py \
   tests/probes/android_client_bridge.py tests/probes/android_application.py \
-  tests/probes/android_callbacks.py \
+  tests/probes/android_callbacks.py tests/probes/android_formatting.py \
   tests/probes/bot_round_trip.py tests/probes/callback_round_trip.py \
-  tests/probes/long_poll_bot.py \
+  tests/probes/long_poll_bot.py tests/probes/formatted_round_trip.py \
   tests/probes/component_bot.py tests/probes/emulator_process.py \
-  tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py clients/android/prepare.py
+  tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py tests/fixtures/formatted_bot.py \
+  clients/android/prepare.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
@@ -51,8 +51,8 @@ report missing Android infrastructure as unavailable coverage, not success.
 
 Work on a focused task branch. After the initial repository baseline exists, use a sibling Git
 worktree when parallel tasks need isolation. Keep local Markdown issues version-controlled and
-runtime artifacts ignored. Do not apply consumer application's `mp`, beta, Dokploy or remote-ref cleanup
-workflow here: GramLab is an independent repository. A configured remote does not authorize publication.
+runtime artifacts ignored. Use this repository's documented verification and release workflow.
+A configured remote does not authorize publication.
 
 Before implementation, claim the active ticket and resolve dependencies. Read existing state
 before changing files. At handoff, preserve work, report its Git state and verification precisely,

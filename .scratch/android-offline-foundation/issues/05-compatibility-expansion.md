@@ -7,7 +7,7 @@ Blocked by: 01
 
 Inventory the selected official Bot API, client schema, Android UI and relevant configuration
 surfaces. Turn remaining product requirements into individual bounded Markdown tickets, informed
-by foundation findings. Do not hard-code consumer application's games or treat it as the catalog source.
+by foundation findings. Derive the catalog from official sources and cover diverse bot use cases.
 
 ## Acceptance
 

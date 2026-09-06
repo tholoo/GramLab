@@ -17,7 +17,7 @@ core. Preserve upstream rendering rather than recreating it.
 
 For task branches, verification and handoff, follow [CONTRIBUTING.md](CONTRIBUTING.md) and
 [completion requirements](docs/development/completion.md). Preserve unrelated changes and keep
-consumer application independent; it is a prospective consumer, not a dependency.
+GramLab independent of consumer applications.
 
 ## Agent skills
 

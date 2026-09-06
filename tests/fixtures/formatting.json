@@ -1,0 +1,51 @@
+{
+  "text": "😀 سلام Bold\nItalic Underline Strike\nSecret code()\nprint('hi')\nQuote سلام\nLine 1\nLine 2\nLine 3\nLine 4",
+  "entities": [
+    {
+      "type": "bold",
+      "offset": 3,
+      "length": 9
+    },
+    {
+      "type": "italic",
+      "offset": 13,
+      "length": 6
+    },
+    {
+      "type": "underline",
+      "offset": 20,
+      "length": 9
+    },
+    {
+      "type": "strikethrough",
+      "offset": 30,
+      "length": 6
+    },
+    {
+      "type": "spoiler",
+      "offset": 37,
+      "length": 6
+    },
+    {
+      "type": "code",
+      "offset": 44,
+      "length": 6
+    },
+    {
+      "type": "pre",
+      "offset": 51,
+      "length": 11,
+      "language": "python"
+    },
+    {
+      "type": "blockquote",
+      "offset": 63,
+      "length": 10
+    },
+    {
+      "type": "expandable_blockquote",
+      "offset": 74,
+      "length": 27
+    }
+  ]
+}
