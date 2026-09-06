@@ -1,0 +1,632 @@
+[
+  {
+    "name": "item-label-0",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "wrong",
+              "blocks": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-label-1",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": false,
+              "blocks": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-has_checkbox-2",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "has_checkbox": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-has_checkbox-3",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "has_checkbox": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-is_checked-4",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "is_checked": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-is_checked-5",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "is_checked": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-is_checked-6",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "is_checked": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-value-7",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-type-8",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "type": ""
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-type-9",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "type": "bullet"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-blocks-10",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-blocks-11",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-blocks-12",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-unknown-13",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": [],
+              "unknown": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "blocks": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing-blocks",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-scalar-16",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            null
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-scalar-17",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            true
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-scalar-18",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            3
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-scalar-19",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "item"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "item-scalar-20",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            []
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-label-21",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "iv.",
+              "blocks": [],
+              "value": 4,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-type-22",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4,
+              "type": "II"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-type-23",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4,
+              "type": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-24",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": true,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-25",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4.0,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-26",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": "4",
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-27",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 2147483648,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-28",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": -2147483649,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-value-29",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": null,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordered-has_checkbox-30",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4,
+              "type": "I",
+              "has_checkbox": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing-ordered-value",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty-items",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing-items",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list"
+        }
+      ]
+    }
+  },
+  {
+    "name": "items-object",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "items-null",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown-list-field",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": []
+            }
+          ],
+          "reversed": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "mixed-unordered-first",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "•",
+              "blocks": []
+            },
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4,
+              "type": "I"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "mixed-ordered-first",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "label": "IV.",
+              "blocks": [],
+              "value": 4,
+              "type": "I"
+            },
+            {
+              "label": "•",
+              "blocks": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

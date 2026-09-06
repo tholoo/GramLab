@@ -1,0 +1,157 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -191,9 +191,105 @@
+                 details.open = flag(record, "is_open");
+                 return details;
+             }
++            case "list": return list(record);
+             case "table": return table(record);
+             default: throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNSUPPORTED_RICH_BLOCK");
+         }
++    }
++
++    private static int listValue(JSONObject record) throws JSONException {
++        Object raw = record.opt("value");
++        require(raw instanceof Integer || raw instanceof Long);
++        long value = ((Number) raw).longValue();
++        require(value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE);
++        return (int) value;
++    }
++
++    private static boolean listFlag(JSONObject record, String name) throws JSONException {
++        // Canonical output omits false flags; accepting them would silently normalize data.
++        require(!record.has(name) || Boolean.TRUE.equals(record.get(name)));
++        return record.has(name);
++    }
++
++    private static String listLabel(int value, String type) {
++        String label = Integer.toString(value);
++        if (value > 0 && (type.equals("a") || type.equals("A"))) {
++            StringBuilder letters = new StringBuilder();
++            for (int number = value; number > 0; number /= 26) {
++                number--;
++                letters.append((char) ((type.equals("a") ? 'a' : 'A') + number % 26));
++            }
++            label = letters.reverse().toString();
++        } else if (value > 0 && value < 4000 && (type.equals("i") || type.equals("I"))) {
++            int[] amounts = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
++            String[] symbols = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
++            StringBuilder roman = new StringBuilder();
++            int remaining = value;
++            for (int i = 0; i < amounts.length; i++) {
++                while (remaining >= amounts[i]) {
++                    remaining -= amounts[i];
++                    roman.append(symbols[i]);
++                }
++            }
++            label = roman.toString();
++            if (type.equals("i")) label = label.toLowerCase(java.util.Locale.ROOT);
++        }
++        return label + ".";
++    }
++
++    private static TL_iv.PageBlock list(JSONObject record) throws JSONException {
++        fields(record, "type", "items");
++        require(record.opt("items") instanceof JSONArray);
++        JSONArray items = record.getJSONArray("items");
++        require(items.length() > 0 && items.opt(0) instanceof JSONObject);
++        boolean ordered = items.getJSONObject(0).has("type");
++        TL_iv.pageBlockList unorderedList = ordered ? null : new TL_iv.pageBlockList();
++        TL_iv.pageBlockOrderedList orderedList = ordered ? new TL_iv.pageBlockOrderedList() : null;
++        for (int i = 0; i < items.length(); i++) {
++            require(items.opt(i) instanceof JSONObject);
++            JSONObject recordItem = items.getJSONObject(i);
++            fields(recordItem, "label", "blocks", "has_checkbox", "is_checked", "type", "value");
++            require(recordItem.has("type") == ordered);
++            require(recordItem.opt("label") instanceof String);
++            require(recordItem.opt("blocks") instanceof JSONArray);
++            boolean checkbox = listFlag(recordItem, "has_checkbox");
++            boolean checked = listFlag(recordItem, "is_checked");
++            require(!checked || checkbox);
++            // Only list-item blocks may be empty; top-level and other blocks remain nonempty.
++            JSONArray children = recordItem.getJSONArray("blocks");
++            ArrayList<TL_iv.PageBlock> nested = new ArrayList<>();
++            for (int j = 0; j < children.length(); j++) {
++                require(children.opt(j) instanceof JSONObject);
++                nested.add(block(children.getJSONObject(j)));
++            }
++            if (ordered) {
++                String type = string(recordItem, "type");
++                require(type.equals("1") || type.equals("a") || type.equals("A")
++                        || type.equals("i") || type.equals("I"));
++                int value = listValue(recordItem);
++                String label = string(recordItem, "label");
++                require(label.equals(listLabel(value, type)));
++                TL_iv.TL_pageListOrderedItemBlocks item = new TL_iv.TL_pageListOrderedItemBlocks();
++                item.blocks = nested;
++                item.checkbox = checkbox;
++                item.checked = checked;
++                item.num = label;
++                item.value = value;
++                item.type = type;
++                // Number, value and type are present even when the integer value is zero.
++                item.flags = (1 << 2) | (1 << 3) | (1 << 4);
++                orderedList.items.add(item);
++            } else {
++                require(!recordItem.has("value") && string(recordItem, "label").equals("•"));
++                TL_iv.TL_pageListItemBlocks item = new TL_iv.TL_pageListItemBlocks();
++                item.blocks = nested;
++                item.checkbox = checkbox;
++                item.checked = checked;
++                unorderedList.items.add(item);
++            }
++        }
++        // Bot API exposes per-item ordering only, never native start/reversed/type flags.
++        return ordered ? orderedList : unorderedList;
+     }
+ 
+     private static TL_iv.pageBlockTable table(JSONObject record) throws JSONException {
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -104,6 +104,44 @@
+                     .put("blocks", richBlocks(details.blocks));
+             if (details.open) result.put("is_open", true);
+             return result;
++        }
++        if (block instanceof TL_iv.pageBlockList) {
++            JSONArray items = new JSONArray();
++            for (TL_iv.PageListItem raw : ((TL_iv.pageBlockList) block).items) {
++                if (raw.getClass() != TL_iv.TL_pageListItemBlocks.class
++                        || raw.flags != ((raw.checkbox ? 1 : 0) | (raw.checked ? 2 : 0))
++                        || (raw.checked && !raw.checkbox)) {
++                    throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_LIST_ITEM");
++                }
++                TL_iv.TL_pageListItemBlocks item = (TL_iv.TL_pageListItemBlocks) raw;
++                JSONObject data = new JSONObject().put("label", "•").put("blocks", richBlocks(item.blocks));
++                if (item.checkbox) data.put("has_checkbox", true);
++                if (item.checked) data.put("is_checked", true);
++                items.put(data);
++            }
++            return result.put("type", "list").put("items", items);
++        }
++        if (block instanceof TL_iv.pageBlockOrderedList) {
++            TL_iv.pageBlockOrderedList list = (TL_iv.pageBlockOrderedList) block;
++            if (list.getClass() != TL_iv.pageBlockOrderedList.class || list.flags != 0
++                    || list.reversed || list.start != 0 || list.type != null) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_LIST_DEFAULTS");
++            }
++            JSONArray items = new JSONArray();
++            for (TL_iv.PageListOrderedItem raw : list.items) {
++                if (raw.getClass() != TL_iv.TL_pageListOrderedItemBlocks.class
++                        || raw.flags != (28 | (raw.checkbox ? 1 : 0) | (raw.checked ? 2 : 0))
++                        || raw.num == null || raw.type == null || (raw.checked && !raw.checkbox)) {
++                    throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_ORDERED_ITEM");
++                }
++                TL_iv.TL_pageListOrderedItemBlocks item = (TL_iv.TL_pageListOrderedItemBlocks) raw;
++                JSONObject data = new JSONObject().put("label", item.num).put("type", item.type)
++                        .put("value", item.value).put("blocks", richBlocks(item.blocks));
++                if (item.checkbox) data.put("has_checkbox", true);
++                if (item.checked) data.put("is_checked", true);
++                items.put(data);
++            }
++            return result.put("type", "list").put("items", items);
+         }
+         if (block instanceof TL_iv.pageBlockTable) {
+             TL_iv.pageBlockTable table = (TL_iv.pageBlockTable) block;
