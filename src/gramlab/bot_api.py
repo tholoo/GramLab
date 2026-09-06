@@ -25,13 +25,17 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
     api_chat = {"id": user["id"], "type": "private", "first_name": user["first_name"]}
     if "username" in user:
         api_chat["username"] = user["username"]
-    return {
+    result = {
         "message_id": message["id"],
         "from": world.get_user(message["sender_id"]),
         "chat": api_chat,
         "date": message["date"],
         "text": message["text"],
     }
+    for field in ("reply_markup", "edit_date"):
+        if field in message:
+            result[field] = message[field]
+    return result
 
 
 def _integer(value: Any, name: str) -> int:
@@ -40,6 +44,24 @@ def _integer(value: Any, name: str) -> int:
     if type(value) is not int or not -(2**63) <= value < 2**63:
         raise ValueError(f"{name} must be a signed 64-bit integer")
     return value
+
+
+def _update(world: World, update: dict[str, Any]) -> dict[str, Any]:
+    if "message" in update:
+        return {"update_id": update["update_id"], "message": _message(world, update["message"])}
+    if "callback_query" in update:
+        callback = update["callback_query"]
+        return {
+            "update_id": update["update_id"],
+            "callback_query": {
+                "id": callback["id"],
+                "from": world.get_user(callback["user_id"]),
+                "message": _message(world, callback["message"]),
+                "chat_instance": callback["chat_instance"],
+                "data": callback["data"],
+            },
+        }
+    raise ValueError("GRAMLAB_UNSUPPORTED: stored bot update type")
 
 
 def _json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -53,7 +75,9 @@ def _dispatch(world: World, bot_id: int, method: str, parameters: dict[str, Any]
     supported = {
         "getme": set(),
         "getupdates": {"offset", "limit"},
-        "sendmessage": {"chat_id", "text"},
+        "sendmessage": {"chat_id", "text", "reply_markup"},
+        "editmessagetext": {"chat_id", "message_id", "text", "reply_markup"},
+        "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
     }
     if method not in supported:
         raise LookupError("GRAMLAB_UNSUPPORTED: Bot API method")
@@ -69,14 +93,44 @@ def _dispatch(world: World, bot_id: int, method: str, parameters: dict[str, Any]
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
         return [
-            {"update_id": update["update_id"], "message": _message(world, update["message"])}
+            _update(world, update)
             for update in world.poll_updates(bot_id, offset=offset, limit=limit)
         ]
+    if method == "answercallbackquery":
+        if "callback_query_id" not in parameters:
+            raise ValueError("callback_query_id is required")
+        world.answer_callback(
+            bot_id=bot_id,
+            callback_id=parameters["callback_query_id"],
+            text=parameters.get("text", ""),
+            show_alert=parameters.get("show_alert", False),
+            cache_time=_integer(parameters.get("cache_time", 0), "cache_time"),
+        )
+        return True
     if "chat_id" not in parameters or "text" not in parameters:
         raise ValueError("chat_id and text are required")
     chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+    if method == "editmessagetext":
+        if "message_id" not in parameters:
+            raise ValueError("message_id is required")
+        return _message(
+            world,
+            world.edit_message(
+                chat_id=chat["id"],
+                message_id=_integer(parameters["message_id"], "message_id"),
+                bot_id=bot_id,
+                text=parameters["text"],
+                reply_markup=parameters.get("reply_markup"),
+            ),
+        )
     return _message(
-        world, world.send_message(chat_id=chat["id"], sender_id=bot_id, text=parameters["text"])
+        world,
+        world.send_message(
+            chat_id=chat["id"],
+            sender_id=bot_id,
+            text=parameters["text"],
+            reply_markup=parameters.get("reply_markup"),
+        ),
     )
 
 

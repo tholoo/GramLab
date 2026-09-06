@@ -58,11 +58,21 @@ Nix/direnv/workflow, local-link and privacy checks pass. Fresh preparation repro
 startup inputs and preserves the 6,666 checked UI/resource files. All build/test handles have
 completed; detailed local artifacts remain in ignored `.cache/local-notes/application-startup.md`.
 
-Next implement client writes/live updates and the inline callback/edit loop through the same
-world. Unknown RPCs must keep explicit failures. Do not assign the world event cursor to Telegram
+The [callback world foundation](callback-world.md) now implements inline callback keyboards,
+private bot text/keyboard edits, generated queries, durable answers and authenticated client
+callback commands. Request IDs deduplicate retries per persona; stale data remains deliverable.
+Storage version 3 preserves prior world identity/outbox and handles concurrent migration. A real
+bot killed after receiving a callback restarts, receives the same pending update, then edits,
+answers and acknowledges it. The new core gate passes 34 tests at 91.47% coverage; all seven
+existing Android tests still pass. New typing/workflow checks and public-tree privacy pass.
+This does not yet add Android keyboard/edited-message conversion or actual tapping.
+
+Next implement Android keyboard conversion, client callback dispatch and live edit updates through
+the same world. The current Java adapter rejects the new optional keyboard/edit fields explicitly;
+continue at that GPL boundary before claiming the full loop. Unknown RPCs must keep explicit failures. Do not assign the world event cursor to Telegram
 `pts`, invent empty successful responses to silence startup queries, or edit the renderer to
 compensate for incomplete state. Current support excludes read-state/presence semantics, broader
-pagination, callback/edit, media and Mini Apps. Component data mounts/quotas and complete license
+pagination, Android callback/edit, media and Mini Apps. Component data mounts/quotas and complete license
 and source reconstruction audits remain open. The trusted bot fixture shares the supervisor's
 run data mount; do not describe it as separately filesystem-isolated.
 

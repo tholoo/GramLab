@@ -1,6 +1,7 @@
 """Persona-scoped snapshots at the approved semantic client boundary."""
 
 import http.client
+import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -10,6 +11,89 @@ from urllib.parse import urlsplit
 import pytest
 
 from gramlab.world import World
+
+
+def test_client_callback_http_uses_capability_identity_and_replays_after_reopening(
+    tmp_path: Path,
+) -> None:
+    from gramlab.client_bridge import ClientBridge
+
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
+        world.create_user(first_name="Alice")
+        world.create_user(first_name="Echo", is_bot=True)
+        world.create_user(first_name="Bob")
+        world.open_private_chat(user_id=1, bot_id=2)
+        world.send_message(chat_id=1, sender_id=2, text="Choose")
+        alice, bob = world.issue_client_token(1), world.issue_client_token(3)
+        world_id = world.client_snapshot(1)["world_id"]
+    with World.create(tmp_path / "other-world", seed=7, now=100) as other:
+        other.create_user(first_name="Alice")
+        other_token = other.issue_client_token(1)
+
+    def call(server, token, path="/v1/callbacks", body=None, *, raw=None):
+        url = urlsplit(server.base_url)
+        connection = http.client.HTTPConnection(url.hostname, url.port, timeout=5)
+        try:
+            payload = raw if raw is not None else json.dumps(body)
+            connection.request(
+                "GET" if body is None and raw is None else "POST",
+                path,
+                payload,
+                {"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+            )
+            response = connection.getresponse()
+            raw_body = response.read()
+            result = (
+                json.loads(raw_body)
+                if "application/json" in response.getheader("Content-Type", "")
+                else {}
+            )
+            return response.status, result
+        finally:
+            connection.close()
+
+    command = {"request_id": "tap-1", "chat_id": 1, "message_id": 1, "data": "old-data"}
+    with ClientBridge(directory) as server:
+        status, created = call(server, alice, body=command)
+        assert status == 200
+        callback_id = created["callback"]["id"]
+        assert created == {
+            "schema": 1,
+            "world_id": world_id,
+            "user_id": 1,
+            "callback": {
+                "id": callback_id,
+                "user_id": 1,
+                "chat_id": 1,
+                "message": {"id": 1, "chat_id": 1, "sender_id": 2, "date": 100, "text": "Choose"},
+                "data": "old-data",
+                "chat_instance": created["callback"]["chat_instance"],
+                "answer": None,
+            },
+        }
+        assert call(server, alice, body=command) == (200, created)
+        assert call(server, bob, body=command)[0] == 400
+        assert call(server, other_token, body=command)[0] == 401
+        assert call(server, bob, f"/v1/callbacks/{callback_id}")[0] == 400
+        for changes in (
+            {"user_id": 3},
+            {"chat_id": True},
+            {"chat_id": 2**80},
+            {"message_id": -1},
+            {"data": "😀" * 17},
+            {"request_id": ""},
+        ):
+            assert call(server, alice, body=command | changes)[0] == 400
+        assert call(server, alice, raw='{"request_id":"a","request_id":"b"}')[0] == 400
+        assert call(server, alice, "/v1/callbacks?user_id=3", body=command)[0] == 400
+    with World.open(directory) as world:
+        world.answer_callback(bot_id=2, callback_id=callback_id)
+        assert len(world.poll_updates(2)) == 1
+    with ClientBridge(directory) as reopened:
+        created["callback"]["answer"] = {"text": "", "show_alert": False, "cache_time": 0}
+        assert call(reopened, alice, body=command) == (200, created)
+        assert call(reopened, alice, f"/v1/callbacks/{callback_id}") == (200, created)
 
 
 def test_client_snapshot_contains_only_the_personas_conversation_at_one_cursor(

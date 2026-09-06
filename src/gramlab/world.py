@@ -16,6 +16,44 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+_CALLBACK_TABLE = """
+    CREATE TABLE callbacks (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        bot_id INTEGER NOT NULL REFERENCES bots(id),
+        request_id TEXT NOT NULL, request_body TEXT NOT NULL,
+        body TEXT NOT NULL, answer TEXT,
+        UNIQUE(user_id, request_id)
+    )
+"""
+
+
+def _inline_keyboard(markup: dict[str, Any] | None) -> dict[str, Any] | None:
+    if markup is None:
+        return None
+    if not isinstance(markup, dict) or markup.keys() != {"inline_keyboard"}:
+        raise ValueError("GRAMLAB_UNSUPPORTED: only inline callback keyboards are implemented")
+    if not isinstance(markup["inline_keyboard"], list):
+        raise ValueError("Inline keyboard must contain an array of rows")
+    rows = []
+    for row in markup["inline_keyboard"]:
+        if not isinstance(row, list):
+            raise ValueError("Inline keyboard rows must be arrays")
+        buttons = []
+        for button in row:
+            if not isinstance(button, dict) or button.keys() != {"text", "callback_data"}:
+                raise ValueError("GRAMLAB_UNSUPPORTED: button requires text and callback_data")
+            text, data = button["text"], button["callback_data"]
+            if not isinstance(text, str) or not text:
+                raise ValueError("Button text must be a nonempty string")
+            text.encode("utf-8", errors="strict")
+            if not isinstance(data, str) or not 1 <= len(data.encode("utf-8")) <= 64:
+                raise ValueError("Callback data must contain 1 to 64 UTF-8 bytes")
+            buttons.append({"text": text, "callback_data": data})
+        if buttons:
+            rows.append(buttons)
+    return {"inline_keyboard": rows} if rows else None
+
 
 class World:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -27,7 +65,7 @@ class World:
         directory.mkdir(mode=0o700)
         connection = sqlite3.connect(directory / "world.sqlite3")
         try:
-            connection.executescript("""
+            connection.executescript(f"""
                 PRAGMA journal_mode=WAL;
                 CREATE TABLE configuration (
                     seed INTEGER NOT NULL, now INTEGER NOT NULL, world_id TEXT NOT NULL
@@ -60,7 +98,8 @@ class World:
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT,
                     type TEXT NOT NULL, body TEXT NOT NULL
                 );
-                PRAGMA user_version=2;
+                {_CALLBACK_TABLE};
+                PRAGMA user_version=3;
             """)
             with connection:
                 connection.execute(
@@ -90,7 +129,13 @@ class World:
                             "user_id INTEGER NOT NULL REFERENCES users(id))"
                         )
                         connection.execute("PRAGMA user_version=2")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 2:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 2:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 2:
+                        connection.execute(_CALLBACK_TABLE)
+                        connection.execute("PRAGMA user_version=3")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 3:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -99,6 +144,10 @@ class World:
 
     def __enter__(self) -> Self:
         return self
+
+    @property
+    def world_id(self) -> str:
+        return str(self._connection.execute("SELECT world_id FROM configuration").fetchone()[0])
 
     def __exit__(
         self,
@@ -238,7 +287,7 @@ class World:
         ]
 
     def get_chat(self, chat_id: int) -> dict[str, Any]:
-        if type(chat_id) is not int or chat_id <= 0:
+        if type(chat_id) is not int or not 0 < chat_id < 2**63:
             raise ValueError("Invalid chat ID")
         row = self._connection.execute(
             "SELECT user_id, bot_id FROM chats WHERE id=?", (chat_id,)
@@ -247,27 +296,39 @@ class World:
             raise ValueError("Unknown chat")
         return {"id": chat_id, "type": "private", "user_id": row[0], "bot_id": row[1]}
 
-    def send_message(self, *, chat_id: int, sender_id: int, text: str) -> dict[str, Any]:
+    def send_message(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        text: str,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if not isinstance(text, str) or not 1 <= len(text) <= 4096:
             raise ValueError("Text must contain 1 to 4096 characters")
         text.encode("utf-8", errors="strict")
+        keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             chat = self.get_chat(chat_id)
             self.get_user(sender_id)
             if sender_id not in (chat["user_id"], chat["bot_id"]):
                 raise ValueError("Sender is not a participant in this chat")
+            if reply_markup is not None and sender_id != chat["bot_id"]:
+                raise ValueError("Only bots can attach inline keyboards")
             message_id = self._connection.execute(
                 "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat_id,)
             ).fetchone()[0]
             now = self._connection.execute("SELECT now FROM configuration").fetchone()[0]
-            message = {
+            message: dict[str, Any] = {
                 "id": message_id,
                 "chat_id": chat_id,
                 "sender_id": sender_id,
                 "date": now,
                 "text": text,
             }
+            if keyboard is not None:
+                message["reply_markup"] = keyboard
             self._connection.execute(
                 "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
             )
@@ -292,6 +353,175 @@ class World:
                 "SELECT body FROM messages WHERE chat_id=? ORDER BY id", (chat_id,)
             )
         ]
+
+    def get_message(self, chat_id: int, message_id: int) -> dict[str, Any]:
+        self.get_chat(chat_id)
+        if type(message_id) is not int or not 0 < message_id < 2**63:
+            raise ValueError("Invalid message ID")
+        row = self._connection.execute(
+            "SELECT body FROM messages WHERE chat_id=? AND id=?", (chat_id, message_id)
+        ).fetchone()
+        if row is None:
+            raise ValueError("Unknown message")
+        return dict(json.loads(row[0]))
+
+    def edit_message(
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        bot_id: int,
+        text: str,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not isinstance(text, str) or not 1 <= len(text) <= 4096:
+            raise ValueError("Text must contain 1 to 4096 characters")
+        text.encode("utf-8", errors="strict")
+        keyboard = _inline_keyboard(reply_markup)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat = self.get_chat(chat_id)
+            if bot_id != chat["bot_id"]:
+                raise ValueError("Private chat is not available to this bot")
+            message = self.get_message(chat_id, message_id)
+            if message["sender_id"] != bot_id:
+                raise ValueError("Only the sending bot can edit this message")
+            if message["text"] == text and message.get("reply_markup") == keyboard:
+                raise ValueError("MESSAGE_NOT_MODIFIED")
+            message["text"] = text
+            message["edit_date"] = self._connection.execute(
+                "SELECT now FROM configuration"
+            ).fetchone()[0]
+            message.pop("reply_markup", None)
+            if keyboard is not None:
+                message["reply_markup"] = keyboard
+            self._connection.execute(
+                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
+                (json.dumps(message), chat_id, message_id),
+            )
+            self._emit("message.edited", message)
+        return message
+
+    def create_callback(
+        self,
+        *,
+        user_id: int,
+        chat_id: int,
+        message_id: int,
+        data: str,
+        request_id: str,
+    ) -> dict[str, Any]:
+        if (
+            not isinstance(request_id, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
+        ):
+            raise ValueError("Callback request_id must be 1 to 128 ASCII identifier characters")
+        if not isinstance(data, str) or not 1 <= len(data.encode("utf-8")) <= 64:
+            raise ValueError("Callback data must contain 1 to 64 UTF-8 bytes")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self.get_user(user_id)
+            chat = self.get_chat(chat_id)
+            if chat["user_id"] != user_id:
+                raise ValueError("Callback chat is not available to this persona")
+            message = self.get_message(chat_id, message_id)
+            if message["sender_id"] != chat["bot_id"]:
+                raise ValueError("Callbacks require a message sent by the chat bot")
+            command = json.dumps(
+                {"chat_id": chat_id, "message_id": message_id, "data": data}, sort_keys=True
+            )
+            previous = self._connection.execute(
+                "SELECT id, request_body FROM callbacks WHERE user_id=? AND request_id=?",
+                (user_id, request_id),
+            ).fetchone()
+            if previous is not None:
+                if previous[1] != command:
+                    raise ValueError("Request ID already identifies another callback")
+                return self.get_callback(user_id=user_id, callback_id=previous[0])
+            world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
+            callback = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "message": message,
+                "data": data,
+                "chat_instance": hashlib.sha256(f"{world_id}:{chat_id}".encode()).hexdigest(),
+            }
+            self._connection.execute(
+                "INSERT INTO callbacks VALUES (?, ?, ?, ?, ?, ?, NULL)",
+                (
+                    callback["id"],
+                    user_id,
+                    chat["bot_id"],
+                    request_id,
+                    command,
+                    json.dumps(callback),
+                ),
+            )
+            update_id = self._connection.execute(
+                "UPDATE bots SET next_update=next_update+1 WHERE id=? RETURNING next_update-1",
+                (chat["bot_id"],),
+            ).fetchone()[0]
+            self._connection.execute(
+                "INSERT INTO updates VALUES (?, ?, ?)",
+                (
+                    chat["bot_id"],
+                    update_id,
+                    json.dumps({"update_id": update_id, "callback_query": callback}),
+                ),
+            )
+            self._emit("callback.created", callback)
+            return callback | {"answer": None}
+
+    def get_callback(self, *, user_id: int, callback_id: str) -> dict[str, Any]:
+        self.get_user(user_id)
+        if not isinstance(callback_id, str) or not 1 <= len(callback_id) <= 128:
+            raise ValueError("Invalid callback query ID")
+        row = self._connection.execute(
+            "SELECT body, answer FROM callbacks WHERE id=? AND user_id=?", (callback_id, user_id)
+        ).fetchone()
+        if row is None:
+            raise ValueError("Callback query is not available to this persona")
+        return dict(json.loads(row[0])) | {
+            "answer": json.loads(row[1]) if row[1] is not None else None
+        }
+
+    def answer_callback(
+        self,
+        *,
+        bot_id: int,
+        callback_id: str,
+        text: str = "",
+        show_alert: bool = False,
+        cache_time: int = 0,
+    ) -> None:
+        if not isinstance(text, str) or len(text) > 200:
+            raise ValueError("Callback answer text must contain 0 to 200 characters")
+        text.encode("utf-8", errors="strict")
+        if type(show_alert) is not bool:
+            raise ValueError("show_alert must be a Boolean")
+        if type(cache_time) is not int or cache_time != 0:
+            raise ValueError("GRAMLAB_UNSUPPORTED: callback answer caching")
+        if not isinstance(callback_id, str) or not 1 <= len(callback_id) <= 128:
+            raise ValueError("Invalid callback query ID")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self.get_user(bot_id)
+            row = self._connection.execute(
+                "SELECT user_id, answer FROM callbacks WHERE id=? AND bot_id=?",
+                (callback_id, bot_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Callback query is not available to this bot")
+            if row[1] is not None:
+                raise ValueError("GRAMLAB_UNSUPPORTED: callback query already answered")
+            answer = {"text": text, "show_alert": show_alert, "cache_time": 0}
+            self._connection.execute(
+                "UPDATE callbacks SET answer=? WHERE id=?", (json.dumps(answer), callback_id)
+            )
+            self._emit(
+                "callback.answered", {"id": callback_id, "user_id": row[0], "answer": answer}
+            )
 
     def poll_updates(
         self, bot_id: int, *, offset: int = 0, limit: int = 100
@@ -392,7 +622,7 @@ class World:
             events = []
             for sequence, kind, body in rows:
                 data = json.loads(body)
-                if kind == "message.created":
+                if kind in ("message.created", "message.edited"):
                     visible = data["chat_id"] in chats
                 elif kind == "chat.created":
                     visible = data["user_id"] == user_id
@@ -400,6 +630,8 @@ class World:
                     visible = data["id"] in visible_users
                 elif kind == "clock.advanced":
                     visible = True
+                elif kind in ("callback.created", "callback.answered"):
+                    visible = data["user_id"] == user_id
                 else:
                     raise ValueError("Unsupported client event type")
                 if visible:

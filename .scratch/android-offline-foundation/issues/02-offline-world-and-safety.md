@@ -137,3 +137,17 @@ static/Nix/workflow, local-link and public-tree privacy checks pass. See the
 profile, commands and limitations. Logs, credentials, APKs and host observations remain ignored.
 The full acceptance remains active: client writes/live updates, real callback/edit, broader
 recovery, component data mounts/quotas and media isolation are still open. No remote publication.
+
+2026-09-06 callback world follow-up: Added validated inline callback keyboards, atomic private bot
+text/keyboard edits, durable callback queries/answers and authenticated client callback commands.
+One client request ID deduplicates concurrent/reopened retries; distinct taps remain distinct.
+Stale data reaches the bot, while wrong actors/worlds, malformed UTF-8 byte limits and invalid
+mutations are rejected. Storage version 3 migrates prior formats while retaining identity and
+pending updates; concurrent openers and retries are tested. A separate real bot is SIGKILLed after
+callback receipt and before mutation, then restarts, receives the same update, edits the original
+message, answers and acknowledges. The exact history and HTTP results are checked. All 34 core
+tests pass with 91.47% statement coverage; all seven existing Android tests pass unchanged.
+Static/Nix/workflow, links and public-tree privacy checks pass. See the
+[callback record](../../../docs/development/callback-world.md) for supported fields and deliberate
+limits. Actual Android keyboard/callback/live-edit translation, partial-mutation recovery,
+component filesystem boundaries and wider compatibility remain open. Keep the full goal active.

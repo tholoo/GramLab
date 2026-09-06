@@ -28,6 +28,151 @@ def request(server, token, method, parameters=None, *, raw=None, verb="POST"):
         connection.close()
 
 
+def test_inline_callback_keyboard_survives_http_persistence_and_rejects_invalid_bytes(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "world"
+    keyboard = {"inline_keyboard": [[{"text": "تأیید ✓", "callback_data": "😀" * 16}]]}
+    with World.create(directory, seed=7, now=100) as world:
+        world.create_user(first_name="Alice")
+        world.create_user(first_name="Echo", is_bot=True)
+        world.open_private_chat(user_id=1, bot_id=2)
+        token = world.issue_bot_token(2)
+    with BotAPIServer(directory) as server:
+        assert request(
+            server, token, "sendMessage", {"chat_id": 1, "text": "Choose", "reply_markup": keyboard}
+        ) == (
+            200,
+            {
+                "ok": True,
+                "result": {
+                    "message_id": 1,
+                    "from": {"id": 2, "is_bot": True, "first_name": "Echo"},
+                    "chat": {"id": 1, "type": "private", "first_name": "Alice"},
+                    "date": 100,
+                    "text": "Choose",
+                    "reply_markup": keyboard,
+                },
+            },
+        )
+        invalid = [
+            {"inline_keyboard": [[{"text": "x", "callback_data": data}]]}
+            for data in ("", "😀" * 16 + "x", 1, "\ud800")
+        ] + [
+            {"inline_keyboard": [[{"text": "x", "url": "https://example.com"}]]},
+            {
+                "inline_keyboard": [
+                    [{"text": "x", "callback_data": "a", "url": "https://example.com"}]
+                ]
+            },
+            {"inline_keyboard": [[{"text": 1, "callback_data": "a"}]]},
+            {"inline_keyboard": "wrong"},
+            {"inline_keyboard": ["wrong"]},
+            {"inline_keyboard": [[None]]},
+        ]
+        for markup in invalid:
+            status, response = request(
+                server,
+                token,
+                "sendMessage",
+                {
+                    "chat_id": 1,
+                    "text": "invalid",
+                    "reply_markup": markup,
+                },
+            )
+            assert status == 400, markup
+            assert response["ok"] is False
+    with World.open(directory) as world:
+        expected = {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 100,
+            "text": "Choose",
+            "reply_markup": keyboard,
+        }
+        assert world.history(1) == [expected]
+        assert world.client_snapshot(1)["messages"] == [expected]
+        assert world.events(after=3) == [
+            {"sequence": 4, "type": "message.created", "data": expected}
+        ]
+        with pytest.raises(ValueError, match="Only bots"):
+            world.send_message(chat_id=1, sender_id=1, text="fake keyboard", reply_markup=keyboard)
+
+
+def test_bot_edits_its_message_atomically_and_cannot_edit_another_sender(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    keyboard = {"inline_keyboard": [[{"text": "Again", "callback_data": "again"}]]}
+    with World.create(directory, seed=7, now=100) as world:
+        world.create_user(first_name="Alice")
+        world.create_user(first_name="Echo", is_bot=True)
+        world.create_user(first_name="Other", is_bot=True)
+        world.open_private_chat(user_id=1, bot_id=2)
+        world.open_private_chat(user_id=1, bot_id=3)
+        token, other = world.issue_bot_token(2), world.issue_bot_token(3)
+        incoming = world.send_message(chat_id=1, sender_id=1, text="Start")
+        world.send_message(chat_id=1, sender_id=2, text="Choose", reply_markup=keyboard)
+        world.advance_time(5)
+    edited = {
+        "message_id": 2,
+        "from": {"id": 2, "is_bot": True, "first_name": "Echo"},
+        "chat": {"id": 1, "type": "private", "first_name": "Alice"},
+        "date": 100,
+        "edit_date": 105,
+        "text": "تأیید شد ✓",
+        "reply_markup": keyboard,
+    }
+    with BotAPIServer(directory) as server:
+        parameters = {"chat_id": 1, "message_id": 2, "text": "تأیید شد ✓", "reply_markup": keyboard}
+        assert request(server, token, "editMessageText", parameters) == (
+            200,
+            {"ok": True, "result": edited},
+        )
+        for actor, changes in [
+            (other, {}),
+            (token, {"message_id": 1}),
+            (token, {"message_id": True}),
+            (token, {"text": ""}),
+            (token, {"text": "x" * 4097}),
+            (token, {"reply_markup": {"inline_keyboard": [[{"text": "x", "callback_data": ""}]]}}),
+            (token, {"parse_mode": "HTML"}),
+        ]:
+            assert request(server, actor, "editMessageText", parameters | changes)[0] == 400
+        assert request(server, token, "editMessageText", parameters) == (
+            400,
+            {"ok": False, "error_code": 400, "description": "MESSAGE_NOT_MODIFIED"},
+        )
+        # Omitted reply_markup removes the inline keyboard, even when the text is unchanged.
+        del parameters["reply_markup"]
+        del edited["reply_markup"]
+        assert request(server, token, "editMessageText", parameters) == (
+            200,
+            {"ok": True, "result": edited},
+        )
+    with World.open(directory) as world:
+        expected = {
+            "id": 2,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 100,
+            "edit_date": 105,
+            "text": "تأیید شد ✓",
+        }
+        assert world.history(1) == [incoming, expected]
+        assert world.history(2) == []
+        assert world.poll_updates(2) == [{"update_id": 1, "message": incoming}]
+        assert world.client_events(1, after=8)["events"] == [
+            {
+                "sequence": 9,
+                "type": "message.edited",
+                "data": expected | {"reply_markup": keyboard},
+            },
+            {"sequence": 10, "type": "message.edited", "data": expected},
+        ]
+        assert world.client_snapshot(1)["messages"] == [incoming, expected]
+
+
 def test_real_bot_receives_and_answers_a_virtual_user_over_http(tmp_path: Path) -> None:
     profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
     shutil.copytree(

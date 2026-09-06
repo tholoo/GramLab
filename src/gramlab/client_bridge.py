@@ -1,4 +1,4 @@
-"""Authenticated semantic reads for the separately licensed Android adapter.
+"""Authenticated semantic state and callback actions for the Android adapter.
 
 No upstream TL classes or schema-generated objects cross into this implementation.
 The trusted supervisor must run this service inside the independent process boundary.
@@ -16,6 +16,13 @@ from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
 
 from gramlab.world import World
+
+
+def _json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result = dict(pairs)
+    if len(result) != len(pairs):
+        raise ValueError("Repeated JSON members are unsupported")
+    return result
 
 
 class ClientBridge:
@@ -46,6 +53,36 @@ class ClientBridge:
                 self.reply(status, {"schema": 1, "error": {"code": code, "message": message}})
 
             def do_GET(self) -> None:
+                self.handle_operation()
+
+            def do_POST(self) -> None:
+                self.handle_operation()
+
+            def callback_parameters(self) -> dict[str, Any]:
+                lengths = self.headers.get_all("Content-Length", [])
+                if len(lengths) != 1 or "Transfer-Encoding" in self.headers:
+                    raise ValueError("Callback requires one bounded Content-Length")
+                length = int(lengths[0])
+                if not 0 < length <= 16384:
+                    raise ValueError("Callback body exceeds the prototype limit")
+                if self.headers.get_content_type() != "application/json":
+                    raise ValueError("Callback requires application/json")
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError("Incomplete callback body")
+                body = json.loads(raw.decode("utf-8"), object_pairs_hook=_json_object)
+                if not isinstance(body, dict) or body.keys() != {
+                    "request_id",
+                    "chat_id",
+                    "message_id",
+                    "data",
+                }:
+                    raise ValueError(
+                        "Callback requires only request_id, chat_id, message_id and data"
+                    )
+                return body
+
+            def handle_operation(self) -> None:
                 authorization = self.headers.get_all("Authorization", [])
                 if len(authorization) != 1:
                     self.error(401, "unauthorized", "Client capability required")
@@ -63,7 +100,34 @@ class ClientBridge:
                         fields = parse_qs(url.query, keep_blank_values=True, max_num_fields=4)
                         if any(len(values) != 1 for values in fields.values()):
                             raise ValueError("Repeated client parameters are unsupported")
-                        if url.path == "/v1/snapshot":
+                        if self.command == "POST":
+                            if url.path != "/v1/callbacks":
+                                self.error(404, "unsupported", "Unknown client bridge operation")
+                                return
+                            if fields:
+                                raise ValueError("Callback does not accept query parameters")
+                            callback = world.create_callback(
+                                user_id=persona, **self.callback_parameters()
+                            )
+                            result = {
+                                "schema": 1,
+                                "world_id": world.world_id,
+                                "user_id": persona,
+                                "callback": callback,
+                            }
+                        elif url.path.startswith("/v1/callbacks/"):
+                            if fields:
+                                raise ValueError("Callback does not accept query parameters")
+                            callback = world.get_callback(
+                                user_id=persona, callback_id=url.path.removeprefix("/v1/callbacks/")
+                            )
+                            result = {
+                                "schema": 1,
+                                "world_id": world.world_id,
+                                "user_id": persona,
+                                "callback": callback,
+                            }
+                        elif url.path == "/v1/snapshot":
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
                             result = world.client_snapshot(persona)

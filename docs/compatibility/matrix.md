@@ -19,7 +19,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | --- | --- | --- |
 | Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Partial: local polling/acknowledgment; long polling and webhooks planned |
 | Messages/commands/deep links/replies | Full requests, entities, state effects and Android behavior | Partial: private plain-text HTTP exchange and actual Android rendering; entities planned |
-| Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Planned |
+| Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Partial: callback-only HTTP keyboards, durable queries/answers and bot edits; actual Android tap pending |
 | Inline queries/results | Supported private/group/channel combinations and client result rendering | Planned |
 | Contexts/permissions | Private/group/supergroup/channel, privacy, admin, block/remove, migration, topics | Partial: private bot/chat capability checks |
 | Rich messages | Versioned API exposure, actual Android rich blocks/buttons/media and RTL | Planned |
@@ -29,7 +29,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | Mini Apps | Actual local app, Android WebView host bridge, launch/auth fixtures and egress blocking | Planned |
 | Business/payments/Stars/gifts | Source-derived scope; explicit local simulation vs unsupported settlement | Planned |
 | Localization | User/chat/bot/client language combinations; Persian/English, RTL/LTR and text expansion | Planned |
-| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; Android force-stop/relaunch; in-flight mutation recovery planned |
+| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; Android force-stop/relaunch and bot SIGKILL before callback handling; partial mutation recovery planned |
 | Faults/limits | Documented validation plus labeled injections, byte/UTF-16 limits, 429/delay/ambiguous outcomes | Planned |
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Planned |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Planned |

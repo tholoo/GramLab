@@ -2,7 +2,9 @@
 
 Status: an independently implemented SQLite world and a real local HTTP bot exchange work in
 network containment. This is the internal foundation for the approved Android bridge, not the
-public simulator SDK or a completed Telegram compatibility profile. No Telegram client has started.
+public simulator SDK or a completed Telegram compatibility profile. [Synthetic Android startup](android-application.md)
+renders the plain-text exchange. [Callback/edit transitions](callback-world.md) now have separate
+HTTP and real-bot recovery evidence; Android translation of those additions is pending.
 
 ## Implemented behavior
 
@@ -32,7 +34,9 @@ requires a loopback-only interface list. The authoritative isolation mechanism i
 | --- | --- |
 | `getMe` | Locally issued capability returns the virtual bot identity; wrong-world/malformed tokens fail |
 | `getUpdates` | Pending messages, positive offsets and limits 1–100; negative offsets, long polling and filters remain explicitly unsupported |
-| `sendMessage` | Plain text to an existing private user–bot chat; returns the persisted message |
+| `sendMessage` | Plain text and callback-only inline keyboards in existing private chats |
+| `editMessageText` | Sending bot edits its text/keyboard atomically; returns the persisted message |
+| `answerCallbackQuery` | Durable answer to its own query; text/alert with caching disabled |
 | Transport | Case-insensitive methods, GET query parameters and POST JSON; other content types are explicitly unsupported |
 | Rejection | Unknown methods/parameters, wrong bot, duplicate JSON fields and oversized integer identifiers fail without state changes |
 
@@ -40,8 +44,8 @@ The baseline is [Bot API 10.3](https://core.telegram.org/bots/api). Identity/mes
 polling acknowledgment follow its documented contracts. This is local evidence for the listed
 subset, not external conformance. Plain-text validation currently counts Unicode code points for
 the documented 1–4096-character limit; astral-character boundary conformance remains unverified.
-Formatting/entities, automatic command/link recognition, callback keyboards, edits, webhooks,
-media and all other API methods remain open work. Unknown operations receive explicit errors.
+Formatting/entities, automatic command/link recognition, other keyboard types, webhooks,
+media and other API methods remain open work. Unknown operations receive explicit errors.
 
 ## Real-process evidence
 
