@@ -21,6 +21,21 @@ It does not automatically activate or replace an existing virtual environment. U
 project Python commands; `uv sync --locked` explicitly provisions the selected interpreter's
 locked dependencies. No unrelated project or personal Python installation is required.
 
+For repeated command-line work, [tools/dev](../../tools/dev) retains the selected shell in a
+standard Nix profile under ignored `.cache/nix/profiles/`:
+
+```sh
+tools/dev default --command uv run --locked --offline ruff check .
+tools/dev android --command python3 --version
+```
+
+The profile keeps the development closure rooted between invocations, avoiding reprovisioning
+when otherwise unrooted store paths are collected. The helper runs from the project root and
+forwards remaining options directly to `nix develop`; `--offline` can require already provisioned
+inputs. Each worktree keeps its own profiles. It does not change host garbage collection settings,
+provision Python dependencies, or replace the separate runtime network boundary. Profile links
+and their local store paths remain ignored. Ordinary `nix develop` remains available.
+
 Core shell outputs are defined for x86_64 Linux, aarch64 Linux and aarch64 macOS. The pinned
 nixpkgs revision does not support x86_64 macOS. Evaluation on a platform is not evidence that
 GramLab's runtime is supported there; the initial Android profile targets x86_64 Linux only.

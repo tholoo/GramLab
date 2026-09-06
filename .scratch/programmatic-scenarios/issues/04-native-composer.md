@@ -47,6 +47,8 @@ The new core gate passes 215 tests at 80.99% coverage. The broader Android gate 
 21 passed and one failure in the older interrupted-send probe, which missed its controlled commit
 boundary. The new consumer case passes again; the installed wheel example also passes offline.
 A focused native rerun with missed-boundary diagnostics passes without a production change;
-the failure remains intermittent and unresolved. Two further bounded fresh trials are active.
+the failure remains intermittent and unresolved. The next trial fails before input during activity
+startup, with the main thread in preference-file sync. That is a distinct failure; the final bounded
+trial is awaiting toolchain preparation. No production change or timing workaround is claimed.
 Broader composer transformations
 and additional interruption boundaries remain in progress; this ticket is not resolved.

@@ -42,6 +42,10 @@ ticket-bound isolated branches and coordinates expensive checks through common l
 Its five real Git/lock tests pass; use bounded ownership and one integration coordinator before
 starting workers. This preparation does not imply any worker is currently running. Keep local
 runtime inputs and evidence separate from tracked tickets. The full product goal remains active.
+For repeated command-line checks, [tools/dev](../../tools/dev) retains the selected shell through
+an ignored per-worktree Nix profile. Actual default-shell execution, its registered garbage
+collection root, ShellCheck, invalid-shell rejection and nonzero command exit propagation pass.
+This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
@@ -62,10 +66,14 @@ example with three original captures. Its core gate passes 215 tests at 80.99% c
 broader Android gate finishes with 21 passed and one failure in the older native interrupted-send
 case: the intended send did not reach its controlled post-commit boundary. The new consumer case
 passes again. Test-only missed-boundary diagnostics were added; a focused rerun passes unchanged,
-so the failure remains intermittent and unresolved. Two further bounded fresh trials are active;
-inspect their evidence before choosing a fix. The installed wheel's
+so the failure remains intermittent and unresolved. The next trial fails earlier, before input:
+activity startup times out and the retained ANR dump shows the main thread in a preference-file
+sync. Do not conflate that distinct startup failure with the missed send. The final bounded trial
+is awaiting toolchain preparation; inspect ignored notes for the live handle before acting.
+The installed wheel's
 offline composer example, strict typing, lint/format, Nix parsing, direnv syntax and local links
-pass. Optional workflow lint is unavailable because `actionlint` is absent from the shell. The
+pass. The declared Nix checks, including Actionlint, now pass; all platform outputs also evaluate.
+Only the host platform's checks were built. The
 consumer report serves all three PNGs over local HTTP, but configured browser navigation still
 returns `ERR_FAILED`; browser layout review remains unverified and the preview server is stopped.
 Broader text transformations and further interruption boundaries

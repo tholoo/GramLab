@@ -26,6 +26,8 @@ jobs:
           uv --version
           bash -n tools/worktree
           shellcheck tools/worktree
+          bash -n tools/dev
+          shellcheck tools/dev
           test "$UV_PYTHON_DOWNLOADS" = never
           test "$UV_PROJECT_ENVIRONMENT" = "$PWD/.venv"
           BASH

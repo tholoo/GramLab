@@ -29,12 +29,14 @@ read-only input. Do not share writable virtual environments or Gradle homes.
 Use a repository-wide resource lock for expensive Android gates:
 
 ```sh
-tools/worktree lock android-gate nix develop .#android --command \
+tools/worktree lock android-gate tools/dev android --command \
   unshare --user --map-root-user --net bash -eu -c \
   'ip link set lo up; .venv/bin/pytest -m android'
 ```
 
-Provision the documented Android inputs before invoking that command. The wrapper preserves the
+Provision the documented Android inputs before invoking that command. `tools/dev` retains its
+development environment in an ignored per-worktree Nix profile between invocations, so the next
+gate can reuse its dependency closure. The wrapper preserves the
 command's arguments and exit code. A busy resource exits 75 without running the command. Locks
 live under the common Git directory, so all linked worktrees coordinate without recording local
 paths or process metadata in tracked files. Locking requires Linux `flock`; the underlying runner

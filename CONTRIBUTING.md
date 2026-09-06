@@ -78,4 +78,7 @@ manual execution remains the initial product workflow.
 For concurrent implementation, use the [parallel development workflow](docs/development/parallel-work.md)
 and `tools/worktree`. Keep file ownership explicit and serialize expensive Android gates through
 its shared local resource lock. Developer helper checks run with `pytest tests/test_developer_tooling.py`, `bash -n tools/worktree`
-and `shellcheck tools/worktree` in the Nix shell.
+and `shellcheck tools/worktree` in the Nix shell. For repeated command-line work, `tools/dev`
+retains the selected development environment in an ignored Nix profile. Validate it with
+`bash -n tools/dev`, `shellcheck tools/dev`, and a real `tools/dev default --command python3 --version`
+invocation; the resulting profile must remain registered as a Nix garbage collection root.
