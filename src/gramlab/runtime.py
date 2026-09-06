@@ -12,6 +12,7 @@ import json
 import os
 import select
 import signal
+import socket
 import subprocess
 import time
 from collections.abc import Iterator, Mapping
@@ -56,15 +57,73 @@ class Sandbox:
     def run(
         self, command: list[str], *, data: Path, timeout: float = 30, kvm: bool = False
     ) -> subprocess.CompletedProcess[str]:
+        arguments = self._arguments(kvm=kvm)
+        with _data_directory(data) as data_fd:
+            arguments.extend(("--bind-fd", str(data_fd), "/work", "--chdir", "/work"))
+            return _run_supervised(arguments, command, data_fd, timeout)
+
+    def supervise(
+        self, command: list[str], *, data: Path, timeout: float = 30, kvm: bool = False
+    ) -> subprocess.CompletedProcess[str]:
+        """Run trusted orchestration which may create restricted components on its network.
+
+        Scenario/bot code belongs in component(), never directly in this supervisor.
+        Only the supervisor can create further user namespaces; components cannot.
+        """
+        arguments = self._arguments(kvm=kvm, supervisor=True)
+        bootstrap = [
+            self.profile.python,
+            "-c",
+            "import os, sys; "
+            "os.environ['GRAMLAB_SUPERVISOR_NETNS'] = os.readlink('/proc/self/ns/net'); "
+            "os.execv(sys.argv[1], sys.argv[1:])",
+            *command,
+        ]
+        with _data_directory(data) as data_fd:
+            arguments.extend(("--bind-fd", str(data_fd), "/work", "--chdir", "/work"))
+            return _run_supervised(arguments, bootstrap, data_fd, timeout)
+
+    @contextmanager
+    def component(
+        self,
+        command: list[str],
+        *,
+        data: Path,
+        environment: Mapping[str, str] | None = None,
+        startup_timeout: float = 10,
+    ) -> Iterator[subprocess.Popen[str]]:
+        """Open a private component inside trusted orchestration's offline network.
+
+        The enclosing supervisor bounds total lifetime. Callers bound their interactive I/O;
+        leaving this context kills and waits for the component's entire PID namespace.
+        Only explicit environment values and this component's /work directory are supplied.
+        """
+        if os.environ.get("GRAMLAB_SUPERVISOR_NETNS") != os.readlink("/proc/self/ns/net") or [
+            name for _, name in socket.if_nameindex()
+        ] != ["lo"]:
+            raise RuntimeError("Components require a trusted isolated run supervisor")
+        if environment and "GRAMLAB_SUPERVISOR_NETNS" in environment:
+            raise ValueError("The supervisor namespace marker is reserved")
+        arguments = self._arguments(shared_network=True)
+        for name, value in (environment or {}).items():
+            arguments.extend(("--setenv", name, value))
+        with _data_directory(data) as data_fd:
+            arguments.extend(("--bind-fd", str(data_fd), "/work", "--chdir", "/work"))
+            with _open_supervised(
+                arguments, command, data_fd, startup_timeout, interactive=True
+            ) as process:
+                yield process
+
+    def _arguments(
+        self, *, kvm: bool = False, supervisor: bool = False, shared_network: bool = False
+    ) -> list[str]:
         arguments = [
             self.profile.bubblewrap,
             "--unshare-user",
             "--unshare-pid",
-            "--unshare-net",
             "--unshare-ipc",
             "--unshare-uts",
             "--unshare-cgroup",
-            "--disable-userns",
             "--die-with-parent",
             "--new-session",
             "--cap-drop",
@@ -84,6 +143,14 @@ class Sandbox:
             "--tmpfs",
             "/run",
         ]
+        if not shared_network:
+            arguments.append("--unshare-net")
+        if not supervisor:
+            arguments.append("--disable-userns")
+        else:
+            # Mapping parent UID 0 into another user namespace requires CAP_SETFCAP.
+            # Use a fixed non-root namespace identity instead of retaining capabilities.
+            arguments.extend(("--uid", "65534", "--gid", "65534"))
         for path in self.profile.store_paths:
             arguments.extend(("--ro-bind", path, path))
         if self.profile.posix_shell is not None:
@@ -93,9 +160,7 @@ class Sandbox:
             arguments.extend(("--setenv", name, value))
         if kvm:
             arguments.extend(("--dev-bind", "/dev/kvm", "/dev/kvm"))
-        with _data_directory(data) as data_fd:
-            arguments.extend(("--bind-fd", str(data_fd), "/work", "--chdir", "/work"))
-            return _run_supervised(arguments, command, data_fd, timeout)
+        return arguments
 
 
 @contextmanager
@@ -136,6 +201,21 @@ def _run_supervised(
     arguments: list[str], command: list[str], data_fd: int, timeout: float
 ) -> subprocess.CompletedProcess[str]:
     deadline = time.monotonic() + timeout
+    with _open_supervised(arguments, command, data_fd, timeout) as process:
+        stdout, stderr = process.communicate(timeout=max(0, deadline - time.monotonic()))
+        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+@contextmanager
+def _open_supervised(
+    arguments: list[str],
+    command: list[str],
+    data_fd: int,
+    timeout: float,
+    *,
+    interactive: bool = False,
+) -> Iterator[subprocess.Popen[str]]:
+    deadline = time.monotonic() + timeout
     # Pin the namespace's init with a pidfd before allowing the workload to start.
     # Waiting only for bwrap (or for stdout EOF) races with descendant teardown.
     with _pipe() as (info_reader, info_writer), _pipe() as (gate_reader, gate_writer):
@@ -144,7 +224,7 @@ def _run_supervised(
         )
         with subprocess.Popen(  # noqa: S603 — trusted profile, argv execution without a shell
             [*arguments, "--", *command],
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.PIPE if interactive else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -176,8 +256,7 @@ def _run_supervised(
                             gate_writer.write(b"1")
                         except BrokenPipeError:
                             pass  # Mount setup failed after reporting its process ID.
-                stdout, stderr = process.communicate(timeout=max(0, deadline - time.monotonic()))
-                return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+                yield process
             finally:
                 # Kill the namespace init, including descendants that changed sessions.
                 # pidfds cannot accidentally signal a subsequently reused numeric PID.

@@ -37,6 +37,7 @@ uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/andr
   tests/probes/android_client_bridge.py tests/probes/android_application.py \
   tests/probes/android_callbacks.py \
   tests/probes/bot_round_trip.py tests/probes/callback_round_trip.py \
+  tests/probes/component_bot.py \
   tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py clients/android/prepare.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```

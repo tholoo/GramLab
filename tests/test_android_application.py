@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -29,10 +30,13 @@ def test_synthetic_world_opens_the_real_client_chat(tmp_path: Path) -> None:
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
+    shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")
     shutil.copy2("tests/fixtures/echo_bot.py", tmp_path / "echo_bot.py")
     for name in ("android_guest.py", "android_application.py"):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
-    result = Sandbox(profile).run(
+    result = Sandbox(profile).supervise(
         [
             profile.python,
             "/work/android_application.py",

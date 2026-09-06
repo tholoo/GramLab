@@ -88,7 +88,19 @@ crash diagnostics and generated UI evidence stay in ignored directories.
 The separate core gate passes 34 tests at 91.47% coverage. All build/test handles have completed;
 local artifact locations and completed handles are in ignored `.cache/local-notes/callback-world.md`.
 
-Continue ticket 02's component data mounts/quotas and media isolation, client text writes, older
+The [component boundary](component-boundary.md) now separates real bot files/processes from trusted
+world/guest orchestration while sharing the run's offline network. `Sandbox.supervise` explicitly
+permits trusted nested setup; `component` children have private mounts/PIDs, cleared inherited
+state, no effective capabilities and no further user namespaces. A fixed non-root supervisor
+identity avoids retaining privileges for nested UID mapping. Pidfd cleanup covers normal exit,
+exceptions, explicit kill, supervisor death and timeout; simultaneous components retain separate
+state. All real bot probes use this path. The callback bot rejects visible world files and its
+private launch counter survives restart. The current gate passes 42 core tests at 90.64% coverage
+and all eight Android tests. Static and Nix/direnv/workflow checks pass. The APK and upstream
+adapter are unchanged. All build/test handles have completed; ignored
+`.cache/local-notes/component-boundary.md` records the local evidence locations.
+
+Continue ticket 02's resource quotas, emulator host mount separation and media isolation, client text writes, older
 cached-message reconciliation and durable replica/command recovery. The current cursor is in
 memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and
 presence semantics, pagination, media and Mini Apps remain unsupported. The first bounded loop

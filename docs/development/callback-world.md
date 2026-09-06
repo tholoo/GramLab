@@ -90,6 +90,7 @@ The full core gate passes 34 tests with 91.47% statement coverage. All seven exi
 tests also pass against storage version 3, preserving the earlier plain-text startup proof.
 Python static, Nix/direnv/workflow, local-link and public-tree privacy checks pass. Use the
 [documented outer network guard](runtime-boundary.md) and `pytest -m 'not android'` for that gate.
-Android interaction, update ordering/replica recovery, broader limits and the full compatibility
-inventory remain active work. The current trusted bot still shares the supervisor data mount;
-HTTP authorization is not separate filesystem isolation.
+The subsequent [Android interaction loop](android-callbacks.md) proves actual tapping and visible
+editing. Bot launches now use [private component filesystems](component-boundary.md), including
+persistent bot state across the controlled kill/restart. Broader update ordering/replica recovery,
+resource limits and the full compatibility inventory remain active work.

@@ -1,10 +1,9 @@
 """Trusted orchestration executed wholly inside the isolated runtime."""
 
 import json
-import os
-import subprocess
-import sys
 from pathlib import Path
+
+from component_bot import FixtureBot
 
 from gramlab.bot_api import BotAPIServer
 from gramlab.world import World
@@ -17,12 +16,8 @@ with World.create(directory, seed=11, now=1700000000) as world:
     token = world.issue_bot_token(2)
     world.send_message(chat_id=1, sender_id=1, text="سلام hello")
 with BotAPIServer(directory) as server:
-    bot = subprocess.run(
-        [sys.executable, "echo_bot.py"],
-        env={**os.environ, "GRAMLAB_BOT_API": server.base_url, "GRAMLAB_BOT_TOKEN": token},
-        capture_output=True,
-        text=True,
-        timeout=10,
+    bot = FixtureBot("echo_bot.py").run(
+        {"GRAMLAB_BOT_API": server.base_url, "GRAMLAB_BOT_TOKEN": token},
     )
     assert bot.returncode == 0, bot.stderr
     assert token not in bot.stdout + bot.stderr

@@ -4,13 +4,13 @@ import http.client
 import json
 import os
 import selectors
-import subprocess
-import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+from component_bot import FixtureBot
 
 from gramlab.bot_api import BotAPIServer
 from gramlab.client_bridge import ClientBridge
@@ -22,6 +22,7 @@ def run(
     observe: Callable[[], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     directory = Path("world")
+    fixture = FixtureBot("callback_bot.py")
     with World.create(directory, seed=11, now=1700000000) as world:
         world.create_user(first_name="Sara", language_code="fa")
         world.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
@@ -30,7 +31,7 @@ def run(
         world_id = world.world_id
         world.send_message(chat_id=1, sender_id=1, text="سلام hello")
     with BotAPIServer(directory) as server, ClientBridge(directory) as bridge:
-        environment = {**os.environ, "GRAMLAB_BOT_API": server.base_url, "GRAMLAB_BOT_TOKEN": token}
+        environment = {"GRAMLAB_BOT_API": server.base_url, "GRAMLAB_BOT_TOKEN": token}
         records = []
 
         def client(path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -51,15 +52,7 @@ def run(
             finally:
                 connection.close()
 
-        with subprocess.Popen(
-            [sys.executable, "callback_bot.py"],
-            env=environment | {"GRAMLAB_BOT_PAUSE_ON_CALLBACK": "1"},
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-        ) as bot:
+        with fixture.start(environment | {"GRAMLAB_BOT_PAUSE_ON_CALLBACK": "1"}) as bot:
             output = bot.stdout
             assert output is not None
             buffer = ""
@@ -114,13 +107,7 @@ def run(
                 if bot.poll() is None:
                     bot.kill()
                     bot.wait(timeout=5)
-        recovered = subprocess.run(
-            [sys.executable, "callback_bot.py"],
-            env=environment,
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        recovered = fixture.run(environment, timeout=15)
         if recovered.returncode != 0:
             raise RuntimeError("Restarted bot did not complete its callback")
         after = client("/v1/callbacks/" + before["callback"]["id"])

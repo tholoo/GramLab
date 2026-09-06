@@ -14,7 +14,10 @@ API baseline are approved prototype targets; partial rows below refer only to lo
 KVM/network-namespace probes establish neither Android support nor scenario egress enforcement.
 
 The [Linux process boundary](../development/runtime-boundary.md) now has real isolation and
-cleanup tests. These do not establish Telegram rendering or protocol conformance.
+cleanup tests. [Private bot components](../development/component-boundary.md) retain separate
+files/processes on the same offline run network, including bot restart in the Android callback
+case. Resource quotas and emulator host filesystem separation remain open. These isolation tests
+do not establish Telegram rendering or protocol conformance.
 
 | Surface | Required evidence before claiming support | State |
 | --- | --- | --- |

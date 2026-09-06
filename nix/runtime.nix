@@ -6,7 +6,13 @@
   posixShell ? null,
 }:
 let
-  closure = pkgs.closureInfo { rootPaths = [ pkgs.python313 ] ++ extraPackages; };
+  closure = pkgs.closureInfo {
+    rootPaths = [
+      pkgs.python313
+      pkgs.bubblewrap
+    ]
+    ++ extraPackages;
+  };
 in
 pkgs.writeText "gramlab-runtime.json" (
   builtins.toJSON {

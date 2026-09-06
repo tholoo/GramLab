@@ -1,15 +1,14 @@
 """Connect a real bot, world and Android-side TL projection inside one isolated runtime."""
 
 import json
-import os
 import subprocess
-import sys
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 from android_guest import main
+from component_bot import FixtureBot
 
 from gramlab.bot_api import BotAPIServer
 from gramlab.client_bridge import ClientBridge
@@ -34,16 +33,8 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, obj
         other_capability = other.issue_client_token(1)
         other_id = other.client_snapshot(1)["world_id"]
     with BotAPIServer(directory) as bot_server:
-        bot = subprocess.run(
-            [sys.executable, "echo_bot.py"],
-            env={
-                **os.environ,
-                "GRAMLAB_BOT_API": bot_server.base_url,
-                "GRAMLAB_BOT_TOKEN": bot_token,
-            },
-            capture_output=True,
-            text=True,
-            timeout=10,
+        bot = FixtureBot("echo_bot.py").run(
+            {"GRAMLAB_BOT_API": bot_server.base_url, "GRAMLAB_BOT_TOKEN": bot_token}
         )
         if bot.returncode:
             raise RuntimeError("Local bot did not complete")

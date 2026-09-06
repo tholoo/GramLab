@@ -6,6 +6,7 @@ import shutil
 import signal
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict
 from pathlib import Path
 from threading import Barrier
 
@@ -63,12 +64,16 @@ def test_real_bot_recovers_a_pending_callback_after_sigkill_and_edits_the_same_m
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
+    shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")
     shutil.copy2("tests/fixtures/callback_bot.py", tmp_path / "callback_bot.py")
     shutil.copy2("tests/probes/callback_round_trip.py", tmp_path / "callback_round_trip.py")
-    result = Sandbox(profile).run(
+    result = Sandbox(profile).supervise(
         [profile.python, "/work/callback_round_trip.py"], data=tmp_path, timeout=60
     )
     assert result.returncode == 0, result.stderr
+    assert (tmp_path / "bot" / "launch-count").read_text() == "2"
     observed = json.loads(result.stdout)
     (tmp_path / "callback-round-trip.json").write_text(result.stdout)
     assert observed["killed"] == -signal.SIGKILL

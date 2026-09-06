@@ -4,6 +4,7 @@ import http.client
 import json
 import os
 import shutil
+from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -178,8 +179,11 @@ def test_real_bot_receives_and_answers_a_virtual_user_over_http(tmp_path: Path) 
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
+    shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")
     shutil.copy2("tests/fixtures/echo_bot.py", tmp_path / "echo_bot.py")
-    result = Sandbox(profile).run(
+    result = Sandbox(profile).supervise(
         [profile.python, "-c", Path("tests/probes/bot_round_trip.py").read_text()],
         data=tmp_path,
         timeout=30,

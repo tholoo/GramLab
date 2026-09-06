@@ -9,6 +9,11 @@ restricted lifecycle/transport paths and real rendering evidence. Complete appli
 enforcement remains incomplete; the requirements below
 are not yet satisfied end to end.
 
+Real bot launches now use [private component filesystems and process namespaces](component-boundary.md)
+on the run's isolated network. Trusted world/guest orchestration owns the broader run data mount.
+Resource quotas, emulator host mount separation and the remaining application network surfaces
+still require separate evidence.
+
 ## Boundary
 
 Normal runs may communicate only with explicitly selected local simulator, bot, fixture and Mini

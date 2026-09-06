@@ -3,14 +3,15 @@
 Ticket 02 now has an independently written Python containment runner in
 [`gramlab.runtime`](../../src/gramlab/runtime.py). It is an internal prototype interface, not
 the public world/scenario API. The pinned Android tools and a dedicated AOSP guest now run through
-it, as does the [real local bot prototype](world-bot-prototype.md). No Telegram client has.
+it, as does the [real bot/Android callback loop](android-callbacks.md). Real bots now use
+[private component filesystems and process namespaces](component-boundary.md) within the run.
 The [offline requirements](offline-safety.md) still
 apply to those integrations.
 
 ## Provisioning and execution
 
 The Linux development shells export `GRAMLAB_RUNTIME_PROFILE`, a Nix-generated JSON manifest.
-It selects the pinned bubblewrap and Python executables and Python's immutable runtime closure.
+It selects the pinned bubblewrap and Python executables and their immutable runtime closure.
 The manifest and closure list are trusted provisioning inputs; do not accept them from scenarios,
 clients or untrusted artifacts. The runner mounts individual closure entries read-only rather than
 exposing the host's entire Nix store, home, runtime sockets or filesystem.
@@ -38,6 +39,10 @@ no physical devices are passed through by default. The explicit `kvm=True` optio
 `/dev/kvm` for the approved virtual machine runtime. Namespace/mount failure never falls back to direct
 execution. The Linux kernel must support unprivileged namespaces and pidfds; failure is an error,
 not unavailable coverage disguised as a pass.
+
+These are the default `run` restrictions. The explicit trusted `supervise` mode permits nested
+setup; its `component` children retain the default privilege restrictions while sharing only the
+run network. See the [component contract](component-boundary.md) before using that mode.
 
 Before releasing the startup gate, the supervisor opens a pidfd for the namespace init.
 On completion, interruption or timeout it terminates that namespace and waits for kernel-confirmed

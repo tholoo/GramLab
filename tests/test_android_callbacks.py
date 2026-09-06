@@ -5,6 +5,7 @@ import os
 import shutil
 import signal
 import xml.etree.ElementTree as ET
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -35,10 +36,13 @@ def test_real_android_tap_replays_after_bot_kill_and_renders_the_edit_after_clie
     shutil.copytree(
         "src/gramlab", tmp_path / "gramlab", ignore=shutil.ignore_patterns("__pycache__")
     )
+    component_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    (tmp_path / "component-profile.json").write_text(json.dumps(asdict(component_profile)))
+    shutil.copy2("tests/probes/component_bot.py", tmp_path / "component_bot.py")
     shutil.copy2("tests/fixtures/callback_bot.py", tmp_path / "callback_bot.py")
     for name in ("android_guest.py", "android_callbacks.py", "callback_round_trip.py"):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
-    result = Sandbox(profile).run(
+    result = Sandbox(profile).supervise(
         [
             profile.python,
             "/work/android_callbacks.py",
@@ -52,6 +56,7 @@ def test_real_android_tap_replays_after_bot_kill_and_renders_the_edit_after_clie
         timeout=360,
     )
     assert result.returncode == 0, result.stderr
+    assert (tmp_path / "bot" / "launch-count").read_text() == "2"
     guest = json.loads(result.stdout)
     assert "ANGLE" in guest["graphics"] and "SwiftShader" in guest["graphics"]
     observed = guest["extra_probe"]

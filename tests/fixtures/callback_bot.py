@@ -5,8 +5,14 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+if Path("/work/world").exists() or Path("/proc/1/root/work/world").exists():
+    raise RuntimeError("Bot must not have filesystem access to the authoritative world")
+launches = Path("launch-count")
+launches.write_text(str(int(launches.read_text()) + 1 if launches.exists() else 1))
 
 endpoint = urlsplit(os.environ["GRAMLAB_BOT_API"])
 if endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or endpoint.port is None:

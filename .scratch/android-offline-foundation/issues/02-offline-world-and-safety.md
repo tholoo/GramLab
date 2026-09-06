@@ -168,3 +168,20 @@ manifest/ABI, local links and public-tree privacy checks pass. Screenshots and m
 diagnostics remain ignored. See the [callback evidence](../../../docs/development/android-callbacks.md).
 This ticket remains active: component mounts/quotas, media isolation, older cache/replica recovery
 and the wider compatibility/license acceptance are unfinished. No remote publication.
+
+2026-09-06 component isolation follow-up: added explicit trusted run supervision and restricted
+components sharing only the run network. Bot data/PID/mount namespaces are separate from the world
+and client artifacts; environment/descriptors are cleared, capabilities dropped and further user
+namespaces disabled. Nested setup initially failed at UID-0 mapping; the supervisor now uses a
+fixed non-root namespace identity without retaining privileges. Pidfd-based cleanup is tested for
+normal exit, exception, kill, supervisor death and timeout, including detached descendants. Two
+simultaneously live components preserve independent state. The pinned closure includes bubblewrap
+for nested setup; no host configuration was changed.
+
+All actual bot probes now launch through private components. The callback fixture rejects access
+to world files and persists its own launch counter through SIGKILL/restart. The real Android
+tap/edit/restart case remains green. All 42 core tests pass at 90.64% coverage, and all eight
+Android tests pass. Static/Nix/workflow checks pass; upstream code and APK are unchanged. See
+[the component contract](../../../docs/development/component-boundary.md). Resource quotas,
+emulator host mount separation, media/network surfaces and broader recovery remain open. No
+remote publication; machine-specific observations and generated state remain ignored.

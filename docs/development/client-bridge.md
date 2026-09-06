@@ -70,9 +70,9 @@ and reopened with the same world and capability. Run these tests with the docume
 guard, alongside the full core gate. These are server-side contract tests, not Android UI evidence.
 The expanded 2026-09-06 core gate passes 34 tests with 91.47% statement coverage; Android coverage is separate.
 
-Snapshots currently include full history and have no pagination or resource quotas. The trusted
-fixture's data mount is still shared; HTTP authorization does not protect the database against
-code with direct filesystem access. A bot killed before callback handling can restart and complete
+Snapshots currently include full history and have no pagination or resource quotas. Real bot
+fixtures now have [private component filesystems](component-boundary.md), while world services
+and emulator orchestration remain trusted. A bot killed before callback handling can restart and complete
 delivery. The [Android callback loop](android-callbacks.md) now demonstrates actual tapping, live
 Java message edits and recovery of the latest edited message after client restart. Recovery after
 partial mutations, atomic local projection/cursor transactions, older cached-message reconciliation
