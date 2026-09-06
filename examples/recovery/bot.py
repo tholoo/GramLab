@@ -43,6 +43,11 @@ while True:
     for update in call("getUpdates", {"offset": state["offset"], "timeout": 30}):
         if "message" in update:
             message = update["message"]
+            # Commit the subscription before exposing the keyboard as scenario readiness.
+            call(
+                "getUpdates",
+                {"offset": update["update_id"] + 1, "allowed_updates": ["callback_query"]},
+            )
             call(
                 "sendMessage",
                 {
@@ -55,6 +60,8 @@ while True:
             )
         else:
             callback = update["callback_query"]
+            if update["update_id"] != 2:
+                raise RuntimeError("Filtered messages consumed update identifiers")
             if state["generation"] == 1:
                 Path("received.json").write_text(json.dumps(callback))
                 call(

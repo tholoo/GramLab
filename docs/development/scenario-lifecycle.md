@@ -80,6 +80,10 @@ matches the journal, edits the original message and answers the same callback. T
 repeats the tap. Its explicit stop point follows the journal write; this does not prove recovery
 from arbitrary interruption of that write.
 
+The [delivery follow-up](update-delivery.md) selects callback-only updates before displaying the
+keyboard. A subsequent user message stays visible in the client while being excluded from the bot
+queue. The replacement resumes the pending callback with the retained subscription and identifier.
+
 ```sh
 gramlab run examples/recovery/run.toml --output artifacts/recovery-example
 ```

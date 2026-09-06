@@ -27,9 +27,11 @@ copied into the MIT core.
 - Sending a response does not acknowledge its contents. A disconnected bot can retry and a
   restarted server can deliver the same still-pending update.
 
-Negative offsets, `allowed_updates`, webhook configuration and 24-hour update expiry remain
-unsupported. The official server's flood/backoff behavior and exact millisecond response timing
-are not modeled. The prototype retains stricter validation for malformed integers and limits.
+The [update-delivery follow-up](update-delivery.md) adds negative offsets and persistent
+`allowed_updates`. Webhook configuration and 24-hour update expiry remain unsupported. The pinned
+source review also identifies differences in competing-poll cancellation and distant positive
+offset handling; see that follow-up for their exact scope. Flood/backoff behavior and exact
+millisecond response timing are not modeled. Integer and limit validation remain stricter.
 
 ## Execution and shutdown
 

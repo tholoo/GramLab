@@ -22,3 +22,8 @@ by foundation findings. Derive the catalog from official sources and cover diver
 ## Comments
 
 This research may proceed alongside later implementation once the selected profile is known.
+
+The bounded [update-delivery work](../../update-delivery/spec.md) now pins official 10.3 server
+and TDLib behavior for subscriptions and negative offsets, with independent HTTP/world and actual
+Android recovery evidence. Integer parsing, poll cancellation and distant-positive-offset
+differences remain explicit. This subset does not resolve the broader catalog acceptance here.

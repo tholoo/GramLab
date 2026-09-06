@@ -185,7 +185,14 @@ def test_invalid_poll_options_cannot_acknowledge_pending_delivery(tmp_path: Path
         world.create_user(first_name="Echo", is_bot=True)
         world.open_private_chat(user_id=1, bot_id=2)
         message = world.send_message(chat_id=1, sender_id=1, text="pending")
-        for offset, limit in [(2, 0), (2, 101), (2, True), (-1, 100), (True, 100), (2**63, 100)]:
+        for offset, limit in [
+            (2, 0),
+            (2, 101),
+            (2, True),
+            (-(2**63) - 1, 100),
+            (True, 100),
+            (2**63, 100),
+        ]:
             with pytest.raises(ValueError):
                 world.poll_updates(2, offset=offset, limit=limit)
             assert world.poll_updates(2) == [{"update_id": 1, "message": message}]

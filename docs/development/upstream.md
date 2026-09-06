@@ -13,6 +13,11 @@ The user approved this baseline for the scoped prototype; build and runtime proo
 [Runtime provenance](android-runtime-provenance.md) and the [Nix environment](environment.md)
 record portable provisioning inputs. The source lock is not a completed dependency/license audit.
 
+The independent [update-delivery review](update-delivery-references.md) resolves official Bot API
+10.3 server and TDLib revisions for subscription parsing, enqueue filtering and recovery offsets.
+These are contract references for original Python behavior, without a server source import or
+external account/DC run. The existing Android source and toolchain pins are unchanged.
+
 | Finding | Primary source | Consequence |
 | --- | --- | --- |
 | Official Android app source and native build requirements | [README](https://github.com/DrKLO/Telegram/blob/master/README.md) | Establish a reproducible build profile before UI claims |

@@ -18,11 +18,18 @@ deadline = time.monotonic() + 10
 while len(lab.history(chat["id"])) != 2:
     expect(time.monotonic() < deadline, "Keyboard missing")
     time.sleep(0.05)
-lab.capture_chat(chat_id=chat["id"], label="before-crash", contains=["Choose recovery"])
+lab.send_message(
+    chat_id=chat["id"], sender_id=user["id"], text="Visible while messages are filtered"
+)
+lab.capture_chat(
+    chat_id=chat["id"],
+    label="before-crash",
+    contains=["Choose recovery", "Visible while messages are filtered"],
+)
 action = lab.tap_inline_button(chat_id=chat["id"], message_id=2, row=0, column=0)
 callback = action["callback"]
 deadline = time.monotonic() + 10
-while len(lab.history(chat["id"])) != 3:
+while len(lab.history(chat["id"])) != 4:
     expect(time.monotonic() < deadline, "Bot did not reach its controlled crash point")
     time.sleep(0.05)
 expect(

@@ -33,7 +33,7 @@ requires a loopback-only interface list. The authoritative isolation mechanism i
 | Current HTTP subset | Evidence and limits |
 | --- | --- |
 | `getMe` | Locally issued capability returns the virtual bot identity; wrong-world/malformed tokens fail |
-| `getUpdates` | Pending messages, positive offsets, limits 1–100 and bounded long polling; negative offsets and filters remain explicitly unsupported |
+| `getUpdates` | Pending messages/callbacks, positive confirmation, limits 1–100, bounded long polling and [persistent filters/negative offsets](update-delivery.md); documented validation/conflict/future-offset differences remain |
 | `sendMessage` | Plain text and callback-only inline keyboards in existing private chats |
 | `editMessageText` | Sending bot edits its text/keyboard atomically; returns the persisted message |
 | `answerCallbackQuery` | Durable answer to its own query; text/alert with caching disabled |

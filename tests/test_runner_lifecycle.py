@@ -53,6 +53,13 @@ def test_consumer_restarts_a_bot_after_unacknowledged_callback_receipt(
         {
             "id": 3,
             "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "Visible while messages are filtered",
+        },
+        {
+            "id": 4,
+            "chat_id": 1,
             "sender_id": 1,
             "date": 1700000000,
             "text": "Callback received; restart me",

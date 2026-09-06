@@ -156,7 +156,7 @@ def test_invalid_polling_options_neither_acknowledge_nor_interrupt_a_valid_poll(
         {"limit": 0},
         {"limit": 101},
         {"limit": True},
-        {"allowed_updates": []},
+        {"unsupported_parameter": []},
     ]
     with BotAPIServer(directory) as server, ThreadPoolExecutor(max_workers=1) as worker:
         for values in invalid:

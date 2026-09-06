@@ -93,6 +93,31 @@ report inspection confirms original captures, lifecycle evidence and no external
 horizontal overflow. All handles are terminal, including the stopped report-preview server.
 Ignored `.cache/local-notes/lifecycle.md` records the local artifacts and verification commands.
 
+The [update-delivery milestone](update-delivery.md) adds persistent Bot API 10.3 subscriptions
+and negative recovery offsets. Filters apply to future enqueueing, retain existing pending rows
+and leave client history/events intact. Malformed filter values retain the selection while
+ordinary acknowledgment proceeds. Storage version 4 preserves identities, capabilities, callbacks
+and outboxes across concurrent migration. Negative offsets trim once before waiting; sparse-queue
+and later-subscription tests protect against losing arrivals or overwriting a newer selection.
+The pinned source review records remaining integer, conflict and distant-positive-offset differences.
+
+The extended recovery example keeps a filtered user message visible in actual Android, delivers
+the native callback without consuming an ID for that message, and resumes it after bot replacement.
+The final gate passes 179 core tests at 82.16% measured coverage and all 19 Android tests. Android
+collection predates two additional core-only tests and reports 177 deselected. Full static typing,
+lint/format, Nix/workflow checks, offline distributions and privacy/local links pass. Both original
+captures were inspected; desktop/mobile report review confirms loaded images and no overflow or
+external resources. An initial guest-startup disk-space failure was resolved by deleting only
+disposable images from completed runs, with their evidence verified unchanged. All handles are
+terminal, including the stopped preview server. Local commands/artifacts and cleanup audit stay
+in ignored `.cache/local-notes/update-delivery.md` and its referenced ledger. The APK is unchanged.
+
+The parallel [composer reference review](android-composer-references.md) is committed and its
+[research ticket](../../.scratch/programmatic-scenarios/issues/03-composer-references.md) resolved.
+It identifies the pinned compact acknowledgment path, durable random-ID correlation, event/ack
+ordering and pts obligations. Use it for the next native composer implementation; it does not
+establish that text sends, pending-send recovery or new sequence translation already work.
+
 Continue claimed ticket 02 with composer input, scrolling, interactive mode and the remaining
 workflow acceptance. Client lifecycle controls, broader fault schedules and dependency packaging
 also remain open. Preserve the private emulator component, authoritative world and original
@@ -234,7 +259,9 @@ All 51 core tests pass at 91.04% coverage, and all ten Android tests pass. Stati
 local-link/privacy checks pass; the inspected restart screenshot retains the edited reply. No APK
 or source-patch changes were needed. All handles are terminal; ignored
 `.cache/local-notes/long-polling.md` records detailed local evidence. Poll ownership is per server;
-filters, negative offsets, expiry, webhook coordination and production flood timing remain open.
+expiry, webhook coordination and production flood timing remain open. The later
+[delivery follow-up](update-delivery.md) implements filters and negative offsets and records
+source-identified conflict and positive-offset differences.
 
 The [formatting follow-up](formatted-text.md) adds nine explicit non-link entity types at the
 Bot API/world boundary, with UTF-16 validation, canonical lists and atomic formatting-only edits.

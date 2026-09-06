@@ -43,7 +43,9 @@ currently follows the Python JSON decoder's recursion limit, not a versioned nes
 
 The existing prototype limits remain: 64 fields per query/form section, a 65,536-byte POST body,
 no repeated parameters and no transfer encoding. Multipart uploads, file resolution, media APIs,
-parse modes, polling filters and unimplemented methods remain explicitly unsupported. This
+parse modes and unimplemented methods remain explicitly unsupported. The
+[delivery follow-up](update-delivery.md) adds serialized polling filters, including their separate
+lenient malformed-value handling. This
 milestone does not establish compatibility with a particular third-party bot framework.
 
 ## Evidence and reproduction

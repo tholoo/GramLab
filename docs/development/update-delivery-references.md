@@ -9,8 +9,7 @@ Android client or Telegram DC was used.
 The official [version commit](https://github.com/tdlib/telegram-bot-api/commit/2efabc722e9493b9cac450233198d09e5cea0573)
 is `2efabc722e9493b9cac450233198d09e5cea0573` (10.3). Its
 [Git tree](https://api.github.com/repos/tdlib/telegram-bot-api/git/trees/2efabc722e9493b9cac450233198d09e5cea0573)
-pins TDLib to `bc9c263e2bfee06aaab41e82db51a103376030bc`. Use these immutable revisions;
-an unavailable guessed release URL does not establish that 10.3 source is missing.
+pins TDLib to `bc9c263e2bfee06aaab41e82db51a103376030bc`. Use these immutable revisions.
 The [public documentation](https://core.telegram.org/bots/api#recent-changes) is moving and
 currently identifies 10.3. This research does not change GramLab's Android or API baseline.
 

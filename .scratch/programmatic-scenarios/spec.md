@@ -31,3 +31,4 @@ alone does not satisfy this specification. Do not freeze the experimental SDK as
 
 - [01: World control from a private scenario process](issues/01-world-control.md)
 - [02: Consumer runner and artifacts](issues/02-consumer-runner.md)
+- [03: Native composer acknowledgment references](issues/03-composer-references.md)

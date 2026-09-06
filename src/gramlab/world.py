@@ -18,6 +18,26 @@ from typing import Any, Self
 
 from gramlab.entities import formatting_entities
 
+# Names are the subscription vocabulary, not a claim that each type can be generated.
+# See docs/development/update-delivery-references.md for the pinned 10.3 contract.
+_UPDATE_TYPES = frozenset(
+    "message edited_message channel_post edited_channel_post inline_query chosen_inline_result "
+    "callback_query custom_event custom_query shipping_query pre_checkout_query poll poll_answer "
+    "my_chat_member chat_member chat_join_request chat_boost removed_chat_boost message_reaction "
+    "message_reaction_count business_connection business_message edited_business_message "
+    "deleted_business_messages purchased_paid_media managed_bot guest_message subscription "
+    "stopped_message_generation".split()
+)
+_DEFAULT_EXCLUDED = frozenset({"chat_member", "message_reaction", "message_reaction_count"})
+
+
+def update_selection(value: Any) -> list[str] | None:
+    """Normalize a parsed subscription array; malformed values leave the setting alone."""
+    if not isinstance(value, list) or any(not isinstance(name, str) for name in value):
+        return None
+    return sorted({name.lower() for name in value} & _UPDATE_TYPES)
+
+
 _CALLBACK_TABLE = """
     CREATE TABLE callbacks (
         id TEXT PRIMARY KEY,
@@ -74,7 +94,8 @@ class World:
                 );
                 CREATE TABLE users (id INTEGER PRIMARY KEY, body TEXT NOT NULL);
                 CREATE TABLE bots (
-                    id INTEGER PRIMARY KEY REFERENCES users(id), next_update INTEGER NOT NULL
+                    id INTEGER PRIMARY KEY REFERENCES users(id), next_update INTEGER NOT NULL,
+                    allowed_updates TEXT NOT NULL DEFAULT '[]'
                 );
                 CREATE TABLE bot_tokens (
                     digest TEXT PRIMARY KEY, bot_id INTEGER NOT NULL REFERENCES bots(id)
@@ -101,7 +122,7 @@ class World:
                     type TEXT NOT NULL, body TEXT NOT NULL
                 );
                 {_CALLBACK_TABLE};
-                PRAGMA user_version=3;
+                PRAGMA user_version=4;
             """)
             with connection:
                 connection.execute(
@@ -137,7 +158,15 @@ class World:
                     if connection.execute("PRAGMA user_version").fetchone()[0] == 2:
                         connection.execute(_CALLBACK_TABLE)
                         connection.execute("PRAGMA user_version=3")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 3:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 3:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 3:
+                        connection.execute(
+                            "ALTER TABLE bots ADD COLUMN allowed_updates TEXT NOT NULL DEFAULT '[]'"
+                        )
+                        connection.execute("PRAGMA user_version=4")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 4:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -180,7 +209,9 @@ class World:
             )
             body["id"] = cursor.lastrowid
             if is_bot:
-                self._connection.execute("INSERT INTO bots VALUES (?, 1)", (body["id"],))
+                self._connection.execute(
+                    "INSERT INTO bots(id, next_update) VALUES (?, 1)", (body["id"],)
+                )
             self._emit("user.created", body)
         return body
 
@@ -340,15 +371,7 @@ class World:
             )
             self._emit("message.created", message)
             if sender_id == chat["user_id"]:
-                update_id = self._connection.execute(
-                    "UPDATE bots SET next_update=next_update+1 WHERE id=? RETURNING next_update-1",
-                    (chat["bot_id"],),
-                ).fetchone()[0]
-                update = {"update_id": update_id, "message": message}
-                self._connection.execute(
-                    "INSERT INTO updates VALUES (?, ?, ?)",
-                    (chat["bot_id"], update_id, json.dumps(update)),
-                )
+                self._enqueue_update(chat["bot_id"], "message", message)
         return message
 
     def history(self, chat_id: int) -> list[dict[str, Any]]:
@@ -473,18 +496,7 @@ class World:
                     json.dumps(callback),
                 ),
             )
-            update_id = self._connection.execute(
-                "UPDATE bots SET next_update=next_update+1 WHERE id=? RETURNING next_update-1",
-                (chat["bot_id"],),
-            ).fetchone()[0]
-            self._connection.execute(
-                "INSERT INTO updates VALUES (?, ?, ?)",
-                (
-                    chat["bot_id"],
-                    update_id,
-                    json.dumps({"update_id": update_id, "callback_query": callback}),
-                ),
-            )
+            self._enqueue_update(chat["bot_id"], "callback_query", callback)
             self._emit("callback.created", callback)
             return callback | {"answer": None}
 
@@ -538,17 +550,52 @@ class World:
                 "callback.answered", {"id": callback_id, "user_id": row[0], "answer": answer}
             )
 
+    def _enqueue_update(self, bot_id: int, kind: str, body: dict[str, Any]) -> None:
+        # Called inside the same writer transaction as the authoritative event. A filter
+        # change and a writer therefore agree on whether this new event gets an update ID.
+        selection = json.loads(
+            self._connection.execute(
+                "SELECT allowed_updates FROM bots WHERE id=?", (bot_id,)
+            ).fetchone()[0]
+        )
+        if (selection and kind not in selection) or (not selection and kind in _DEFAULT_EXCLUDED):
+            return
+        update_id = self._connection.execute(
+            "UPDATE bots SET next_update=next_update+1 WHERE id=? RETURNING next_update-1",
+            (bot_id,),
+        ).fetchone()[0]
+        self._connection.execute(
+            "INSERT INTO updates VALUES (?, ?, ?)",
+            (bot_id, update_id, json.dumps({"update_id": update_id, kind: body})),
+        )
+
     def poll_updates(
-        self, bot_id: int, *, offset: int = 0, limit: int = 100
+        self,
+        bot_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+        allowed_updates: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        if type(offset) is not int or not 0 <= offset < 2**63:
-            raise ValueError("This prototype requires a nonnegative signed 64-bit update offset")
+        if type(offset) is not int or not -(2**63) <= offset < 2**63:
+            raise ValueError("Update offset must be a signed 64-bit integer")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("Update limit must be between 1 and 100")
         if not self.get_user(bot_id)["is_bot"]:
             raise ValueError("Only bots have update queues")
+        selection = update_selection(allowed_updates)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
+            if selection is not None:
+                self._connection.execute(
+                    "UPDATE bots SET allowed_updates=? WHERE id=?", (json.dumps(selection), bot_id)
+                )
+            if offset < 0:
+                row = self._connection.execute(
+                    "SELECT id FROM updates WHERE bot_id=? ORDER BY id DESC LIMIT 1 OFFSET ?",
+                    (bot_id, -offset - 1),
+                ).fetchone()
+                offset = row[0] if row else 0
             self._connection.execute(
                 "DELETE FROM updates WHERE bot_id=? AND id<?", (bot_id, offset)
             )

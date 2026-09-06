@@ -17,7 +17,7 @@ from types import TracebackType
 from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
 
-from gramlab.world import World
+from gramlab.world import World, update_selection
 
 
 def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
@@ -107,7 +107,13 @@ class _Polling:
                 pending.set()
 
     def get_updates(
-        self, world: World, bot_id: int, offset: int, limit: int, timeout: int
+        self,
+        world: World,
+        bot_id: int,
+        offset: int,
+        limit: int,
+        timeout: int,
+        allowed_updates: list[str] | None,
     ) -> list[dict[str, Any]]:
         cancelled = threading.Event()
         deadline = time.monotonic() + timeout
@@ -128,7 +134,13 @@ class _Polling:
                         )
                     # Serialize ownership with the short acknowledgment transaction. A replaced
                     # request must never acknowledge state after its successor starts polling.
-                    updates = world.poll_updates(bot_id, offset=offset, limit=limit)
+                    updates = world.poll_updates(
+                        bot_id, offset=offset, limit=limit, allowed_updates=allowed_updates
+                    )
+                    # Selection and negative-tail recovery belong to the initial read. Repeating
+                    # either during a wait can overwrite a later setting or discard new arrivals.
+                    allowed_updates = None
+                    offset = max(0, offset)
                     remaining = deadline - time.monotonic()
                     if updates or remaining <= 0:
                         return [_update(world, update) for update in updates]
@@ -146,7 +158,7 @@ def _dispatch(
 ) -> Any:
     supported = {
         "getme": set(),
-        "getupdates": {"offset", "limit", "timeout"},
+        "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
         "editmessagetext": {"chat_id", "message_id", "text", "reply_markup", "entities"},
         "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
@@ -164,11 +176,17 @@ def _dispatch(
         offset = _integer(parameters.get("offset", 0), "offset")
         limit = _integer(parameters.get("limit", 100), "limit")
         timeout = min(50, max(0, _integer(parameters.get("timeout", 0), "timeout")))
-        if offset < 0:
-            raise ValueError("GRAMLAB_UNSUPPORTED: negative update offsets")
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
-        return polling.get_updates(world, bot_id, offset, limit, timeout)
+        selection = parameters.get("allowed_updates")
+        if isinstance(selection, str):
+            try:
+                selection = _json_value(selection)
+            except ValueError:
+                selection = None
+        return polling.get_updates(
+            world, bot_id, offset, limit, timeout, update_selection(selection)
+        )
     if method == "answercallbackquery":
         if "callback_query_id" not in parameters:
             raise ValueError("callback_query_id is required")
