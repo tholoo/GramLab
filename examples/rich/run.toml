@@ -1,0 +1,13 @@
+schema = 1
+mode = "simulation-only"
+seed = 7
+now = 1700000000
+timeout = 20
+
+[scenario]
+entry = "scenario.py"
+files = ["scenario.py", "scene.json"]
+
+[bots.rich]
+entry = "bot.py"
+files = ["bot.py", "scene.json"]
