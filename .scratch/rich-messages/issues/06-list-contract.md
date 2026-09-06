@@ -38,7 +38,8 @@ The [reference note](../../../docs/development/rich-list-references.md) records 
 `list` discriminator, recursive block item shape, checkbox fields, all five ordered label types,
 integer/default behavior, mixed-ordering rejection and canonical output. It distinguishes the
 Bot API interface from the richer pinned native schema and proposes disjoint core, GPL adapter and
-capture ownership.
+capture ownership. Empty list-item block arrays survive the pinned modeled input/output path and
+must be retained semantically while the original Android renderer leaves them invisible.
 
 The pinned sources do not establish live production acceptance or size limits, nor Android pixel,
 wrapping, interaction or accessibility behavior. Those remain explicit integration gaps. No

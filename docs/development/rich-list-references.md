@@ -19,7 +19,9 @@ discriminators and no text-only item variant:
     {
       "blocks": [{"type": "paragraph", "text": "First"}],
       "has_checkbox": true,
-      "is_checked": true
+      "is_checked": true,
+      "value": 1,
+      "type": "A"
     },
     {
       "blocks": [{"type": "paragraph", "text": "Second"}],
@@ -61,12 +63,14 @@ Positive `a` and `A` values produce spreadsheet-style letters. Positive `i` and 
 is retained. Every generated label ends in a period. The exact derivation is visible in
 [`get_ordered_list_label`](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/WebPageBlock.cpp#L1991-L2059).
 
-The inspected input path does not explicitly reject an empty item `blocks` array, although it does
-reject an empty list. That is source behavior, not proof that a production request with an empty
-item is useful or accepted through every layer. GramLab should retain its existing nonempty nested
-block invariant and reject such an item as `GRAMLAB_UNSUPPORTED` before mutation because the pinned
-Android renderer skips an empty block item. This is an explicit local support limit rather than a
-Telegram limit.
+The pinned modeled path accepts and preserves an empty item `blocks` array. The server parser
+passes the array to recursive block parsing; TDLib's
+[block-vector conversion](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/WebPageBlock.cpp#L5208-L5216)
+returns an empty vector without error, and list-item conversion retains it. The output object and
+serializer then emit `blocks: []` through the same paths cited below. Only the outer `items` array
+must be nonempty. GramLab should therefore preserve empty list-item block arrays even though its
+top-level and other nested block arrays retain their existing nonempty limits. This source path is
+still not a live production request observation.
 
 The official parser extracts known fields without an unknown-field rejection pass. GramLab's
 existing stricter interface should continue to reject unknown list and item fields. At the rich
@@ -94,6 +98,8 @@ This produces the following canonical rules for the shared contract:
   output. Input `type: ""` behaves the same as omission.
 - False checkbox flags are omitted. `is_checked: true` without `has_checkbox: true` is normalized
   away; checked output is possible only with a checkbox.
+- An empty item `blocks` array remains empty in canonical output; it is not filled with a paragraph
+  or rejected by the modeled source path.
 - Nested lists use the same contract recursively and count against GramLab's existing whole-tree
   depth, node, and UTF-8 budgets.
 
@@ -134,12 +140,21 @@ leave the renderer and resources unchanged.
 
 Native acceptance requires an actual serialize/deserialize observation equal to the complete
 canonical JSON for unordered, ordered, mixed label types, nested blocks, both checkbox states, and
-RTL/LTR text. Independent malformed snapshots must reject mixed orderedness, bad labels/types,
-empty items, empty item blocks, wrong scalars, unknown fields, and budget overflow. Original
+RTL/LTR text. It must also preserve `blocks: []` in an item through the native codec. Independent
+malformed snapshots must reject mixed orderedness, bad labels/types, empty outer `items`, wrong
+scalars, unknown fields, and budget overflow. Original
 send/edit/cold-restart screenshots and UI structure must show list order, marker choice, nesting,
 wrapping, multilingual content, RTL indentation, and checkbox presentation. Source capability or a
 codec round trip alone does not prove rendering or accessibility behavior; checkbox interaction is
 a separate mutation contract.
+
+For an empty block item, the original renderer's list branches skip the item before creating a
+marker, checkbox or child layout in the same
+[`RichMessageLayout` path](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java#L857-L1004).
+That invisibility is expected native behavior to preserve. The authoritative history and codec
+must retain the empty item, while screenshot and UI hierarchy evidence should establish that it
+adds no visible row. Public capture and inline walkers will have no readable fragment for that
+item, so an empty item cannot satisfy a text target or disambiguate a rich message.
 
 The renderer's checkbox path checks `canToggleRichMessageCheckbox` and `richEditorAllowed` before
 an optimistic state change and edit dispatch; see
@@ -179,5 +194,6 @@ documentation currently reports Bot API 10.3, but it is not a historical commit 
 server and TDLib source links above are immutable. These sources do not establish production item,
 list, depth, text, or total-size limits; live acceptance of empty item blocks or unusual integer
 values; Android pixels, wrapping, interaction, or accessibility; or live server output after a
-send/edit. GramLab's current local budgets and explicit unsupported behavior remain the supported
-profile until dedicated evidence justifies a change.
+send/edit. The pinned modeled path nevertheless establishes that empty item block arrays must be
+preserved in this slice. GramLab's other current local budgets and explicit unsupported behavior
+remain the supported profile until dedicated evidence justifies a change.
