@@ -18,6 +18,11 @@ The independent [update-delivery review](update-delivery-references.md) resolves
 These are contract references for original Python behavior, without a server source import or
 external account/DC run. The existing Android source and toolchain pins are unchanged.
 
+The [Bot API reuse assessment](bot-api-reuse.md) compares existing offline simulators against
+the shared-world contract. It identifies schema, media/webhook harness and load-tooling reuse
+candidates, distinguishing implemented state changes from generated success responses. This is
+a source review; no additional simulator dependency or backend change has been adopted.
+
 | Finding | Primary source | Consequence |
 | --- | --- | --- |
 | Official Android app source and native build requirements | [README](https://github.com/DrKLO/Telegram/blob/master/README.md) | Establish a reproducible build profile before UI claims |

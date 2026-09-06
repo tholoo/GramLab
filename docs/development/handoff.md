@@ -49,6 +49,12 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
+Before expanding handwritten Bot API coverage, use the
+[reuse assessment](bot-api-reuse.md) to evaluate existing stateful emulator components and test
+tooling. The review is source-only: it adds no dependency and does not change the Python world
+authority or Android boundary. Prioritize useful feature breadth and rich-message rendering;
+retain the recovery diagnostics for new failure evidence instead of repeating successful gates.
+
 Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).
 The latest [transport diagnosis](android-transport-reliability.md) isolates two failures in an
 independent codec loop: local handshakes stall with the pinned emulator's Netsim forwarding,
