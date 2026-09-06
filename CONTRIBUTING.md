@@ -21,8 +21,8 @@ direnv changes. Store host inventory, proxy addresses and other machine-specific
 
 ```sh
 uv sync --locked
-uv run --locked ruff check .
-uv run --locked ruff format --check .
+uv run --locked ruff check . tools/test-timings
+uv run --locked ruff format --check . tools/test-timings
 ```
 
 The experimental Python implementation is packaged with the pinned uv build backend. There is no
@@ -55,6 +55,7 @@ uv run --locked mypy examples/composer
 uv run --locked mypy examples/rich tests/test_runner_rich_example.py
 uv run --locked mypy tests/probes/android_effects.py tests/test_android_effects.py
 uv run --locked mypy examples/rich_inline tests/test_runner_rich_buttons.py
+uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
@@ -87,3 +88,9 @@ and `shellcheck tools/worktree` in the Nix shell. For repeated command-line work
 retains the selected development environment in an ignored Nix profile. Validate it with
 `bash -n tools/dev`, `shellcheck tools/dev`, and a real `tools/dev default --command python3 --version`
 invocation; the resulting profile must remain registered as a Nix garbage collection root.
+
+Retain pytest JUnit output with a distinct `--junitxml=artifacts/RUN.xml` path when investigating
+latency. The [timing command](docs/development/test-timings.md) compares retained reports without
+rerunning tests and keeps added cases separate from matched duration changes. Its focused CLI
+checks run with `pytest tests/test_test_timings.py`; it does not change runtime isolation or the
+meaning of suite coverage.

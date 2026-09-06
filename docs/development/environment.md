@@ -124,3 +124,8 @@ For a deliberate toolchain upgrade, update the immutable nixpkgs revision in `fl
 Android expression checks the image revision, extension and published checksum so a nixpkgs
 update cannot silently select a different image. Revalidate archive provenance, native loader
 patches, the development shell and Android fidelity/isolation before recording a supported upgrade.
+
+For test-time investigation, [tools/test-timings](../../tools/test-timings) compares retained
+pytest JUnit reports. Its [documented output](test-timings.md) separates matched case changes,
+added/removed cases, suite duration and summed case durations. Preserve test selection and profile
+information when interpreting results; the helper does not turn uncontrolled runs into benchmarks.

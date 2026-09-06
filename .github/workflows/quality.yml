@@ -82,8 +82,8 @@ jobs:
           PY
       - name: Lint and formatting
         run: |
-          uv run --locked ruff check .
-          uv run --locked ruff format --check .
+          uv run --locked ruff check . tools/test-timings
+          uv run --locked ruff format --check . tools/test-timings
       - name: Strict Python type checking
         run: >-
           uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py
@@ -111,3 +111,5 @@ jobs:
         run: uv run --locked mypy tests/probes/android_effects.py tests/test_android_effects.py
       - name: Type check the independent rich inline consumer example
         run: uv run --locked mypy examples/rich_inline tests/test_runner_rich_buttons.py
+      - name: Type check the retained timing command
+        run: uv run --locked mypy tools/test-timings tests/test_test_timings.py
