@@ -34,7 +34,7 @@ behavioral suite in the [documented outer network guard](docs/development/runtim
 
 ```sh
 uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py \
-  tests/probes/android_client_bridge.py tests/probes/bot_round_trip.py \
+  tests/probes/android_client_bridge.py tests/probes/android_application.py tests/probes/bot_round_trip.py \
   tests/fixtures/echo_bot.py clients/android/prepare.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```

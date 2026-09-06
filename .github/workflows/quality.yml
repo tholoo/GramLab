@@ -83,4 +83,4 @@ jobs:
       - name: Strict Python type checking
         run: >-
           uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py
-          tests/probes/android_client_bridge.py tests/probes/bot_round_trip.py tests/fixtures/echo_bot.py clients/android/prepare.py
+          tests/probes/android_client_bridge.py tests/probes/android_application.py tests/probes/bot_round_trip.py tests/fixtures/echo_bot.py clients/android/prepare.py

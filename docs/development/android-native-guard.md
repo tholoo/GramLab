@@ -1,8 +1,9 @@
 # Native transport guard
 
 The second [Android patch](../../clients/android/patches/README.md) adds a compile-time
-`GRAMLAB_OFFLINE` guard to the selected GramLab build. The application remains disabled while
-startup, background networking and the Java semantic adapter are implemented.
+`GRAMLAB_OFFLINE` guard to the selected GramLab build. This guard remains active with the fourth
+patch’s [synthetic application startup](android-application.md). The evidence below records the
+earlier JNI-only milestone, whose application was disabled.
 
 ## Boundaries
 

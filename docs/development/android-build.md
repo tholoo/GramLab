@@ -2,7 +2,8 @@
 
 Status: a complete x86_64 preparation APK has rebuilt from exported sources and cached dependencies
 with strict verification inside independent network containment. Signature/manifest inspection
-passed. The preparation application is disabled; synthetic client startup is not implemented.
+passed. The fourth patch adds contained [synthetic startup and rendering](android-application.md);
+the earlier disabled preparation artifacts below remain historical build evidence.
 
 Read [licensing](licensing.md), [upstream maintenance](upstream.md), and
 [offline safety](offline-safety.md) first. Dependency provisioning can access public registries;
@@ -38,8 +39,9 @@ The new application ID is `org.gramlab.android`, with a distinct unofficial labe
 vector icon. The shared Telegram renderer, Java resources and JLatexMath implementation are
 preserved; the second patch adds narrow [native transport guards](android-native-guard.md).
 Cloud/distribution Gradle plugins and unrelated application variants are
-excluded from this selected build. This does not remove all cloud runtime dependencies or make
-the client ready to start: application activation is disabled until the offline patches are proven.
+excluded from this selected build. The fourth patch enables the application only with synthetic
+configuration and audited startup/transport seams. Independent containment remains mandatory;
+not all cloud runtime dependencies have been removed.
 
 The shared library and APK target x86_64. Native compilation uses a Ninja job pool with two
 compile jobs and one link job by default; `-PgramlabNativeJobs=<count>` selects another compile
@@ -168,7 +170,8 @@ synthetic application startup gate.
 The third patch's Java snapshot adapter and guest probe compile with the same cached dependencies
 and native guards. A fresh export reproduces these new source inputs; the
 [semantic adapter evidence](android-semantic-bridge.md) records the real HTTP/TL round trip and
-its limits. The preparation application remains disabled.
+its limits. That three-patch preparation artifact remains disabled; the fourth
+[startup patch](android-application.md) activates the synthetic application.
 
 Build logs, local signing material, absolute paths, timings and live process handles belong in
 ignored `.cache/` or `artifacts/`. Preserve a live build across handoffs and poll its actual handle;

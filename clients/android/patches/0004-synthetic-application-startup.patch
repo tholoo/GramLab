@@ -1,0 +1,703 @@
+diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
+--- a/TMessagesProj/build.gradle
++++ b/TMessagesProj/build.gradle
+@@ -128,6 +128,7 @@
+     defaultConfig {
+         minSdkVersion 21
+         targetSdkVersion 36
++        buildConfigField "boolean", "GRAMLAB_OFFLINE", "true"
+         ndk { abiFilters "x86_64" }
+ 
+         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+@@ -7,6 +7,8 @@
+  */
+ 
+ package org.telegram.messenger;
++
++import org.telegram.gramlab.GramLabRuntime;
+ 
+ import android.annotation.SuppressLint;
+ import android.app.Activity;
+@@ -212,7 +214,7 @@
+                     }
+ 
+                     boolean isSlow = isConnectionSlow();
+-                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
++                    for (int a = 0; a < (GramLabRuntime.enabled() ? 1 : UserConfig.MAX_ACCOUNT_COUNT); a++) {
+                         ConnectionsManager.getInstance(a).checkConnection();
+                         FileLoader.getInstance(a).onNetworkChanged(isSlow);
+                     }
+@@ -244,8 +246,9 @@
+         }
+ 
+         SharedConfig.loadConfig();
++        if (GramLabRuntime.enabled()) GramLabRuntime.installPersona();
+         SharedPrefsHelper.init(applicationContext);
+-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
++        for (int a = 0; a < (GramLabRuntime.enabled() ? 1 : UserConfig.MAX_ACCOUNT_COUNT); a++) { //TODO improve account
+             UserConfig.getInstance(a).loadConfig();
+             MessagesController.getInstance(a);
+             if (a == 0) {
+@@ -261,17 +264,17 @@
+         }
+ 
+         ApplicationLoader app = (ApplicationLoader) ApplicationLoader.applicationContext;
+-        app.initPushServices();
++        if (!GramLabRuntime.enabled()) app.initPushServices();
+         if (BuildVars.LOGS_ENABLED) {
+             FileLog.d("app initied");
+         }
+ 
+         MediaController.getInstance();
+-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
+-            ContactsController.getInstance(a).checkAppAccount();
++        for (int a = 0; a < (GramLabRuntime.enabled() ? 1 : UserConfig.MAX_ACCOUNT_COUNT); a++) { //TODO improve account
++            if (!GramLabRuntime.enabled()) ContactsController.getInstance(a).checkAppAccount();
+             DownloadController.getInstance(a);
+         }
+-        BillingController.getInstance().startConnection();
++        if (!GramLabRuntime.enabled()) BillingController.getInstance().startConnection();
+     }
+ 
+     public ApplicationLoader() {
+@@ -288,6 +291,7 @@
+         }
+ 
+         super.onCreate();
++        if (GramLabRuntime.enabled()) GramLabRuntime.initialize(applicationContext);
+ 
+         // AndroidUtilities must be initialized before FileLog
+         final String helloWorld = AndroidUtilities.getHelloWorld();
+@@ -352,10 +356,11 @@
+         AndroidUtilities.runOnUIThread(ApplicationLoader::startPushService);
+ 
+         LauncherIconController.tryFixLauncherIconIfNeeded();
+-        ProxyRotationController.init();
++        if (!GramLabRuntime.enabled()) ProxyRotationController.init();
+     }
+ 
+     public static void startPushService() {
++        if (GramLabRuntime.enabled()) return;
+         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+         boolean enabled;
+         if (preferences.contains("pushService")) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java b/TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java
+--- a/TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java
++++ b/TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java
+@@ -1,4 +1,6 @@
+ package org.telegram.tgnet;
++
++import org.telegram.gramlab.GramLabRuntime;
+ 
+ import android.annotation.SuppressLint;
+ import android.app.Activity;
+@@ -155,12 +157,14 @@
+     }
+ 
+     public void discardConnection(int dcId, int connectionType) {
++        if (GramLabRuntime.enabled()) { return; }
+         Utilities.stageQueue.postRunnable(() -> {
+             native_discardConnection(currentAccount, dcId, connectionType);
+         });
+     }
+ 
+     public void failNotRunningRequest(int requestToken) {
++        if (GramLabRuntime.enabled()) { return; }
+         Utilities.stageQueue.postRunnable(() -> {
+             native_failNotRunningRequest(currentAccount, requestToken);
+         });
+@@ -201,6 +205,10 @@
+ 
+     public ConnectionsManager(int instance) {
+         super(instance);
++        if (GramLabRuntime.enabled()) {
++            connectionState = ConnectionStateConnected;
++            return;
++        }
+         connectionState = native_getConnectionState(currentAccount);
+         String deviceModel;
+         String systemLangCode;
+@@ -280,6 +288,7 @@
+     }
+ 
+     public boolean isPushConnectionEnabled() {
++        if (GramLabRuntime.enabled()) { return false; }
+         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+         if (preferences.contains("pushConnection")) {
+             return preferences.getBoolean("pushConnection", true);
+@@ -289,22 +298,27 @@
+     }
+ 
+     public long getCurrentTimeMillis() {
++        if (GramLabRuntime.enabled()) { return GramLabRuntime.now() * 1000L; }
+         return native_getCurrentTimeMillis(currentAccount);
+     }
+ 
+     public int getCurrentTime() {
++        if (GramLabRuntime.enabled()) { return GramLabRuntime.now(); }
+         return native_getCurrentTime(currentAccount);
+     }
+ 
+     public int getCurrentDatacenterId() {
++        if (GramLabRuntime.enabled()) { return 0; }
+         return native_getCurrentDatacenterId(currentAccount);
+     }
+ 
+     public long getCurrentAuthKeyId() {
++        if (GramLabRuntime.enabled()) { return 0; }
+         return native_getCurrentAuthKeyId(currentAccount);
+     }
+ 
+     public int getTimeDifference() {
++        if (GramLabRuntime.enabled()) { return 0; }
+         return native_getTimeDifference(currentAccount);
+     }
+ 
+@@ -375,12 +389,14 @@
+ 
+     public int sendRequestSync(final TLObject object, final RequestDelegate onComplete, final QuickAckDelegate onQuickAck, final WriteToSocketDelegate onWriteToSocket, final int flags, final int datacenterId, final int connectionType, final boolean immediate) {
+         final int requestToken = lastRequestToken.getAndIncrement();
++        if (GramLabRuntime.enabled()) GramLabRuntime.reserve(currentAccount, requestToken);
+         sendRequestInternal(object, onComplete, null, onQuickAck, onWriteToSocket, flags, datacenterId, connectionType, immediate, requestToken);
+         return requestToken;
+     }
+ 
+     public int sendRequest(final TLObject object, final RequestDelegate onComplete, final RequestDelegateTimestamp onCompleteTimestamp, final QuickAckDelegate onQuickAck, final WriteToSocketDelegate onWriteToSocket, final int flags, final int datacenterId, final int connectionType, final boolean immediate) {
+         final int requestToken = lastRequestToken.getAndIncrement();
++        if (GramLabRuntime.enabled()) GramLabRuntime.reserve(currentAccount, requestToken);
+         Utilities.stageQueue.postRunnable(() -> {
+             sendRequestInternal(object, onComplete, onCompleteTimestamp, onQuickAck, onWriteToSocket, flags, datacenterId, connectionType, immediate, requestToken);
+         });
+@@ -388,6 +404,7 @@
+     }
+ 
+     private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.request(currentAccount, requestToken, object, onComplete, onCompleteTimestamp); return; }
+         if (BuildVars.LOGS_ENABLED) {
+             FileLog.d("send request " + object + " with token = " + requestToken);
+         }
+@@ -571,6 +588,7 @@
+     }
+ 
+     public void cancelRequest(int token, boolean notifyServer, Runnable onCancelled) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.cancel(currentAccount, token, onCancelled); return; }
+         Utilities.stageQueue.postRunnable(() -> {
+             if (onCancelled != null) {
+                 listenCancel(token, () -> {
+@@ -582,16 +600,19 @@
+     }
+ 
+     public void cleanup(boolean resetKeys) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.cleanup(currentAccount); return; }
+         native_cleanUp(currentAccount, resetKeys);
+     }
+ 
+     public void cancelRequestsForGuid(int guid) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.cancelGuid(currentAccount, guid); return; }
+         Utilities.stageQueue.postRunnable(() -> {
+             native_cancelRequestsForGuid(currentAccount, guid);
+         });
+     }
+ 
+     public void bindRequestToGuid(int requestToken, int guid) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.bind(currentAccount, requestToken, guid); return; }
+         if (guid == 0) {
+             return;
+         }
+@@ -599,6 +620,7 @@
+     }
+ 
+     public void applyDatacenterAddress(int datacenterId, String ipAddress, int port) {
++        if (GramLabRuntime.enabled()) { throw new IllegalStateException("GRAMLAB_NATIVE_TRANSPORT_DISABLED"); }
+         native_applyDatacenterAddress(currentAccount, datacenterId, ipAddress, port);
+     }
+ 
+@@ -610,10 +632,12 @@
+     }
+ 
+     public void setUserId(long id) {
++        if (GramLabRuntime.enabled()) { return; }
+         native_setUserId(currentAccount, id);
+     }
+ 
+     public void checkConnection() {
++        if (GramLabRuntime.enabled()) { return; }
+         byte selectedStrategy = getIpStrategy();
+         if (BuildVars.LOGS_ENABLED) {
+             FileLog.d("selected ip strategy " + selectedStrategy);
+@@ -623,10 +647,12 @@
+     }
+ 
+     public void setPushConnectionEnabled(boolean value) {
++        if (GramLabRuntime.enabled()) { return; }
+         native_setPushConnectionEnabled(currentAccount, value);
+     }
+ 
+     public void init(int version, int layer, int apiId, String deviceModel, String systemVersion, String appVersion, String langCode, String systemLangCode, String configPath, String logPath, String regId, String cFingerprint, int timezoneOffset, long userId, boolean userPremium, boolean enablePushConnection) {
++        if (GramLabRuntime.enabled()) { throw new IllegalStateException("GRAMLAB_NATIVE_TRANSPORT_DISABLED"); }
+         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+         String proxyAddress = preferences.getString("proxy_ip", "");
+         String proxyUsername = preferences.getString("proxy_user", "");
+@@ -672,6 +698,7 @@
+     }
+ 
+     public static void setLangCode(String langCode) {
++        if (GramLabRuntime.enabled()) { return; }
+         langCode = langCode.replace('_', '-').toLowerCase();
+         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+             native_setLangCode(a, langCode);
+@@ -679,6 +706,7 @@
+     }
+ 
+     public static void setRegId(String regId, @PushListenerController.PushType int type, String status) {
++        if (GramLabRuntime.enabled()) { return; }
+         String pushString = regId;
+         if (!TextUtils.isEmpty(pushString) && type == PushListenerController.PUSH_TYPE_HUAWEI) {
+             pushString = "huawei://" + pushString;
+@@ -696,6 +724,7 @@
+     }
+ 
+     public static void setSystemLangCode(String langCode) {
++        if (GramLabRuntime.enabled()) { return; }
+         langCode = langCode.replace('_', '-').toLowerCase();
+         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+             native_setSystemLangCode(a, langCode);
+@@ -703,24 +732,29 @@
+     }
+ 
+     public void switchBackend(boolean restart) {
++        if (GramLabRuntime.enabled()) { throw new IllegalStateException("GRAMLAB_NATIVE_TRANSPORT_DISABLED"); }
+         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+         preferences.edit().remove("language_showed2").commit();
+         native_switchBackend(currentAccount, restart);
+     }
+ 
+     public boolean isTestBackend() {
++        if (GramLabRuntime.enabled()) { return false; }
+         return native_isTestBackend(currentAccount) != 0;
+     }
+ 
+     public void resumeNetworkMaybe() {
++        if (GramLabRuntime.enabled()) { return; }
+         native_resumeNetwork(currentAccount, true);
+     }
+ 
+     public void updateDcSettings() {
++        if (GramLabRuntime.enabled()) { return; }
+         native_updateDcSettings(currentAccount);
+     }
+ 
+     public void setDefaultDatacenterId(int dcId) {
++        if (GramLabRuntime.enabled()) { throw new IllegalStateException("GRAMLAB_NATIVE_TRANSPORT_DISABLED"); }
+         native_moveDatacenter(currentAccount, dcId);
+     }
+ 
+@@ -729,6 +763,7 @@
+     }
+ 
+     public long checkProxy(String address, int port, String username, String password, String secret, RequestTimeDelegate requestTimeDelegate) {
++        if (GramLabRuntime.enabled()) { if (requestTimeDelegate != null) requestTimeDelegate.run(-1); return 0; }
+         if (TextUtils.isEmpty(address)) {
+             return 0;
+         }
+@@ -748,6 +783,7 @@
+     }
+ 
+     public void setAppPaused(final boolean value, final boolean byScreenState) {
++        if (GramLabRuntime.enabled()) { appPaused = value; lastPauseTime = value ? System.currentTimeMillis() : 0; return; }
+         if (!byScreenState) {
+             appPaused = value;
+             if (BuildVars.LOGS_ENABLED) {
+@@ -855,6 +891,7 @@
+     }
+ 
+     public static void onRequestNewServerIpAndPort(final int second, final int currentAccount) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.trace("blocked", "DNS_fallback", currentAccount, 0); return; }
+         Utilities.globalQueue.postRunnable(() -> {
+             boolean networkOnline = ApplicationLoader.isNetworkOnline();
+             Utilities.stageQueue.postRunnable(() -> {
+@@ -892,6 +929,7 @@
+     }
+ 
+     public static void getHostByName(String hostName, long address) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.trace("blocked", "DNS", 0, 0); return; }
+         AndroidUtilities.runOnUIThread(() -> {
+             ResolvedDomain resolvedDomain = dnsCache.get(hostName);
+             if (resolvedDomain != null && SystemClock.elapsedRealtime() - resolvedDomain.ttl < 5 * 60 * 1000) {
+@@ -936,10 +974,12 @@
+     }
+ 
+     public static void onInternalPushReceived(final int currentAccount) {
++        if (GramLabRuntime.enabled()) { return; }
+         KeepAliveJob.startJob();
+     }
+ 
+     public static void setProxySettings(boolean enabled, String address, int port, String username, String password, String secret) {
++        if (GramLabRuntime.enabled()) { if (enabled) GramLabRuntime.trace("blocked", "proxy", 0, 0); return; }
+         if (address == null) {
+             address = "";
+         }
+@@ -1488,6 +1528,7 @@
+ 
+     @Keep
+     public static void onIntegrityCheckClassic(final int currentAccount, final int requestToken, final String project, final String nonce) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.trace("blocked", "onIntegrityCheckClassic", currentAccount, requestToken); return; }
+         AndroidUtilities.runOnUIThread(() -> {
+             long start = System.currentTimeMillis();
+             FileLog.d("account"+currentAccount+": server requests integrity classic check with project = "+project+" nonce = " + nonce);
+@@ -1527,6 +1568,7 @@
+ 
+     @Keep
+     public static void onCaptchaCheck(final int currentAccount, final int requestToken, final String action, final String key_id) {
++        if (GramLabRuntime.enabled()) { GramLabRuntime.trace("blocked", "onCaptchaCheck", currentAccount, requestToken); return; }
+         CaptchaController.request(currentAccount, requestToken, action, key_id);
+     }
+ }
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -0,0 +1,290 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import android.content.Context;
++import android.os.SystemClock;
++import org.json.JSONObject;
++import org.telegram.messenger.BuildConfig;
++import org.telegram.messenger.MessagesController;
++import org.telegram.messenger.MessagesStorage;
++import org.telegram.messenger.UserConfig;
++import org.telegram.messenger.Utilities;
++import org.telegram.tgnet.RequestDelegate;
++import org.telegram.tgnet.RequestDelegateTimestamp;
++import org.telegram.tgnet.TLObject;
++import org.telegram.tgnet.TLRPC;
++import org.telegram.tgnet.Vector;
++import org.telegram.tgnet.tl.TL_bots;
++
++import java.io.File;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++
++/** Synthetic application binding and semantic request lifecycle. Never invokes native transport. */
++public final class GramLabRuntime {
++    private static volatile GramLabBridge.Snapshot snapshot;
++    private static JSONObject configuration;
++    private static File directory;
++    private static final ExecutorService worker = Executors.newSingleThreadExecutor(
++            action -> new Thread(action, "GramLabBridge"));
++    private static final Map<Long, Pending> pending = new ConcurrentHashMap<>();
++
++    private static final class Pending {
++        final int account;
++        volatile int guid;
++        Pending(int account) { this.account = account; }
++    }
++
++    private static final class StartupRejected extends Exception {
++        final String reason;
++        StartupRejected(String reason) { this.reason = reason; }
++    }
++
++    public static boolean enabled() { return BuildConfig.GRAMLAB_OFFLINE; }
++
++    private static long key(int account, int token) {
++        return ((long) account << 32) | (token & 0xffffffffL);
++    }
++
++    public static synchronized void initialize(Context context) {
++        if (snapshot != null) return;
++        directory = new File(context.getFilesDir(), "gramlab");
++        try {
++            Files.createDirectories(directory.toPath());
++            File input = new File(directory, "config.json");
++            if (!input.isFile()) throw new StartupRejected("configuration_missing");
++            if (input.length() > 16384) throw new StartupRejected("configuration_too_large");
++            configuration = new JSONObject(new String(Files.readAllBytes(input.toPath()),
++                    StandardCharsets.UTF_8));
++            GramLabBridge.Snapshot loaded = worker.submit(
++                    () -> GramLabBridge.connect(configuration)).get(10, TimeUnit.SECONDS);
++            File binding = new File(directory, "binding.json");
++            if (binding.exists()) {
++                JSONObject previous = new JSONObject(new String(
++                        Files.readAllBytes(binding.toPath()), StandardCharsets.UTF_8));
++                if (!loaded.worldId.equals(previous.getString("world_id"))
++                        || loaded.persona != previous.getLong("user_id")) {
++                    throw new StartupRejected("world_binding_mismatch");
++                }
++            } else {
++                JSONObject identity = new JSONObject().put("world_id", loaded.worldId)
++                        .put("user_id", loaded.persona);
++                File temporary = new File(directory, "binding.tmp");
++                Files.write(temporary.toPath(), identity.toString().getBytes(StandardCharsets.UTF_8));
++                Files.move(temporary.toPath(), binding.toPath(),
++                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
++            }
++            snapshot = loaded;
++            trace("initialized", "snapshot", 0, 0);
++        } catch (Exception failure) {
++            String reason = failure instanceof StartupRejected
++                    ? ((StartupRejected) failure).reason : "configuration_unavailable";
++            trace("startup_rejected", reason, 0, 0);
++            // Never retain a cause: parsers and transports can include private configuration.
++            throw new IllegalStateException("GRAMLAB_STARTUP_REJECTED_" + reason);
++        }
++    }
++
++    public static void installPersona() {
++        GramLabBridge.Snapshot current = requireSnapshot();
++        UserConfig.selectedAccount = 0;
++        UserConfig userConfig = UserConfig.getInstance(0);
++        userConfig.loadConfig();
++        if (userConfig.isClientActivated() && userConfig.getClientUserId() != current.persona) {
++            throw new IllegalStateException("GRAMLAB_CLIENT_IDENTITY_MISMATCH");
++        }
++        userConfig.setCurrentUser(user(current, current.persona));
++        userConfig.saveConfig(true);
++        // ChatActivity resolves its peer from the controller before requesting history.
++        MessagesController.getInstance(0).putUsers(current.dialogs.users, false);
++        // Seed the normal dialog cache before ChatActivity asks for cached history.
++        // check=2 preserves existing pinned state and closes only the supplied message hole.
++        MessagesStorage storage = MessagesStorage.getInstance(0);
++        storage.putDialogs(current.dialogs, 2);
++        CountDownLatch stored = new CountDownLatch(1);
++        storage.getStorageQueue().postRunnable(stored::countDown);
++        try {
++            if (!stored.await(10, TimeUnit.SECONDS)) {
++                throw new IllegalStateException("GRAMLAB_DIALOG_CACHE_TIMEOUT");
++            }
++        } catch (InterruptedException interrupted) {
++            Thread.currentThread().interrupt();
++            throw new IllegalStateException("GRAMLAB_DIALOG_CACHE_INTERRUPTED");
++        }
++    }
++
++    private static GramLabBridge.Snapshot requireSnapshot() {
++        GramLabBridge.Snapshot current = snapshot;
++        if (current == null) throw new IllegalStateException("GRAMLAB_NOT_INITIALIZED");
++        return current;
++    }
++
++    public static int now() { return requireSnapshot().now; }
++
++    public static synchronized void trace(String event, String method, int account, int token) {
++        if (directory == null) return;
++        try {
++            JSONObject record = new JSONObject().put("event", event).put("method", method)
++                    .put("account", account).put("token", token)
++                    .put("elapsed_ms", SystemClock.elapsedRealtime());
++            Files.write(new File(directory, "trace.jsonl").toPath(),
++                    (record + "\n").getBytes(StandardCharsets.UTF_8),
++                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
++        } catch (Exception failure) {
++            throw new IllegalStateException("GRAMLAB_TRACE_WRITE_FAILED");
++        }
++    }
++
++    public static void reserve(int account, int token) {
++        pending.put(key(account, token), new Pending(account));
++    }
++
++    public static void bind(int account, int token, int guid) {
++        if (guid == 0) return;
++        Pending request = pending.get(key(account, token));
++        if (request != null) request.guid = guid;
++    }
++
++    public static void cancel(int account, int token, Runnable onCancelled) {
++        pending.remove(key(account, token));
++        if (onCancelled != null) Utilities.stageQueue.postRunnable(onCancelled);
++    }
++
++    public static void cancelGuid(int account, int guid) {
++        if (guid == 0) return;
++        pending.entrySet().removeIf(entry -> entry.getValue().account == account
++                && entry.getValue().guid == guid);
++    }
++
++    public static void cleanup(int account) {
++        pending.entrySet().removeIf(entry -> entry.getValue().account == account);
++    }
++
++    public static void request(int account, int token, TLObject request,
++            RequestDelegate completion, RequestDelegateTimestamp timestamped) {
++        long key = key(account, token);
++        Pending owner = pending.get(key);
++        if (owner == null) {
++            request.freeResources();
++            return;
++        }
++        String method = request.getClass().getSimpleName();
++        trace("request", method, account, token);
++        worker.execute(() -> {
++            TLObject response = null;
++            TLRPC.TL_error error = null;
++            try {
++                if (account != 0) throw new UnsupportedOperationException();
++                if (!(request instanceof TLRPC.TL_messages_getDialogs
++                        || request instanceof TLRPC.TL_messages_getHistory
++                        || request instanceof TLRPC.TL_users_getUsers
++                        || request instanceof TLRPC.TL_users_getFullUser)) {
++                    throw new UnsupportedOperationException();
++                }
++                GramLabBridge.Snapshot current = GramLabBridge.connect(configuration);
++                snapshot = current;
++                response = dispatch(request, current);
++            } catch (UnsupportedOperationException unsupported) {
++                error = new TLRPC.TL_error();
++                error.code = 501;
++                error.text = "GRAMLAB_UNSUPPORTED_" + method;
++            } catch (IllegalArgumentException invalid) {
++                error = new TLRPC.TL_error();
++                error.code = 400;
++                error.text = "GRAMLAB_INVALID_REQUEST";
++            } catch (Exception unavailable) {
++                error = new TLRPC.TL_error();
++                error.code = 503;
++                error.text = "GRAMLAB_BRIDGE_UNAVAILABLE";
++            }
++            final TLObject result = response;
++            final TLRPC.TL_error failure = error;
++            Utilities.stageQueue.postRunnable(() -> {
++                try {
++                    if (!pending.remove(key, owner)) return;
++                    trace(failure == null ? "response" : "error_" + failure.code,
++                            method, account, token);
++                    if (completion != null) completion.run(result, failure);
++                    if (timestamped != null) timestamped.run(result, failure, now() * 1000L);
++                } finally {
++                    request.freeResources();
++                }
++            });
++        });
++    }
++
++    private static TLRPC.User user(GramLabBridge.Snapshot current, long id) {
++        for (TLRPC.User candidate : current.dialogs.users) {
++            if (candidate.id == id) return candidate;
++        }
++        throw new IllegalArgumentException("Unknown synthetic participant");
++    }
++
++    private static long userId(TLRPC.InputUser user, GramLabBridge.Snapshot current) {
++        return user instanceof TLRPC.TL_inputUserSelf ? current.persona : user.user_id;
++    }
++
++    private static TLObject dispatch(TLObject request, GramLabBridge.Snapshot current) {
++        if (request instanceof TLRPC.TL_messages_getDialogs) {
++            TLRPC.TL_messages_getDialogs query = (TLRPC.TL_messages_getDialogs) request;
++            if (query.folder_id != 0 || query.offset_id != 0 || query.offset_date != 0
++                    || query.limit < current.dialogs.dialogs.size()) {
++                throw new UnsupportedOperationException();
++            }
++            return current.dialogs;
++        }
++        if (request instanceof TLRPC.TL_messages_getHistory) {
++            TLRPC.TL_messages_getHistory query = (TLRPC.TL_messages_getHistory) request;
++            if (query.peer == null || query.peer.user_id == 0 || query.add_offset != 0
++                    || query.offset_date != 0 || query.limit <= 0 || query.limit > 100) {
++                throw new UnsupportedOperationException();
++            }
++            TLRPC.TL_messages_messages source = current.histories.get(query.peer.user_id);
++            if (source == null) throw new IllegalArgumentException();
++            TLRPC.TL_messages_messages result = new TLRPC.TL_messages_messages();
++            result.users.addAll(source.users);
++            for (TLRPC.Message message : source.messages) {
++                if (query.offset_id > 0 && message.id >= query.offset_id
++                        || query.max_id > 0 && message.id >= query.max_id
++                        || query.min_id > 0 && message.id <= query.min_id) continue;
++                if (result.messages.size() == query.limit) break;
++                result.messages.add(message);
++            }
++            return result;
++        }
++        if (request instanceof TLRPC.TL_users_getUsers) {
++            Vector<TLRPC.User> result = new Vector<>(TLRPC.User::TLdeserialize);
++            for (TLRPC.InputUser id : ((TLRPC.TL_users_getUsers) request).id) {
++                result.objects.add(user(current, userId(id, current)));
++            }
++            return result;
++        }
++        if (request instanceof TLRPC.TL_users_getFullUser) {
++            TLRPC.User user = user(current,
++                    userId(((TLRPC.TL_users_getFullUser) request).id, current));
++            TLRPC.TL_users_userFull result = new TLRPC.TL_users_userFull();
++            result.users.add(user);
++            TLRPC.TL_userFull full = new TLRPC.TL_userFull();
++            full.id = user.id;
++            full.settings = new TLRPC.TL_peerSettings();
++            full.notify_settings = new TLRPC.TL_peerNotifySettings();
++            if (user.bot) {
++                TL_bots.TL_botInfo info = new TL_bots.TL_botInfo();
++                info.user_id = user.id;
++                info.description = "";
++                info.flags = 1 | 2 | 4;
++                full.bot_info = info;
++                full.flags |= 1 << 3;
++            }
++            result.full_user = full;
++            return result;
++        }
++        throw new UnsupportedOperationException();
++    }
++}
+diff --git a/TMessagesProj_GramLab/src/main/AndroidManifest.xml b/TMessagesProj_GramLab/src/main/AndroidManifest.xml
+--- a/TMessagesProj_GramLab/src/main/AndroidManifest.xml
++++ b/TMessagesProj_GramLab/src/main/AndroidManifest.xml
+@@ -1,11 +1,24 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-          xmlns:tools="http://schemas.android.com/tools">
+-    <!-- Build preparation only. Activation is forbidden until the offline boundary is patched. -->
+-    <application android:enabled="false" android:allowBackup="false"
+-                 android:label="@string/gramlab_app_name"
+-                 android:icon="@drawable/gramlab_launcher"
+-                 android:roundIcon="@drawable/gramlab_launcher"
+-                 tools:replace="android:enabled,android:allowBackup,android:label,android:icon,android:roundIcon" />
++<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
++    <uses-permission tools:node="removeAll" />
++    <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
++    <uses-permission android:name="android.permission.WAKE_LOCK" />
++    <uses-permission android:name="android.permission.VIBRATE" />
++    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
++    <application android:enabled="true" android:allowBackup="false" android:restoreAnyVersion="false" android:label="@string/gramlab_app_name" android:icon="@drawable/gramlab_launcher" android:roundIcon="@drawable/gramlab_launcher" android:networkSecurityConfig="@xml/gramlab_network_security" tools:replace="android:enabled,android:allowBackup,android:restoreAnyVersion,android:label,android:icon,android:roundIcon" tools:remove="android:backupAgent,android:manageSpaceActivity">
++        <service tools:node="removeAll" />
++        <receiver tools:node="removeAll" />
++        <provider tools:node="removeAll" />
++        <activity tools:node="removeAll" />
++        <activity-alias tools:node="removeAll" />
++        <meta-data tools:node="removeAll" />
++        <activity android:name="org.telegram.ui.LaunchActivity" android:theme="@style/Theme.TMessages.Start" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode|smallestScreenSize|screenLayout" android:supportsPictureInPicture="true" android:hardwareAccelerated="true" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:exported="true">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++        </activity>
++    </application>
+ </manifest>
+diff --git a/TMessagesProj_GramLab/src/main/res/xml/gramlab_network_security.xml b/TMessagesProj_GramLab/src/main/res/xml/gramlab_network_security.xml
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/res/xml/gramlab_network_security.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
++<network-security-config>
++    <base-config cleartextTrafficPermitted="false" />
++    <domain-config cleartextTrafficPermitted="true">
++        <domain>10.0.2.2</domain>
++        <domain>127.0.0.1</domain>
++    </domain-config>
++</network-security-config>

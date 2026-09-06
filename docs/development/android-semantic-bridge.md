@@ -1,8 +1,9 @@
 # Android semantic snapshot adapter
 
 Status: a real local bot reply reaches the Android-side adapter over authenticated HTTP and is
-converted into the pinned client's TL dialog/history objects. The application is still disabled;
-Java request dispatch, synthetic lifecycle startup and actual rendering remain separate gates.
+converted into the pinned client's TL dialog/history objects. The fourth patch now connects this
+adapter to [synthetic application startup and rendering](android-application.md). The evidence
+below describes the earlier standalone translation probe.
 
 The third [GPL patch](../../clients/android/patches/README.md) adds `GramLabBridge` to the shared
 client module. All TL conversion stays inside that boundary. Python continues to expose the
@@ -32,8 +33,8 @@ world IDs, participant IDs and journal cursors retain their separate meanings.
 
 Synthetic access hashes are zero; no phone, account session or production credential is imported.
 The journal cursor is carried separately and is not assigned to Telegram `pts`. The current
-snapshot does not implement read-state transitions, update reconciliation, client writes or RPC
-dispatch. Per-conversation message IDs are retained; broader private-account lookup contracts
+snapshot does not implement read-state transitions, update reconciliation or client writes.
+The fourth patch adds a limited read RPC dispatcher. Per-conversation message IDs are retained; broader private-account lookup contracts
 still need evidence when the request adapter is connected.
 
 ## Real guest evidence
@@ -68,8 +69,8 @@ BASH
 
 Use a fresh ignored artifact directory; pytest removes an existing base directory. Missing KVM,
 runtime profile or APK is unavailable coverage, not a passing bridge test. The native transport
-guards and independent OS containment remain required. No client rendering, callback, edit or
-restart recovery is claimed yet.
+guards and independent OS containment remain required. This standalone probe does not establish
+rendering, callback, edit or restart recovery; see the separate application evidence.
 
 Verification on 2026-09-06: all six Android tests pass (27 core tests excluded), including the
 existing JNI request/init guards and guest networking checks. The new probe returns the expected

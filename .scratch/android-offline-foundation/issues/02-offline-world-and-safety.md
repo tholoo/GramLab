@@ -120,3 +120,20 @@ and strict dependency metadata. Static/Nix/workflow, local links and privacy pas
 [adapter evidence](../../../docs/development/android-semantic-bridge.md) for test-context and
 protocol limits. No package installation, lifecycle activation or rendering occurred. Next connect
 Java RPC/update dispatch and synthetic startup; keep the real tap/edit/recovery acceptance open.
+
+2026-09-06 synthetic application follow-up: The fourth GPL patch binds the world/persona before
+startup, installs the synthetic identity, replaces Java read dispatch and removes cloud startup
+components. A real local bot's Persian/English reply now renders in the unchanged Telegram chat.
+The disabled baseline failed to launch; an initial cache mismatch left an incorrect Start Bot bar,
+which is fixed through normal Telegram storage APIs without editing the renderer. Missing
+configuration and a valid other-world configuration fail before client startup with static,
+credential-free diagnostics. Three cold launches (initial, restart, restored original world) show
+both messages exactly once and zero Android accounts. The authoritative history remains unchanged.
+All seven Android tests pass, including existing JNI and local/external guest networking checks.
+The 27-test core gate remains at 90.72% coverage. Fresh four-patch preparation matches edited
+inputs, preserves all 6,666 UI/resource files and dependency metadata; signature/manifest/ABI,
+static/Nix/workflow, local-link and public-tree privacy checks pass. See the
+[application evidence](../../../docs/development/android-application.md) for failure corrections,
+profile, commands and limitations. Logs, credentials, APKs and host observations remain ignored.
+The full acceptance remains active: client writes/live updates, real callback/edit, broader
+recovery, component data mounts/quotas and media isolation are still open. No remote publication.

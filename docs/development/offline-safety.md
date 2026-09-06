@@ -4,8 +4,9 @@ Status: a [Linux process boundary](runtime-boundary.md) now enforces and tests n
 isolation for bounded processes. Dedicated AOSP guest startup, local traffic and external IPv4/IPv6
 denial are tested. The [world/bot prototype](world-bot-prototype.md) adds scoped local capabilities
 and contained HTTP exchange. A [native JNI guard](android-native-guard.md) rejects transport
-request/initialization calls; the application remains disabled. Application-specific enforcement
-remains incomplete; the requirements below
+request/initialization calls. [Synthetic application startup](android-application.md) now has
+restricted lifecycle/transport paths and real rendering evidence. Complete application-specific
+enforcement remains incomplete; the requirements below
 are not yet satisfied end to end.
 
 ## Boundary

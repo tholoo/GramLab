@@ -25,11 +25,14 @@ without installing the application. See the [native guard record](../../../docs/
 `0003-semantic-client-bridge.patch` adds authenticated local snapshot transport and TL user,
 dialog and history conversion, plus a guest probe using the pinned serializer. See the
 [semantic adapter record](../../../docs/development/android-semantic-bridge.md). It does not yet
-replace application request dispatch or activate synthetic lifecycle startup.
+replace application request dispatch or activate synthetic lifecycle startup by itself.
 
-**The application is deliberately disabled.** The queue is not yet an offline client implementation.
-Do not enable or install it to claim synthetic startup: Java/background networking, identity and
-local bridge adaptations still have to be implemented and tested.
+`0004-synthetic-application-startup.patch` binds the synthetic world/persona before startup,
+replaces Java read request dispatch and disables cloud startup/transport paths. Its restricted
+manifest enables the existing launch activity in a dedicated contained guest. See the
+[application evidence and limits](../../../docs/development/android-application.md).
+The real conversation renders; client writes, live updates and the tap/callback/edit loop remain
+open. Never install or run this build outside the required containment.
 
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied

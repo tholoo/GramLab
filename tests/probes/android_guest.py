@@ -113,12 +113,13 @@ def main(
             try:
 
                 def adb_command(
-                    *arguments: str, timeout: float = 10
+                    *arguments: str, timeout: float = 10, input: str | None = None
                 ) -> subprocess.CompletedProcess[str]:
                     return subprocess.run(  # noqa: S603 — dedicated namespace/serial only
                         [adb, "-s", "emulator-5554", *arguments],
                         capture_output=True,
                         text=True,
+                        input=input,
                         timeout=timeout,
                         check=False,
                     )

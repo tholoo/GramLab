@@ -2,14 +2,17 @@
 
 ## Starting state
 
-GramLab has pinned development environments, an acquired Android source checkout and an
-experimental Linux process boundary with real-process tests, including a dedicated AOSP
-guest's startup and local/external network behavior. A disabled Android preparation APK rebuilds
-from exported source and cached dependencies inside independent network containment.
-An experimental SQLite world now drives a real local bot through a small HTTP Bot API subset.
-There is no runnable offline client, public simulator SDK, runtime CLI or complete binary fixture set. Git has a configured
-`origin`; publishing to GitHub/PyPI or acquiring real Telegram accounts is not authorized by this task.
-See [scaffold verification](scaffold-verification.md) for the checks already performed and their limits.
+GramLab has pinned Nix/direnv environments, an acquired Android source checkout and an
+experimental Linux process boundary with real-process and dedicated AOSP guest tests. Cached
+Android dependencies rebuild offline under strict verification. An experimental SQLite world
+drives a real local bot through HTTP; its reply now renders in the actual Telegram Android
+application through synthetic startup and a Java semantic read adapter. The upstream chat renderer
+is preserved. There is no public simulator SDK/CLI or complete interaction loop yet.
+
+The active goal remains the real bot → actual Android → real inline-button tap/callback → edit →
+bot/client recovery loop, followed by the wider agreed feature inventory. No real accounts or DC
+connections are permitted. Git has a configured `origin`; remote publication is not authorized.
+Host-specific settings, proxy addresses, process handles and generated artifacts stay ignored.
 
 Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](../../TESTING.md),
 [offline safety](offline-safety.md), [architecture](../architecture/overview.md), and the
@@ -42,8 +45,31 @@ as `3fc3b07`; the process/guest milestones are `7950caa` and `faa6f92`; build pr
 `feat/android-offline-client`. No remote publication has occurred.
 The pinned SDK has been realized and its tool versions checked in a disposable network namespace;
 the source checkout and submodule pins are verified. Gradle/plugin provisioning and preparation
-APK compilation and contained offline rebuilding passed; isolated synthetic startup remains a gate. Validate the minimal
-offline adapter boundary before implementing a wide feature catalog. Read source findings as leads, not as tested integration guarantees.
+APK compilation, contained rebuilding and initial real rendering passed. Continue the approved
+adapter rather than introducing a second renderer or a generated upstream schema in Python.
+
+Read [synthetic application evidence](android-application.md). Patch four binds the world/persona
+before normal startup, seeds the existing controller/dialog cache, replaces Java read dispatch
+and removes cloud startup components. Native guards and independent network containment remain
+mandatory. The real bot's mixed Persian/English reply and the ordinary message composer are
+visible in the unchanged ChatActivity. The final seven-test Android gate passes, including three cold launches, exact message
+visibility, missing/wrong-world startup rejection and zero Android accounts. Python static,
+Nix/direnv/workflow, local-link and privacy checks pass. Fresh preparation reproduces all six
+startup inputs and preserves the 6,666 checked UI/resource files. All build/test handles have
+completed; detailed local artifacts remain in ignored `.cache/local-notes/application-startup.md`.
+
+Next implement client writes/live updates and the inline callback/edit loop through the same
+world. Unknown RPCs must keep explicit failures. Do not assign the world event cursor to Telegram
+`pts`, invent empty successful responses to silence startup queries, or edit the renderer to
+compensate for incomplete state. Current support excludes read-state/presence semantics, broader
+pagination, callback/edit, media and Mini Apps. Component data mounts/quotas and complete license
+and source reconstruction audits remain open. The trusted bot fixture shares the supervisor's
+run data mount; do not describe it as separately filesystem-isolated.
+
+## Earlier milestone history
+
+The following records describe successive preparation artifacts. References to a disabled app or
+unimplemented startup apply to those earlier milestones; current startup is documented above.
 
 The [process boundary](runtime-boundary.md) now mounts only a provisioned immutable closure and
 the selected data directory. Real tests cover local traffic, parent/external denial, filesystem

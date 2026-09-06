@@ -1,8 +1,9 @@
 # Compatibility matrix
 
 An experimental [world/Bot API subset](../development/world-bot-prototype.md) now has local
-real-process evidence. The approved source/toolchain baseline is pinned, but Android rendering
-fidelity and external Bot API conformance remain unverified. This is a
+real-process evidence. [Synthetic Android startup](../development/android-application.md) renders
+a real plain-text bot exchange in the pinned client. Broader rendering fidelity and external
+Bot API conformance remain unverified. This is a
 starting inventory, not an exhaustive or authoritative catalog of
 Telegram's current methods. Expand it from official sources at the selected version.
 
@@ -17,7 +18,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | Surface | Required evidence before claiming support | State |
 | --- | --- | --- |
 | Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Partial: local polling/acknowledgment; long polling and webhooks planned |
-| Messages/commands/deep links/replies | Full requests, entities, state effects and Android behavior | Partial: private plain-text HTTP exchange; Android/entities planned |
+| Messages/commands/deep links/replies | Full requests, entities, state effects and Android behavior | Partial: private plain-text HTTP exchange and actual Android rendering; entities planned |
 | Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Planned |
 | Inline queries/results | Supported private/group/channel combinations and client result rendering | Planned |
 | Contexts/permissions | Private/group/supergroup/channel, privacy, admin, block/remove, migration, topics | Partial: private bot/chat capability checks |
@@ -28,7 +29,7 @@ cleanup tests. These do not establish Telegram rendering or protocol conformance
 | Mini Apps | Actual local app, Android WebView host bridge, launch/auth fixtures and egress blocking | Planned |
 | Business/payments/Stars/gifts | Source-derived scope; explicit local simulation vs unsupported settlement | Planned |
 | Localization | User/chat/bot/client language combinations; Persian/English, RTL/LTR and text expansion | Planned |
-| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; abrupt process recovery planned |
+| Recovery/concurrency | Restart persistence, deterministic replay, same-world races and cross-world isolation | Partial: SQLite reopen/migration, atomic persona snapshots/cursors, concurrent writers and bot queue isolation; Android force-stop/relaunch; in-flight mutation recovery planned |
 | Faults/limits | Documented validation plus labeled injections, byte/UTF-16 limits, 429/delay/ambiguous outcomes | Planned |
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Planned |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Planned |
