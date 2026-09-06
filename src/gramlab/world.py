@@ -17,6 +17,7 @@ from types import TracebackType
 from typing import Any, Self
 
 from gramlab.entities import formatting_entities
+from gramlab.rich_messages import rich_message as validate_rich_message
 
 # Names are the subscription vocabulary, not a claim that each type can be generated.
 # See docs/development/update-delivery-references.md for the pinned 10.3 contract.
@@ -402,6 +403,29 @@ class World:
                 formatting=formatting,
             )
 
+    def send_rich_message(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        rich_message: dict[str, Any],
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        content = validate_rich_message(rich_message)
+        keyboard = _inline_keyboard(reply_markup)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            if sender_id != self.get_chat(chat_id)["bot_id"]:
+                raise ValueError("Only bots can send rich messages")
+            return self._insert_message(
+                chat_id=chat_id,
+                sender_id=sender_id,
+                text="",
+                keyboard=keyboard,
+                formatting=None,
+                rich_message=content,
+            )
+
     def _insert_message(
         self,
         *,
@@ -410,6 +434,7 @@ class World:
         text: str,
         keyboard: dict[str, Any] | None,
         formatting: list[dict[str, Any]] | None,
+        rich_message: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Insert validated content inside the caller's existing writer transaction."""
         chat = self.get_chat(chat_id)
@@ -427,6 +452,8 @@ class World:
             "date": now,
             "text": text,
         }
+        if rich_message is not None:
+            message["rich_message"] = rich_message
         if keyboard is not None:
             message["reply_markup"] = keyboard
         if formatting is not None:
@@ -508,14 +535,23 @@ class World:
         chat_id: int,
         message_id: int,
         bot_id: int,
-        text: str,
+        text: str | None = None,
         reply_markup: dict[str, Any] | None = None,
         entities: list[dict[str, Any]] | None = None,
+        rich_message: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if not isinstance(text, str) or not 1 <= len(text) <= 4096:
-            raise ValueError("Text must contain 1 to 4096 characters")
-        text.encode("utf-8", errors="strict")
-        formatting = formatting_entities(text, entities)
+        content = None
+        if rich_message is not None:
+            if text is not None or entities is not None:
+                raise ValueError("GRAMLAB_UNSUPPORTED: combined text and rich content")
+            content = validate_rich_message(rich_message)
+            text = ""
+            formatting = None
+        else:
+            if not isinstance(text, str) or not 1 <= len(text) <= 4096:
+                raise ValueError("Text must contain 1 to 4096 characters")
+            text.encode("utf-8", errors="strict")
+            formatting = formatting_entities(text, entities)
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -529,6 +565,7 @@ class World:
                 message["text"] == text
                 and message.get("reply_markup") == keyboard
                 and message.get("entities") == formatting
+                and message.get("rich_message") == content
             ):
                 raise ValueError("MESSAGE_NOT_MODIFIED")
             message["text"] = text
@@ -537,6 +574,9 @@ class World:
             ).fetchone()[0]
             message.pop("reply_markup", None)
             message.pop("entities", None)
+            message.pop("rich_message", None)
+            if content is not None:
+                message["rich_message"] = content
             if formatting is not None:
                 message["entities"] = formatting
             if keyboard is not None:
