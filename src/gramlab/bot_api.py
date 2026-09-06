@@ -31,8 +31,11 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
         "from": world.get_user(message["sender_id"]),
         "chat": api_chat,
         "date": message["date"],
-        "text": message["text"],
     }
+    if "rich_message" in message:
+        result["rich_message"] = message["rich_message"]
+    else:
+        result["text"] = message["text"]
     for field in ("reply_markup", "edit_date", "entities"):
         if field in message:
             result[field] = message[field]
@@ -160,14 +163,22 @@ def _dispatch(
         "getme": set(),
         "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
-        "editmessagetext": {"chat_id", "message_id", "text", "reply_markup", "entities"},
+        "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
+        "editmessagetext": {
+            "chat_id",
+            "message_id",
+            "text",
+            "reply_markup",
+            "entities",
+            "rich_message",
+        },
         "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
     }
     if method not in supported:
         raise LookupError("GRAMLAB_UNSUPPORTED: Bot API method")
     if parameters.keys() - supported[method]:
         raise ValueError("GRAMLAB_UNSUPPORTED: Bot API parameters")
-    for name in ("reply_markup", "entities"):
+    for name in ("reply_markup", "entities", "rich_message"):
         if isinstance(parameters.get(name), str):
             parameters[name] = _json_value(parameters[name])
     if method == "getme":
@@ -201,8 +212,15 @@ def _dispatch(
             cache_time=_integer(parameters.get("cache_time", 0), "cache_time"),
         )
         return True
-    if "chat_id" not in parameters or "text" not in parameters:
-        raise ValueError("chat_id and text are required")
+    if "chat_id" not in parameters:
+        raise ValueError("chat_id is required")
+    if "rich_message" in parameters:
+        if parameters["rich_message"] is None:
+            raise ValueError("rich_message must be an object")
+        if "text" in parameters or "entities" in parameters:
+            raise ValueError("GRAMLAB_UNSUPPORTED: combined text and rich content")
+    elif method == "sendrichmessage" or "text" not in parameters:
+        raise ValueError("rich_message or text is required")
     chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
     if method == "editmessagetext":
         if "message_id" not in parameters:
@@ -213,9 +231,20 @@ def _dispatch(
                 chat_id=chat["id"],
                 message_id=_integer(parameters["message_id"], "message_id"),
                 bot_id=bot_id,
-                text=parameters["text"],
+                text=parameters.get("text"),
+                rich_message=parameters.get("rich_message"),
                 reply_markup=parameters.get("reply_markup"),
                 entities=parameters.get("entities"),
+            ),
+        )
+    if method == "sendrichmessage":
+        return _message(
+            world,
+            world.send_rich_message(
+                chat_id=chat["id"],
+                sender_id=bot_id,
+                rich_message=parameters["rich_message"],
+                reply_markup=parameters.get("reply_markup"),
             ),
         )
     return _message(
