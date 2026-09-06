@@ -71,6 +71,36 @@ not an effects comparison: the fixture was not chosen to expose blur boundaries,
 were not recorded, and the baseline and an enabled variant were not captured from the same world
 and frame state.
 
+## Prepared debug build and persistent settings
+
+The custom `TMessagesProj_GramLab` application depends on the `TMessagesProj` library.
+[`BuildVars`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java#L19-L27)
+reads the library's `org.telegram.messenger.BuildConfig`, not the application's separate namespace.
+The prepared library debug BuildConfig has `DEBUG_VERSION`, `DEBUG_PRIVATE_VERSION` and
+`GRAMLAB_OFFLINE` true. That establishes source/build eligibility for the upstream Force
+performance class menu and the private-debug exception exposing blur/glass rows even at LOW.
+It is not runtime evidence that those rows were opened or effects enabled. Recheck generated
+variant outputs if the build changes; keep their actual local paths out of tracked notes.
+
+The account-zero `mainconfig` SharedPreferences store contains these integer keys:
+
+| Key | Meaning |
+| --- | --- |
+| `overrideDevicePerformanceClass` | -1 uses measurement; 0 LOW, 1 AVERAGE, 2 HIGH |
+| `lite_mode6` | Persisted selected effect mask; absence selects the class preset |
+| `lite_mode_battery_level` | Battery threshold, 0–100; 0 disables this power-saver gate |
+
+The [performance override method](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/SharedConfig.java#L1182-L1186)
+reloads LiteMode but removes only the obsolete `lite_mode` key. Existing `lite_mode6` therefore
+continues to win after changing class; selecting HIGH alone does not replace it with HIGH's mask.
+Record mask presence/value before the change and enable the intended exposed rows explicitly.
+Retain battery percentage and threshold with accessible checked states, because the effective
+mask can be zero while the stored flags remain enabled. Settings use asynchronous `apply()`;
+read back the persisted selected values before force-stop. Reconstruct the chat on cold launch
+because its blur objects snapshot relevant flags in their constructors. The debug device/class
+screens can expose current and measured class; actual hardware-accelerated RenderNode/shader
+execution still needs its own runtime evidence.
+
 ## Smallest native observation and comparison
 
 Extend the existing focused `tests/test_android_application.py` probe rather than running the full
@@ -84,8 +114,8 @@ machine paths in ignored notes. Use one fresh dedicated guest and the already ap
    rewritten as an observed LOW value.
 2. Open the upstream Settings debug menu's `Force performance class` dialog and retain the choice
    marked `(measured)`. Also capture Power Usage with its Chat group expanded: on this pin the
-   chat-blur and liquid-glass rows are omitted for LOW, while API 33+ and AVERAGE or HIGH exposes
-   both, as the [pinned settings code shows](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/LiteModeSettingsActivity.java#L257-L270).
+   release builds omit chat-blur and liquid-glass rows for LOW, while the private debug flag
+   bypasses that class restriction (liquid glass still requires API 33+), as the [pinned settings code shows](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/LiteModeSettingsActivity.java#L257-L270).
    Record exact accessible labels and checked states; source inspection alone is insufficient.
 3. Capture the baseline chat at a settled point with a patterned wallpaper visible immediately
    behind the composer and navigation surfaces. Preserve the same world, theme, viewport, scroll
