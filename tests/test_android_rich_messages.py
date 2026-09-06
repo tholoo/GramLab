@@ -32,6 +32,10 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
     shutil.copy2(
         "clients/android/fixtures/rich-message.json", tmp_path / "rich-message-catalog.json"
     )
+    shutil.copy2(
+        "clients/android/fixtures/rich-message-invalid-tables.json",
+        tmp_path / "rich-invalid-tables.json",
+    )
     (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
     for name in ("emulator_process.py", "android_guest.py", "android_rich_messages.py"):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
@@ -46,7 +50,7 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
         ],
         data=tmp_path,
         kvm=True,
-        timeout=300,
+        timeout=420,
     )
     (tmp_path / "rich-result.json").write_text(result.stdout)
     assert result.returncode == 0, result.stderr
@@ -67,8 +71,15 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
     assert catalog[0]["rich_message"] == json.loads(
         Path("clients/android/fixtures/rich-message.json").read_text()
     )
+    assert client["codecs"]["rejections"] == {
+        name: {"returncode": 2, "result": {"error": "GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE"}}
+        for name in ("later-row-wider-than-first", "expanded-cell-area-over-10000")
+    }
     for phase in ("initial", "edited", "restarted"):
         assert "Rich blocks" in client[phase]
+        assert "GramLab" in client[phase]
+        assert ("۱۲۳" if phase == "initial" else "۴۵۶") in client[phase]
+        assert ("Language" if phase == "initial" else "زبان") in client[phase]
         if phase != "initial":
             assert "Rich blocks updated" in client[phase]
             assert "Edited rich message" in client[phase]

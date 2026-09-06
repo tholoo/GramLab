@@ -2,8 +2,10 @@
 
 import json
 import subprocess
+import threading
 import time
 from collections.abc import Callable
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +49,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 | {"skip_entity_detection": True},
             )
             token, world_id = world.issue_client_token(1), world.world_id
+            snapshot = world.client_snapshot(1, version=2)
         with ClientBridge(Path("catalog-world")) as bridge:
             configure_codec(
                 {
@@ -57,10 +60,57 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 }
             )
             codec("catalog")
+        # Explicit adversarial snapshots exercise the native guard independently of core
+        # validation. Only this dedicated codec receives the injected invalid content.
+        payload = b""
 
-    def codec(name: str) -> None:
-        start = time.monotonic()
-        result = adb(
+        class FaultSnapshot(BaseHTTPRequestHandler):
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+            def do_GET(self) -> None:
+                accepted = (
+                    self.path == "/v2/snapshot"
+                    and self.headers.get("Authorization") == f"Bearer {token}"
+                )
+                body = payload if accepted else b"{}"
+                self.send_response(200 if accepted else 401)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Connection", "close")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        rejections = {}
+        with HTTPServer(("127.0.0.1", 0), FaultSnapshot) as server:
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            try:
+                configure_codec(
+                    {
+                        "endpoint": f"http://127.0.0.1:{server.server_port}",
+                        "capability": token,
+                        "world_id": world_id,
+                        "user_id": 1,
+                    }
+                )
+                for case in json.loads(Path("rich-invalid-tables.json").read_text()):
+                    changed = json.loads(json.dumps(snapshot))
+                    changed["messages"][0]["rich_message"] = case["rich_message"]
+                    payload = json.dumps(changed).encode()
+                    result = invoke_codec()
+                    retain(case["name"] + "-codec.json", result.stdout)
+                    rejections[case["name"]] = {
+                        "returncode": result.returncode,
+                        "result": json.loads(result.stdout),
+                    }
+            finally:
+                server.shutdown()
+                worker.join(timeout=5)
+        codecs["rejections"] = rejections
+
+    def invoke_codec() -> subprocess.CompletedProcess[str]:
+        return guest(
             "shell",
             "CLASSPATH=/data/local/tmp/gramlab-rich.apk",
             "/system/bin/app_process",
@@ -69,6 +119,12 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "/data/local/tmp/gramlab-rich-config.json",
             timeout=30,
         )
+
+    def codec(name: str) -> None:
+        start = time.monotonic()
+        result = invoke_codec()
+        if result.returncode:
+            raise RuntimeError("Native rich-message codec failed")
         codecs[name] = json.loads(retain(f"{name}-codec.json", result.stdout))
         timings[f"{name}_codec_seconds"] = time.monotonic() - start
 
@@ -123,9 +179,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if applied and all(
                 text in ui
                 for text in (
-                    ("Rich blocks updated", "Edited rich message")
+                    ("Rich blocks updated", "Edited rich message", "GramLab", "زبان", "۴۵۶")
                     if edited or name == "restarted"
-                    else ("Rich blocks", "Original Android rendering")
+                    else ("Rich blocks", "Original Android rendering", "GramLab", "Language", "۱۲۳")
                 )
             ):
                 ready = True
