@@ -7,6 +7,9 @@ requires-python = ">=3.13,<3.14"
 license = "MIT"
 dependencies = []
 
+[project.scripts]
+gramlab = "gramlab.__main__:main"
+
 [dependency-groups]
 dev = [
   "hypothesis==6.167.1",

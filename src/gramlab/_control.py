@@ -6,7 +6,7 @@ import json
 import secrets
 import socket
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
@@ -47,12 +47,16 @@ def _parameters(value: dict[str, Any]) -> None:
 
 
 class WorldControl:
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, *, bots: Mapping[str, int] | None = None) -> None:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("World control requires the isolated loopback-only runtime")
         directory = directory.absolute()
         with World.open(directory) as world:
             self.world_id = world.world_id
+            named_bots = dict(bots or {})
+            bot_ids = {user["id"] for user in world.snapshot()["users"] if user["is_bot"]}
+            if any(type(value) is not int or value not in bot_ids for value in named_bots.values()):
+                raise ValueError("Named bots must identify bots in this world")
         self.capability = "gramlab-control_" + secrets.token_urlsafe(32)
         owner = self
 
@@ -129,6 +133,7 @@ class WorldControl:
                             self.error(409, "wrong_world", "Control world has been replaced")
                             return
                         operations: dict[str, Callable[..., Any]] = {
+                            "bots": lambda: dict(named_bots),
                             "create_user": world.create_user,
                             "open_private_chat": world.open_private_chat,
                             "send_message": world.send_message,

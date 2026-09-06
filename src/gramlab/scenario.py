@@ -12,7 +12,7 @@ from typing import Any, Self, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
-_READS = {"snapshot", "history", "events", "get_callback"}
+_READS = {"snapshot", "history", "events", "get_callback", "bots"}
 _REJECTIONS = {400: "invalid_request", 401: "unauthorized", 404: "unsupported", 409: "wrong_world"}
 
 
@@ -270,6 +270,10 @@ class Scenario:
 
     def snapshot(self) -> dict[str, Any]:
         return cast(dict[str, Any], self._request("snapshot", {}))
+
+    def bots(self) -> dict[str, int]:
+        """Return the manifest's bot aliases and their world identities."""
+        return cast(dict[str, int], self._request("bots", {}))
 
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._request("events", {"after": after}))

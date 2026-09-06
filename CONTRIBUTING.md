@@ -26,8 +26,9 @@ uv run --locked ruff format --check .
 ```
 
 The experimental Python implementation is packaged with the pinned uv build backend. There is no
-CLI entry point or stable simulator SDK yet. The [experimental scenario client](docs/development/scenario-sdk.md)
-provides typed world control inside private components. Add public commands alongside working behavior.
+stable simulator SDK yet. The [consumer runner](docs/development/consumer-runner.md) exposes
+`gramlab run` for simulation-only scenarios, and the [experimental scenario client](docs/development/scenario-sdk.md)
+provides typed world control inside private components.
 
 Use focused pytest runs during development, and the following full checks at handoff. Run the
 behavioral suite in the [documented outer network guard](docs/development/runtime-boundary.md):
@@ -43,7 +44,7 @@ uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/andr
   tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py tests/fixtures/formatted_bot.py \
   tests/fixtures/recovery_bot.py \
   clients/android/prepare.py tests/recovery_report.py examples/report.py \
-  tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py
+  tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py examples/echo
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

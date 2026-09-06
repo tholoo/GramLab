@@ -90,4 +90,4 @@ jobs:
           tests/probes/long_poll_bot.py
           tests/probes/bot_round_trip.py tests/probes/callback_round_trip.py tests/fixtures/echo_bot.py tests/fixtures/callback_bot.py clients/android/prepare.py
           tests/recovery_report.py examples/report.py
-          tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py
+          tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py examples/echo

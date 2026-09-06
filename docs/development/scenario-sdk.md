@@ -2,8 +2,8 @@
 
 `gramlab.scenario.Scenario` now provides Python methods for the existing
 [world control service](scenario-control.md). It runs inside a private scenario component and
-does not import world storage, launch a bot or acquire credentials. The reusable consumer runner
-and source/dependency packaging are still the next workstream step. This is an experimental
+does not import world storage, launch a bot or acquire credentials. The [consumer runner](consumer-runner.md)
+now prepares selected files and launches simulation-only scenarios and bots. This is an experimental
 interface, not a stable SDK compatibility commitment.
 
 ## Using the interface
@@ -23,10 +23,11 @@ history = scenario.history(chat["id"])
 ```
 
 Creating a virtual bot identity does not start a consumer bot process. The current trusted
-integration harness starts that separate process; a public launcher is not available yet. Do not
+integration harness or consumer runner starts that separate process. With the runner, use
+`scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes nine operations:
+The interface exposes ten operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -36,6 +37,7 @@ The interface exposes nine operations:
 | `advance_time` | Advance the explicit world clock by integer seconds |
 | `history` | Read one chat's complete message history |
 | `snapshot` | Read world metadata, participants and chats |
+| `bots` | Read manifest bot aliases and their world IDs; empty without configured names |
 | `events` | Read ordered events after an optional cursor |
 | `create_callback` | Create a synthetic callback with an explicit durable request ID |
 | `get_callback` | Observe that callback and its answer |

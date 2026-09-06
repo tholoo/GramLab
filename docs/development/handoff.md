@@ -9,7 +9,8 @@ drives a real local bot through HTTP; its reply now renders in the actual Telegr
 application through synthetic startup and a Java semantic read adapter. The upstream chat renderer
 is preserved. A bounded real inline-tap/callback/edit and bot/client recovery loop now has
 [Android evidence](android-callbacks.md). An experimental Python scenario client exists; the
-reusable consumer launcher remains unfinished.
+simulation-only consumer launcher now prepares selected files and retains automatic run reports.
+Android modes in that launcher remain unfinished.
 
 The bounded real bot → actual Android → inline-button tap/callback → edit → bot/client recovery
 loop is the first milestone of the active goal; the wider agreed feature inventory remains open. No real accounts or DC
@@ -37,6 +38,27 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 ## First action
 
 Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).
+The [consumer runner](consumer-runner.md) now provides `gramlab run` and `python -m gramlab run`
+with a TOML manifest, selected source/data files, private scenario/bot processes, named bot IDs,
+timeouts and bounded redacted logs. Normal runs, assertion/bot failures, output limits and missing
+runtime startup retain JSON/HTML evidence. Large HTML sections use explicit previews while JSON
+retains complete state. The installed two-conversation example passes; desktop/mobile browser
+inspection finds the actual conversation evidence, no layout overflow and no external resources.
+
+Continue claimed ticket 02 by connecting actual Android observation to this consumer workflow.
+Both Android modes currently fail explicitly during preparation. Preserve the existing private
+emulator component, authoritative world and original renderer. The actual Android test harness
+still owns its separate rendering/recovery evidence; do not claim a simulation-only runner test
+proves Android support. Consumer-requested lifecycle/fault commands and broader dependency
+packaging also remain open. Local runner evidence is recorded in ignored
+`.cache/local-notes/consumer-runner.md`.
+
+The final core gate passes 132 tests at 87.74% measured coverage. Full lint/format, strict typing
+across 37 files, Nix/workflow checks, offline distributions and local-link/privacy checks pass.
+The contained supervisor's copied source is not coverage-instrumented; its behavior is exercised
+through the actual CLI. No Android source/runtime change or new guest evidence is part of this
+runner milestone. All recorded run/check handles completed.
+
 Its [world control layer](scenario-control.md) now lets a private scenario process create users,
 chats and actions over authenticated local JSON while trusted orchestration retains the database
 and bot lifecycle. The real private scenario → separate echo bot exchange passes with complete
@@ -53,8 +75,9 @@ are tested. The private scenario and concurrent writers now use the SDK; all 100
 at 92.46% coverage, with full static checks passing. Local evidence is in ignored
 `.cache/local-notes/scenario-sdk.md`.
 
-Ticket 01 is resolved; continue the claimed consumer-runner ticket 02. Selected source packaging,
-the public launcher, lifecycle and automatic reports remain unimplemented.
+Ticket 01 is resolved; consumer-runner ticket 02 remains claimed for Android integration and
+the remaining workflow acceptance. Selected file packaging, the simulation-only launcher,
+bounded process lifecycle and automatic reports are implemented as described above.
 Keep consumer Python in its own component; the approved per-run capability and local HTTP model
 already authorize this direction. Do not freeze a stable public API or change the architecture
 without the required consultation. The full foundation and broader product inventory remain open.

@@ -87,6 +87,32 @@ def test_control_actions_and_reads_preserve_complete_world_state(tmp_path: Path)
         assert world.poll_updates(2) == [{"update_id": 1, "message": message}]
 
 
+def test_named_bots_are_read_only_world_scoped_identities(tmp_path: Path):
+    from gramlab._control import WorldControl
+    from gramlab.scenario import Scenario
+
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
+        world.create_user(first_name="Alice")
+        world.create_user(first_name="Echo", is_bot=True)
+        before = world.snapshot()
+        events = world.events()
+    names = {"echo": 2}
+    with WorldControl(directory, bots=names) as server:
+        names["echo"] = 1
+        client = Scenario(server.base_url, capability=server.capability, world_id=server.world_id)
+        assert client.bots() == {"echo": 2}
+        assert call(server, "bots", capability="wrong")[0] == 401
+        assert call(server, "bots", {"echo": 1})[0] == 400
+        assert client.bots() == {"echo": 2}
+    with World.open(directory) as world:
+        assert world.snapshot() == before
+        assert world.events() == events
+    for invalid in (1, 3, True):
+        with pytest.raises(ValueError, match="Named bots"):
+            WorldControl(directory, bots={"echo": invalid})
+
+
 def test_control_capability_cannot_cross_worlds_or_issue_other_credentials(tmp_path: Path, capsys):
     from gramlab._control import WorldControl
 
