@@ -72,19 +72,32 @@ restoration. The passing probe observes/dismisses that sheet and retains each re
 No renderer, APK, default graphics profile or runtime egress permission changed. The measured
 performance class remains unobserved, and restored flags do not promise identical system pixels.
 
-The combined Android gate is **running**, with per-test durations and JUnit output retained. Its
-actual handle, log and artifact paths are in ignored `.cache/local-notes/effects-and-rich-inline.json`.
-Poll that same handle before taking another guest lock; do not restart based on an observation
-timeout. Keep both current tickets pending until combined acceptance is observed. The full gate
-includes the final effects host assertions and client/APK report provenance. Earlier intermittent
-startup failures remain unresolved. Both reviewed reports load original images at desktop/mobile
-widths without overflow or external resources. Worker evidence is preserved outside its checkout.
+The combined Android gate now passes **all 34 tests without skips in 1,865 seconds**. It includes
+all three new rich-inline/ordinary-multiline cases and the final effects host assertions and
+client/APK report provenance. The coordinator reviewed integrated rich captures and verified the
+four-capture effects report's exact fingerprint. Both bounded tickets are resolved; earlier
+intermittent startup failures remain unexplained. Actual process/artifact details are retained in
+ignored `.cache/local-notes/effects-and-rich-inline.json`; the gate handle is terminal and its lock
+released. No APK build was needed for these changes.
 
-The next independent rich-list work needs an exact official Bot API contract before worker
-assignment. A read-only review identifies native list support but no retained official JSON schema
-contents. Verify the already pinned official parser/serializer references, record the interface,
-then split independent Python validation and GPL adapter/probe ownership. Preserve the full agreed
-rich/media inventory; do not infer the Bot API vocabulary from native TL constructor names.
+The [rich-list contract](rich-list-references.md) is now reviewed and committed against the pinned
+official server and TDLib sources. Python and Android workers have separate branches for the exact
+recursive input/canonical-output contract, including empty item blocks, all five label styles,
+checkbox state and native projection. Their tickets define disjoint ownership. The coordinator
+owns public capture/inline traversal, a real-bot rendering scene and one incremental APK build
+after integration. The native worker first proves the old APK's missing-list behavior; its positive
+native coverage deliberately depends on the coordinator build. Do not merge unfinished worker
+branches or describe lists as implemented yet. Observe their actual handoffs and frozen tips first.
+
+The [timing command](test-timings.md) is also integrated, with 12 passing CLI checks, including a
+UTF-16 DTD rejection red/green case. It compares saved JUnit without rerunning tests and preserves
+suite time separately from summed case durations. Ruff/format/strict typing and the updated Nix
+workflow check pass; the preceding 273-test production-core gate remains applicable. Comparing the
+34-case native gate with the preceding 29-case gate finds 29 matched cases, five additions and no
+removals. Added cases contribute 461 seconds; matched cases sum to 227 seconds less in this run,
+for a net suite increase of 234 seconds. These observations do not establish a controlled speedup.
+The effects probe is the largest current case at 176 seconds; reducing redundant settings captures
+is a candidate, not yet a measured optimization.
 
 Development observations: four-worker core runs are faster than the preceding serial checkpoint,
 but differing scope and load prevent a controlled speedup claim. Missing workflow-tool cache paths

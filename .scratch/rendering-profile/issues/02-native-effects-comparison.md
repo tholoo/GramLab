@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: verified focused comparison; combined Android gate pending
+Work state: resolved
 Owner: coordinator
 Blocked by: none
 
@@ -60,3 +60,9 @@ The [effects profile](../../../docs/development/android-effects-profile.md) reco
 A later assertion/provenance-only update additionally checks the observed nonopaque alpha and
 records the declared client pin and actual APK hash. The combined native gate will exercise that
 final host-test version. No production or default-profile change belongs to this task.
+
+The final host test passes in the combined 34-test Android gate, without skips. Its report retains
+all four original captures, the declared client revision and verified APK fingerprint. The
+nonopaque-alpha assertion passes. The gate takes 1,865 seconds overall; the effects case is the
+largest individual case at 176 seconds. Repeated settings observations are a candidate for reducing
+probe cost while preserving original UI input, state restoration and shader evidence.

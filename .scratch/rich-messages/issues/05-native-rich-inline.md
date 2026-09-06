@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: integrated; combined Android gate pending
+Work state: resolved
 Blocked by: none
 
 ## Ownership
@@ -126,3 +126,8 @@ external resources. The combined core gate passes 273 tests at 80.31% coverage i
 four isolated pytest workers. Full lint/format, focused strict typing and the declared Nix workflow
 check pass. The combined Android gate is running; keep acceptance pending until its result is
 observed. The earlier native startup failure remains unresolved.
+
+The combined Android gate now passes all 34 tests without skips in 1,865 seconds, including all
+three rich-inline/ordinary-multiline cases and the prior native input/recovery/isolation suite.
+The coordinator reviewed the integrated original rich before/after captures. This completes the
+bounded ticket; broader rich blocks, list traversal and interactive input remain separate work.
