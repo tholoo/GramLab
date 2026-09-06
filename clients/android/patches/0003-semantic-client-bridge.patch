@@ -1,0 +1,314 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -0,0 +1,231 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import org.json.JSONArray;
++import org.json.JSONException;
++import org.json.JSONObject;
++import org.telegram.tgnet.TLRPC;
++
++import java.io.ByteArrayOutputStream;
++import java.io.InputStream;
++import java.net.HttpURLConnection;
++import java.net.Proxy;
++import java.net.URL;
++import java.nio.charset.StandardCharsets;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.Map;
++import java.util.Set;
++
++/** Local semantic transport. No TL types leave the separately licensed client adapter. */
++public final class GramLabBridge {
++    public static final class Snapshot {
++        public final String worldId;
++        public final long persona;
++        public final long cursor;
++        public final int now;
++        public final TLRPC.TL_messages_dialogs dialogs;
++        public final Map<Long, TLRPC.TL_messages_messages> histories;
++        public final Map<Long, Long> chatIdsByPeer;
++
++        private Snapshot(String worldId, long persona, long cursor, int now,
++                TLRPC.TL_messages_dialogs dialogs,
++                Map<Long, TLRPC.TL_messages_messages> histories, Map<Long, Long> chatIdsByPeer) {
++            this.worldId = worldId;
++            this.persona = persona;
++            this.cursor = cursor;
++            this.now = now;
++            this.dialogs = dialogs;
++            this.histories = Collections.unmodifiableMap(histories);
++            this.chatIdsByPeer = Collections.unmodifiableMap(chatIdsByPeer);
++        }
++    }
++
++    private static void require(boolean condition) {
++        if (!condition) {
++            throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_DATA");
++        }
++    }
++
++    private static void fields(JSONObject value, String... allowed) {
++        Set<String> names = new HashSet<>(Arrays.asList(allowed));
++        Iterator<String> keys = value.keys();
++        while (keys.hasNext()) {
++            require(names.contains(keys.next()));
++        }
++    }
++
++    private static long identifier(JSONObject value, String key) throws JSONException {
++        Object number = value.get(key);
++        require(number instanceof Integer || number instanceof Long);
++        long result = ((Number) number).longValue();
++        require(result > 0);
++        return result;
++    }
++
++    private static long nonnegative(JSONObject value, String key) throws JSONException {
++        Object number = value.get(key);
++        require(number instanceof Integer || number instanceof Long);
++        long result = ((Number) number).longValue();
++        require(result >= 0);
++        return result;
++    }
++
++    private static int integer(JSONObject value, String key) throws JSONException {
++        long result = nonnegative(value, key);
++        require(result <= Integer.MAX_VALUE);
++        return (int) result;
++    }
++
++    private static TLRPC.TL_peerUser peer(long id) {
++        TLRPC.TL_peerUser peer = new TLRPC.TL_peerUser();
++        peer.user_id = id;
++        return peer;
++    }
++
++    public static Snapshot connect(JSONObject configuration) throws Exception {
++        fields(configuration, "endpoint", "capability", "world_id", "user_id");
++        URL endpoint = new URL(configuration.getString("endpoint"));
++        require("http".equals(endpoint.getProtocol())
++                && ("10.0.2.2".equals(endpoint.getHost()) || "127.0.0.1".equals(endpoint.getHost()))
++                && endpoint.getPort() > 0 && endpoint.getPort() <= 65535
++                && (endpoint.getPath().isEmpty() || "/".equals(endpoint.getPath()))
++                && endpoint.getUserInfo() == null && endpoint.getQuery() == null
++                && endpoint.getRef() == null);
++        String capability = configuration.getString("capability");
++        require(capability.matches("gramlab-client_[A-Za-z0-9_-]{43}"));
++        long persona = identifier(configuration, "user_id");
++        String worldId = configuration.getString("world_id");
++        URL target = new URL(endpoint, "/v1/snapshot");
++        HttpURLConnection connection = (HttpURLConnection) target.openConnection(Proxy.NO_PROXY);
++        connection.setInstanceFollowRedirects(false);
++        connection.setConnectTimeout(3000);
++        connection.setReadTimeout(5000);
++        connection.setUseCaches(false);
++        connection.setRequestProperty("Authorization", "Bearer " + capability);
++        connection.setRequestProperty("Accept", "application/json");
++        JSONObject body;
++        try {
++            int status = connection.getResponseCode();
++            if (status != 200) {
++                throw new IllegalStateException("GRAMLAB_BRIDGE_HTTP_" + status);
++            }
++            try (InputStream input = connection.getInputStream();
++                    ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
++                byte[] buffer = new byte[8192];
++                int count;
++                while ((count = input.read(buffer)) != -1) {
++                    require(bytes.size() + count <= 8 * 1024 * 1024);
++                    bytes.write(buffer, 0, count);
++                }
++                body = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
++            }
++        } finally {
++            connection.disconnect();
++        }
++        fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages");
++        require(integer(body, "schema") == 1 && worldId.equals(body.getString("world_id"))
++                && identifier(body, "user_id") == persona);
++        long cursor = nonnegative(body, "cursor");
++        int now = integer(body, "now");
++        TLRPC.TL_messages_dialogs dialogs = new TLRPC.TL_messages_dialogs();
++        Map<Long, TLRPC.User> users = new LinkedHashMap<>();
++        JSONArray records = body.getJSONArray("users");
++        for (int index = 0; index < records.length(); index++) {
++            JSONObject record = records.getJSONObject(index);
++            fields(record, "id", "is_bot", "first_name", "username", "language_code");
++            TLRPC.TL_user user = new TLRPC.TL_user();
++            user.id = identifier(record, "id");
++            require(!users.containsKey(user.id));
++            user.first_name = record.getString("first_name");
++            require(!user.first_name.trim().isEmpty() && record.get("is_bot") instanceof Boolean);
++            user.self = user.id == persona;
++            user.bot = record.getBoolean("is_bot");
++            require(!user.self || !user.bot);
++            user.bot_info_version = 1;
++            user.access_hash = 0; // Synthetic local identity; never an MTProto credential.
++            user.photo = new TLRPC.TL_userProfilePhotoEmpty();
++            user.status = new TLRPC.TL_userStatusEmpty();
++            user.flags = 1 | (1 << 1) | (1 << 5) | (1 << 6);
++            if (record.has("username")) {
++                user.username = record.getString("username");
++                user.flags |= 1 << 3;
++            }
++            if (record.has("language_code")) {
++                user.lang_code = record.getString("language_code");
++                user.flags |= 1 << 22;
++            }
++            users.put(user.id, user);
++            dialogs.users.add(user);
++        }
++        require(users.containsKey(persona));
++        Map<Long, Long> peersByChat = new LinkedHashMap<>();
++        Map<Long, Long> chatIdsByPeer = new LinkedHashMap<>();
++        Map<Long, TLRPC.TL_messages_messages> histories = new LinkedHashMap<>();
++        Map<Long, TLRPC.TL_dialog> dialogsByChat = new LinkedHashMap<>();
++        records = body.getJSONArray("chats");
++        for (int index = 0; index < records.length(); index++) {
++            JSONObject record = records.getJSONObject(index);
++            fields(record, "id", "type", "user_id", "bot_id");
++            long chat = identifier(record, "id");
++            long bot = identifier(record, "bot_id");
++            require("private".equals(record.getString("type"))
++                    && identifier(record, "user_id") == persona && users.containsKey(bot)
++                    && users.get(bot).bot && !peersByChat.containsKey(chat)
++                    && !chatIdsByPeer.containsKey(bot));
++            peersByChat.put(chat, bot);
++            chatIdsByPeer.put(bot, chat);
++            TLRPC.TL_messages_messages history = new TLRPC.TL_messages_messages();
++            history.users.add(users.get(persona));
++            history.users.add(users.get(bot));
++            histories.put(bot, history);
++            TLRPC.TL_dialog dialog = new TLRPC.TL_dialog();
++            dialog.id = bot;
++            dialog.peer = peer(bot);
++            dialog.notify_settings = new TLRPC.TL_peerNotifySettings();
++            dialogsByChat.put(chat, dialog);
++            dialogs.dialogs.add(dialog);
++        }
++        require(users.size() == peersByChat.size() + 1);
++        records = body.getJSONArray("messages");
++        Map<Long, Set<Integer>> seen = new LinkedHashMap<>();
++        for (Long chat : peersByChat.keySet()) {
++            seen.put(chat, new HashSet<>());
++        }
++        for (int index = 0; index < records.length(); index++) {
++            JSONObject record = records.getJSONObject(index);
++            fields(record, "id", "chat_id", "sender_id", "date", "text");
++            long chat = identifier(record, "chat_id");
++            require(peersByChat.containsKey(chat));
++            long bot = peersByChat.get(chat);
++            long sender = identifier(record, "sender_id");
++            require(sender == persona || sender == bot);
++            TLRPC.TL_message message = new TLRPC.TL_message();
++            message.id = integer(record, "id");
++            require(message.id > 0 && seen.get(chat).add(message.id));
++            message.from_id = peer(sender);
++            message.out = sender == persona;
++            message.peer_id = peer(message.out ? bot : persona);
++            message.dialog_id = bot;
++            message.date = integer(record, "date");
++            message.message = record.getString("text");
++            require(!message.message.isEmpty());
++            message.media = new TLRPC.TL_messageMediaEmpty();
++            message.flags = (1 << 8) | (1 << 9);
++            histories.get(bot).messages.add(message);
++        }
++        for (Map.Entry<Long, Long> entry : peersByChat.entrySet()) {
++            TLRPC.TL_messages_messages history = histories.get(entry.getValue());
++            history.messages.sort((left, right) -> Integer.compare(right.id, left.id));
++            if (!history.messages.isEmpty()) {
++                TLRPC.Message top = history.messages.get(0);
++                dialogsByChat.get(entry.getKey()).top_message = top.id;
++                dialogs.messages.add(top);
++            }
++        }
++        return new Snapshot(worldId, persona, cursor, now, dialogs, histories, chatIdsByPeer);
++    }
++}
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import org.json.JSONArray;
++import org.json.JSONObject;
++import org.telegram.messenger.ApplicationLoader;
++import org.telegram.tgnet.SerializedData;
++import org.telegram.tgnet.TLRPC;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Paths;
++
++/** Observe actual TL serialization without starting the application or an account. */
++public final class BridgeProbe {
++    public static void main(String[] args) throws Exception {
++        try {
++            observe(args);
++        } catch (IllegalArgumentException | IllegalStateException failure) {
++            System.out.println(new JSONObject().put("error", failure.getMessage()));
++            System.exit(2);
++        }
++    }
++
++    private static void observe(String[] args) throws Exception {
++        JSONObject config = new JSONObject(new String(Files.readAllBytes(Paths.get(args[0])),
++                StandardCharsets.UTF_8));
++        GramLabBridge.Snapshot snapshot = GramLabBridge.connect(config);
++        // Use upstream's AppTests serialization mode: no local attachment-path extension.
++        // Constructing this context does not run onCreate, providers or any account startup.
++        ApplicationLoader.applicationLoaderInstance = new ApplicationLoader() {
++            @Override
++            protected boolean isAndroidTestEnv() {
++                return true;
++            }
++        };
++        SerializedData encoded = new SerializedData();
++        snapshot.dialogs.serializeToStream(encoded);
++        SerializedData stream = new SerializedData(encoded.toByteArray());
++        TLRPC.messages_Dialogs dialogs = TLRPC.messages_Dialogs.TLdeserialize(
++                stream, stream.readInt32(true), true);
++        JSONArray users = new JSONArray();
++        for (TLRPC.User user : dialogs.users) {
++            users.put(new JSONObject().put("id", user.id).put("first_name", user.first_name)
++                    .put("self", user.self).put("bot", user.bot)
++                    .put("username", user.username == null ? JSONObject.NULL : user.username)
++                    .put("language_code", user.lang_code == null ? JSONObject.NULL : user.lang_code)
++                    .put("phone", user.phone == null ? JSONObject.NULL : user.phone));
++        }
++        JSONArray conversations = new JSONArray();
++        for (TLRPC.Dialog dialog : dialogs.dialogs) {
++            conversations.put(new JSONObject().put("peer_id", dialog.peer.user_id)
++                    .put("top_message", dialog.top_message));
++        }
++        JSONArray messages = new JSONArray();
++        for (Long peer : snapshot.histories.keySet()) {
++            encoded = new SerializedData();
++            snapshot.histories.get(peer).serializeToStream(encoded);
++            stream = new SerializedData(encoded.toByteArray());
++            TLRPC.messages_Messages history = TLRPC.messages_Messages.TLdeserialize(
++                    stream, stream.readInt32(true), true);
++            for (TLRPC.Message message : history.messages) {
++                messages.put(new JSONObject().put("id", message.id)
++                        .put("sender_id", message.from_id.user_id)
++                        .put("recipient_id", message.peer_id.user_id).put("out", message.out)
++                        .put("date", message.date).put("text", message.message));
++            }
++        }
++        System.out.println(new JSONObject().put("persona", snapshot.persona)
++                .put("cursor", snapshot.cursor).put("now", snapshot.now).put("users", users)
++                .put("dialogs", conversations).put("messages", messages)
++                .put("dialog_message_count", dialogs.messages.size()));
++    }
++}

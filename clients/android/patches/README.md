@@ -22,6 +22,11 @@ JNI request/init entry points reject before transport work; native init/socket e
 abort backstops. A dedicated `app_process` probe checks JNI rejection and preserved buffer operations
 without installing the application. See the [native guard record](../../../docs/development/android-native-guard.md).
 
+`0003-semantic-client-bridge.patch` adds authenticated local snapshot transport and TL user,
+dialog and history conversion, plus a guest probe using the pinned serializer. See the
+[semantic adapter record](../../../docs/development/android-semantic-bridge.md). It does not yet
+replace application request dispatch or activate synthetic lifecycle startup.
+
 **The application is deliberately disabled.** The queue is not yet an offline client implementation.
 Do not enable or install it to claim synthetic startup: Java/background networking, identity and
 local bridge adaptations still have to be implemented and tested.

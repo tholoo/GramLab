@@ -12,6 +12,10 @@ With `GRAMLAB_ANDROID_PROBE_APK` selecting the built guarded APK, it also runs t
 [JNI guard probe](../docs/development/android-native-guard.md) through guest `app_process`.
 That probe does not install or start the client application.
 
+`test_android_client_bridge.py` connects a separate bot process and authoritative world to the
+Android semantic adapter in a fresh guest. It checks the pinned client's serialized TL projection
+and actual HTTP rejection cases. This still precedes application lifecycle and rendering evidence.
+
 `test_world.py` checks persisted synthetic state and concurrent transitions. `test_bot_api.py`
 exercises actual HTTP, including a separate bot process. `test_client_bridge.py` covers atomic
 persona snapshots, journal cursors, storage migration and authenticated HTTP reads. Run them in

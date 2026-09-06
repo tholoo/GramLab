@@ -165,6 +165,11 @@ The v1/v2 signatures verify, and the binary manifest still disables application 
 The [native guard record](android-native-guard.md) separates its probe evidence from the remaining
 synthetic application startup gate.
 
+The third patch's Java snapshot adapter and guest probe compile with the same cached dependencies
+and native guards. A fresh export reproduces these new source inputs; the
+[semantic adapter evidence](android-semantic-bridge.md) records the real HTTP/TL round trip and
+its limits. The preparation application remains disabled.
+
 Build logs, local signing material, absolute paths, timings and live process handles belong in
 ignored `.cache/` or `artifacts/`. Preserve a live build across handoffs and poll its actual handle;
 an observation timeout is not evidence that compilation stopped.

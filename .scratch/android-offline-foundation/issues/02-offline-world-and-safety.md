@@ -108,3 +108,15 @@ files. Signature/ABI/disabled-manifest, Python static, Nix/workflow, links and p
 The [guard evidence](../../../docs/development/android-native-guard.md) states the direct-native
 and remaining background/Java/startup limitations. Continue synthetic identity and Java bridge
 integration; the full foundation acceptance remains open. No remote publication occurred.
+
+2026-09-06 Java snapshot follow-up: The third GPL patch adds local authenticated snapshot transport
+and client-side TL identity/dialog/history conversion. The missing implementation failed first;
+the real bot/world/guest round trip now passes with correct Persian/English text, message direction,
+dialog peers and history order after pinned TL serialization. Wrong-world/persona credentials,
+another world's capability, external endpoint configuration and redirects fail explicitly.
+All six Android tests pass, including the previous JNI/network/guest checks; the 27 core tests are
+unchanged. Fresh three-patch preparation matches the adapter and preserves 6,666 UI/resource files
+and strict dependency metadata. Static/Nix/workflow, local links and privacy pass. See the
+[adapter evidence](../../../docs/development/android-semantic-bridge.md) for test-context and
+protocol limits. No package installation, lifecycle activation or rendering occurred. Next connect
+Java RPC/update dispatch and synthetic startup; keep the real tap/edit/recovery acceptance open.

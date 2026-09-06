@@ -9,6 +9,8 @@ synthetic world now exchanges messages with a real local bot over HTTP. There is
 runnable offline Telegram client or verified Telegram compatibility yet.
 The disabled Android preparation APK [builds inside network containment](docs/development/android-build.md).
 Its [native transport guard](docs/development/android-native-guard.md) has real JNI probe evidence.
+The [Java snapshot adapter](docs/development/android-semantic-bridge.md) receives real bot replies
+as client TL objects; application startup and rendering remain open.
 See the [world/bot prototype and its limits](docs/development/world-bot-prototype.md).
 See the
 [runtime evidence and limits](docs/development/runtime-boundary.md).

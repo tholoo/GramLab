@@ -1,7 +1,8 @@
 # Semantic client read boundary
 
 Status: the Python side of the approved Android bridge has authenticated HTTP reads and
-transactionally consistent snapshots. Java translation and actual Android rendering remain open.
+transactionally consistent snapshots. The [Java snapshot adapter](android-semantic-bridge.md)
+now translates these reads into TL objects; request dispatch and actual Android rendering remain open.
 This protocol is independently owned; upstream TL objects belong in the separately licensed
 Android adapter, not the MIT core.
 
@@ -69,4 +70,4 @@ The 2026-09-06 core gate passes 27 tests with 90.72% statement coverage; Android
 Snapshots currently include full history and have no pagination or resource quotas. The trusted
 fixture's data mount is still shared; HTTP authorization does not protect the database against
 code with direct filesystem access. Abrupt bot/client recovery, local projection transactions,
-Java-side semantic translation and the actual tap/callback/edit loop remain foundation gates.
+live Java update/request translation and the actual tap/callback/edit loop remain foundation gates.

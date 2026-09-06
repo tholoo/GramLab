@@ -99,6 +99,18 @@ startup/push/account-sync paths, and configure synthetic identity before enablin
 Preserve `native_setJava(false)` for memory/delegates; it does not start the transport worker.
 All current build and guest handles completed; local paths and detailed startup leads are ignored.
 
+The third GPL patch adds the [Java semantic snapshot adapter](android-semantic-bridge.md).
+A real bot reply now crosses authenticated local HTTP into the guest and round-trips through the
+pinned TL dialog/history serializer with correct identity, direction, order and mixed-language text.
+Wrong world/persona, another world's capability, external endpoints and local redirects fail with
+explicit errors. Six Android tests pass; the 27-test core gate is unchanged. Fresh preparation
+matches the adapter, preserves dependency metadata and retains the checked upstream UI/resources.
+The probe uses upstream's AppTests serialization mode without lifecycle startup. `GramLabBridge`
+is not yet connected to `ConnectionsManager` or `ApplicationLoader`; the application remains
+disabled. Continue with synthetic startup and live request/update dispatch rather than treating
+the TL projection as renderer evidence. Local build/probe paths are in ignored
+`.cache/local-notes/semantic-bridge.md`.
+
 The full first implementation milestone is a virtual identity, real local bot response, actual Android
 rendering, real button tap/callback, bot edit, restart/recovery, and independently verified zero
 external egress. Do not settle for pushing static screenshots into a fake chat.
