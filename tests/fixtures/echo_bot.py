@@ -14,7 +14,7 @@ transcript: list[dict[str, Any]] = []
 
 
 def call(method: str, parameters: dict[str, Any]) -> Any:
-    connection = http.client.HTTPConnection("127.0.0.1", endpoint.port, timeout=5)
+    connection = http.client.HTTPConnection("127.0.0.1", endpoint.port, timeout=35)
     try:
         connection.request(
             "POST",
@@ -33,7 +33,10 @@ def call(method: str, parameters: dict[str, Any]) -> Any:
 
 
 call("getMe", {})
-updates = call("getUpdates", {})
+polling: dict[str, Any] = {"timeout": 30}
+if "GRAMLAB_BOT_OFFSET" in os.environ:
+    polling["offset"] = int(os.environ["GRAMLAB_BOT_OFFSET"])
+updates = call("getUpdates", polling)
 for update in updates:
     message = update["message"]
     call("sendMessage", {"chat_id": message["chat"]["id"], "text": "Echo: " + message["text"]})

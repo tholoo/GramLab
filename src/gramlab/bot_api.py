@@ -10,6 +10,7 @@ import json
 import re
 import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
@@ -71,10 +72,65 @@ def _json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _dispatch(world: World, bot_id: int, method: str, parameters: dict[str, Any]) -> Any:
+class _PollInterrupted(Exception):
+    def __init__(self, status: int, description: str) -> None:
+        super().__init__(description)
+        self.status = status
+
+
+class _Polling:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._waiting: dict[int, threading.Event] = {}
+        self._stopping = False
+
+    def stop(self) -> None:
+        with self._lock:
+            self._stopping = True
+            for pending in self._waiting.values():
+                pending.set()
+
+    def get_updates(
+        self, world: World, bot_id: int, offset: int, limit: int, timeout: int
+    ) -> list[dict[str, Any]]:
+        cancelled = threading.Event()
+        deadline = time.monotonic() + timeout
+        with self._lock:
+            if previous := self._waiting.get(bot_id):
+                previous.set()
+            self._waiting[bot_id] = cancelled
+        try:
+            while True:
+                with self._lock:
+                    if self._stopping:
+                        raise _PollInterrupted(503, "GRAMLAB_SHUTDOWN: Bot API server is stopping")
+                    if cancelled.is_set():
+                        raise _PollInterrupted(
+                            409,
+                            "Conflict: terminated by other getUpdates request; "
+                            "make sure that only one bot instance is running",
+                        )
+                    # Serialize ownership with the short acknowledgment transaction. A replaced
+                    # request must never acknowledge state after its successor starts polling.
+                    updates = world.poll_updates(bot_id, offset=offset, limit=limit)
+                    remaining = deadline - time.monotonic()
+                    if updates or remaining <= 0:
+                        return [_update(world, update) for update in updates]
+                # Writers may live in another process; reread committed world state without
+                # holding a database transaction or the ownership lock during the wait.
+                cancelled.wait(min(0.05, remaining))
+        finally:
+            with self._lock:
+                if self._waiting.get(bot_id) is cancelled:
+                    del self._waiting[bot_id]
+
+
+def _dispatch(
+    world: World, bot_id: int, method: str, parameters: dict[str, Any], polling: _Polling
+) -> Any:
     supported = {
         "getme": set(),
-        "getupdates": {"offset", "limit"},
+        "getupdates": {"offset", "limit", "timeout"},
         "sendmessage": {"chat_id", "text", "reply_markup"},
         "editmessagetext": {"chat_id", "message_id", "text", "reply_markup"},
         "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
@@ -88,14 +144,12 @@ def _dispatch(world: World, bot_id: int, method: str, parameters: dict[str, Any]
     if method == "getupdates":
         offset = _integer(parameters.get("offset", 0), "offset")
         limit = _integer(parameters.get("limit", 100), "limit")
+        timeout = min(50, max(0, _integer(parameters.get("timeout", 0), "timeout")))
         if offset < 0:
             raise ValueError("GRAMLAB_UNSUPPORTED: negative update offsets")
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
-        return [
-            _update(world, update)
-            for update in world.poll_updates(bot_id, offset=offset, limit=limit)
-        ]
+        return polling.get_updates(world, bot_id, offset, limit, timeout)
     if method == "answercallbackquery":
         if "callback_query_id" not in parameters:
             raise ValueError("callback_query_id is required")
@@ -139,11 +193,33 @@ class BotAPIServer:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("Bot API requires the isolated loopback-only runtime")
         directory = directory.absolute()
+        polling = _Polling()
+        reading: set[socket.socket] = set()
+        reading_lock = threading.Lock()
+        closing = threading.Event()
 
         class Handler(BaseHTTPRequestHandler):
             def setup(self) -> None:
                 super().setup()
                 self.connection.settimeout(5)
+                with reading_lock:
+                    if closing.is_set():
+                        self.connection.shutdown(socket.SHUT_RDWR)
+                    else:
+                        reading.add(self.connection)
+
+            def handle(self) -> None:
+                try:
+                    super().handle()
+                except (ConnectionError, TimeoutError):
+                    pass  # Disconnect or shutdown during HTTP header/body input.
+
+            def finish(self) -> None:
+                try:
+                    super().finish()
+                finally:
+                    with reading_lock:
+                        reading.discard(self.connection)
 
             def log_message(self, format: str, *args: Any) -> None:
                 # Request paths contain capabilities. They must never enter access/error logs.
@@ -151,11 +227,16 @@ class BotAPIServer:
 
             def _reply(self, status: int, body: dict[str, Any]) -> None:
                 payload = json.dumps(body, ensure_ascii=True).encode("utf-8")
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(payload)))
-                self.end_headers()
-                self.wfile.write(payload)
+                try:
+                    self.send_response(status)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (ConnectionError, TimeoutError):
+                    # A disconnected consumer can retry its offset. Writing a response never
+                    # confirms returned updates, and disconnects must not produce access traces.
+                    pass
 
             def do_GET(self) -> None:
                 self._handle()
@@ -200,14 +281,30 @@ class BotAPIServer:
                             if parameters.keys() & body.keys():
                                 raise ValueError("Repeated request parameters are unsupported")
                             parameters.update(body)
-                        result = _dispatch(world, bot_id, parts[2].lower(), parameters)
+                        with reading_lock:
+                            reading.discard(self.connection)
+                            if closing.is_set():
+                                raise _PollInterrupted(
+                                    503, "GRAMLAB_SHUTDOWN: Bot API server is stopping"
+                                )
+                        result = _dispatch(world, bot_id, parts[2].lower(), parameters, polling)
                         self._reply(200, {"ok": True, "result": result})
+                except _PollInterrupted as error:
+                    self._reply(
+                        error.status,
+                        {"ok": False, "error_code": error.status, "description": str(error)},
+                    )
                 except (ValueError, UnicodeError) as error:
                     self._reply(400, {"ok": False, "error_code": 400, "description": str(error)})
                 except LookupError as error:
                     self._reply(404, {"ok": False, "error_code": 404, "description": str(error)})
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self._server.daemon_threads = False
+        self._polling = polling
+        self._reading = reading
+        self._reading_lock = reading_lock
+        self._closing = closing
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
 
     @property
@@ -224,6 +321,14 @@ class BotAPIServer:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        self._polling.stop()
+        with self._reading_lock:
+            self._closing.set()
+            for connection in self._reading:
+                try:
+                    connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass  # The consumer already closed the connection.
         self._server.shutdown()
         self._server.server_close()
         self._thread.join(timeout=10)

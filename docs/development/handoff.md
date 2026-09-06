@@ -110,6 +110,18 @@ APK and source patches are unchanged. All handles completed; local evidence is r
 `.cache/local-notes/emulator-component.md`. See the
 [emulator follow-up](component-boundary.md#emulator-filesystem-follow-up).
 
+The [Bot API long-poll lifecycle](bot-long-polling.md) now accepts bounded integer timeouts, sees
+later world writes and interrupts a previous same-bot poll with HTTP 409. Invalid requests cannot
+acknowledge or displace valid polls; bots/worlds remain independent. Server shutdown wakes pending
+polls, closes incomplete request input and joins handlers. Disconnected consumers can retry the
+same pending update across server restart. The private echo fixture now uses long polling, and a
+separate real-bot probe establishes a wait before the virtual user supplies its message.
+All 51 core tests pass at 91.04% coverage, and all ten Android tests pass. Static/Nix/workflow and
+local-link/privacy checks pass; the inspected restart screenshot retains the edited reply. No APK
+or source-patch changes were needed. All handles are terminal; ignored
+`.cache/local-notes/long-polling.md` records detailed local evidence. Poll ownership is per server;
+filters, negative offsets, expiry, webhook coordination and production flood timing remain open.
+
 Continue ticket 02's resource quotas, per-component control-port restrictions and media isolation, client text writes, older
 cached-message reconciliation and durable replica/command recovery. The current cursor is in
 memory and is never assigned to Telegram `pts`. Live participant changes, broader read-state and

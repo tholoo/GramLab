@@ -33,7 +33,7 @@ requires a loopback-only interface list. The authoritative isolation mechanism i
 | Current HTTP subset | Evidence and limits |
 | --- | --- |
 | `getMe` | Locally issued capability returns the virtual bot identity; wrong-world/malformed tokens fail |
-| `getUpdates` | Pending messages, positive offsets and limits 1–100; negative offsets, long polling and filters remain explicitly unsupported |
+| `getUpdates` | Pending messages, positive offsets, limits 1–100 and bounded long polling; negative offsets and filters remain explicitly unsupported |
 | `sendMessage` | Plain text and callback-only inline keyboards in existing private chats |
 | `editMessageText` | Sending bot edits its text/keyboard atomically; returns the persisted message |
 | `answerCallbackQuery` | Durable answer to its own query; text/alert with caching disabled |
@@ -46,6 +46,11 @@ subset, not external conformance. Plain-text validation currently counts Unicode
 the documented 1–4096-character limit; astral-character boundary conformance remains unverified.
 Formatting/entities, automatic command/link recognition, other keyboard types, webhooks,
 media and other API methods remain open work. Unknown operations receive explicit errors.
+
+The [long-poll lifecycle](bot-long-polling.md) now covers later update arrival, same-bot consumer
+conflicts, disconnect/restart retries and server shutdown through actual HTTP and a private bot
+process. Its wait clock is independent of synthetic world time; it does not establish full polling
+or webhook conformance.
 
 ## Real-process evidence
 

@@ -200,3 +200,24 @@ checks pass. No Android source/APK rebuild or host configuration change was need
 [the emulator boundary evidence](../../../docs/development/component-boundary.md#emulator-filesystem-follow-up).
 Resource quotas, same-run control-port restrictions, media safety and wider recovery/API coverage
 remain unfinished. Keep this ticket and the full goal active; no remote publication.
+
+2026-09-06 next delivery/lifecycle work: extend the existing local `getUpdates` boundary with
+bounded long polling, competing-consumer interruption and clean server shutdown. Test through
+actual HTTP and public world operations, preserving scoped durable acknowledgments and independent
+world writes. This advances the approved real-bot lifecycle; quotas/control-port/media gates remain
+active and no new network access or persistence architecture is introduced.
+
+Long-poll follow-up completed: real HTTP waits preserve explicit world time, deliver later writes,
+and retain updates until confirmed. A new valid same-bot poll interrupts the old one with 409;
+invalid requests and other bots/worlds do not displace it. Regression cases caught missing
+cancellation, orphaned shutdown waits, disconnect traces and incomplete-body shutdown delay;
+each now passes. The server wakes polls with a labeled 503, closes pending input and joins handlers.
+A private real bot waits before the virtual user sends mixed-language text, then replies and
+acknowledges through HTTP. The existing Android echo fixture now uses long polling as well.
+
+All 51 core tests pass at 91.04% coverage; all ten Android tests, static/Nix/workflow, local links
+and public-tree privacy checks pass. The final client restart screenshot was inspected. No APK,
+client patch, persistence-schema or host configuration change was needed. See
+[the polling contract and limits](../../../docs/development/bot-long-polling.md). Runtime quotas,
+control-port/media gates and broader compatibility/scenario/report acceptance remain open; this
+ticket and the full goal remain active. No remote publication.

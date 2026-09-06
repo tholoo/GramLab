@@ -212,7 +212,7 @@ def test_real_bot_receives_and_answers_a_virtual_user_over_http(tmp_path: Path) 
             {"method": "getMe", "parameters": {}, "response": {"ok": True, "result": bot}},
             {
                 "method": "getUpdates",
-                "parameters": {},
+                "parameters": {"timeout": 30},
                 "response": {"ok": True, "result": [{"update_id": 1, "message": incoming}]},
             },
             {

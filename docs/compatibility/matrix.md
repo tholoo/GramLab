@@ -22,7 +22,7 @@ do not establish Telegram rendering or protocol conformance.
 
 | Surface | Required evidence before claiming support | State |
 | --- | --- | --- |
-| Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Partial: local polling/acknowledgment; long polling and webhooks planned |
+| Polling/webhooks | Actual consumer bot, update delivery/acknowledgment, retries and conflicts | Partial: local short/long polling, acknowledgment, same-server competing-consumer conflicts and disconnect/restart retries; filters, negative offsets, expiry and webhooks planned |
 | Messages/commands/deep links/replies | Full requests, entities, state effects and Android behavior | Partial: private plain-text HTTP exchange and actual Android rendering; entities planned |
 | Callback/reply keyboards | Real tap, callback answer, duplicate/stale/wrong-actor behavior | Partial: callback-only keyboards, real Android tap/answer/edit, durable queries and HTTP stale/duplicate/wrong-actor checks; other button types planned |
 | Inline queries/results | Supported private/group/channel combinations and client result rendering | Planned |
