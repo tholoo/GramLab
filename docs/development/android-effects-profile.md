@@ -7,24 +7,32 @@ establish a visual fix or a runtime value.
 
 ## Source-derived gates
 
-`SharedConfig.measureDevicePerformanceClass()` selects LOW, AVERAGE or HIGH from Android version,
-logical CPU count, maximum CPU frequency, the application's Android memory class and total RAM.
-Any device with at most two logical CPUs is LOW. Other independent LOW conditions include an
-Android memory class at most 100 MiB and total RAM below 2 GiB. The next branch selects AVERAGE for
-fewer than eight CPUs, a memory class at most 160 MiB or a resolved maximum CPU frequency at most
-2055 MHz. A stored `overrideDevicePerformanceClass` takes precedence over measurement; the
+[`SharedConfig.measureDevicePerformanceClass()`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/SharedConfig.java#L1649-L1711)
+selects LOW, AVERAGE or HIGH from Android version, logical CPU count, maximum CPU frequency, the
+application's Android memory class and total RAM. Its LOW branch is a disjunction: Android below
+21, at most two CPUs, memory class at most 100 MiB, several explicitly conjoined CPU/frequency/
+memory/version cases, or known total RAM below 2 GiB each suffice. If none selects LOW, its
+AVERAGE branch independently accepts fewer than eight CPUs, memory class at most 160 MiB, a known
+maximum CPU frequency at most 2055 MHz, or the final conjoined unknown-frequency/eight-CPU/old-
+Android case. A stored `overrideDevicePerformanceClass` takes precedence over measurement; the
 measured value is cached in the process but is not written by this method.
 
-`SharedConfig.canBlurChat()` requires AVERAGE on Android 12/API 31 or newer and HIGH on older
-Android versions (apart from the private debug-build exception). `chatBlurEnabled()` additionally
-requires `LiteMode.FLAG_CHAT_BLUR` (`256`). Power saving matters because `LiteMode.isEnabled()`
+[`SharedConfig.canBlurChat()`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/SharedConfig.java#L1748-L1754)
+requires AVERAGE on Android 12/API 31 or newer and HIGH on older Android versions (apart from the
+private debug-build exception). `chatBlurEnabled()` additionally requires
+`LiteMode.FLAG_CHAT_BLUR` (`256`). Power saving matters because
+[`LiteMode.isEnabled()`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java#L102-L118)
 uses the zero-valued `PRESET_POWER_SAVER` while the battery percentage is at or below a configured,
-positive threshold. `ChatActivity` constructs its RenderNode-based noise suppressor only on
-Android 12 or newer when `chatBlurEnabled()` is already true. The composer otherwise draws the
-opaque panel fallback. Thus an available software GPU alone cannot enable chat blur.
+positive threshold. [`ChatActivity`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java#L2615-L2639)
+constructs its RenderNode-based noise suppressor only on Android 12 or newer when
+`chatBlurEnabled()` is already true. The composer otherwise draws the
+[opaque panel fallback](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java#L4710-L4717).
+Thus an available software GPU alone cannot enable chat blur.
 
-On a fresh preferences store, `LiteMode.loadPreference()` chooses one built-in mask by performance
-class:
+On a fresh preferences store,
+[`LiteMode.loadPreference()`](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java#L202-L285)
+chooses one [built-in mask](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java#L38-L90)
+by performance class:
 
 | Class | Built-in mask | Chat blur | Liquid glass |
 | --- | ---: | --- | --- |
@@ -34,16 +42,19 @@ class:
 
 Liquid glass is the distinct `FLAG_LIQUID_GLASS` bit (`1 << 18`, or `262144`). No built-in preset
 contains it. Migration from `lite_mode5` to `lite_mode6` explicitly clears it. The
-`lite_app_options.settings_mask` arrays delivered through app config may replace all three preset
-masks, but a persisted `lite_mode6` value remains the selected value. The offline synthetic
-adapter does not by itself prove which app config or preferences were applied at runtime.
+`lite_app_options.settings_mask` arrays delivered through app config may
+[replace all three preset masks](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java#L176-L200),
+but a persisted `lite_mode6` value remains the selected value. The offline synthetic adapter does
+not by itself prove which app config or preferences were applied at runtime.
 
-The blur3 factory forwards the liquid-glass flag only on Android 13/API 33 or newer and only for a
-RenderNode-backed drawable. Its implementation uses `RuntimeShader`/`RenderEffect`; the scrollable
-noise suppressor requires a hardware-accelerated canvas. These are later rendering prerequisites,
-not alternatives to the LiteMode bit. Theme colors and wallpaper content determine how visible a
-captured blur is. Alert-dialog blur has an additional dark-theme condition, but
-`SharedConfig.chatBlurEnabled()` itself has no theme check.
+The [blur3 factory](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Components/blur3/BlurredBackgroundDrawableViewFactory.java#L57-L85)
+forwards the liquid-glass flag only on Android 13/API 33 or newer and only for a RenderNode-backed
+drawable. Its implementation uses `RuntimeShader`/`RenderEffect`; the
+[scrollable noise suppressor](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Components/blur3/DownscaleScrollableNoiseSuppressor.java#L26-L59)
+requires a hardware-accelerated canvas. These are later rendering prerequisites, not alternatives
+to the LiteMode bit. Theme colors and wallpaper content determine how visible a captured blur is.
+Alert-dialog blur has an additional dark-theme condition, but `SharedConfig.chatBlurEnabled()`
+itself has no theme check.
 
 ## Current GramLab baseline
 
@@ -74,8 +85,8 @@ machine paths in ignored notes. Use one fresh dedicated guest and the already ap
 2. Open the upstream Settings debug menu's `Force performance class` dialog and retain the choice
    marked `(measured)`. Also capture Power Usage with its Chat group expanded: on this pin the
    chat-blur and liquid-glass rows are omitted for LOW, while API 33+ and AVERAGE or HIGH exposes
-   both. Record exact accessible labels and checked states; source inspection alone is
-   insufficient.
+   both, as the [pinned settings code shows](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/LiteModeSettingsActivity.java#L257-L270).
+   Record exact accessible labels and checked states; source inspection alone is insufficient.
 3. Capture the baseline chat at a settled point with a patterned wallpaper visible immediately
    behind the composer and navigation surfaces. Preserve the same world, theme, viewport, scroll
    position, keyboard state and animation-settle rule for the comparison.

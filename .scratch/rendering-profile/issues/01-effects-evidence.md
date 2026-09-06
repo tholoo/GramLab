@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: resolved
+Work state: claimed
 Blocked by: none
 
 Own docs/development/android-effects-profile.md (new), this ticket and optional isolated
