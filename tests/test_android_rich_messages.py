@@ -112,7 +112,10 @@ def test_real_bot_rich_blocks_render_edit_and_restart(tmp_path: Path) -> None:
                 "Durable history": observed["history"],
                 "Native serialized content": client["codecs"],
             },
-            timings=client["timings"],
+            timings={
+                name.removesuffix("_seconds"): seconds * 1000
+                for name, seconds in client["timings"].items()
+            },
             screenshots=[
                 Screenshot(caption=phase, png=(tmp_path / f"{phase}.png").read_bytes())
                 for phase in ("initial", "edited", "restarted")
