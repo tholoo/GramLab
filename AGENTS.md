@@ -19,6 +19,10 @@ For task branches, verification and handoff, follow [CONTRIBUTING.md](CONTRIBUTI
 [completion requirements](docs/development/completion.md). Preserve unrelated changes and keep
 GramLab independent of consumer applications.
 
+Before assigning parallel work, starting an assigned task, or integrating a worker branch, follow
+[the agent workflow](docs/development/parallel-work.md). Implementation workers use separate
+worktrees and branches; the coordinator owns merges, conflict resolution and combined verification.
+
 ## Agent skills
 
 ### Issue tracker

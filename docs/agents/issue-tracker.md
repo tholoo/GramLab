@@ -27,7 +27,9 @@ Record ticket kind in `Type:` and dependencies in `Blocked by:`.
 For wayfinding tickets, track progress separately in `Work state:`
 using `open`, `claimed` or `resolved`; retain `Status:` for triage.
 
-Claim the first numbered open, unblocked ticket before working.
+For coordinator-assigned parallel work, claim only the assigned ticket and follow the
+[agent workflow](../development/parallel-work.md). Otherwise, claim the first numbered open,
+unblocked ticket before working.
 Resolve it by appending `## Answer`, updating its work state,
 and adding a linked finding to the map.
 

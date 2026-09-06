@@ -37,11 +37,16 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## Parallel development preparation
 
-The user authorized reusable developer tooling. [The worktree helper](parallel-work.md) creates
-ticket-bound isolated branches and coordinates expensive checks through common local locks.
-Its five real Git/lock tests pass; use bounded ownership and one integration coordinator before
-starting workers. This preparation does not imply any worker is currently running. Keep local
-runtime inputs and evidence separate from tracked tickets. The full product goal remains active.
+The user authorized concurrent implementation on separate worker branches, with coordinator-owned
+merges and conflict resolution. Follow [the agent workflow](parallel-work.md) when dispatching,
+starting or integrating work. The helper places ticket-bound checkouts under the shared sibling
+`GramLab-worktrees` container, verifies assigned checkout/branch identity, and coordinates costly
+checks through common Git locks. All 15 real Git/lock checks pass, including hidden untracked
+work and occupied-path preservation. A disposable two-worker exercise also verifies separate
+commits, two coordinator merge commits, retained changes and clean worktree removal. ShellCheck,
+Bash syntax and focused Python lint/format pass. This preparation does not imply implementation
+workers are currently running. Keep actual paths and runtime evidence in ignored local notes.
+The full product goal remains active.
 For repeated command-line checks, [tools/dev](../../tools/dev) retains the selected shell through
 an ignored per-worktree Nix profile. Actual default-shell execution, its registered garbage
 collection root, ShellCheck, invalid-shell rejection and nonzero command exit propagation pass.
@@ -49,10 +54,11 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
-Before expanding handwritten Bot API coverage, use the
-[reuse assessment](bot-api-reuse.md) to evaluate existing stateful emulator components and test
-tooling. The review is source-only: it adds no dependency and does not change the Python world
-authority or Android boundary. Prioritize useful feature breadth and rich-message rendering;
+After the [reuse assessment](bot-api-reuse.md), the user chose to continue the independent simulator
+and accelerate it with parallel implementation. The research remains a reference for contracts
+and tooling; adopting a replacement backend is not the next step. Split useful feature breadth,
+rich-message rendering and rendering-profile work along agreed interfaces before dispatching.
+Prioritize useful feature breadth and rich-message rendering;
 retain the recovery diagnostics for new failure evidence instead of repeating successful gates.
 
 Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).

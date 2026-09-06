@@ -6,10 +6,14 @@ usage() {
   cat <<'HELP'
 Usage:
   tools/worktree create NAME TICKET [BASE]
+  tools/worktree root
+  tools/worktree check NAME
   tools/worktree list
   tools/worktree lock RESOURCE COMMAND [ARG ...]
 
-Create a sibling checkout and task/NAME branch from BASE (default HEAD).
+Create <primary-checkout>-worktrees/NAME and task/NAME from BASE (default HEAD).
+Root prints that shared container, including when called from a linked checkout.
+Check verifies that this checkout and branch match the assigned NAME.
 TICKET must be a tracked .scratch/*/issues/*.md file at that commit.
 The starting checkout must be clean. Existing branches and paths are never reused.
 Lock runs COMMAND unchanged with an exclusive, repository-wide local lock.
@@ -24,6 +28,12 @@ root=$(git rev-parse --show-toplevel)
 common=$(git rev-parse --path-format=absolute --git-common-dir)
 command=$1
 shift
+worktree_root() {
+  local primary_record
+  IFS= read -r -d '' primary_record < <(git worktree list --porcelain -z)
+  [[ "$primary_record" == 'worktree '* ]] || fail 'Cannot locate primary checkout.'
+  printf '%s-worktrees\n' "${primary_record#worktree }"
+}
 case "$command" in
   create)
     [[ $# == 2 || $# == 3 ]] || { usage >&2; exit 2; }
@@ -32,15 +42,31 @@ case "$command" in
     base=${3:-HEAD}
     valid_name "$name" || fail 'NAME must contain 1–64 lowercase letters, digits, _ or -.'
     [[ "$ticket" =~ ^\.scratch/[a-z0-9_-]+/issues/[a-z0-9_-]+\.md$ ]] || fail 'Invalid ticket path.'
-    [[ -z $(git -C "$root" status --porcelain) ]] || fail 'Commit or preserve pending changes before creating a worktree.'
+    [[ -z $(git -C "$root" status --porcelain --untracked-files=all) ]] || fail 'Commit or preserve pending changes before creating a worktree.'
     commit=$(git rev-parse --verify --end-of-options "${base}^{commit}")
     git cat-file -e "${commit}:${ticket}" || fail 'Ticket is not tracked at BASE.'
-    destination="$(dirname "$root")/$(basename "$root")-$name"
+    container=$(worktree_root)
+    [[ ! -L "$container" ]] || fail 'Worktree container must not be a symlink.'
+    [[ ! -e "$container" || -d "$container" ]] || fail 'Worktree container must be a directory.'
+    destination="$container/$name"
     [[ ! -e "$destination" && ! -L "$destination" ]] || fail 'Destination already exists.'
     if git show-ref --verify --quiet "refs/heads/task/$name"; then fail 'Task branch already exists.'; fi
+    mkdir -p -- "$container"
     git worktree add -b "task/$name" -- "$destination" "$commit"
     printf '\nCheckout: %s\nBase commit: %s\nTicket: %s\n' "$destination" "$commit" "$ticket"
     printf 'Read the handoff and ticket, claim ownership, then provision this checkout with nix develop and uv sync --locked.\n'
+    ;;
+  root)
+    [[ $# == 0 ]] || { usage >&2; exit 2; }
+    worktree_root
+    ;;
+  check)
+    [[ $# == 1 ]] || { usage >&2; exit 2; }
+    valid_name "$1" || fail 'Invalid assigned NAME.'
+    expected="$(worktree_root)/$1"
+    [[ "$root" == "$expected" ]] || fail 'Wrong checkout: use the assigned worktree.'
+    [[ $(git branch --show-current) == "task/$1" ]] || fail 'Wrong branch: use the assigned task branch.'
+    printf 'Assignment verified: task/%s\n' "$1"
     ;;
   list)
     [[ $# == 0 ]] || { usage >&2; exit 2; }
