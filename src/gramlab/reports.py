@@ -211,7 +211,7 @@ _SECRET_KEYS = {
     "capability",
 }
 _TOKENS = re.compile(
-    r"gramlab-client_[A-Za-z0-9_-]+|(?<![0-9])[0-9]{1,20}(?::|%3[aA])"
+    r"gramlab-(?:client|control)_[A-Za-z0-9_-]+|(?<![0-9])[0-9]{1,20}(?::|%3[aA])"
     r"(?:gramlab_)?[A-Za-z0-9_-]{20,}"
 )
 _HEADERS = re.compile(

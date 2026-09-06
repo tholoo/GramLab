@@ -92,10 +92,11 @@ def test_report_redacts_capabilities_headers_and_registered_consumer_secrets(
 ) -> None:
     bot_token = "2:gramlab_" + "B" * 43
     capability = "gramlab-client_" + "C" * 43
+    control = "gramlab-control_" + "D" * 43
     consumer_secret = "synthetic consumer / secret + خصوصی"  # noqa: S105 — deliberate redaction fixture
     report = Report(
         run_id="redaction-7",
-        title=f"Failure with {capability}",
+        title=f"Failure with {capability} {control}",
         mode="simulation-only",
         outcome="failed",
         seed=7,
@@ -118,6 +119,7 @@ def test_report_redacts_capabilities_headers_and_registered_consumer_secrets(
     for secret in [
         bot_token,
         capability,
+        control,
         consumer_secret,
         quote(consumer_secret, safe=""),
         "private-header",

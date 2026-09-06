@@ -35,6 +35,22 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 
 ## First action
 
+Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).
+Its [world control layer](scenario-control.md) now lets a private scenario process create users,
+chats and actions over authenticated local JSON while trusted orchestration retains the database
+and bot lifecycle. The real private scenario → separate echo bot exchange passes with complete
+semantic results and filesystem/egress observations. Wrong-world/capability, malformed input,
+directory replacement, callbacks and concurrent writers are tested. Control capability redaction
+is included. All 91 core tests pass at 92.07% coverage, with static and Nix/workflow checks passing.
+No Android source/runtime change or new guest run was needed. Local evidence and completed
+handles are in ignored `.cache/local-notes/scenario-control.md`.
+
+The consumer SDK/runner is still unimplemented. Next add the client transport with explicit
+uncertain mutation outcomes, then selected source packaging, lifecycle and automatic reports.
+Keep consumer Python in its own component; the approved per-run capability and local HTTP model
+already authorize this direction. Do not freeze a stable public API or change the architecture
+without the required consultation. The full foundation and broader product inventory remain open.
+
 The [Bot API request encoding follow-up](bot-request-encoding.md) now accepts URL-encoded forms,
 query-only POST and serialized keyboard/entity values. Textual callback Booleans follow the
 inspected server argument behavior. Invalid UTF-8 and malformed nested JSON fail before mutations
