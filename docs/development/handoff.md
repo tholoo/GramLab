@@ -54,6 +54,14 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
+The first parallel batch implements [structured rich messages](../../.scratch/rich-messages/spec.md):
+separate core and native-projection tickets share official-shaped JSON, while the coordinator owns
+the real-bot simulation/native scenario. Its confirmed red result is HTTP 404 for sendRichMessage;
+passing rich-message behavior is not yet established. The reviewed
+[effects-profile investigation](android-effects-profile.md) identifies the pinned performance,
+preference and shader gates, plus a one-guest comparison procedure. It changes no graphics defaults;
+native runtime values and effects-enabled captures remain unverified.
+
 After the [reuse assessment](bot-api-reuse.md), the user chose to continue the independent simulator
 and accelerate it with parallel implementation. The research remains a reference for contracts
 and tooling; adopting a replacement backend is not the next step. Split useful feature breadth,

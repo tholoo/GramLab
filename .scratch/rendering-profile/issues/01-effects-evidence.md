@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: resolved
 Blocked by: none
 
 Own docs/development/android-effects-profile.md (new), this ticket and optional isolated
@@ -21,3 +21,13 @@ source pins, lockfiles or shared docs are delegated.
   consequential profile change to coordinator before changing behavior.
 - Include expensive-step opportunities backed by existing build/test timings where relevant.
   Commit the bounded findings/probe and report remaining runtime work honestly.
+
+## Answer
+
+[The effects profile](../../../docs/development/android-effects-profile.md) records the exact
+performance-class, LiteMode, app-config, power-saver and blur3 gates in the pinned source. The
+current two-CPU launcher implies LOW and therefore disables both effects by default, but no live
+field or effects-enabled screenshot was observed. The note defines a one-guest baseline/HIGH
+comparison through upstream settings, with a separate explicitly authorized liquid-glass bit
+comparison. It also explains why the focused application probe is the next check instead of the
+roughly 21-minute, 28-test Android gate. No production patch, default or runtime profile changed.
