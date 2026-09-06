@@ -43,7 +43,9 @@ Inside the private scenario process:
 
 ```python
 capture = lab.capture_chat(
-    chat_id=chat["id"], label="reply", contains=["Echo: سلام hello"],
+    chat_id=chat["id"],
+    label="reply",
+    contains=["Echo: سلام hello"],
 )
 ```
 

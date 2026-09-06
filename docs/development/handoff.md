@@ -35,6 +35,14 @@ Read [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [TESTING.md](
 - Reports include bugs/fixes/decisions, before/after UI where meaningful, and latency diagnosis.
 - Consult the user before consequential design decisions or changing this scope.
 
+## Parallel development preparation
+
+The user authorized reusable developer tooling. [The worktree helper](parallel-work.md) creates
+ticket-bound isolated branches and coordinates expensive checks through common local locks.
+Its five real Git/lock tests pass; use bounded ownership and one integration coordinator before
+starting workers. This preparation does not imply any worker is currently running. Keep local
+runtime inputs and evidence separate from tracked tickets. The full product goal remains active.
+
 ## First action
 
 Continue the [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md).

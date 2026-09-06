@@ -70,3 +70,8 @@ The manually dispatched CI validates configuration, Markdown links and Python st
 Its Nix job runs the real Linux isolation tests and requires 80% coverage. It does not claim
 Android fidelity or guest egress isolation. Extend it as those capabilities are implemented;
 manual execution remains the initial product workflow.
+
+For concurrent implementation, use the [parallel development workflow](docs/development/parallel-work.md)
+and `tools/worktree`. Keep file ownership explicit and serialize expensive Android gates through
+its shared local resource lock. Developer helper checks run with `pytest tests/test_developer_tooling.py`, `bash -n tools/worktree`
+and `shellcheck tools/worktree` in the Nix shell.

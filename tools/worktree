@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Local development only; never invokes a bot, guest, network service or remote Git operation.
+set -euo pipefail
+
+usage() {
+  cat <<'HELP'
+Usage:
+  tools/worktree create NAME TICKET [BASE]
+  tools/worktree list
+  tools/worktree lock RESOURCE COMMAND [ARG ...]
+
+Create a sibling checkout and task/NAME branch from BASE (default HEAD).
+TICKET must be a tracked .scratch/*/issues/*.md file at that commit.
+The starting checkout must be clean. Existing branches and paths are never reused.
+Lock runs COMMAND unchanged with an exclusive, repository-wide local lock.
+A busy lock exits 75 immediately; lock requires util-linux flock.
+HELP
+}
+fail() { printf '%s\n' "$*" >&2; exit 2; }
+valid_name() { [[ "$1" =~ ^[a-z0-9][a-z0-9_-]{0,63}$ ]]; }
+
+if [[ $# == 0 || "$1" == --help || "$1" == -h ]]; then usage; exit 0; fi
+root=$(git rev-parse --show-toplevel)
+common=$(git rev-parse --path-format=absolute --git-common-dir)
+command=$1
+shift
+case "$command" in
+  create)
+    [[ $# == 2 || $# == 3 ]] || { usage >&2; exit 2; }
+    name=$1
+    ticket=$2
+    base=${3:-HEAD}
+    valid_name "$name" || fail 'NAME must contain 1–64 lowercase letters, digits, _ or -.'
+    [[ "$ticket" =~ ^\.scratch/[a-z0-9_-]+/issues/[a-z0-9_-]+\.md$ ]] || fail 'Invalid ticket path.'
+    [[ -z $(git -C "$root" status --porcelain) ]] || fail 'Commit or preserve pending changes before creating a worktree.'
+    commit=$(git rev-parse --verify --end-of-options "${base}^{commit}")
+    git cat-file -e "${commit}:${ticket}" || fail 'Ticket is not tracked at BASE.'
+    destination="$(dirname "$root")/$(basename "$root")-$name"
+    [[ ! -e "$destination" && ! -L "$destination" ]] || fail 'Destination already exists.'
+    if git show-ref --verify --quiet "refs/heads/task/$name"; then fail 'Task branch already exists.'; fi
+    git worktree add -b "task/$name" -- "$destination" "$commit"
+    printf '\nCheckout: %s\nBase commit: %s\nTicket: %s\n' "$destination" "$commit" "$ticket"
+    printf 'Read the handoff and ticket, claim ownership, then provision this checkout with nix develop and uv sync --locked.\n'
+    ;;
+  list)
+    [[ $# == 0 ]] || { usage >&2; exit 2; }
+    git worktree list --porcelain
+    ;;
+  lock)
+    [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+    resource=$1
+    shift
+    valid_name "$resource" || fail 'Invalid resource name.'
+    command -v flock >/dev/null || fail 'Lock requires util-linux flock (available in the Linux Nix shell).'
+    mkdir -p "$common/gramlab-locks"
+    exec flock --exclusive --nonblock --conflict-exit-code 75 "$common/gramlab-locks/$resource.lock" "$@"
+    ;;
+  *) usage >&2; exit 2 ;;
+esac

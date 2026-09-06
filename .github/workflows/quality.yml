@@ -24,6 +24,8 @@ jobs:
           nix develop --command bash -eu <<'BASH'
           python3 --version
           uv --version
+          bash -n tools/worktree
+          shellcheck tools/worktree
           test "$UV_PYTHON_DOWNLOADS" = never
           test "$UV_PROJECT_ENVIRONMENT" = "$PWD/.venv"
           BASH
