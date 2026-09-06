@@ -437,6 +437,7 @@ def test_incomplete_control_body_never_commits_or_logs_a_traceback(tmp_path: Pat
 
 def test_concurrent_control_writers_keep_worlds_and_event_order_independent(tmp_path: Path):
     from gramlab._control import WorldControl
+    from gramlab.scenario import Scenario
 
     for label in ("alpha", "beta"):
         with World.create(tmp_path / label, seed=7, now=100) as world:
@@ -445,27 +446,23 @@ def test_concurrent_control_writers_keep_worlds_and_event_order_independent(tmp_
             world.open_private_chat(user_id=1, bot_id=2)
     ready = Barrier(4)
     with WorldControl(tmp_path / "alpha") as alpha, WorldControl(tmp_path / "beta") as beta:
+        clients = {
+            label: Scenario(server.base_url, capability=server.capability, world_id=server.world_id)
+            for label, server in (("alpha", alpha), ("beta", beta))
+        }
 
         def write(worker):
-            label, number, server = worker
+            label, number = worker
             ready.wait(timeout=5)
             for index in range(3):
                 text = f"{label}-{number}-{index}"
-                status, response = call(
-                    server, "send_message", {"chat_id": 1, "sender_id": 1, "text": text}
-                )
-                assert status == 200
-                message = response["result"]
-                assert response == {
-                    "schema": 1,
-                    "world_id": server.world_id,
-                    "result": {
-                        "id": message["id"],
-                        "chat_id": 1,
-                        "sender_id": 1,
-                        "date": 100,
-                        "text": text,
-                    },
+                message = clients[label].send_message(chat_id=1, sender_id=1, text=text)
+                assert message == {
+                    "id": message["id"],
+                    "chat_id": 1,
+                    "sender_id": 1,
+                    "date": 100,
+                    "text": text,
                 }
 
         with ThreadPoolExecutor(max_workers=4) as workers:
@@ -473,10 +470,10 @@ def test_concurrent_control_writers_keep_worlds_and_event_order_independent(tmp_
                 workers.map(
                     write,
                     [
-                        ("alpha", 0, alpha),
-                        ("alpha", 1, alpha),
-                        ("beta", 0, beta),
-                        ("beta", 1, beta),
+                        ("alpha", 0),
+                        ("alpha", 1),
+                        ("beta", 0),
+                        ("beta", 1),
                     ],
                 )
             )

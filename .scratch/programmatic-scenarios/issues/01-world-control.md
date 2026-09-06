@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 
 Expose explicit existing world operations over authenticated local JSON. The trusted owner issues
 a fresh run-control capability; it is distinct from bot/persona credentials and bound to one
@@ -31,3 +31,15 @@ bot-file access and with rejected external traffic. Tests catch directory replac
 HTTP mutation, malformed envelopes, callback retries and concurrent writers in two worlds. The
 full core gate passes 91 tests at 92.07% coverage. Report redaction recognizes control credentials.
 The SDK transport/uncertain-outcome exception remains the next step, so this ticket stays claimed.
+
+## Answer
+
+2026-09-06: The [experimental scenario client](../../../docs/development/scenario-sdk.md) now
+exposes all nine operations and validates response identity/framing without redirects or retries.
+A real relay drops a response after the authoritative world commits; exactly one mutation remains
+and `ScenarioError.outcome_uncertain` is true. Definite rejection, failed connection, failed reads,
+malformed responses, timeouts, server errors and credential-safe diagnostics are tested. Shared
+SDK clients retain independent worlds and event order under concurrent writers. The private
+scenario fixture uses the SDK and preserves its complete real-bot transcript and isolation checks.
+All 100 core tests pass at 92.46% coverage. General command deduplication remains explicitly
+outside this ticket's guarantee. Continue ticket 02 for the runnable consumer workflow.

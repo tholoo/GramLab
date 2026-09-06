@@ -1,47 +1,14 @@
 """Independent programmable scenario consumer, with no world/database imports."""
 
-import http.client
 import json
-import os
 import socket
 import sys
 import time
 from pathlib import Path
-from typing import Any
-from urllib.parse import urlsplit
 
-endpoint = urlsplit(os.environ["GRAMLAB_CONTROL_ENDPOINT"])
-if endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1":
-    raise ValueError("Requires the explicit local control endpoint")
-world_id = os.environ["GRAMLAB_WORLD_ID"]
+from gramlab.scenario import Scenario
 
-
-def call(operation: str, **parameters: Any) -> Any:
-    connection = http.client.HTTPConnection("127.0.0.1", endpoint.port, timeout=5)
-    try:
-        connection.request(
-            "POST",
-            "/v1/world",
-            json.dumps(
-                {
-                    "schema": 1,
-                    "world_id": world_id,
-                    "operation": operation,
-                    "parameters": parameters,
-                }
-            ),
-            {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + os.environ["GRAMLAB_CONTROL_CAPABILITY"],
-            },
-        )
-        response = connection.getresponse()
-        result = json.loads(response.read())
-        if response.status != 200 or result["world_id"] != world_id or result["schema"] != 1:
-            raise RuntimeError("World control rejected the scenario action")
-        return result["result"]
-    finally:
-        connection.close()
+scenario = Scenario.from_environment()
 
 
 readable = []
@@ -61,9 +28,9 @@ with socket.socket() as connection:
         external_errno = error.errno
     else:
         external_errno = None
-alice = call("create_user", first_name="Sara", language_code="fa")
-echo = call("create_user", first_name="Echo", username="gramlab_echo_bot", is_bot=True)
-chat = call("open_private_chat", user_id=alice["id"], bot_id=echo["id"])
+alice = scenario.create_user(first_name="Sara", language_code="fa")
+echo = scenario.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
+chat = scenario.open_private_chat(user_id=alice["id"], bot_id=echo["id"])
 print(
     json.dumps(
         {
@@ -77,14 +44,16 @@ print(
 )
 if sys.stdin.readline() != "go\n":
     raise RuntimeError("Missing scenario start signal")
-call("send_message", chat_id=chat["id"], sender_id=alice["id"], text="سلام hello")
+scenario.send_message(chat_id=chat["id"], sender_id=alice["id"], text="سلام hello")
 deadline = time.monotonic() + 10
 while True:
-    history = call("history", chat_id=chat["id"])
+    history = scenario.history(chat["id"])
     if len(history) == 2:
         break
     if time.monotonic() >= deadline:
         raise TimeoutError("The real bot did not reply")
     time.sleep(0.01)
 Path("scenario-state.txt").write_text("private scenario state")
-print(json.dumps({"history": history, "snapshot": call("snapshot"), "events": call("events")}))
+print(
+    json.dumps({"history": history, "snapshot": scenario.snapshot(), "events": scenario.events()})
+)

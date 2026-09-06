@@ -7,8 +7,9 @@ bot/client lifecycle. This implements the per-run control capability anticipated
 [private component runtime](component-boundary.md).
 
 The [programmable scenario workstream](../../.scratch/programmatic-scenarios/spec.md) remains
-active. This service is internal (`gramlab._control`); the consumer SDK, source packaging,
-launcher and automatic failure artifacts are not implemented yet. Do not run consumer Python
+active. This service is internal (`gramlab._control`); the [experimental Python client](scenario-sdk.md)
+now implements transport and failure handling. Source packaging, launcher and automatic failure
+artifacts are not implemented yet. Do not run consumer Python
 in the trusted supervisor to bypass those remaining steps.
 
 ## Control contract
@@ -70,7 +71,8 @@ not an atomic bundle. Android continues using its persona snapshot/event interfa
 `create_callback` retains its existing durable `request_id` deduplication. Other mutating control
 operations are not deduplicated. If a connection fails after sending a mutation, the caller must
 treat the outcome as uncertain and inspect state rather than automatically retrying. A durable
-general command journal and an SDK exception carrying this uncertainty remain open work.
+general command journal remains open; the [SDK exception](scenario-sdk.md#failure-contract) now
+explicitly carries this uncertainty and never triggers an automatic retry.
 
 ## Evidence and reproduction
 

@@ -5,4 +5,5 @@ documentation fixture. Follow the [report instructions](../docs/development/repo
 It does not start a bot or Android client.
 
 Runnable consumer scenarios remain planned. Real bot/Android integration evidence currently lives
-in the behavioral tests; there is no public scenario SDK yet.
+in the behavioral tests. An [experimental scenario client](../docs/development/scenario-sdk.md)
+now drives those private processes; a reusable consumer launcher remains unfinished.

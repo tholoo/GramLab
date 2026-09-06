@@ -5,8 +5,9 @@ and reproducible interaction tests.
 
 **Status: experimental foundation.** Pinned development shells, Android source provenance and a
 tested Linux process isolation boundary and dedicated AOSP guest startup exist. A persistent
-synthetic world now exchanges messages with a real local bot over HTTP. There is no public CLI/SDK
-or verified Telegram compatibility yet.
+synthetic world now exchanges messages with a real local bot over HTTP. An
+[experimental scenario client](docs/development/scenario-sdk.md) controls that world from a private
+process. A reusable launcher, stable SDK and complete Telegram compatibility remain unfinished.
 The Android APK [builds inside network containment](docs/development/android-build.md).
 Its [native transport guard](docs/development/android-native-guard.md) has real JNI probe evidence.
 The [Java snapshot adapter](docs/development/android-semantic-bridge.md) receives real bot replies

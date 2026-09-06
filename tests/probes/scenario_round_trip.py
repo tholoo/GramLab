@@ -19,6 +19,10 @@ with World.create(directory, seed=7, now=1700000000):
 scenario = Path("scenario")
 scenario.mkdir()
 shutil.copy2("scenario_actor.py", scenario / "scenario_actor.py")
+sdk = scenario / "gramlab"
+sdk.mkdir()
+for name in ("__init__.py", "scenario.py"):
+    shutil.copy2(Path("gramlab") / name, sdk / name)
 # Prepare bot files before the scenario's isolation observations, so absence is meaningful.
 bot_fixture = FixtureBot("echo_bot.py")
 with WorldControl(directory) as control, BotAPIServer(directory) as api:

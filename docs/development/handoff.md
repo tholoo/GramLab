@@ -8,7 +8,8 @@ Android dependencies rebuild offline under strict verification. An experimental 
 drives a real local bot through HTTP; its reply now renders in the actual Telegram Android
 application through synthetic startup and a Java semantic read adapter. The upstream chat renderer
 is preserved. A bounded real inline-tap/callback/edit and bot/client recovery loop now has
-[Android evidence](android-callbacks.md). There is no public simulator SDK/CLI yet.
+[Android evidence](android-callbacks.md). An experimental Python scenario client exists; the
+reusable consumer launcher remains unfinished.
 
 The bounded real bot → actual Android → inline-button tap/callback → edit → bot/client recovery
 loop is the first milestone of the active goal; the wider agreed feature inventory remains open. No real accounts or DC
@@ -45,8 +46,15 @@ is included. All 91 core tests pass at 92.07% coverage, with static and Nix/work
 No Android source/runtime change or new guest run was needed. Local evidence and completed
 handles are in ignored `.cache/local-notes/scenario-control.md`.
 
-The consumer SDK/runner is still unimplemented. Next add the client transport with explicit
-uncertain mutation outcomes, then selected source packaging, lifecycle and automatic reports.
+The [experimental Python scenario client](scenario-sdk.md) now provides all nine world operations.
+Actual loss-after-commit injection produces one mutation and an explicit uncertain outcome without
+retry. Malformed responses, redirects, timeouts, server errors, configuration and proxy rejection
+are tested. The private scenario and concurrent writers now use the SDK; all 100 core tests pass
+at 92.46% coverage, with full static checks passing. Local evidence is in ignored
+`.cache/local-notes/scenario-sdk.md`.
+
+Ticket 01 is resolved; continue the claimed consumer-runner ticket 02. Selected source packaging,
+the public launcher, lifecycle and automatic reports remain unimplemented.
 Keep consumer Python in its own component; the approved per-run capability and local HTTP model
 already authorize this direction. Do not freeze a stable public API or change the architecture
 without the required consultation. The full foundation and broader product inventory remain open.

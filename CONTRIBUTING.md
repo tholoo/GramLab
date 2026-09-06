@@ -26,7 +26,8 @@ uv run --locked ruff format --check .
 ```
 
 The experimental Python implementation is packaged with the pinned uv build backend. There is no
-CLI entry point or public simulator SDK yet. Add public commands alongside working behavior.
+CLI entry point or stable simulator SDK yet. The [experimental scenario client](docs/development/scenario-sdk.md)
+provides typed world control inside private components. Add public commands alongside working behavior.
 
 Use focused pytest runs during development, and the following full checks at handoff. Run the
 behavioral suite in the [documented outer network guard](docs/development/runtime-boundary.md):

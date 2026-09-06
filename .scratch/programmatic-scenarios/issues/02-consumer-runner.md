@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: 01
 
 Package selected scenario/bot inputs into fresh private run directories, expose the Python SDK
