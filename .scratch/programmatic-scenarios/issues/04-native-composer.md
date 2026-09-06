@@ -54,3 +54,17 @@ All three diagnostic trials are terminal: two pass and one fails before input. B
 failures remain unresolved, with targeted evidence retained for subsequent investigation.
 Broader composer transformations
 and additional interruption boundaries remain in progress; this ticket is not resolved.
+
+The [acknowledgment-before-storage probe](../../../docs/development/ack-storage-recovery.md) now
+passes the actual Android case, using a debugger to hold only the original storage thread at
+ID-remap entry. Its frame arguments match the accepted receipt; the retained database has only
+one correlated negative row and intermediate `seq=7, pts=8`. Restart recovers the positive row
+once, aligns both cursors and allows one real bot reply. A separate real JVM fixture validates
+the debugger's suspension/resumption behavior. No APK or production change was required.
+The initial native baseline attempt failed in the independent codec process, not at the new
+boundary. Its crash trace identifies a local bridge connection timeout, with a secondary error
+during Android crash reporting. The full expanded Android gate passes all 24 tests, including
+both interruption cases and the standalone JVM helper check. Static/Nix/workflow and privacy/link
+checks pass; core code and the APK are unchanged. All handles are terminal. Live gap recovery and
+additional partial-write points remain open alongside broader composer semantics and the unresolved
+intermittent reliability failures.

@@ -96,6 +96,8 @@ Its independent text model matches seven native fixtures, and a consumer scenari
 simulation and actual Android with matching histories, events and accepted sends. Long input,
 nested formatting, links and dice remain outside that verified profile. The original composer
 transforms raw input before sending; broader transformations still need cross-mode proof.
-Controlled acknowledgment-before-storage interruption, live gap recovery, broader targeting and
-formatting rejection cases also remain open. Track them in
+The [acknowledgment-before-storage case](ack-storage-recovery.md) now holds the original storage
+thread at ID-remap entry and verifies once-only recovery from a retained negative row and split
+intermediate cursors. It uses an external debugger and the unchanged APK. Live gap recovery,
+additional partial-write points, broader targeting and formatting rejection cases remain open. Track them in
 [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).

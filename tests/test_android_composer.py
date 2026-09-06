@@ -15,8 +15,10 @@ from gramlab.runtime import RuntimeProfile, Sandbox
 pytestmark = pytest.mark.android
 
 
+@pytest.mark.parametrize("boundary", ["before_ack", "before_storage"])
 def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recovers(
     tmp_path: Path,
+    boundary: str,
 ) -> None:
     manifest, apk = (
         os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE"),
@@ -38,11 +40,13 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
     shutil.copy2("tests/fixtures/echo_bot.py", tmp_path / "echo_bot.py")
     (tmp_path / "component-profile.json").write_text(json.dumps(asdict(core)))
     (tmp_path / "emulator-profile.json").write_text(json.dumps(asdict(profile)))
+    (tmp_path / "interruption.json").write_text(json.dumps({"boundary": boundary}))
     for name in (
         "emulator_process.py",
         "component_bot.py",
         "android_guest.py",
         "android_composer.py",
+        "jdwp.py",
     ):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)
     result = Sandbox(profile).supervise(
@@ -116,24 +120,26 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
         assert observed[phase]["outgoing_read_state"] == [[2, 2], [3, 2], [4, 2]]
     assert all("LaunchState: COLD" in launch for launch in observed["launches"])
     assert "Echo:" in observed["restarted"]
-    assert observed["codec"] == {
-        "rejected": 17,
-        "sends": 2,
-        "ack": {
-            "id": 1,
-            "date": 1700000000,
-            "pts": 1,
-            "pts_count": 1,
-            "out": True,
-            "flags": 130,
-            "entity": "TL_messageEntityBold",
-        },
-        "pages": [
-            {"type": "TL_updates_differenceSlice", "pts": 1, "seq": 1, "changes": 1},
-            {"type": "TL_updates_difference", "pts": 2, "seq": 2, "changes": 1},
-        ],
-    }
+    if boundary == "before_ack":
+        assert observed["codec"] == {
+            "rejected": 17,
+            "sends": 2,
+            "ack": {
+                "id": 1,
+                "date": 1700000000,
+                "pts": 1,
+                "pts_count": 1,
+                "out": True,
+                "flags": 130,
+                "entity": "TL_messageEntityBold",
+            },
+            "pages": [
+                {"type": "TL_updates_differenceSlice", "pts": 1, "seq": 1, "changes": 1},
+                {"type": "TL_updates_difference", "pts": 2, "seq": 2, "changes": 1},
+            ],
+        }
     loss = observed["loss"]
+    assert loss["boundary"] == boundary
     assert loss["input"] == observed["inputs"][0]
     assert loss["accepted"]["message"] == {
         "id": 8,
@@ -147,7 +153,26 @@ def test_actual_composer_sends_equal_unicode_text_as_distinct_messages_and_recov
     assert len(correlations) == 1
     request_id, negative_id, peer = correlations[0]
     assert request_id == loss["accepted"]["request_id"] and negative_id < 0 and peer == 2
-    assert [2, negative_id, 1] in loss["uncertain"]["messages"]
+    assert loss["uncertain"]["messages"] == [
+        [2, negative_id, 1],
+        *[[2, index, 0] for index in range(1, 8)],
+    ]
+    if boundary == "before_storage":
+        assert loss["breakpoint"] == {
+            "class": "Lorg/telegram/messenger/MessagesStorage;",
+            "method": "updateMessageStateAndId",
+            "descriptor": "(JJLjava/lang/Integer;IIZII)[J",
+            "code_index": 0,
+            "suspend_policy": "event_thread",
+            "thread_name": "storageQueue_0",
+            "arguments": {
+                "random_id": int(request_id),
+                "dialogId": 2,
+                "newId": 8,
+                "useQueue": False,
+            },
+        }
+        assert "lost response بازیابی" in loss["acknowledged_ui"]
     assert loss["reconciled"]["messages"] == [[2, index, 0] for index in range(1, 9)]
     assert loss["reconciled"]["pending_correlations"] == []
     assert loss["reconciled"]["state"] == [8, 8, 1700000000, 0]

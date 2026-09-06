@@ -10,7 +10,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
-from contextlib import closing
+from contextlib import ExitStack, closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 from android_guest import main
 from component_bot import FixtureBot
+from jdwp import Debugger
 
 from gramlab.bot_api import BotAPIServer
 from gramlab.client_bridge import ClientBridge
@@ -186,6 +187,11 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
     def interrupted_send(
         configuration: dict[str, Any], bot_endpoint: str, token: str, fixture: FixtureBot
     ) -> dict[str, Any]:
+        boundary = json.loads(Path("interruption.json").read_text())["boundary"]
+        if boundary not in ("before_ack", "before_storage"):
+            raise ValueError("Unknown composer interruption boundary")
+        breakpoint: dict[str, Any] | None = None
+        acknowledged_ui: str | None = None
         committed = threading.Event()
         release = threading.Event()
         accepted: list[dict[str, Any]] = []
@@ -219,7 +225,7 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     ):
                         accepted.append(json.loads(body)["send"])
                         committed.set()
-                        if not release.wait(15):
+                        if boundary == "before_ack" and not release.wait(15):
                             return
                     self.send_response(response.status)
                     self.send_header("Content-Type", "application/json")
@@ -247,13 +253,29 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                 input=json.dumps(value),
             )
 
-        with ThreadingHTTPServer(("127.0.0.1", 0), HoldResponse) as proxy:
+        with ThreadingHTTPServer(("127.0.0.1", 0), HoldResponse) as proxy, ExitStack() as cleanup:
             worker = threading.Thread(target=proxy.serve_forever, daemon=True)
             worker.start()
             try:
                 configure(configuration | {"endpoint": f"http://10.0.2.2:{proxy.server_port}"})
                 retain("loss-launch.log", launch())
                 screen("before-lost-response")
+                debugger = None
+                if boundary == "before_storage":
+                    pid = command("shell", "pidof", PACKAGE).strip()
+                    if re.fullmatch(r"[1-9][0-9]*", pid) is None:
+                        raise RuntimeError("Expected one dedicated client process")
+                    port = int(command("forward", "tcp:0", "jdwp:" + pid).strip())
+                    cleanup.callback(command, "forward", "--remove", f"tcp:{port}")
+                    debugger = Debugger(port)
+                    cleanup.callback(debugger.close)
+                    # Killing precedes debugger detach, so cleanup cannot release a held write.
+                    cleanup.callback(command, "shell", "am", "force-stop", PACKAGE)
+                    debugger.breakpoint(
+                        "Lorg/telegram/messenger/MessagesStorage;",
+                        "updateMessageStateAndId",
+                        "(JJLjava/lang/Integer;IIZII)[J",
+                    )
                 input_result = command(
                     "shell",
                     "-T",
@@ -293,6 +315,12 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
                     raise RuntimeError(
                         "Native send did not reach the controlled post-commit boundary"
                     )
+                if debugger is not None:
+                    breakpoint = debugger.wait_breakpoint(
+                        arguments=["random_id", "dialogId", "newId", "useQueue"], timeout=15
+                    )
+                    retain("storage-breakpoint.json", json.dumps(breakpoint))
+                    acknowledged_ui = screen("after-ack-before-storage")
                 # Preserve the app database: no package clear, reinstall or synthetic local row.
                 command("shell", "am", "force-stop", PACKAGE)
                 uncertain = database("uncertain-client")
@@ -321,6 +349,9 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
         with World.open(Path("world")) as world:
             history = world.history(1)
         return {
+            "boundary": boundary,
+            "breakpoint": breakpoint,
+            "acknowledged_ui": acknowledged_ui,
             "accepted": accepted[0],
             "input": json.loads(input_result),
             "uncertain": uncertain,
@@ -461,7 +492,11 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
             "launches": launches,
             "restarted": restarted,
             "loss": interrupted_send(configuration, bot_api.base_url, token, fixture),
-            "codec": codec(),
+            # The independent serialization probe belongs to the original pre-ack case;
+            # the new storage interruption does not need to repeat that separate contract.
+            "codec": codec()
+            if json.loads(Path("interruption.json").read_text())["boundary"] == "before_ack"
+            else None,
         }
 
 

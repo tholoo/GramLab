@@ -50,6 +50,25 @@ This complements direnv and keeps local store paths out of tracked files.
 ## First action
 
 Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).
+The newest [acknowledgment-before-storage proof](ack-storage-recovery.md) passes an actual Android
+interruption with the original storage thread held at ID-remap entry. The retained pending row,
+receipt/frame correlation and split intermediate cursors recover once, followed by one real bot
+reply. Its external debugger helper also passes a real JVM contract. No APK or production code
+changed. The expanded Android gate passes all 24 tests, including both interruption cases and the
+JVM helper. Strict typing across 48 core/probe files and three separate two-file examples, full
+lint/format, Nix/workflow checks, local links in 81 Markdown files and public-tree privacy checks
+pass. Core code is unchanged;
+the previous 215-test core gate remains applicable. All handles are terminal, and the six-capture
+report retains original UI evidence; browser layout review remains unverified.
+
+Continue with live gap recovery and the remaining composer transformations. Ignored notes contain
+a source-based live-gap test lead: withhold ordinary incoming polling while allowing an actual send
+acknowledgment to pass unseen message positions, then observe the original controller requesting
+its first difference. Do not fabricate server holes or edit client cursors. The initial pre-storage
+baseline attempt failed in the separate codec process and is not a valid red result at the new
+boundary. Its crash trace identifies a local bridge connection timeout; Android's Binder error
+occurred while reporting that crash. The earlier intermittent failures are not claimed fixed.
+The older milestone records below are historical.
 The [independent version 2 send boundary](client-sends.md) now has durable request receipts,
 persona message positions and atomic version 4→5 migration. Seven initial failures establish
 the missing contract; 53 focused tests and the full 186-test core gate pass, with 82.55% coverage.
