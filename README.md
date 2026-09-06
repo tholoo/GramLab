@@ -50,3 +50,6 @@ No Android runtime setup is needed to read or extend this scaffold.
 Original core/SDK work is intended to use MIT. Android-derived components retain applicable
 upstream copyleft terms. See [licensing boundaries](docs/development/licensing.md).
 GramLab is independent and is not affiliated with or endorsed by Telegram.
+
+The [inline-input example](docs/development/scenario-input.md) runs the same callback/edit scenario
+with virtual input or an actual Android button tap, retaining original before/after captures.

@@ -6,6 +6,7 @@ import json
 import os
 import selectors
 import subprocess
+import threading
 import time
 from contextlib import ExitStack
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import Any
 from gramlab._android import Android
 from gramlab._captures import Captures
 from gramlab._control import WorldControl
+from gramlab._interactions import Interactions
 from gramlab.bot_api import BotAPIServer
 from gramlab.reports import _Redactor
 from gramlab.runtime import RuntimeProfile, Sandbox
@@ -49,13 +51,26 @@ def execute() -> None:
             deadline=deadline,
             secrets=secrets,
         )
-    captures = Captures(Path("world"), render=android.capture if android is not None else None)
+    renderer_lock = threading.Lock()
+    captures = Captures(
+        Path("world"), lock=renderer_lock, render=android.capture if android is not None else None
+    )
+    interactions = Interactions(
+        Path("world"),
+        lock=renderer_lock,
+        tap=android.tap_inline_button if android is not None else None,
+    )
     try:
         # Namespace processes belong to this persistent owner, never a short-lived HTTP thread.
         if android is not None:
             android.start()
         with (
-            WorldControl(Path("world"), bots=bots, capture_chat=captures.capture_chat) as control,
+            WorldControl(
+                Path("world"),
+                bots=bots,
+                capture_chat=captures.capture_chat,
+                tap_inline_button=interactions.tap_inline_button,
+            ) as control,
             BotAPIServer(Path("world")) as api,
         ):
             secrets.append(control.capability)
@@ -135,6 +150,8 @@ def execute() -> None:
                 android.close()
             except (OSError, RuntimeError):
                 failure = failure or "android_cleanup_failed"
+    if interactions.failed:
+        failure = failure or "interaction_failed"
     if captures.failed:
         failure = failure or "capture_failed"
     for name, process in processes.items():
@@ -147,6 +164,7 @@ def execute() -> None:
             "failure": failure,
             "processes": records,
             "captures": captures.records,
+            "interactions": interactions.records,
             "android": android.observations if android is not None else {},
         }
     )

@@ -41,6 +41,21 @@ retains its capture; Android startup timeout yields a failed report. All 138 cor
 84.30% measured coverage and all 16 Android tests pass. Static checks, Nix/workflow validation and
 offline distributions pass. Selected API tests explicitly trace real contained supervisor lines.
 
-This ticket remains claimed for SDK-controlled native input, interactive mode and the remaining
+This ticket remains claimed for composer input, interactive mode and the remaining
 workflow acceptance. Consumer-requested lifecycle/fault operations and expanded dependency
 packaging remain follow-ups. Interactive mode still fails explicitly during preparation.
+
+The [inline-input follow-up](../../../docs/development/scenario-input.md) now exposes message/row/
+column selection through the consumer SDK. Simulation creates callbacks in the shared world;
+Android uses accessible message/button bounds and actual input. Both modes drive the same real
+bot edit, including correct selection between repeated button labels. Renderer serialization is
+shared with captures and reports retain interaction evidence. Lost responses remain uncertain,
+with a real response-loss test proving one callback and no automatic retry. Four simultaneous
+actors produce 64 distinct callbacks and share the per-run input limit. Composer input, scrolling,
+interactive mode and the wider product inventory remain open.
+
+Final inline-input verification: 147 core tests pass at 81.86% coverage; all 18 Android tests pass.
+The ambiguous-target case retains its failure and earlier screenshots without an extra callback.
+Ruff, format, 44-file typing, Nix/workflow checks, offline builds and privacy/local links pass.
+Desktop/mobile report inspection verifies loaded original captures without external resources.
+The APK and client-derived patches are unchanged. This ticket and the broader goal remain open.

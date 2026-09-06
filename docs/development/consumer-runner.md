@@ -121,7 +121,7 @@ exports; review them before sharing. Neither the JSON nor the report claims that
 encodings or secrets supplied as ordinary prose can always be detected.
 
 `simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
-command. `interactive-android` fails explicitly during preparation. SDK-controlled native input,
+command. `interactive-android` fails explicitly during preparation. [SDK inline-button input](scenario-input.md) is supported; composer input,
 restarts/faults, expanded dependency packaging and workload diagnostics remain active work.
 Overall elapsed time covers trusted execution and cleanup; Android metadata separately records
 guest boot duration. Neither is an individual Bot API latency measurement.
@@ -136,7 +136,7 @@ A large-world case preserves complete JSON evidence while keeping HTML bounded. 
 [control tests](../../tests/test_world_control.py) verify scoped, read-only named bot identities.
 The documented two-conversation example also runs through the installed console entry point.
 
-The capture milestone passes 138 core tests at 84.30% measured statement coverage and all 16
+The inline-input milestone passes 147 core tests at 81.86% measured statement coverage and all 18
 Android tests; lint, formatting, strict typing, Nix/workflow checks and offline wheel/source
 builds pass. Selected Python API tests explicitly trace actual contained supervisor execution
 using the [test-only fixture](../../tests/conftest.py). CLI/guest behavior checks do not imply

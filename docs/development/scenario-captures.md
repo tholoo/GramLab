@@ -92,10 +92,10 @@ or stitched: requested text must be visible together. Screens retain normal stat
 app animations. They are observations, not deterministic golden images or proof of arbitrary
 secret detection in pixels.
 
-`interactive-android` remains explicitly unsupported. Live viewing, SDK-controlled native taps,
-more lifecycle/fault commands and multi-guest scheduling remain active work. Separate
-[callback/recovery tests](android-callbacks.md) establish their own actual UI interactions;
-captures alone do not expose those actions through the SDK.
+`interactive-android` remains explicitly unsupported. [SDK inline-button taps](scenario-input.md)
+now use actual client input. Live viewing, composer input, more lifecycle/fault commands and
+multi-guest scheduling remain active work. Separate [callback/recovery tests](android-callbacks.md)
+establish live UI update/recovery behavior; captures alone do not prove that behavior.
 
 ## Verification
 

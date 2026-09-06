@@ -46,6 +46,7 @@ uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/andr
   clients/android/prepare.py tests/recovery_report.py examples/report.py \
   tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py examples/echo \
   tests/probes/trace_runner.py
+uv run --locked mypy examples/inline
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

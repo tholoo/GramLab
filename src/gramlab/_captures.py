@@ -17,13 +17,14 @@ class Captures:
         self,
         directory: Path,
         *,
+        lock: threading.Lock | None = None,
         render: Callable[[dict[str, Any], str, list[str]], dict[str, Any]] | None = None,
     ) -> None:
         self.directory = directory
         self.render = render
         self.records: list[dict[str, Any]] = []
         self.failed = False
-        self._lock = threading.Lock()
+        self._lock = lock if lock is not None else threading.Lock()
 
     def capture_chat(self, *, chat_id: int, label: str, contains: list[str]) -> dict[str, Any]:
         if (

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -164,21 +165,21 @@ class Android:
         try:
             return self._capture(chat, label, contains)
         except Exception as error:
-            self.observations["capture_failure"] = _Redactor(self.secrets).text(str(error))
-            if self._guest is not None and self._guest.poll() is None:
-                try:
-                    log = self._adb(
-                        "logcat", "-d", "-t", "300", "-v", "brief", timeout=5, check=False
-                    )
-                    self.observations["failure_logcat"] = _Redactor(self.secrets).text(
-                        log.stdout[-65536:]
-                    )
-                except (OSError, subprocess.TimeoutExpired):
-                    self.observations["failure_logcat"] = "Unavailable before the run deadline"
+            self._record_failure("capture", error)
             raise
 
-    def _capture(self, chat: dict[str, Any], label: str, contains: list[str]) -> dict[str, Any]:
-        started = time.monotonic()
+    def _record_failure(self, operation: str, error: Exception) -> None:
+        self.observations[operation + "_failure"] = _Redactor(self.secrets).text(str(error))
+        if self._guest is not None and self._guest.poll() is None:
+            try:
+                log = self._adb("logcat", "-d", "-t", "300", "-v", "brief", timeout=5, check=False)
+                self.observations["failure_logcat"] = _Redactor(self.secrets).text(
+                    log.stdout[-65536:]
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                self.observations["failure_logcat"] = "Unavailable before the run deadline"
+
+    def _open_chat(self, chat: dict[str, Any]) -> str:
         if self._guest is None or self._guest.poll() is not None:
             raise RuntimeError("Dedicated emulator is not running")
         if self._bridge is None:
@@ -225,6 +226,9 @@ class Android:
         )
         if "Status: ok" not in launched.stdout:
             raise RuntimeError("Dedicated client activity failed to launch")
+        return launched.stdout
+
+    def _wait_ui(self, contains: list[str]) -> str:
         ui_deadline = min(self.deadline, time.monotonic() + 45)
         ui = ""
         while time.monotonic() < ui_deadline:
@@ -237,6 +241,13 @@ class Android:
             time.sleep(0.2)
         else:
             raise TimeoutError("Expected text did not render in the dedicated client")
+        return ui
+
+    def _capture(self, chat: dict[str, Any], label: str, contains: list[str]) -> dict[str, Any]:
+        started = time.monotonic()
+        launched = self._open_chat(chat)
+        ui = self._wait_ui(contains)
+        nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314 — dedicated UIAutomator XML
         redactor = _Redactor(self.secrets)
         if any(redactor.text(value) != value for node in nodes for value in node.attrib.values()):
             raise RuntimeError("Capture UI contains credential-shaped text")
@@ -256,10 +267,94 @@ class Android:
         return {
             "user_id": self._persona,
             "ui": ui,
-            "launch": launched.stdout,
+            "launch": launched,
             "accounts": accounts,
             "elapsed_ms": (time.monotonic() - started) * 1000,
         }
+
+    def tap_inline_button(
+        self, chat: dict[str, Any], message: dict[str, Any], row: int, column: int
+    ) -> dict[str, Any]:
+        try:
+            return self._tap_inline_button(chat, message, row, column)
+        except Exception as error:
+            self._record_failure("input", error)
+            raise
+
+    def _tap_inline_button(
+        self, chat: dict[str, Any], message: dict[str, Any], row: int, column: int
+    ) -> dict[str, Any]:
+        started = time.monotonic()
+        self._open_chat(chat)
+        ui = self._wait_ui([message["text"]])
+        tree = ET.fromstring(ui)  # noqa: S314 — dedicated UIAutomator XML
+        keyboard = message["reply_markup"]["inline_keyboard"]
+        labels = [button["text"] for line in keyboard for button in line]
+        candidates = []
+        for node in tree.iter("node"):
+            if not node.get("text", "").startswith(message["text"] + "\n"):
+                continue
+            buttons = [child for child in node if child.get("class") == "android.widget.Button"]
+            if [button.get("text") for button in buttons] == labels:
+                candidates.append(buttons)
+        if len(candidates) != 1:
+            raise RuntimeError(
+                "Inline message and complete keyboard must have one accessible match"
+            )
+        index = sum(len(line) for line in keyboard[:row]) + column
+        target = candidates[0][index]
+        bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", target.get("bounds", ""))
+        if bounds is None or target.get("clickable") != "true" or target.get("enabled") != "true":
+            raise RuntimeError("Inline button is not an enabled accessible target")
+        left, top, right, bottom = map(int, bounds.groups())
+        if not (0 <= left < right <= 320 and 80 <= top < bottom <= 583):
+            raise RuntimeError("Inline button is not fully inside the chat viewport")
+        # Refuse known stale targets; edits after this check can still race native input.
+        with World.open(Path("world")) as world:
+            if world.get_message(chat["id"], message["id"]) != message:
+                raise RuntimeError("Inline message changed before input")
+            same_text = [
+                item for item in world.history(chat["id"]) if item["text"] == message["text"]
+            ]
+            if len(same_text) != 1:
+                raise RuntimeError("Inline message text is ambiguous in this chat")
+            events = world.events()
+            cursor = events[-1]["sequence"] if events else 0
+        x, y = (left + right) // 2, (top + bottom) // 2
+        self._adb("shell", "input", "tap", str(x), str(y))
+        deadline = min(self.deadline, time.monotonic() + 15)
+        while time.monotonic() < deadline:
+            with World.open(Path("world")) as world:
+                events = world.events(after=cursor)
+                callbacks = [
+                    event["data"]
+                    for event in events
+                    if event["type"] == "callback.created"
+                    and event["data"]["user_id"] == chat["user_id"]
+                    and event["data"]["chat_id"] == chat["id"]
+                ]
+                if callbacks:
+                    expected = keyboard[row][column]["callback_data"]
+                    if (
+                        len(callbacks) != 1
+                        or callbacks[0]["message"] != message
+                        or callbacks[0]["data"] != expected
+                    ):
+                        raise RuntimeError("Native input produced an unexpected callback")
+                    return {
+                        "callback": world.get_callback(
+                            user_id=chat["user_id"], callback_id=callbacks[0]["id"]
+                        ),
+                        "android": {
+                            "ui": ui,
+                            "target": target.attrib,
+                            "x": x,
+                            "y": y,
+                            "elapsed_ms": (time.monotonic() - started) * 1000,
+                        },
+                    }
+            time.sleep(0.05)
+        raise RuntimeError("Native inline input produced no matching callback before timeout")
 
     def close(self) -> None:
         self._stack.close()

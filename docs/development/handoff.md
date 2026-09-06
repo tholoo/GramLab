@@ -60,12 +60,29 @@ The same two-conversation example passes in both modes. Android assertion failur
 capture, and startup timeout produces a failed report. Guest startup belongs to the persistent
 supervisor thread so repeated captures remain available.
 
-Continue claimed ticket 02 with SDK-controlled native input, interactive mode and the remaining
+The [inline-input follow-up](scenario-input.md) adds `Scenario.tap_inline_button` with message and
+row/column targeting. Simulation creates the selected world callback; headless mode taps the actual
+accessible button and verifies the callback from the client. The repeated-label example produces
+identical final world/history state in both modes and original before/after PNGs. Captures and
+input share one renderer lock. No automatic tap retries or synthetic Android fallback are used.
+Response-loss tests verify a single committed callback; four concurrent virtual actors produce
+64 distinct callbacks and share the explicit per-run input limit.
+
+The final inline-input gate passes 147 core tests at 81.86% measured coverage and all 18 Android
+tests. The Android collection predates one added core-only test; its deselection count is 146.
+Ambiguous native targeting fails the run even if caught, without another callback, and retains
+earlier screenshots. Full lint/format, strict typing across 44 files in two example-compatible
+invocations, Nix/workflow checks, offline distributions and public-tree privacy/local links pass.
+Desktop/mobile report review confirms loaded original captures and no external resources or
+horizontal overflow. The approved APK fingerprint is unchanged. All run/check handles are terminal;
+ignored `.cache/local-notes/inline-input.md` records local evidence and the stopped preview server.
+
+Continue claimed ticket 02 with composer input, scrolling, interactive mode and the remaining
 workflow acceptance. Consumer-requested lifecycle/fault commands and broader dependency packaging
 also remain open. Preserve the private emulator component, authoritative world and original
 renderer. Local capture evidence is recorded in ignored `.cache/local-notes/scenario-captures.md`.
 
-The capture milestone passes 138 core tests at 84.30% measured coverage and all 16 Android tests.
+The earlier capture milestone passed 138 core tests at 84.30% measured coverage and all 16 Android tests.
 Full lint/format, strict typing across 41 files, Nix/workflow checks and offline distributions pass.
 An explicit test-only tracing fixture measures real contained supervisor execution for selected
 Python API tests; CLI and guest behavior checks do not imply additional line coverage. The APK
@@ -90,7 +107,7 @@ are tested. The private scenario and concurrent writers now use the SDK; all 100
 at 92.46% coverage, with full static checks passing. Local evidence is in ignored
 `.cache/local-notes/scenario-sdk.md`.
 
-Ticket 01 is resolved; consumer-runner ticket 02 remains claimed for native input, interactive mode and
+Ticket 01 is resolved; consumer-runner ticket 02 remains claimed for composer input, interactive mode and
 the remaining workflow acceptance. Selected file packaging, simulation/headless execution,
 bounded process lifecycle and automatic reports are implemented as described above.
 Keep consumer Python in its own component; the approved per-run capability and local HTTP model

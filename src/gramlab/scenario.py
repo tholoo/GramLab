@@ -294,6 +294,25 @@ class Scenario:
             ),
         )
 
+    def tap_inline_button(
+        self, *, chat_id: int, message_id: int, row: int, column: int, timeout: float = 180
+    ) -> dict[str, Any]:
+        """Select a current keyboard cell, using actual native input in Android mode.
+
+        Each call is a new action. A lost response or backend failure is uncertain;
+        callers must inspect world events before deciding whether another action is appropriate.
+        """
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Inline input timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request(
+                "tap_inline_button",
+                {"chat_id": chat_id, "message_id": message_id, "row": row, "column": column},
+                timeout=timeout,
+            ),
+        )
+
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._request("events", {"after": after}))
 

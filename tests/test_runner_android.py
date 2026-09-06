@@ -150,3 +150,103 @@ def test_android_startup_deadline_retains_failed_run(tmp_path: Path):
     assert recorded["failure"] == "timeout"
     assert recorded["processes"] == {} and recorded["captures"] == []
     assert (output / "report.html").is_file()
+
+
+def test_consumer_inline_button_uses_native_input_and_matches_simulation(tmp_path: Path):
+    from test_runner_interactions import inline_project
+
+    profile = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if profile is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires the provisioned Android profile, approved APK and KVM")
+    manifest = inline_project(tmp_path / "project")
+    results = []
+    for mode in ("simulation-only", "headless-android"):
+        manifest.write_text(
+            Path("examples/inline/run.toml")
+            .read_text()
+            .replace('mode = "simulation-only"', f'mode = "{mode}"')
+            .replace("timeout = 15", "timeout = 300")
+        )
+        output = tmp_path / mode
+        outcome = run(
+            manifest,
+            output,
+            profile=RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"])),
+            android_profile=RuntimeProfile.load(Path(profile)),
+            android_apk=Path(apk),
+        )
+        recorded = json.loads((output / "result.json").read_text())
+        assert outcome == "passed", recorded
+        results.append(recorded)
+    simulation, android = results
+    assert simulation["world"] == android["world"]
+    assert simulation["histories"] == android["histories"]
+    assert len(simulation["interactions"]) == len(android["interactions"]) == 1
+    simple, native = simulation["interactions"][0], android["interactions"][0]
+    assert simple["native"] is False and native["native"] is True
+    for key in ("chat_id", "message_id", "row", "column"):
+        assert simple[key] == native[key]
+    for key in ("user_id", "chat_id", "message", "data"):
+        assert simple["callback"][key] == native["callback"][key]
+    assert native["callback"]["data"] == "confirm"
+    assert native["android"]["target"]["class"] == "android.widget.Button"
+    assert native["android"]["target"]["text"] == "Confirm"
+    created = [event for event in android["events"] if event["type"] == "callback.created"]
+    assert len(created) == 1 and created[0]["data"]["id"] == native["callback"]["id"]
+    assert [record["label"] for record in android["captures"]] == ["before-tap", "after-edit"]
+    assert all(record["rendered"] for record in android["captures"])
+    report = (tmp_path / "headless-android/report.html").read_text()
+    assert report.count("data:image/png;base64,") == 2
+
+
+def test_ambiguous_native_target_fails_run_without_a_second_callback(tmp_path: Path):
+    from test_runner_interactions import inline_project
+
+    profile = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if profile is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+        pytest.skip("Requires the provisioned Android profile, approved APK and KVM")
+    manifest = inline_project(tmp_path / "project")
+    manifest.write_text(Path("examples/inline/android.toml").read_text())
+    with (manifest.parent / "scenario.py").open("a") as script:
+        script.write("""
+from gramlab.scenario import ScenarioError
+for _ in range(2):
+    duplicate = lab.send_message(
+        chat_id=chat["id"], sender_id=lab.bots()["inline"], text="Duplicate prompt",
+        reply_markup={"inline_keyboard": [[{"text": "Confirm", "callback_data": "duplicate"}]]},
+    )
+before = lab.events()
+try:
+    lab.tap_inline_button(chat_id=chat["id"], message_id=duplicate["id"], row=0, column=0)
+except ScenarioError as error:
+    if error.code != "server_error" or not error.outcome_uncertain:
+        raise AssertionError("Native backend failure must expose uncertain outcome")
+else:
+    raise AssertionError("Ambiguous message accepted")
+if lab.events() != before:
+    raise AssertionError("Ambiguous target caused a world mutation")
+""")
+    output = tmp_path / "run"
+    outcome = run(
+        manifest,
+        output,
+        profile=RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"])),
+        android_profile=RuntimeProfile.load(Path(profile)),
+        android_apk=Path(apk),
+    )
+    recorded = json.loads((output / "result.json").read_text())
+    assert outcome == "failed", recorded
+    assert recorded["failure"] == "interaction_failed"
+    assert recorded["processes"]["scenario"]["exit_code"] == 0
+    assert len(recorded["interactions"]) == 2
+    assert recorded["interactions"][1]["failure"] == "RuntimeError"
+    assert recorded["android"]["input_failure"] in (
+        "Inline message text is ambiguous in this chat",
+        "Inline message and complete keyboard must have one accessible match",
+    )
+    callbacks = [event for event in recorded["events"] if event["type"] == "callback.created"]
+    assert len(callbacks) == 1 and callbacks[0]["data"]["data"] == "confirm"
+    assert len(recorded["captures"]) == 2
+    assert (output / "report.html").read_text().count("data:image/png;base64,") == 2

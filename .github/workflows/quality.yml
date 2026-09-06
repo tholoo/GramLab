@@ -94,3 +94,5 @@ jobs:
           tests/recovery_report.py examples/report.py
           tests/probes/scenario_round_trip.py tests/fixtures/scenario_actor.py examples/echo
           tests/probes/trace_runner.py
+      - name: Type check the independent inline consumer example
+        run: uv run --locked mypy examples/inline

@@ -53,6 +53,7 @@ class WorldControl:
         *,
         bots: Mapping[str, int] | None = None,
         capture_chat: Callable[..., dict[str, Any]] | None = None,
+        tap_inline_button: Callable[..., dict[str, Any]] | None = None,
     ) -> None:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("World control requires the isolated loopback-only runtime")
@@ -152,6 +153,8 @@ class WorldControl:
                         }
                         if capture_chat is not None:
                             operations["capture_chat"] = capture_chat
+                        if tap_inline_button is not None:
+                            operations["tap_inline_button"] = tap_inline_button
                         operation = body["operation"]
                         if operation not in operations:
                             self.error(404, "unsupported", "Unknown world control operation")
