@@ -141,3 +141,20 @@ def test_rejects_nonpositive_limit_before_reading_input(tmp_path: Path) -> None:
 
     assert result.returncode == 2
     assert "must be a positive integer" in result.stderr
+
+
+def test_rejects_utf16_dtd_before_expanding_its_entity(tmp_path: Path) -> None:
+    report = tmp_path / "utf16-dtd.xml"
+    report.write_bytes(
+        """<!DOCTYPE testsuite [<!ENTITY label "expanded">]>
+        <testsuite><testcase classname="tests.x" name="&label;" time="1" /></testsuite>""".encode(
+            "utf-16"
+        )
+    )
+
+    result = run_tool(report)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "unsupported DTD" in result.stderr
+    assert "expanded" not in result.stderr

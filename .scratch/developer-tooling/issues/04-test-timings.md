@@ -45,9 +45,11 @@ from the summed case durations. The command rejects invalid limits, unreadable o
 unsupported/nested shapes, duplicate identities, ambiguous outcomes, and missing, malformed,
 negative or nonfinite case times.
 
-Focused behavioral coverage passes 11 cases, including an independently specified comparison with
+Focused behavioral coverage passes 12 cases, including an independently specified comparison with
 positive and negative deltas, additions/removals, failure/skip/error outcomes, list limiting and
-the required rejection boundaries. Ruff lint/format and strict mypy pass for the command and test.
+the required rejection boundaries. An encoding-aware parser callback rejects DTD/entity
+declarations before expansion, including UTF-16 XML. Ruff lint/format and strict mypy pass for the
+command and test.
 Comparisons of the retained 273/272-case core reports observed 272 matches, one addition and no
 removals while retaining distinct suite and summed-case times. The retained one-case native reports
 preserved the failure-to-pass outcome change and a `+42.022` second duration observation. These are

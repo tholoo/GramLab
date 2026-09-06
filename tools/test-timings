@@ -17,6 +17,14 @@ class ReportError(ValueError):
     """A report does not satisfy the supported pytest JUnit shape."""
 
 
+class RejectingTreeBuilder(ET.TreeBuilder):
+    """Build ordinary XML while rejecting DTDs after encoding detection."""
+
+    def doctype(self, name: str, pubid: str | None, system: str | None) -> NoReturn:
+        del name, pubid, system
+        fail("report uses unsupported DTD or entity declarations")
+
+
 @dataclass(frozen=True)
 class Case:
     identity: str
@@ -97,11 +105,10 @@ def parse_report(path: Path) -> Report:
         raw = path.read_bytes()
     except OSError as exc:
         fail(f"cannot read {path}: {exc}")
-    if b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
-        fail(f"{path} uses unsupported DTD or entity declarations")
     try:
-        # Entity declarations and DTDs are rejected above before the stdlib parser sees them.
-        root = ET.fromstring(raw)  # noqa: S314
+        # The custom target rejects declarations before accepting the document tree.
+        parser = ET.XMLParser(target=RejectingTreeBuilder())  # noqa: S314
+        root = ET.fromstring(raw, parser=parser)  # noqa: S314
     except ET.ParseError as exc:
         fail(f"cannot parse {path}: {exc}")
 
