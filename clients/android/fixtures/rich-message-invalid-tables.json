@@ -1,0 +1,16 @@
+[
+  {
+    "name": "later-row-wider-than-first",
+    "rich_message": {"blocks": [{"type": "table", "cells": [
+      [{"text": "One column"}],
+      [{"text": "Two columns", "colspan": 2}]
+    ]}]}
+  },
+  {
+    "name": "expanded-cell-area-over-10000",
+    "rich_message": {"blocks": [{"type": "table", "cells": [[
+      {"text": "First", "colspan": 100, "rowspan": 100},
+      {"text": "Second", "colspan": 100, "rowspan": 100}
+    ]]}]}
+  }
+]

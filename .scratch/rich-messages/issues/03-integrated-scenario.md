@@ -25,3 +25,11 @@ The real contained bot first fails because sendRichMessage returns HTTP 404, est
 missing behavior before implementation. The first diagnostic obscured this with a JSON EOF;
 updated failure reporting identifies the rejected method and HTTP status without credentials.
 These are red integration tests; no rich behavior or screenshot success is claimed yet.
+
+## Coordinator integration checkpoint
+
+Reviewed core and native changes pass the integrated real-bot contract. The full core gate passes
+269 tests at 82.06% coverage. The new offline APK builds successfully; the focused native test
+passes with complete codec catalog, explicit invalid-table rejection and visually inspected
+send/edit/cold-restart captures. Shared documentation records the precise supported boundary.
+The combined Android gate is still running; keep this ticket open until its required checks pass.

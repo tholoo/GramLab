@@ -8,3 +8,4 @@
 0008-native-composer-and-client-sequences.patch
 0009-native-controller-timer.patch
 0010-bridge-failure-classification.patch
+0011-rich-message-projection.patch

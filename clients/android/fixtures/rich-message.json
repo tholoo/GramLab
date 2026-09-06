@@ -1,0 +1,45 @@
+{
+  "is_rtl": true,
+  "blocks": [
+    {"type": "heading", "size": 1, "text": "Rich message نمونه"},
+    {"type": "heading", "size": 2, "text": "Two"},
+    {"type": "heading", "size": 3, "text": "Three"},
+    {"type": "heading", "size": 4, "text": "Four"},
+    {"type": "heading", "size": 5, "text": "Five"},
+    {"type": "heading", "size": 6, "text": "Six"},
+    {"type": "paragraph", "text": [
+      "سلام نیم‌فاصله English 👩‍💻 ",
+      {"type": "bold", "text": ["bold ", {"type": "italic", "text": "nested"}]},
+      {"type": "underline", "text": "underline"},
+      {"type": "strikethrough", "text": "strike"},
+      {"type": "spoiler", "text": "secret"},
+      {"type": "subscript", "text": "2"},
+      {"type": "superscript", "text": "3"},
+      {"type": "marked", "text": "marked"},
+      {"type": "code", "text": "fixed"}
+    ]},
+    {"type": "pre", "text": "print('Hello')\n\tpass", "language": "python"},
+    {"type": "pre", "text": "without language"},
+    {"type": "footer", "text": "Fixture footer"},
+    {"type": "paragraph", "text": ""},
+    {"type": "divider"},
+    {"type": "blockquote", "blocks": [
+      {"type": "paragraph", "text": "Nested quotation"},
+      {"type": "details", "summary": "Nested details", "blocks": [
+        {"type": "paragraph", "text": "Nested answer"}
+      ]}
+    ], "credit": {"type": "italic", "text": "Author"}},
+    {"type": "expandable_blockquote", "text": "Expandable quotation"},
+    {"type": "pullquote", "text": "Pull quotation", "credit": {"type": "italic", "text": ""}},
+    {"type": "table", "is_bordered": true, "is_striped": true, "is_compact": true,
+      "caption": "Table caption", "cells": [
+        [{"text": "Heading", "is_header": true, "colspan": 2, "align": "center", "valign": "middle"}],
+        [{"text": "Left top", "rowspan": 2, "align": "left", "valign": "top"},
+         {"text": {"type": "bold", "text": "Right bottom"}, "align": "right", "valign": "bottom"}],
+        [{"align": "left", "valign": "middle"}]
+      ]},
+    {"type": "table", "cells": [[{"align": "left", "valign": "middle"}]]},
+    {"type": "details", "summary": ["Open ", {"type": "bold", "text": "details"}],
+      "is_open": true, "blocks": [{"type": "paragraph", "text": "Expanded content"}]}
+  ]
+}

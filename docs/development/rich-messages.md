@@ -81,8 +81,10 @@ unshare --user --map-root-user --net bash -eu -c \
   'ip link set lo up; .venv/bin/pytest tests/test_rich_messages.py tests/test_rich_bot_api.py'
 ```
 
-These checks establish independent state/API behavior. The coordinator's Android integration,
-original renderer screenshots and recovery scenario are separate required evidence.
+The integrated real-bot scenario and [native projection checks](android-rich-projection.md) now
+pass, including original send/edit/restart captures. The full core gate passes 269 tests at
+82.06% coverage. The combined Android regression gate remains in progress; broader rich-content
+rendering and generic scenario assertions are still separate required evidence.
 
 ## Contract provenance
 

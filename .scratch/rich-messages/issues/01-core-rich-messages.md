@@ -51,3 +51,11 @@ contract evidence are ready for coordinator review.
   workers agreed the same validation. This does not establish complete table layout conformance.
 - Avoided repeated full Android/core gates; focused boundary tests finish in seconds. Worker
   environment and artifacts are isolated; no persistent process remains after checks.
+
+## Coordinator integration checkpoint
+
+Reviewed core and native changes pass the integrated real-bot contract. The full core gate passes
+269 tests at 82.06% coverage. The new offline APK builds successfully; the focused native test
+passes with complete codec catalog, explicit invalid-table rejection and visually inspected
+send/edit/cold-restart captures. Shared documentation records the precise supported boundary.
+The combined Android gate is still running; keep this ticket open until its required checks pass.
