@@ -1,0 +1,20 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -154,6 +154,16 @@
+     private static synchronized void startEventLoop() {
+         if (eventLoopStarted) return;
+         eventLoopStarted = true;
++        // The disabled native transport normally calls ConnectionsManager.onUpdate.
++        // Preserve its stock stage-queue timer independently of blocking HTTP polling:
++        // queued pts gaps must age into getDifference even when no new event arrives.
++        Runnable controllerTick = new Runnable() {
++            @Override public void run() {
++                org.telegram.tgnet.ConnectionsManager.onUpdate(0);
++                Utilities.stageQueue.postRunnable(this, 1000);
++            }
++        };
++        Utilities.stageQueue.postRunnable(controllerTick, 1000);
+         eventWorker.scheduleWithFixedDelay(() -> {
+             long after = eventCursor;
+             try {

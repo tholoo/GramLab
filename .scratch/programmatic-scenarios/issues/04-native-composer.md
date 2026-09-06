@@ -68,3 +68,24 @@ both interruption cases and the standalone JVM helper check. Static/Nix/workflow
 checks pass; core code and the APK are unchanged. All handles are terminal. Live gap recovery and
 additional partial-write points remain open alongside broader composer semantics and the unresolved
 intermittent reliability failures.
+
+The new [live-gap regression](../../../docs/development/live-gap-recovery.md) fails on the prior
+APK because disabling native transport also omitted its periodic controller callback. A separate
+second-send diagnostic recovers from the unchanged old cursor, isolating the missing callback.
+Patch 0009 restores the original callback on the stage queue independently of HTTP polling.
+The contained strict offline rebuild passes, and the original single-send case passes in about
+70 seconds: native difference positions 2–4, recovery before polling release, no restart, another
+successful send, once-only bot replies and exact seven-message storage with seq/pts 7. Four
+original captures are retained. Equal-timestamp arrival order follows the pinned original UI;
+expanded assertions against the retained XML pass and the report documents that policy.
+Fresh preparation matches five Java inputs and preserves all 6,666 UI/resource files. Full
+static checks and declared host Nix/workflow checks pass. The expanded Android gate stops with
+three passed tests and one failed existing Unicode composer send: its third request returns 503
+without a world commit. The cause remains unknown. Patch 0010 adds capability-safe exception-class
+traces and rebuilds offline. The focused composer diagnostic completes its sends and recovery,
+then fails in the separate codec process with the previously observed local connect timeout.
+It does not reproduce or explain the earlier 503. The final focused live-gap run passes again
+on the diagnostic APK with the expanded UI assertions in about 93 seconds. All handles are
+terminal; the full gate remains unproven. This ticket and the full
+product goal remain open. Distinct-timestamp ordering, multi-page gaps, broader input semantics and the
+earlier intermittent reliability failures still need evidence.

@@ -50,7 +50,27 @@ This complements direnv and keeps local store paths out of tracked files.
 ## First action
 
 Continue [native composer ticket 04](../../.scratch/programmatic-scenarios/issues/04-native-composer.md).
-The newest [acknowledgment-before-storage proof](ack-storage-recovery.md) passes an actual Android
+The newest [live-gap regression](live-gap-recovery.md) exposed an omitted periodic native
+controller callback. A second-send diagnostic isolated that missing callback; patch 0009 restores
+the original `ConnectionsManager.onUpdate` scheduling independently of blocking HTTP polling.
+The strict contained offline rebuild and the original one-send focused case pass. Native
+difference recovery happens while polling remains held, without a restart; the final seven
+messages, bot updates/replies and seq/pts 7 agree. Four original screenshots are in the report.
+Their equal-timestamp display order is the pinned original ChatActivity policy, verified against
+source and retained XML; distinct-timestamp ordering remains a separate fixture. Fresh ten-patch
+preparation matches the five Java inputs and preserves all 6,666 original UI/resource files.
+Static checks and declared host Nix/workflow checks pass. The full Android gate stops with
+three passed tests and one failed existing Unicode composer send. That request returns 503
+without a world commit; the baseline generic error mapping did not retain its root exception. Patch 0010 adds capability-safe exception-class traces. Its
+strict contained build passes. The composer diagnostic completes its sends and recovery, then
+fails in the separate codec process with the previously observed local connect timeout. It does
+not reproduce or explain the earlier 503. The final focused live-gap run passes again on the
+diagnostic APK, including exact original UI assertions, in about 93 seconds. All handles are
+terminal. Minimize the standalone codec connection failure before repeating the broad gate.
+Diagnose that failure before claiming a passing gate. The earlier 24-test
+gate below predates the timer correction. The full goal and ticket remain active.
+
+The previous [acknowledgment-before-storage proof](ack-storage-recovery.md) passes an actual Android
 interruption with the original storage thread held at ID-remap entry. The retained pending row,
 receipt/frame correlation and split intermediate cursors recover once, followed by one real bot
 reply. Its external debugger helper also passes a real JVM contract. No APK or production code
@@ -58,13 +78,12 @@ changed. The expanded Android gate passes all 24 tests, including both interrupt
 JVM helper. Strict typing across 48 core/probe files and three separate two-file examples, full
 lint/format, Nix/workflow checks, local links in 81 Markdown files and public-tree privacy checks
 pass. Core code is unchanged;
-the previous 215-test core gate remains applicable. All handles are terminal, and the six-capture
+the previous 215-test core gate remains applicable. At that checkpoint all handles were terminal,
+and the six-capture
 report retains original UI evidence; browser layout review remains unverified.
 
-Continue with live gap recovery and the remaining composer transformations. Ignored notes contain
-a source-based live-gap test lead: withhold ordinary incoming polling while allowing an actual send
-acknowledgment to pass unseen message positions, then observe the original controller requesting
-its first difference. Do not fabricate server holes or edit client cursors. The initial pre-storage
+Diagnose the failed send, then continue distinct-timestamp/multi-page recovery and remaining composer
+transformations. The initial pre-storage
 baseline attempt failed in the separate codec process and is not a valid red result at the new
 boundary. Its crash trace identifies a local bridge connection timeout; Android's Binder error
 occurred while reporting that crash. The earlier intermittent failures are not claimed fixed.

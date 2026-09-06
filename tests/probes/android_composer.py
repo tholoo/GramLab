@@ -17,6 +17,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from android_guest import main
+from android_live_gap import live_gap
 from component_bot import FixtureBot
 from jdwp import Debugger
 
@@ -382,6 +383,19 @@ def probe(adb: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, Any
             "world_id": identity,
             "user_id": 1,
         }
+        if json.loads(Path("interruption.json").read_text())["boundary"] == "live_gap":
+            return live_gap(
+                configuration=configuration,
+                bot_endpoint=bot_api.base_url,
+                token=token,
+                command=command,
+                retain=retain,
+                launch=launch,
+                screen=screen,
+                trace=trace,
+                await_sends=await_sends,
+                database=database,
+            )
         command(
             "shell",
             "-T",

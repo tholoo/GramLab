@@ -8,6 +8,107 @@ from gramlab.reports import Finding, Report, Screenshot, write_report
 from gramlab.world import World
 
 
+def write_live_gap_report(directory: Path, *, destination: Path | None = None) -> Path:
+    """Call after the live difference, bot delivery and stored replica assertions pass."""
+    guest = json.loads((directory / "guest.json").read_text())
+    observed = guest["extra_probe"]
+    toolchain = json.loads(Path("clients/android/toolchain.json").read_text())
+    with (directory / "client.apk").open("rb") as apk:
+        apk_hash = hashlib.file_digest(apk, "sha256").hexdigest()
+    with World.open(directory / "world") as world:
+        world_id = world.world_id
+        state = world.snapshot()
+        events = world.events()
+    return write_report(
+        destination if destination is not None else directory / "report.html",
+        Report(
+            run_id="live-gap-" + world_id,
+            title="Missing messages recovered while Android stays open",
+            mode="headless-android",
+            outcome="passed",
+            seed=state["seed"],
+            profile={
+                "Renderer": "Telegram Android " + toolchain["client"]["version"],
+                "Client revision": toolchain["client"]["revision"],
+                "APK SHA-256": apk_hash,
+                "Guest": f"AOSP API {guest['api']} / {guest['abi']} / image revision 2",
+                "Display": "320 x 640 / 160 dpi / swangle",
+                "Fault": "Ordinary polling held until native difference recovery is visible",
+                "World": world_id,
+            },
+            summary="Incoming delivery is held while a virtual user acts and a real bot replies. "
+            "An actual composer send then exposes the missing message positions. The original "
+            "client requests a difference and renders the missing messages without restarting. "
+            "A further composer send succeeds, and the real bot replies once to each send.",
+            screenshots=[
+                Screenshot(caption=caption, png=(directory / f"{phase}.png").read_bytes())
+                for phase, caption in (
+                    ("gap-before", "Before the gap — original Android conversation"),
+                    (
+                        "gap-withheld",
+                        "Delivery held — the virtual message and bot reply are absent",
+                    ),
+                    (
+                        "gap-recovered",
+                        "Native difference — missing messages recovered, polling still held",
+                    ),
+                    ("gap-replied", "Still the same process — another send and real bot replies"),
+                )
+            ],
+            findings=[
+                Finding(
+                    stage="observed",
+                    title="A first gap remained queued indefinitely",
+                    detail="The baseline APK completed its send but never requested a difference "
+                    "while polling was held. A separate second-send diagnostic recovered from "
+                    "the unchanged old cursor, isolating the missing periodic controller callback.",
+                ),
+                Finding(
+                    stage="applied",
+                    title="Restore the original periodic callback",
+                    detail="The offline adapter now schedules ConnectionsManager.onUpdate on "
+                    "the normal stage queue independently of HTTP polling. The native controller "
+                    "and renderer are unchanged; the original one-send regression passes.",
+                ),
+                Finding(
+                    stage="verified",
+                    title="Recovery precedes release of ordinary polling",
+                    detail="The native difference request and response match. Its contiguous "
+                    "page starts at position 1 and contains positions 2, 3 and 4. Original UI "
+                    "captures show recovery while the polling gate remains closed.",
+                ),
+                Finding(
+                    stage="verified",
+                    title="No restart, lost message or duplicate reply",
+                    detail="The process identity and single initialization remain unchanged. "
+                    "The final database has exactly seven positive message IDs, no pending "
+                    "correlation and matching seq/pts cursors at 7. The real bot receives each "
+                    "of the three user messages once and acknowledges its update queue.",
+                ),
+            ],
+            evidence={
+                "Live recovery observations": observed,
+                "Final world state": state,
+                "Ordered world events": events,
+                "Controlled HTTP exchanges": json.loads((directory / "gap-http.json").read_text()),
+            },
+            limitations=[
+                "Synthetic local evidence with no real account or Telegram DC connection.",
+                "The first difference uses the pinned client's distinct page limit. This case "
+                "does not prove every later difference, multi-page gap or concurrent persona.",
+                "Controlled polling holds can cause intentional read timeouts. This test does "
+                "not measure normal input latency or resolve earlier intermittent failures.",
+                "Virtual fixture input is explicitly synthetic; only the two composer sends "
+                "are actual Android input actions.",
+                "All messages share one world second. The pinned original ChatActivity inserts "
+                "equal-date arrivals after already displayed messages, so the recovered older "
+                "messages appear below the acknowledged send. Stored IDs remain correctly ordered.",
+                "This focused result does not establish the complete Android regression gate.",
+            ],
+        ),
+    )
+
+
 def write_composer_report(directory: Path, *, destination: Path | None = None) -> Path:
     """Call after the native composer's semantic and replica assertions pass."""
     guest = json.loads((directory / "guest.json").read_text())

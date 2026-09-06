@@ -61,3 +61,13 @@ Preparation also installs the committed dependency checksum record for strict Gr
 Current verification and remaining compilation/runtime gates are in the
 [build record](../../../docs/development/android-build.md). Continue to audit initialization,
 native transport, media, WebViews, push and background networking together before activation.
+
+`0009-native-controller-timer.patch` restores the original periodic `ConnectionsManager.onUpdate`
+callback omitted when native transport was disabled. It runs on the client's stage queue,
+independently of blocking HTTP polling, so the original controller can detect queued pts gaps.
+See the [live-gap regression and verification status](../../../docs/development/live-gap-recovery.md).
+
+`0010-bridge-failure-classification.patch` retains the exception class when request dispatch maps
+an unexpected failure to 503. It correlates that class with the existing request token and never
+records exception messages, response bodies or capabilities. This enables diagnosis of the
+observed composer failure; it does not itself fix or retry a failed request.

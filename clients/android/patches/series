@@ -6,3 +6,5 @@
 0006-formatting-entities.patch
 0007-reconcile-cached-history.patch
 0008-native-composer-and-client-sequences.patch
+0009-native-controller-timer.patch
+0010-bridge-failure-classification.patch
