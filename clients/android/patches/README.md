@@ -71,3 +71,9 @@ See the [live-gap regression and verification status](../../../docs/development/
 an unexpected failure to 503. It correlates that class with the existing request token and never
 records exception messages, response bodies or capabilities. This enables diagnosis of the
 observed composer failure; it does not itself fix or retry a failed request.
+
+`0011-rich-message-projection.patch` creates native `TL_iv.RichMessage` blocks and recursive text
+from the semantic world representation. The shared message decoder covers snapshots, live edits
+and difference recovery. A separate probe observes the full structure after native serialization;
+original message cells, rich layout and resources remain unchanged. See the
+[projection contract and verification limits](../../../docs/development/android-rich-projection.md).

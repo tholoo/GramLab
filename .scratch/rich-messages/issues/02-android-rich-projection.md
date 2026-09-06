@@ -1,8 +1,12 @@
 # Preserve native rich-message projection
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: claimed
+Work state: awaiting-integration
+Owner: rich-android / task/rich-android
+
+Claimed acceptance: implement strict native projection and serializer observations; export the
+complete queue on a fresh tree. Coordinator owns APK build and Android runtime evidence.
 Blocked by: none
 
 Read ../spec.md. Own clients/android/patches/0011-rich-message-projection.patch (new),
@@ -22,3 +26,22 @@ application build and integration, core/world/API files and shared compatibility
 - Export and verify the new patch on a fresh prepared tree, preserve upstream license and provenance.
   Send build/codec expectations to coordinator; avoid redundant full APK builds or Android gates.
 - Commit only owned files and leave ticket claimed until integrated runtime verification.
+
+## Worker handoff
+
+Implemented patch 0011 with the native `TL_iv.RichMessage` projection and actual serializer
+observations, a comprehensive canonical fixture and two independent table-boundary fixtures.
+Strict accepted types, canonical optional fields and local resource bounds agree with the core
+worker contract. Original renderer code remains unchanged. The first-row table width assumption
+is documented as an explicit unsupported profile gap; it is not a Telegram API rejection claim.
+
+The complete eleven-patch queue applies to a fresh pinned export; all three changed Java sources
+compile against the pinned Android SDK and preceding verified client classes. All 6,667 compared
+UI/resource/rich-layout files are unchanged. The canonical fixture agrees exactly with the core
+contract, and both negative tables reject. Configuration/local links across 90 Markdown files and
+`git diff --check` pass. These are source/type/contract checks; real guest serializer, rendered
+screenshots, live edit and restart verification remain coordinator-owned and pending integration.
+
+The branch remains claimed until that integration passes. The coordinator should build once from
+the verified patch export and exercise both the visible scenario and full codec catalog, preserving
+plain-message regression assertions. Shared handoff/compatibility records remain coordinator-owned.

@@ -1,0 +1,445 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -97,7 +97,7 @@
+     }
+ 
+     private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
+-        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities");
++        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
+         long sender = identifier(record, "sender_id");
+         require(sender == persona || sender == bot);
+         TLRPC.TL_message message = new TLRPC.TL_message();
+@@ -112,7 +112,11 @@
+         message.dialog_id = bot;
+         message.date = integer(record, "date");
+         message.message = record.getString("text");
+-        require(!message.message.isEmpty());
++        if (record.has("rich_message")) {
++            require(sender == bot && message.message.isEmpty() && !record.has("entities"));
++            message.rich_message = GramLabRichMessage.decode(record.getJSONObject("rich_message"));
++            message.flags2 |= 1 << 13;
++        } else require(!message.message.isEmpty());
+         message.media = new TLRPC.TL_messageMediaEmpty();
+         message.flags = (1 << 8) | (1 << 9);
+         if (record.has("entities")) {
+@@ -357,7 +361,7 @@
+         }
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities");
++            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
+             long chat = identifier(record, "chat_id");
+             require(peersByChat.containsKey(chat));
+             long bot = peersByChat.get(chat);
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+new file mode 100644
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -0,0 +1,259 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import org.json.JSONArray;
++import org.json.JSONException;
++import org.json.JSONObject;
++import org.telegram.tgnet.tl.TL_iv;
++
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.Iterator;
++
++/** Strict semantic projection into the pinned client's original rich-message model. */
++public final class GramLabRichMessage {
++    private GramLabRichMessage() {}
++
++    private static void require(boolean condition) {
++        if (!condition) throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE");
++    }
++
++    private static void fields(JSONObject object, String... names) {
++        HashSet<String> allowed = new HashSet<>(Arrays.asList(names));
++        Iterator<String> keys = object.keys();
++        while (keys.hasNext()) require(allowed.contains(keys.next()));
++    }
++
++    private static String string(JSONObject object, String key) throws JSONException {
++        Object value = object.get(key);
++        require(value instanceof String);
++        return (String) value;
++    }
++
++    private static boolean flag(JSONObject object, String key) throws JSONException {
++        if (!object.has(key)) return false;
++        Object value = object.get(key);
++        require(value instanceof Boolean);
++        return (Boolean) value;
++    }
++
++    private static int positive(JSONObject object, String key) throws JSONException {
++        Object value = object.get(key);
++        require(value instanceof Integer || value instanceof Long);
++        long number = ((Number) value).longValue();
++        require(number > 0 && number <= Integer.MAX_VALUE);
++        return (int) number;
++    }
++
++    // Bound all JSON containers before recursion. These are the shared profile's resource
++    // limits, not a claim about the limits of the Telegram service.
++    private static void bounded(Object value, int depth, int[] remaining) throws JSONException {
++        require(depth <= 32 && --remaining[0] >= 0);
++        if (value instanceof JSONObject) {
++            JSONObject object = (JSONObject) value;
++            Iterator<String> keys = object.keys();
++            while (keys.hasNext()) {
++                String key = keys.next();
++                bounded(key, depth + 1, remaining);
++                bounded(object.get(key), depth + 1, remaining);
++            }
++        } else if (value instanceof JSONArray) {
++            JSONArray array = (JSONArray) value;
++            for (int i = 0; i < array.length(); i++) bounded(array.get(i), depth + 1, remaining);
++        } else if (value instanceof String) {
++            String text = (String) value;
++            remaining[1] -= text.getBytes(StandardCharsets.UTF_8).length;
++            require(remaining[1] >= 0);
++            for (int i = 0; i < text.length(); i++) {
++                char current = text.charAt(i);
++                require(current >= 32 || current == '\n' || current == '\t');
++                if (Character.isHighSurrogate(current)) {
++                    require(i + 1 < text.length() && Character.isLowSurrogate(text.charAt(++i)));
++                } else require(!Character.isLowSurrogate(current));
++            }
++        }
++    }
++
++    public static TL_iv.RichMessage decode(JSONObject record) throws JSONException {
++        bounded(record, 0, new int[] {10000, 65536});
++        fields(record, "blocks", "is_rtl");
++        TL_iv.RichMessage result = new TL_iv.RichMessage();
++        result.rtl = flag(record, "is_rtl");
++        result.blocks = blocks(record.getJSONArray("blocks"));
++        return result;
++    }
++
++    private static TL_iv.RichText text(Object value) throws JSONException {
++        if (value instanceof String) {
++            TL_iv.textPlain result = new TL_iv.textPlain();
++            result.text = (String) value;
++            return result;
++        }
++        if (value instanceof JSONArray) {
++            TL_iv.textConcat result = new TL_iv.textConcat();
++            JSONArray array = (JSONArray) value;
++            require(array.length() > 0);
++            for (int i = 0; i < array.length(); i++) result.texts.add(text(array.get(i)));
++            return result;
++        }
++        require(value instanceof JSONObject);
++        JSONObject record = (JSONObject) value;
++        fields(record, "type", "text");
++        TL_iv.RichText result;
++        switch (string(record, "type")) {
++            case "bold": result = new TL_iv.textBold(); break;
++            case "italic": result = new TL_iv.textItalic(); break;
++            case "underline": result = new TL_iv.textUnderline(); break;
++            case "strikethrough": result = new TL_iv.textStrike(); break;
++            case "spoiler": result = new TL_iv.textSpoiler(); break;
++            case "subscript": result = new TL_iv.textSubscript(); break;
++            case "superscript": result = new TL_iv.textSuperscript(); break;
++            case "marked": result = new TL_iv.textMarked(); break;
++            case "code": result = new TL_iv.textFixed(); break;
++            default: throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNSUPPORTED_RICH_TEXT");
++        }
++        result.text = text(record.get("text"));
++        return result;
++    }
++
++    private static TL_iv.RichText optionalText(JSONObject record, String key) throws JSONException {
++        return record.has(key) ? text(record.get(key)) : new TL_iv.textEmpty();
++    }
++
++    private static ArrayList<TL_iv.PageBlock> blocks(JSONArray values) throws JSONException {
++        require(values.length() > 0);
++        ArrayList<TL_iv.PageBlock> result = new ArrayList<>();
++        for (int i = 0; i < values.length(); i++) result.add(block(values.getJSONObject(i)));
++        return result;
++    }
++
++    private static TL_iv.PageBlock block(JSONObject record) throws JSONException {
++        String type = string(record, "type");
++        TL_iv.PageBlock result;
++        switch (type) {
++            case "paragraph": case "footer":
++                fields(record, "type", "text");
++                result = type.equals("paragraph") ? new TL_iv.pageBlockParagraph() : new TL_iv.pageBlockFooter();
++                result.text = text(record.get("text"));
++                return result;
++            case "heading":
++                fields(record, "type", "text", "size");
++                switch (positive(record, "size")) {
++                    case 1: result = new TL_iv.pageBlockHeading1(); break;
++                    case 2: result = new TL_iv.pageBlockHeading2(); break;
++                    case 3: result = new TL_iv.pageBlockHeading3(); break;
++                    case 4: result = new TL_iv.pageBlockHeading4(); break;
++                    case 5: result = new TL_iv.pageBlockHeading5(); break;
++                    case 6: result = new TL_iv.pageBlockHeading6(); break;
++                    default: throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_RICH_HEADING");
++                }
++                result.text = text(record.get("text"));
++                return result;
++            case "pre": {
++                fields(record, "type", "text", "language");
++                TL_iv.pageBlockPreformatted pre = new TL_iv.pageBlockPreformatted();
++                pre.text = text(record.get("text"));
++                pre.language = record.has("language") ? string(record, "language") : "";
++                return pre;
++            }
++            case "divider":
++                fields(record, "type");
++                return new TL_iv.pageBlockDivider();
++            case "blockquote": {
++                fields(record, "type", "blocks", "credit");
++                TL_iv.pageBlockBlockquoteBlocks quote = new TL_iv.pageBlockBlockquoteBlocks();
++                quote.blocks = blocks(record.getJSONArray("blocks"));
++                quote.caption = optionalText(record, "credit");
++                return quote;
++            }
++            case "expandable_blockquote": {
++                fields(record, "type", "text", "credit");
++                TL_iv.pageBlockBlockquote quote = new TL_iv.pageBlockBlockquote();
++                quote.collapsed = true;
++                quote.text = text(record.get("text"));
++                quote.caption = optionalText(record, "credit");
++                return quote;
++            }
++            case "pullquote": {
++                fields(record, "type", "text", "credit");
++                TL_iv.pageBlockPullquote quote = new TL_iv.pageBlockPullquote();
++                quote.text = text(record.get("text"));
++                quote.caption = optionalText(record, "credit");
++                return quote;
++            }
++            case "details": {
++                fields(record, "type", "summary", "blocks", "is_open");
++                TL_iv.pageBlockDetails details = new TL_iv.pageBlockDetails();
++                details.title = text(record.get("summary"));
++                details.blocks = blocks(record.getJSONArray("blocks"));
++                details.open = flag(record, "is_open");
++                return details;
++            }
++            case "table": return table(record);
++            default: throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNSUPPORTED_RICH_BLOCK");
++        }
++    }
++
++    private static TL_iv.pageBlockTable table(JSONObject record) throws JSONException {
++        fields(record, "type", "cells", "caption", "is_bordered", "is_striped", "is_compact");
++        TL_iv.pageBlockTable table = new TL_iv.pageBlockTable();
++        table.title = optionalText(record, "caption");
++        table.bordered = flag(record, "is_bordered");
++        table.striped = flag(record, "is_striped");
++        table.compact = flag(record, "is_compact");
++        JSONArray rows = record.getJSONArray("cells");
++        require(rows.length() > 0);
++        int firstWidth = 0;
++        int area = 0;
++        for (int i = 0; i < rows.length(); i++) {
++            JSONArray values = rows.getJSONArray(i);
++            require(values.length() > 0);
++            TL_iv.pageTableRow row = new TL_iv.pageTableRow();
++            int width = 0;
++            for (int j = 0; j < values.length(); j++) {
++                TL_iv.pageTableCell cell = cell(values.getJSONObject(j));
++                int columns = Math.max(cell.colspan, 1);
++                width += columns;
++                area += columns * Math.max(cell.rowspan, 1);
++                require(area <= 10000);
++                row.cells.add(cell);
++            }
++            if (i == 0) firstWidth = width;
++            // The pinned renderer uses the first row for TableLayout's column count.
++            require(width <= firstWidth);
++            table.rows.add(row);
++        }
++        return table;
++    }
++
++    private static TL_iv.pageTableCell cell(JSONObject record) throws JSONException {
++        fields(record, "text", "is_header", "colspan", "rowspan", "align", "valign");
++        TL_iv.pageTableCell cell = new TL_iv.pageTableCell();
++        cell.header = flag(record, "is_header");
++        if (record.has("text")) {
++            cell.text = text(record.get("text"));
++            cell.flags |= 1 << 7;
++        }
++        if (record.has("colspan")) {
++            cell.colspan = positive(record, "colspan");
++            require(cell.colspan <= 100);
++            cell.flags |= 1 << 1;
++        }
++        if (record.has("rowspan")) {
++            cell.rowspan = positive(record, "rowspan");
++            require(cell.rowspan <= 100);
++            cell.flags |= 1 << 2;
++        }
++        String align = record.has("align") ? string(record, "align") : (cell.header ? "center" : "left");
++        require(align.equals("left") || align.equals("center") || align.equals("right"));
++        cell.align_center = align.equals("center");
++        cell.align_right = align.equals("right");
++        String valign = record.has("valign") ? string(record, "valign") : "middle";
++        require(valign.equals("top") || valign.equals("middle") || valign.equals("bottom"));
++        cell.valign_middle = valign.equals("middle");
++        cell.valign_bottom = valign.equals("bottom");
++        return cell;
++    }
++}
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -6,6 +6,7 @@
+ import org.telegram.messenger.ApplicationLoader;
+ import org.telegram.tgnet.SerializedData;
+ import org.telegram.tgnet.TLRPC;
++import org.telegram.tgnet.tl.TL_iv;
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
+@@ -19,6 +20,125 @@
+             System.out.println(new JSONObject().put("error", failure.getMessage()));
+             System.exit(2);
+         }
++    }
++
++    private static Object richText(TL_iv.RichText value) throws Exception {
++        if (value instanceof TL_iv.textEmpty) return "";
++        if (value instanceof TL_iv.textPlain) return ((TL_iv.textPlain) value).text;
++        if (value instanceof TL_iv.textConcat) {
++            JSONArray result = new JSONArray();
++            for (TL_iv.RichText item : value.texts) result.put(richText(item));
++            return result;
++        }
++        String type;
++        if (value instanceof TL_iv.textBold) type = "bold";
++        else if (value instanceof TL_iv.textItalic) type = "italic";
++        else if (value instanceof TL_iv.textUnderline) type = "underline";
++        else if (value instanceof TL_iv.textStrike) type = "strikethrough";
++        else if (value instanceof TL_iv.textSpoiler) type = "spoiler";
++        else if (value instanceof TL_iv.textSubscript) type = "subscript";
++        else if (value instanceof TL_iv.textSuperscript) type = "superscript";
++        else if (value instanceof TL_iv.textMarked) type = "marked";
++        else if (value instanceof TL_iv.textFixed) type = "code";
++        else throw new IllegalStateException("GRAMLAB_PROBE_UNKNOWN_RICH_TEXT");
++        return new JSONObject().put("type", type).put("text", richText(value.text));
++    }
++
++    private static void optionalRichText(JSONObject result, String key, TL_iv.RichText value) throws Exception {
++        if (value != null && !(value instanceof TL_iv.textEmpty)
++                && !(value instanceof TL_iv.textPlain && ((TL_iv.textPlain) value).text.isEmpty())) {
++            result.put(key, richText(value));
++        }
++    }
++
++    private static JSONArray richBlocks(java.util.List<TL_iv.PageBlock> blocks) throws Exception {
++        JSONArray result = new JSONArray();
++        for (TL_iv.PageBlock block : blocks) result.put(richBlock(block));
++        return result;
++    }
++
++    private static JSONObject richBlock(TL_iv.PageBlock block) throws Exception {
++        JSONObject result = new JSONObject();
++        int heading = block instanceof TL_iv.pageBlockHeading1 ? 1
++                : block instanceof TL_iv.pageBlockHeading2 ? 2
++                : block instanceof TL_iv.pageBlockHeading3 ? 3
++                : block instanceof TL_iv.pageBlockHeading4 ? 4
++                : block instanceof TL_iv.pageBlockHeading5 ? 5
++                : block instanceof TL_iv.pageBlockHeading6 ? 6 : 0;
++        if (heading != 0) {
++            return result.put("type", "heading").put("size", heading).put("text", richText(block.text));
++        }
++        if (block instanceof TL_iv.pageBlockParagraph || block instanceof TL_iv.pageBlockFooter) {
++            return result.put("type", block instanceof TL_iv.pageBlockParagraph ? "paragraph" : "footer")
++                    .put("text", richText(block.text));
++        }
++        if (block instanceof TL_iv.pageBlockPreformatted) {
++            result.put("type", "pre").put("text", richText(block.text));
++            String language = ((TL_iv.pageBlockPreformatted) block).language;
++            if (!language.isEmpty()) result.put("language", language);
++            return result;
++        }
++        if (block instanceof TL_iv.pageBlockDivider) return result.put("type", "divider");
++        if (block instanceof TL_iv.pageBlockBlockquoteBlocks) {
++            TL_iv.pageBlockBlockquoteBlocks quote = (TL_iv.pageBlockBlockquoteBlocks) block;
++            result.put("type", "blockquote").put("blocks", richBlocks(quote.blocks));
++            optionalRichText(result, "credit", quote.caption);
++            return result;
++        }
++        if (block instanceof TL_iv.pageBlockBlockquote) {
++            TL_iv.pageBlockBlockquote quote = (TL_iv.pageBlockBlockquote) block;
++            if (!quote.collapsed) throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_QUOTE");
++            result.put("type", "expandable_blockquote").put("text", richText(quote.text));
++            optionalRichText(result, "credit", quote.caption);
++            return result;
++        }
++        if (block instanceof TL_iv.pageBlockPullquote) {
++            TL_iv.pageBlockPullquote quote = (TL_iv.pageBlockPullquote) block;
++            result.put("type", "pullquote").put("text", richText(quote.text));
++            optionalRichText(result, "credit", quote.caption);
++            return result;
++        }
++        if (block instanceof TL_iv.pageBlockDetails) {
++            TL_iv.pageBlockDetails details = (TL_iv.pageBlockDetails) block;
++            result.put("type", "details").put("summary", richText(details.title))
++                    .put("blocks", richBlocks(details.blocks));
++            if (details.open) result.put("is_open", true);
++            return result;
++        }
++        if (block instanceof TL_iv.pageBlockTable) {
++            TL_iv.pageBlockTable table = (TL_iv.pageBlockTable) block;
++            result.put("type", "table");
++            optionalRichText(result, "caption", table.title);
++            if (table.bordered) result.put("is_bordered", true);
++            if (table.striped) result.put("is_striped", true);
++            if (table.compact) result.put("is_compact", true);
++            JSONArray rows = new JSONArray();
++            for (TL_iv.pageTableRow row : table.rows) {
++                JSONArray cells = new JSONArray();
++                for (TL_iv.pageTableCell cell : row.cells) {
++                    JSONObject data = new JSONObject()
++                            .put("align", cell.align_center ? "center" : cell.align_right ? "right" : "left")
++                            .put("valign", cell.valign_middle ? "middle" : cell.valign_bottom ? "bottom" : "top");
++                    optionalRichText(data, "text", cell.text);
++                    if (cell.header) data.put("is_header", true);
++                    if (cell.colspan > 1) data.put("colspan", cell.colspan);
++                    if (cell.rowspan > 1) data.put("rowspan", cell.rowspan);
++                    cells.put(data);
++                }
++                rows.put(cells);
++            }
++            return result.put("cells", rows);
++        }
++        throw new IllegalStateException("GRAMLAB_PROBE_UNKNOWN_RICH_BLOCK");
++    }
++
++    private static JSONObject richMessage(TL_iv.RichMessage value) throws Exception {
++        if (value.part || !value.photos.isEmpty() || !value.documents.isEmpty()) {
++            throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_RICH_MEDIA");
++        }
++        JSONObject result = new JSONObject().put("blocks", richBlocks(value.blocks));
++        if (value.rtl) result.put("is_rtl", true);
++        return result;
+     }
+ 
+     private static void observe(String[] args) throws Exception {
+@@ -74,6 +194,9 @@
+                     }
+                     observed.put("entities", entities);
+                 }
++                if (message.rich_message != null) {
++                    observed.put("rich_message", richMessage(message.rich_message));
++                }
+                 messages.put(observed);
+             }
+         }
