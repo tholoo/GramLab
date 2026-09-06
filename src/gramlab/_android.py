@@ -12,12 +12,58 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
+from gramlab._captures import _rich_text
 from gramlab.client_bridge import ClientBridge
 from gramlab.reports import _png, _Redactor
 from gramlab.runtime import RuntimeProfile, Sandbox
 from gramlab.world import World
 
 IMAGE_PACKAGE = "system-images;android-36;default;x86_64"
+
+
+def _inline_fragments(message: dict[str, Any]) -> list[str]:
+    """Readable content only; rich styling and hidden descendants cannot identify a cell."""
+    if "rich_message" not in message:
+        return [message["text"]] if message["text"] else []
+    fragments: list[str] = []
+
+    def visit(blocks: list[dict[str, Any]]) -> None:
+        for block in blocks:
+            for field in ("text", "summary", "caption"):
+                if field in block:
+                    fragments.append(_rich_text(block[field]))
+            if "cells" in block:
+                for row in block["cells"]:
+                    for cell in row:
+                        if "text" in cell:
+                            fragments.append(_rich_text(cell["text"]))
+            if "blocks" in block and (block["type"] != "details" or block.get("is_open", False)):
+                visit(block["blocks"])
+            if "credit" in block:
+                fragments.append(_rich_text(block["credit"]))
+
+    visit(message["rich_message"]["blocks"])
+    return [fragment for fragment in fragments if fragment]
+
+
+def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
+    if "rich_message" not in message:
+        return bool(message["text"]) and native_text.startswith(message["text"] + "\n")
+    # The pinned English host appends receipt metadata after a separate paragraph.
+    # Do not let timestamps or status words supply otherwise absent message content.
+    # Localized/changed host metadata must fail until its observation contract is verified.
+    match = re.fullmatch(r"(.*\n)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+    fragments = _inline_fragments(message)
+    if match is None or not any(fragment.strip() for fragment in fragments):
+        return False
+    body = match[1]
+    offset = 0
+    for fragment in fragments:
+        found = body.find(fragment, offset)
+        if found < 0:
+            return False
+        offset = found + len(fragment)
+    return True
 
 
 class Android:
@@ -439,23 +485,29 @@ class Android:
     ) -> dict[str, Any]:
         started = time.monotonic()
         self._open_chat(chat)
-        ui = self._wait_ui([message["text"]])
+        fragments = _inline_fragments(message)
+        if not any(fragment.strip() for fragment in fragments):
+            raise RuntimeError("Inline message has no observable text identity")
+        ui = self._wait_ui(fragments)
         tree = ET.fromstring(ui)  # noqa: S314 — dedicated UIAutomator XML
         keyboard = message["reply_markup"]["inline_keyboard"]
         labels = [button["text"] for line in keyboard for button in line]
         candidates = []
         for node in tree.iter("node"):
-            if not node.get("text", "").startswith(message["text"] + "\n"):
+            if node.get("package") != "org.gramlab.android" or not _inline_matches(
+                message, node.get("text", "")
+            ):
                 continue
             buttons = [child for child in node if child.get("class") == "android.widget.Button"]
             if [button.get("text") for button in buttons] == labels:
-                candidates.append(buttons)
+                candidates.append((node.get("text", ""), buttons))
         if len(candidates) != 1:
             raise RuntimeError(
                 "Inline message and complete keyboard must have one accessible match"
             )
         index = sum(len(line) for line in keyboard[:row]) + column
-        target = candidates[0][index]
+        native_text, buttons = candidates[0]
+        target = buttons[index]
         bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", target.get("bounds", ""))
         if bounds is None or target.get("clickable") != "true" or target.get("enabled") != "true":
             raise RuntimeError("Inline button is not an enabled accessible target")
@@ -467,7 +519,13 @@ class Android:
             if world.get_message(chat["id"], message["id"]) != message:
                 raise RuntimeError("Inline message changed before input")
             same_text = [
-                item for item in world.history(chat["id"]) if item["text"] == message["text"]
+                item
+                for item in world.history(chat["id"])
+                if (
+                    _inline_matches(item, native_text)
+                    if "rich_message" in message or "rich_message" in item
+                    else item["text"] == message["text"]
+                )
             ]
             if len(same_text) != 1:
                 raise RuntimeError("Inline message text is ambiguous in this chat")

@@ -2,8 +2,8 @@
 
 This note bounds the effects question for the pinned Telegram Android 12.10.1 source at
 `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`. It records source-derived expectations and a
-native comparison procedure. No effects-enabled run was performed for this note, so it does not
-establish a visual fix or a runtime value.
+native comparison procedure, followed by a verified runtime comparison using the original
+Power Usage controls. The launcher defaults and upstream renderer remain unchanged.
 
 ## Source-derived gates
 
@@ -66,10 +66,9 @@ select LOW unless a stored performance override is present. LOW then defaults bo
 liquid glass off. This is a deduction from the launcher and pinned source, not an observation of
 the live Java fields or pixels.
 
-The existing screenshots prove that the real upstream chat renders under this baseline. They are
-not an effects comparison: the fixture was not chosen to expose blur boundaries, runtime flags
-were not recorded, and the baseline and an enabled variant were not captured from the same world
-and frame state.
+Earlier conversation screenshots establish real upstream rendering under this baseline. The
+separate four-state comparison below now records settings and original captures from one world;
+it does not change the default profile used by consumer scenarios.
 
 ## Prepared debug build and persistent settings
 
@@ -79,7 +78,7 @@ reads the library's `org.telegram.messenger.BuildConfig`, not the application's 
 The prepared library debug BuildConfig has `DEBUG_VERSION`, `DEBUG_PRIVATE_VERSION` and
 `GRAMLAB_OFFLINE` true. That establishes source/build eligibility for the upstream Force
 performance class menu and the private-debug exception exposing blur/glass rows even at LOW.
-It is not runtime evidence that those rows were opened or effects enabled. Recheck generated
+The runtime comparison below separately verifies those rows and selected effects. Recheck generated
 variant outputs if the build changes; keep their actual local paths out of tracked notes.
 
 The account-zero `mainconfig` SharedPreferences store contains these integer keys:
@@ -103,8 +102,7 @@ execution still needs its own runtime evidence.
 
 ## Smallest native observation and comparison
 
-Extend the existing focused `tests/test_android_application.py` probe rather than running the full
-Android suite. Coordinate the guest with the owner of the `android-gate` lock and retain all
+Use the focused `tests/test_android_effects.py` probe rather than running the full Android suite. Coordinate the guest with the owner of the `android-gate` lock and retain all
 machine paths in ignored notes. Use one fresh dedicated guest and the already approved APK.
 
 1. After the synthetic chat becomes stable, retain API level, online CPU count, total RAM,
@@ -120,13 +118,14 @@ machine paths in ignored notes. Use one fresh dedicated guest and the already ap
 3. Capture the baseline chat at a settled point with a patterned wallpaper visible immediately
    behind the composer and navigation surfaces. Preserve the same world, theme, viewport, scroll
    position, keyboard state and animation-settle rule for the comparison.
-4. In that disposable package only, use `Force performance class` to select HIGH, then expand Chat
-   in Power Usage and enable chat blur. Force-stop and cold-launch so `ChatActivity` reconstructs
+4. In that disposable package only, expand Chat in Power Usage and enable chat blur. The pinned
+   private debug build exposes it without a performance override; retain that class selection for
+   an isolated flag comparison. Force-stop and cold-launch so `ChatActivity` reconstructs
    the blur3 objects, then capture the same chat and repeat the semantic assertions. Retain the
-   resulting preferences and confirm `overrideDevicePerformanceClass=2` and that
+   resulting preferences and confirm the performance override remains absent and
    `lite_mode6 & 256 != 0`. This is the smallest useful chat-blur comparison; it changes no
    launcher default or APK.
-5. Treat liquid glass as a separate comparison. With HIGH selected on API 36, enable its exposed
+5. Treat liquid glass as a separate comparison. On API 36, enable its exposed
    Power Usage checkbox, cold-launch and capture a surface that actually wires the liquid-glass
    factory (the chat composer/navigation region is suitable). Confirm hardware acceleration and
    `lite_mode6 & 262144 != 0`. Do not infer success merely because the app did not crash.
@@ -137,6 +136,41 @@ while the hierarchy and complete semantic history remain equal. A disabled contr
 pixels or a software-rendering exception is useful negative evidence and should remain visible.
 Afterward clear only this disposable package or discard its dedicated AVD; never promote its
 preferences to the baseline profile.
+
+## Verified original-UI comparison
+
+The dedicated [probe](../../tests/probes/android_effects.py) and
+[host test](../../tests/test_android_effects.py) pass in 174 seconds with the same APK, world and
+API 36 guest. Four cold-launch captures retain the complete bilingual rich history, zero accounts
+and battery level 100. External IPv4 and IPv6 attempts are denied by the existing guest harness.
+No performance override is stored. The original checkboxes and persisted integer values agree:
+
+| Phase | Blur | Liquid Glass | Stored mask | Battery threshold |
+| --- | --- | --- | ---: | ---: |
+| Baseline | preset | preset | absent | absent (source default 10) |
+| Blur | on | off | 198940 | 10 |
+| Glass | on | on | 461084 | 10 |
+| Restored | off | off | 198684 | 10 |
+
+Original PNG review shows opaque white composer/action-bar islands initially, translucent
+wallpaper-tinted islands with blur, and a subtler changed edge/tint with glass. Restoration returns
+the islands to opaque white. It is not an identical-frame restoration: the system clock advances
+and the navigation strip remains wallpaper-colored in the restored frame. No screenshot was
+edited, and those differences are retained rather than normalized away.
+
+A one-shot external JDWP breakpoint observes the original `LiquidGlassEffect.update` on the
+main thread with `foregroundColor = 0xd8ffffff` (alpha 216). Its source path constructs
+`RuntimeShader`/`RenderEffect` and updates the drawable display list only on a hardware-accelerated
+canvas. This runtime entry plus the source path is evidence of that original shader path; it does
+not establish pixel-perfect rendering across all Telegram surfaces. The report includes all four
+original captures, selected values, complete history, graphics string and launch/capture timings.
+
+The first probe missed the breakpoint because it tapped an already-focused composer after the
+initial display list was cached. The corrected trigger types a wrapping unsent draft, observes the
+field grow from 40 to 82 pixels, then deletes it without sending. A second attempt reached that
+method but stopped at the optional notification sheet during restoration. The passing probe
+retains breakpoint evidence immediately and dismisses only that observed sheet with Back. These
+were observation-harness failures, not demonstrated renderer defects. No APK rebuild was needed.
 
 ## Development cost
 
@@ -150,7 +184,7 @@ appropriate only after a production/profile change, which this investigation doe
 
 ## Remaining evidence
 
-The baseline performance class, selected masks, power-saver state, hardware-accelerated blur3
-execution and visual difference remain runtime-unverified. Any proposal to raise the default CPU
+The measured Java performance class is not directly observed. The comparison establishes the
+named original shader method on this profile, not universal device or surface conformance. Any proposal to raise the default CPU
 count, persist HIGH, inject app config or enable either effect belongs to the coordinator because
 it changes the fidelity profile and may change runtime cost and screenshots.

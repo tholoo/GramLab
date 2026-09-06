@@ -1,5 +1,6 @@
 """Upstream effect controls, persistent flags and actual shader execution in one guest."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -114,6 +115,7 @@ def test_original_blur_and_glass_controls_preserve_chat_and_execute_shader(tmp_p
     assert shader["thread_name"] == "main" and shader["suspend_policy"] == "event_thread"
     assert set(shader["arguments"]) == {"foregroundColor"}
     assert type(shader["arguments"]["foregroundColor"]) is int
+    assert (shader["arguments"]["foregroundColor"] & 0xFFFFFFFF) >> 24 < 255
     assert shader["history_after_trigger"] == expected
     assert "Original glass observation with a wrapping unsent draft" in shader["trigger_ui"]
     composer_bounds = []
@@ -123,6 +125,9 @@ def test_original_blur_and_glass_controls_preserve_chat_and_execute_shader(tmp_p
         assert len(fields) == 1
         composer_bounds.append(fields[0].get("bounds"))
     assert composer_bounds[0] != composer_bounds[1]
+    pin = json.loads(Path("clients/android/toolchain.json").read_text())["client"]
+    with (tmp_path / "client.apk").open("rb") as stream:
+        apk_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
     write_report(
         tmp_path / "report.html",
         Report(
@@ -133,6 +138,8 @@ def test_original_blur_and_glass_controls_preserve_chat_and_execute_shader(tmp_p
             seed=7,
             profile={
                 "Android": "Pinned debug client; AOSP API 36",
+                "Client pin": f"Telegram Android {pin['version']}; {pin['revision']}",
+                "APK SHA256": apk_sha256,
                 "Graphics": runtime["graphics"],
                 "Display": "320 x 640, 160 dpi; same guest, world and default theme",
                 "Controls": "Original Power Usage checkboxes; no performance override",

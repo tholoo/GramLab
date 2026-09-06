@@ -40,6 +40,15 @@ one keyboard are supported. Duplicate message text within the chat is currently 
 accessibility does not expose the semantic message ID. Missing, ambiguous, disabled, partially
 visible or off-screen targets fail explicitly. There is no automatic scrolling or coordinate API.
 
+Supported rich messages use their ordered readable fragments and the complete keyboard. The
+matcher excludes the pinned English host's receipt paragraph; text styling and RTL metadata do
+not establish identity. Whole-history checks reject indistinguishable rich messages even when
+one is off-screen. This deliberately conservative matching can also reject distinct messages
+when all fragments of one occur in the other. Closed-details descendants, textless content and
+unverified host locales cannot establish a target. Ordinary messages retain exact full-text
+equality for ambiguity checks, so a separate message equal to only the first line of a multiline
+target does not block the complete target.
+
 The current implementation uses the pinned 320×640 display at 160 dpi and verifies button bounds
 inside that profile's chat viewport. It checks for a known message change immediately before input,
 then taps once and waits up to 15 seconds for a matching callback event. It does not create a
@@ -83,6 +92,14 @@ Four concurrent actors verify distinct callbacks and enforcement of the shared p
 [Android tests](../../tests/test_runner_android.py) compare final worlds and histories across modes,
 verify exactly one callback from the repeated-label keyboard, and reject ambiguous native targets
 without a second callback while preserving earlier screenshots in the failed report.
+
+The [rich inline example](../../examples/rich_inline/README.md) exercises the same repeated-label
+selection on a heading, table and styled bilingual paragraph, then captures the real bot's RTL
+rich edit. Its [public runner tests](../../tests/test_runner_rich_buttons.py) compare complete
+simulation/Android histories, callback content and normalized events; reject an off-screen
+formatting-only duplicate before another tap; and preserve ordinary multiline targeting. The
+worker's focused native cases pass with the unchanged APK. Combined integration checks are
+recorded in the handoff rather than inferred from these focused results.
 
 The final milestone gate passes 147 core tests at 81.86% coverage and all 18 Android tests. Static
 checks, Nix/workflow validation, offline distributions and privacy/local links pass. Desktop/mobile
