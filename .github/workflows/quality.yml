@@ -107,3 +107,5 @@ jobs:
         run: uv run --locked mypy examples/composer
       - name: Type check the independent rich-message consumer example
         run: uv run --locked mypy examples/rich tests/test_runner_rich_example.py
+      - name: Type check the original effects observation
+        run: uv run --locked mypy tests/probes/android_effects.py tests/test_android_effects.py

@@ -53,6 +53,7 @@ uv run --locked mypy examples/inline
 uv run --locked mypy examples/recovery
 uv run --locked mypy examples/composer
 uv run --locked mypy examples/rich tests/test_runner_rich_example.py
+uv run --locked mypy tests/probes/android_effects.py tests/test_android_effects.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

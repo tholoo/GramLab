@@ -94,6 +94,14 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "org.telegram.messenger.OPEN_ACCOUNT",
             timeout=40,
         )
+        tree = observe()
+        if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
+            # The original optional notification sheet can appear after cold settings launch.
+            # Dismiss the observed sheet; never grant notification permission or open settings.
+            adb("shell", "input", "keyevent", "4")
+            tree = observe()
+            if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
+                raise RuntimeError("Original notification sheet did not dismiss")
         tap_text("Power Saving")
         tap_text("Animations in Chats")
 
@@ -177,6 +185,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         }
         timings[name] = (time.monotonic() - started) * 1000
         phases[name] = observed
+        retain(name + "-observed.json", json.dumps(observed))
         return observed
 
     def shader_observation() -> dict[str, Any]:
@@ -191,9 +200,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             for n in tree.iter("node")
             if n.get("class") == "android.widget.EditText" and n.get("enabled") == "true"
         ]
-        if len(targets) != 1:
+        if len(targets) != 1 or targets[0].get("focused") != "true":
             raise RuntimeError("Expected one original composer to observe layout invalidation")
-        left, top, right, bottom = bounds(targets[0])
         with ExitStack() as cleanup:
             port = int(adb("forward", "tcp:0", "jdwp:" + pid).strip())
             cleanup.callback(adb, "forward", "--remove", f"tcp:{port}")
@@ -205,24 +213,26 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             )
             failures: list[BaseException] = []
 
-            def focus() -> None:
+            def resize_composer() -> None:
                 try:
+                    # The empty composer is already focused. Tapping it need not invalidate
+                    # a cached RenderNode. An unsent wrapping draft changes actual geometry.
                     adb(
                         "shell",
                         "input",
-                        "tap",
-                        str((left + right) // 2),
-                        str((top + bottom) // 2),
+                        "text",
+                        "Original%sglass%sobservation%swith%sa%swrapping%sunsent%sdraft",
                         timeout=20,
                     )
                 except BaseException as error:
                     failures.append(error)
 
-            worker = threading.Thread(target=focus)
+            worker = threading.Thread(target=resize_composer)
             worker.start()
             resumed = False
             try:
                 observed = debugger.wait_breakpoint(arguments=["foregroundColor"], timeout=15)
+                retain("shader-breakpoint.json", json.dumps(observed))
                 debugger.resume()
                 resumed = True
             finally:
@@ -231,7 +241,26 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     adb("shell", "am", "force-stop", PACKAGE)
                 worker.join(timeout=25)
             if worker.is_alive() or failures:
-                raise RuntimeError("Original composer focus did not complete")
+                raise RuntimeError("Original composer draft input did not complete")
+            observed["trigger_ui"] = screen("shader-trigger")
+            with World.open(Path("world")) as world:
+                observed["history_after_trigger"] = world.history(1)
+            adb(
+                "shell",
+                "input",
+                "keyevent",
+                *(["67"] * len("Original glass observation with a wrapping unsent draft")),
+                timeout=20,
+            )
+            cleared = ET.fromstring(screen("shader-cleared"))  # noqa: S314 — dedicated guest XML
+            drafts = [
+                n.get("text")
+                for n in cleared.iter("node")
+                if n.get("class") == "android.widget.EditText"
+            ]
+            if drafts != ["Message"]:
+                raise RuntimeError("Shader observation draft was not cleared")
+            retain("shader-observed.json", json.dumps(observed))
             return observed
 
     with World.create(Path("world"), seed=7, now=1700000000) as world:

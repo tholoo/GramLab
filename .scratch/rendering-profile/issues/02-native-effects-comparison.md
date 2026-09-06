@@ -31,3 +31,18 @@ The prepared follow-up uses one guest for baseline, blur, glass and restored cap
 one-shot external debugger observation of the original LiquidGlassEffect.update method. No
 renderer/source/profile change is needed. The private-debug class exception permits this more
 controlled comparison without changing performance class. Measured class itself remains unobserved.
+
+## Probe diagnosis
+
+The first comparison captured baseline, blur and glass states, but the subsequent breakpoint
+timed out: the empty composer was already focused, so another tap did not establish display-list
+invalidation. Pinned source caches the drawable list. The revised trigger types an unsent wrapping
+draft through original input; a second run reached the shader observation and visibly expanded
+the field from 40 to 82 pixels before clearing it. That run later stopped at the original optional
+notification sheet when reopening settings, before the restored phase. Neither run is a passing
+comparison. Their failure evidence is preserved separately.
+
+The revised probe retains each phase and the breakpoint independently, dismisses only an observed
+notification sheet with Back, and keeps restoration in the same guest. Focused Ruff, format and
+strict typing pass; the complete revised native comparison remains pending. No renderer changes,
+new APK, runtime network permission or default-profile change were made.

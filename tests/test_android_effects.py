@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import xml.etree.ElementTree as ET
 from dataclasses import asdict
 from pathlib import Path
 
@@ -113,6 +114,15 @@ def test_original_blur_and_glass_controls_preserve_chat_and_execute_shader(tmp_p
     assert shader["thread_name"] == "main" and shader["suspend_policy"] == "event_thread"
     assert set(shader["arguments"]) == {"foregroundColor"}
     assert type(shader["arguments"]["foregroundColor"]) is int
+    assert shader["history_after_trigger"] == expected
+    assert "Original glass observation with a wrapping unsent draft" in shader["trigger_ui"]
+    composer_bounds = []
+    for ui in (phases["glass"]["ui"], shader["trigger_ui"]):
+        tree = ET.fromstring(ui)  # noqa: S314 — dedicated guest XML
+        fields = [n for n in tree.iter("node") if n.get("class") == "android.widget.EditText"]
+        assert len(fields) == 1
+        composer_bounds.append(fields[0].get("bounds"))
+    assert composer_bounds[0] != composer_bounds[1]
     write_report(
         tmp_path / "report.html",
         Report(
