@@ -109,6 +109,12 @@ to `task/rich-text-cleaning` in its separate worktree. That worker owns only the
 World/HTTP tests and ticket. The integration code/APK remain frozen; the current gate does not
 cover this unmerged correction. Review its frozen handoff after the gate, then run affected
 combined checks. Rich actions and permanent native geometry/target identity remain separate work.
+The Python correction is now reviewed, including per-leaf counters and cleaned-empty wrapper
+boundaries. A second worker on `task/rich-cleaning-native` owns only the new real-bot/native
+acceptance files and [ticket 13](../../.scratch/rich-messages/issues/13-rich-cleaning-native.md).
+It can establish the real-bot red on its base; positive checks depend on coordinator integration of
+the frozen Python fix. No APK build or worker guest run is assigned. Merge the reviewed core fix
+before the separately reviewed acceptance branch, after the current list gate is terminal.
 
 ## Previous rich-message checkpoint
 
