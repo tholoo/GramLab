@@ -82,6 +82,13 @@ def require_distinct_carriers(
 ) -> None:
     if set(carriers) != required or len(set(carriers.values())) != len(carriers):
         raise AssertionError("Custom emoji carriers must have distinct semantic regions")
+    values = list(carriers.values())
+    for index, (left, top, right, bottom) in enumerate(values):
+        for other_left, other_top, other_right, other_bottom in values[index + 1 :]:
+            if max(left, other_left) < min(right, other_right) and max(top, other_top) < min(
+                bottom, other_bottom
+            ):
+                raise AssertionError("Custom emoji carrier regions must not intersect")
 
 
 def locate_animation(

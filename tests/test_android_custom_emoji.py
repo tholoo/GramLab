@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from custom_emoji_visual import (
     animation_states,
+    locate_animation,
     locate_static,
     require_complete_cycle,
     require_distinct_carriers,
@@ -112,10 +113,12 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     with Image.open(tmp_path / "initial.png") as opened:
         initial = opened.convert("RGB")
     initial_boxes = client["carrier_bounds"]["initial"]
-    require_distinct_carriers(
-        {name: tuple(box) for name, box in initial_boxes.items()},
-        {"incoming", "ordinary", "rich", "button"},
-    )
+    required_carriers = {"incoming", "ordinary", "rich", "button"}
+    for phase in ("initial", "edited", "restarted"):
+        require_distinct_carriers(
+            {name: tuple(box) for name, box in client["carrier_bounds"][phase].items()},
+            required_carriers,
+        )
     assert all(locate_static(initial, tuple(raw_box)) for raw_box in initial_boxes.values())
     burst = []
     timestamps = client["burst_timestamps_ns"]
@@ -135,6 +138,15 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
             continue
         complete += 1
     assert complete == 3, "All three edited bot carriers must show the authored animation"
+    for phase in ("edited", "restarted"):
+        with Image.open(tmp_path / f"{phase}.png") as opened:
+            frame = opened.convert("RGB")
+        boxes = client["carrier_bounds"][phase]
+        assert locate_static(frame, tuple(boxes["incoming"]))
+        assert all(
+            locate_animation(frame, tuple(boxes[carrier])) is not None
+            for carrier in ("ordinary", "rich", "button")
+        )
     expected = {
         "2_2.jpg": (THUMBNAIL.stat().st_size, hashlib.sha256(THUMBNAIL.read_bytes()).hexdigest()),
         "-1_1109.webm": (

@@ -41,6 +41,16 @@ def test_locator_finds_translated_scaled_glyph_inside_wide_carrier() -> None:
     assert abs(located.origin_x - 93) <= 2 and abs(located.origin_y - 24) <= 2
 
 
+def test_locator_finds_antialiased_quarter_scale_glyph() -> None:
+    large = _frame(1, scale=1)
+    small = large.resize((70, 40), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (240, 100), BACKGROUND)
+    canvas.paste(small, (55, 30))
+    located = locate_animation(canvas, (20, 10, 180, 90))
+    assert located is not None and located.state == 1
+    assert 0.18 <= located.scale <= 0.32
+
+
 def test_cycle_requires_actual_adjacent_order_with_duplicates() -> None:
     frames = [_frame(state) for state in (3, 3, 0, 1, 2)]
     states = animation_states(frames, [(20, 10, 260, 140)] * len(frames))
@@ -60,6 +70,9 @@ def test_distinct_carrier_mapping_rejects_overlapping_duplicate_bounds() -> None
     carriers = {"incoming": (0, 0, 100, 50), "ordinary": (0, 0, 100, 50)}
     with pytest.raises(AssertionError, match="distinct"):
         require_distinct_carriers(carriers, {"incoming", "ordinary"})
+    overlapping = {"incoming": (0, 0, 100, 50), "ordinary": (90, 10, 180, 60)}
+    with pytest.raises(AssertionError, match="intersect"):
+        require_distinct_carriers(overlapping, {"incoming", "ordinary"})
 
 
 def test_static_oracle_requires_diamond_geometry_not_one_blue_pixel() -> None:
