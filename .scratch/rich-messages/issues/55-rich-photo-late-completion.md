@@ -80,6 +80,14 @@ environment. No APK build or Android guest was run. Native acceptance remains co
 The new 4:1 B is expected to render about 60--67 pixels high at the bounded 320-pixel viewport,
 which leaves room for the original 48dp control at 160 dpi; native geometry remains to be proven.
 
+The rejection follow-up waits for an explicit native `startup_rejected` event instead of treating
+an observation file that has not appeared yet as rejection. Malformed cases retain their complete
+raw trace and must contain no `initialized` event or asset request. Lookup failures verify their
+full schema, nonce, World, persona and peer identity as well as the exact unavailable reason. A
+live-case failure now retains partial trace, requests and best-effort cache evidence, releases the
+gated response, stops the app and continues through the complete independent guard matrix. Host
+acceptance rejects any live, evidence or guard failure after the probe preserves those results.
+
 Follow-up review removed the unrelated A/B request-order assumption while retaining exact
 per-asset fault counts, B's partial-response deadline and C-before-release native ordering. Every
 guard now records its own failure and reaches the independent force-stop/reset before the host

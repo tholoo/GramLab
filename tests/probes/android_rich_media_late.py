@@ -262,13 +262,19 @@ class Observation:
         raise RuntimeError("No fresh original rich photo observation meeting required state")
 
     def trace(self) -> list[dict[str, Any]]:
-        result = self.adb("shell", "run-as", PACKAGE, "cat", DIRECTORY + "trace.jsonl")
+        rows = self.raw_trace()
+        return [row for row in rows if str(row.get("event", "")).startswith("media_")]
+
+    def raw_trace(self) -> list[dict[str, Any]]:
+        result = self.adb(
+            "shell", "run-as", PACKAGE, "cat", DIRECTORY + "trace.jsonl", required=False
+        )
         Path(f"{self.case}-trace.jsonl").write_text(result.stdout)
-        return [
-            json.loads(line)
-            for line in result.stdout.splitlines()
-            if json.loads(line).get("event", "").startswith("media_")
-        ]
+        return (
+            [json.loads(line) for line in result.stdout.splitlines()]
+            if not result.returncode
+            else []
+        )
 
     def screenshot(self, stage: str) -> str:
         name = f"{self.case}-{stage}.png"
@@ -286,8 +292,9 @@ class Observation:
                     or any(f"{asset}_1.jpg" in Path(path).name for asset in PHOTOS)
                 ):
                     continue
-                size = int(self.adb(*prefix, "toybox", "wc", "-c", path).stdout.split()[0])
-                digest = self.adb(*prefix, "toybox", "sha256sum", path).stdout.split()[0]
+                quoted = shlex.quote(path)
+                size = int(self.adb(*prefix, "toybox", "wc", "-c", quoted).stdout.split()[0])
+                digest = self.adb(*prefix, "toybox", "sha256sum", quoted).stdout.split()[0]
                 files.append({"path": path, "size": size, "sha256": digest})
         return files
 
@@ -379,6 +386,7 @@ def run_guards(observe: Observation, assets: dict[int, tuple[str, bytes]]) -> di
             snapshot=value, assets=assets, capability=CAPABILITY, default_fault="missing"
         ) as server:
             sample = None
+            trace: list[dict[str, Any]] = []
             try:
                 observe.configure(server, value, activation(value["world_id"], [], name))
                 if isinstance(configured, dict):
@@ -412,19 +420,40 @@ def run_guards(observe: Observation, assets: dict[int, tuple[str, bytes]]) -> di
                 deadline = time.monotonic() + 10
                 while time.monotonic() < deadline:
                     sample = observe.raw_sample()
-                    if reason is None and sample is None:
+                    trace = observe.raw_trace()
+                    if reason is None and any(
+                        row.get("event") == "startup_rejected" for row in trace
+                    ):
                         break
                     if reason is not None and sample is not None and sample.get("reason") == reason:
                         break
                     time.sleep(0.05)
                 if reason is None and sample is not None:
                     raise RuntimeError(f"Malformed schema-2 activation accepted: {name}")
+                if reason is None and not any(
+                    row.get("event") == "startup_rejected" for row in trace
+                ):
+                    raise RuntimeError(f"Malformed schema-2 activation was not rejected: {name}")
                 if reason is not None and (sample is None or sample.get("reason") != reason):
                     raise RuntimeError(f"Schema-2 lookup guard unavailable: {name}")
-                results[name] = {"sample": sample, "requests": server.requests()}
+                if reason is not None:
+                    expected = configured
+                    assert isinstance(expected, dict)
+                    assert sample is not None
+                    if any(
+                        sample.get(key) != expected[key]
+                        for key in ("schema", "nonce", "world_id", "user_id", "peer_id")
+                    ):
+                        raise RuntimeError(f"Schema-2 lookup guard identity mismatch: {name}")
+                results[name] = {
+                    "sample": sample,
+                    "trace": trace,
+                    "requests": server.requests(),
+                }
             except Exception as failure:
                 results[name] = {
                     "sample": sample,
+                    "trace": trace,
                     "requests": server.requests(),
                     "failure": {
                         "type": type(failure).__name__,
@@ -454,84 +483,106 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     ) as server:
         server.plan(1, "complete")
         transfer = server.plan(2, "gated")
-        observe.configure(
-            server, initial, activation(initial["world_id"], targets, "late-completion")
-        )
-        observe.launch()
-        require_window(transfer)
-        assert transfer.partial_sent_at is not None
-        result["partial_sent_at"] = transfer.partial_sent_at
-        observe.window_end = transfer.partial_sent_at + 4.8
-        loading = observe.sample(
-            lambda rows: (
-                [r["asset_id"] for r in rows] == [2, 2] and not any(r["has_image"] for r in rows)
+        try:
+            observe.configure(
+                server, initial, activation(initial["world_id"], targets, "late-completion")
             )
-        )
-        result["loading"] = loading
-        result["captures"].append(observe.screenshot("loading"))
-        revised, changes = edited(initial)
-        server.plan(3, "complete")
-        server.publish(revised, changes)
-        deadline = time.monotonic() + 3
-        while time.monotonic() < deadline:
-            rows = observe.trace()
-            if any(r["event"] == "media_load_success" and r["asset_id"] == 3 for r in rows):
-                break
-            time.sleep(0.035)
-        else:
-            raise RuntimeError("Edited C transfer did not complete")
-        bound_c = observe.sample(
-            lambda rows: (
-                [r["asset_id"] for r in rows] == [3, 2]
-                and rows[0]["has_image"]
-                and not rows[1]["has_image"]
-            ),
-            timeout=2,
-        )
-        result["edited_snapshot"] = revised
-        result["changes"] = changes
-        result["bound_c"] = bound_c
-        result["captures"].append(observe.screenshot("edited-c"))
-        result["release_elapsed"] = require_window(transfer)
-        result["released_at"] = time.monotonic()
-        observe.window_end = None
-        transfer.release.set()
-        post = []
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline:
-            current = observe.sample(
-                lambda rows: True, timeout=max(0.05, deadline - time.monotonic())
+            observe.launch()
+            require_window(transfer)
+            assert transfer.partial_sent_at is not None
+            result["partial_sent_at"] = transfer.partial_sent_at
+            observe.window_end = transfer.partial_sent_at + 4.8
+            loading = observe.sample(
+                lambda rows: (
+                    [r["asset_id"] for r in rows] == [2, 2]
+                    and not any(r["has_image"] for r in rows)
+                )
             )
-            post.append(current)
-            rows = current["messages"]
-            if rows[0]["asset_id"] != 3 or not rows[0]["has_image"]:
-                raise RuntimeError("Old B rebound the edited rich receiver")
-            trace = observe.trace()
-            if (
-                rows[1]["asset_id"] == 2
-                and rows[1]["has_image"]
-                and any(r["event"] == "media_load_success" and r["asset_id"] == 2 for r in trace)
-            ):
-                result["completed"] = current
-                result["trace"] = trace
-                break
-        else:
-            raise RuntimeError("Old shared B did not complete in its ordinary receiver")
-        result["post_release"] = post
-        result["captures"].append(observe.screenshot("b-completed"))
-        stable = observe.sample(
-            lambda rows: (
-                rows[0]["asset_id"] == 3
-                and rows[0]["has_image"]
-                and rows[1]["asset_id"] == 2
-                and rows[1]["has_image"]
+            result["loading"] = loading
+            result["captures"].append(observe.screenshot("loading"))
+            revised, changes = edited(initial)
+            server.plan(3, "complete")
+            server.publish(revised, changes)
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                rows = observe.trace()
+                if any(r["event"] == "media_load_success" and r["asset_id"] == 3 for r in rows):
+                    break
+                time.sleep(0.035)
+            else:
+                raise RuntimeError("Edited C transfer did not complete")
+            bound_c = observe.sample(
+                lambda rows: (
+                    [r["asset_id"] for r in rows] == [3, 2]
+                    and rows[0]["has_image"]
+                    and not rows[1]["has_image"]
+                ),
+                timeout=2,
             )
-        )
-        result["stable"] = stable
-        result["captures"].append(observe.screenshot("stable"))
-        result["files"] = observe.inventory()
-        result["requests"] = server.requests()
-        observe.adb("shell", "am", "force-stop", PACKAGE)
+            result["edited_snapshot"] = revised
+            result["changes"] = changes
+            result["bound_c"] = bound_c
+            result["captures"].append(observe.screenshot("edited-c"))
+            result["release_elapsed"] = require_window(transfer)
+            result["released_at"] = time.monotonic()
+            observe.window_end = None
+            transfer.release.set()
+            post = []
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                current = observe.sample(
+                    lambda rows: True, timeout=max(0.05, deadline - time.monotonic())
+                )
+                post.append(current)
+                rows = current["messages"]
+                if rows[0]["asset_id"] != 3 or not rows[0]["has_image"]:
+                    raise RuntimeError("Old B rebound the edited rich receiver")
+                trace = observe.trace()
+                if (
+                    rows[1]["asset_id"] == 2
+                    and rows[1]["has_image"]
+                    and any(
+                        r["event"] == "media_load_success" and r["asset_id"] == 2 for r in trace
+                    )
+                ):
+                    result["completed"] = current
+                    result["trace"] = trace
+                    break
+            else:
+                raise RuntimeError("Old shared B did not complete in its ordinary receiver")
+            result["post_release"] = post
+            result["captures"].append(observe.screenshot("b-completed"))
+            stable = observe.sample(
+                lambda rows: (
+                    rows[0]["asset_id"] == 3
+                    and rows[0]["has_image"]
+                    and rows[1]["asset_id"] == 2
+                    and rows[1]["has_image"]
+                )
+            )
+            result["stable"] = stable
+            result["captures"].append(observe.screenshot("stable"))
+            result["files"] = observe.inventory()
+            result["requests"] = server.requests()
+            observe.adb("shell", "am", "force-stop", PACKAGE)
+        except Exception as failure:
+            result["failure"] = {
+                "type": type(failure).__name__,
+                "message": str(failure).replace(CAPABILITY, "<redacted>"),
+            }
+        finally:
+            observe.window_end = None
+            transfer.release.set()
+            result["requests"] = server.requests()
+            result["partial_trace"] = observe.raw_trace()
+            try:
+                result["partial_files"] = observe.inventory()
+            except Exception as failure:
+                result["evidence_failure"] = {
+                    "type": type(failure).__name__,
+                    "message": str(failure).replace(CAPABILITY, "<redacted>"),
+                }
+            observe.adb("shell", "am", "force-stop", PACKAGE, required=False)
     guards = run_guards(observe, assets)
     return {
         "case": result,

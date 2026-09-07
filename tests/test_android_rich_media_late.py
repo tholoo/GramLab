@@ -99,6 +99,8 @@ def assert_late_completion(
     assert observed["assets"] == expected
     assert "Accounts: 0" in observed["accounts"]
     case = observed["case"]
+    assert "failure" not in case, json.dumps(case.get("failure"), indent=2)
+    assert "evidence_failure" not in case, json.dumps(case.get("evidence_failure"), indent=2)
     assert case["targets"] == [
         {"message_id": 1, "kind": "rich", "asset_ids": [2, 3]},
         {"message_id": 2, "kind": "ordinary", "asset_ids": [2]},
@@ -209,8 +211,21 @@ def assert_late_completion(
         if name in unavailable:
             assert guard["sample"]["available"] is False
             assert guard["sample"]["reason"] == unavailable[name]
+            assert {
+                key: guard["sample"][key]
+                for key in ("schema", "nonce", "world_id", "user_id", "peer_id")
+            } == {
+                "schema": 2,
+                "nonce": name,
+                "world_id": "rich-photo-guard",
+                "user_id": 1,
+                "peer_id": 2,
+            }
         else:
             assert guard["sample"] is None
+            assert any(row["event"] == "startup_rejected" for row in guard["trace"])
+            assert not any(row["event"] == "initialized" for row in guard["trace"])
+            assert not asset_requests(guard["requests"])
 
     screenshots = tuple(
         Screenshot(caption=Path(name).stem, png=(tmp_path / name).read_bytes())
