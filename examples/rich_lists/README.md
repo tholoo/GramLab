@@ -2,8 +2,8 @@
 
 This example sends a concise rich message whose readable identity exists only inside list items.
 Its initial ordered list uses lowercase letters, uppercase letters and lowercase Roman numerals,
-with nested bullets, checked and unchecked boxes, an empty item, Persian/English text and a
-wrapping line. Selecting row 1/column 0 of the repeated-label keyboard makes the real HTTP bot
+with checked and unchecked nested bullets, an empty item, Persian/English text and a wrapping line.
+Selecting row 1/column 0 of the repeated-label keyboard makes the real HTTP bot
 verify the complete callback message and replace it with an RTL unordered list containing uppercase
 Roman and decimal items.
 
@@ -34,3 +34,8 @@ never contain the output-only `label` field. Native selection uses ordered reada
 and rejects another message with the same readable content even when list labels, values, checkbox
 state, empty items or collapsed details differ. The example does not make bot-owned checkboxes
 interactive.
+
+The pinned native renderer has been observed drawing an ordered marker beneath an ordered item's
+checkbox. The coordinator tracks that rendering quirk without normalizing or fixing it. This scene
+keeps its checkboxes on nested unordered items so the `a`, `A`, `i`, `I` and `1` label samples stay
+legible.

@@ -54,3 +54,10 @@ acceptance. Report pending native checks explicitly.
   evidence. The coordinator-owned native probe remains the live-edit check. The focused offline
   rerun passes with `1 passed, 2 deselected`; scoped Ruff lint/format and mypy also pass. No guest
   was started.
+- Native visual review found the original wrapping text stayed on one line and the pinned renderer
+  placed ordered `a`/`A` markers beneath their checkboxes. The updated scene lengthens the wrapping
+  text and moves checked/unchecked state to two nested unordered items, preserving clear samples of
+  all five ordered label styles. The duplicate flips those nested checkbox states while retaining
+  equal readable identity. The coordinator records the renderer quirk; this example does not
+  normalize or fix it. The final focused offline rerun passes with `1 passed, 2 deselected`; Ruff
+  lint/format and mypy also pass. No native test, guest or build was run.
