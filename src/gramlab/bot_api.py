@@ -50,6 +50,14 @@ def _integer(value: Any, name: str) -> int:
     return value
 
 
+def _boolean(value: Any, name: str) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "yes", "1"}
+    if type(value) is not bool:
+        raise ValueError(f"{name} must be a Boolean")
+    return value
+
+
 def _update(world: World, update: dict[str, Any]) -> dict[str, Any]:
     if "message" in update:
         return {"update_id": update["update_id"], "message": _message(world, update["message"])}
@@ -162,6 +170,7 @@ def _dispatch(
     supported = {
         "getme": set(),
         "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
+        "deletewebhook": {"drop_pending_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
         "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
         "editmessagetext": {
@@ -183,6 +192,12 @@ def _dispatch(
             parameters[name] = _json_value(parameters[name])
     if method == "getme":
         return world.get_user(bot_id)
+    if method == "deletewebhook":
+        if "drop_pending_updates" in parameters and _boolean(
+            parameters["drop_pending_updates"], "drop_pending_updates"
+        ):
+            world.discard_pending_updates(bot_id)
+        return True
     if method == "getupdates":
         offset = _integer(parameters.get("offset", 0), "offset")
         limit = _integer(parameters.get("limit", 100), "limit")
