@@ -27,3 +27,15 @@ where justified; do not increase timeouts or weaken assertions to declare a spee
 
 Coordinator owns scheduling, evidence, documentation and any resulting fixes. No production
 profile change, renderer change, shared guest reuse, warm snapshot or network permission is assigned.
+
+## Trial evidence
+
+The first pair completed in 100 seconds with the direct case passing and the public case failing
+a host assertion: the real bot had already answered when native input returned. The documented
+API permits that scheduling; complete retained results pass the corrected exact-answer assertion,
+and an incorrect answer remains rejected. The corrected second pair passes the public case but
+fails the direct case's initial cold launch: `Status: timeout`, followed by first display at
+14.459 seconds in logcat. Its semantic phases subsequently complete; this does not make the launch
+assertion pass. The second suite takes 132 seconds. The affected case passes alone in 75 seconds,
+with the APK/profile/timeouts unchanged. This does not isolate the cause. Concurrent scheduling is not accepted yet; do
+not infer reliability or a speedup from either trial. The full native gate remains pending.

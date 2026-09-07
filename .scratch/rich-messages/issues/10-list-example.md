@@ -70,3 +70,8 @@ acceptance. Report pending native checks explicitly.
   changed. The final original screenshots show real wrapping, clear a/A/i and I/decimal labels,
   nested checked/unchecked items, and equal RTL content through both cold captures. A corrected
   fresh native pair and the combined gate remain pending.
+
+- The corrected second two-worker trial passes the final public native example and complete
+  semantics. The separate direct checkbox case reports a cold-launch timeout in that trial, then
+  passes alone with unchanged settings. Parallel scheduling remains unaccepted. The combined
+  gate will run serially; final negative-fixture and combined acceptance remain pending.

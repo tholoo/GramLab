@@ -54,57 +54,51 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
-The rich-inline worker is now merged. Its focused native evidence covers the real rich callback
-and RTL edit, rejection of an off-screen formatting-only duplicate, and an ordinary multiline
-regression identified during coordinator review. The complete multiline target is selected once
-when another plain message equals only its first line. The [input contract](scenario-input.md)
-records the conservative identity limitations; rich button blocks remain distinct unfinished work.
-The combined core gate passes 273 tests at 80.31% coverage in 45 seconds with four isolated pytest
-workers. Full lint/format, all documented strict typing scopes, the Nix workflow check, installed
-wheel rich-inline example, config/local links and tracked-tree privacy checks pass.
+Rich lists are integrated on the coordinator branch: independent normalization, native patch
+0012, public nested capture/input traversal, and a reusable real HTTP bot/scenario. The focused
+World/HTTP suite passes 82 cases; the full core gate passes 326 tests at 80.52% coverage in 46
+seconds. Full static checks, workflow validation and installed-wheel execution pass. The installed
+list result also passes complete semantic verification. The twelve-patch fresh export preserves
+all 6,666 original UI/resource files; one incremental offline APK build took 2 minutes 31 seconds.
 
-The [original effects comparison](android-effects-profile.md) passes in 174 seconds: baseline,
-blur, glass and restored states retain equal complete rich history and guest isolation evidence.
-A geometry-changing unsent draft reaches the original LiquidGlassEffect.update on the main thread;
-its nonopaque foreground color, original captures and original controls are retained. The first
-attempt missed a cached display list; the second stopped at an optional notification sheet during
-restoration. The passing probe observes/dismisses that sheet and retains each result independently.
-No renderer, APK, default graphics profile or runtime egress permission changed. The measured
-performance class remains unobserved, and restored flags do not promise identical system pixels.
+Focused native evidence covers the complete list codec and 42 malformed rejections, actual
+checkbox input without user mutation, live bot edits and cold restart, plus public inline
+callback/RTL editing and offscreen metadata-only ambiguity rejection. Original screenshots show
+real wrapping, all five ordered label styles and nested checked/unchecked items. Ordered markers
+can overlap checkboxes in the pinned renderer; preserve that quirk. The final reusable fixture
+places checkboxes on nested unordered items so its ordered labels remain visible. See
+[rich messages](rich-messages.md), [native projection](android-rich-projection.md) and the
+[list example](../../examples/rich_lists/README.md).
 
-The combined Android gate now passes **all 34 tests without skips in 1,865 seconds**. It includes
-all three new rich-inline/ordinary-multiline cases and the final effects host assertions and
-client/APK report provenance. The coordinator reviewed integrated rich captures and verified the
-four-capture effects report's exact fingerprint. Both bounded tickets are resolved; earlier
-intermittent startup failures remain unexplained. Actual process/artifact details are retained in
-ignored `.cache/local-notes/effects-and-rich-inline.json`; the gate handle is terminal and its lock
-released. No APK build was needed for these changes.
+Two-worker Android verification is not yet accepted. The first pair completed both scenarios but
+failed a host assertion requiring the callback to remain unanswered at observation. The documented
+input contract permits an early answer; a retained-result replay established and verified the
+assertion correction, including rejection of an incorrect answer. The corrected second pair passes
+the public example, but the direct checkbox case reports an initial cold-launch timeout. Its later
+semantic steps complete, and logcat reports first display after 14.459 seconds. The unchanged case
+passes alone in 75 seconds. This does not establish the cause or accept concurrent scheduling.
+Do not increase timeouts, count that failure as a pass, or begin a two-worker full gate yet.
+Actual process handles and evidence paths stay in ignored local notes. The next check is the
+serial list-inclusive combined Android gate; poll its current handle before starting another guest.
+The combined gate remains pending;
+list integration/example and parallel-gate tickets remain claimed.
 
-The [rich-list contract](rich-list-references.md) is now reviewed and committed against the pinned
-official server and TDLib sources. Python and Android workers have separate branches for the exact
-recursive input/canonical-output contract, including empty item blocks, all five label styles,
-checkbox state and native projection. Their tickets define disjoint ownership. The coordinator
-owns public capture/inline traversal, a real-bot rendering scene and one incremental APK build
-after integration. The native worker first proves the old APK's missing-list behavior; its positive
-native coverage deliberately depends on the coordinator build. Do not merge unfinished worker
-branches or describe lists as implemented yet. Observe their actual handoffs and frozen tips first.
+The preceding pre-list combined Android gate passed all 34 tests without skips in 1,865 seconds.
+It is historical coverage, not a list-inclusive gate. The original effects probe's settings
+observations have since been reduced from 39 to 20; a focused unchanged-profile run passed in
+159 seconds versus earlier 174–176 second observations. Differing load prevents a causal speedup
+claim. The combined gate must also cover that optimization with the list-capable APK.
 
-The [timing command](test-timings.md) is also integrated, with 12 passing CLI checks, including a
-UTF-16 DTD rejection red/green case. It compares saved JUnit without rerunning tests and preserves
-suite time separately from summed case durations. Ruff/format/strict typing and the updated Nix
-workflow check pass; the preceding 273-test production-core gate remains applicable. Comparing the
-34-case native gate with the preceding 29-case gate finds 29 matched cases, five additions and no
-removals. Added cases contribute 461 seconds; matched cases sum to 227 seconds less in this run,
-for a net suite increase of 234 seconds. These observations do not establish a controlled speedup.
-The effects probe is the largest current case at 176 seconds; reducing redundant settings captures
-is a candidate, not yet a measured optimization.
+The [timing command](test-timings.md) compares retained JUnit without rerunning guests and keeps
+suite wall time separate from summed case durations. Continue measuring expensive observations
+and use focused checks during iteration. Serializing all native cases remains a major development
+cost, but concurrent execution needs actual reliability evidence before adoption.
 
-Development observations: four-worker core runs are faster than the preceding serial checkpoint,
-but differing scope and load prevent a controlled speedup claim. Missing workflow-tool cache paths
-caused an offline Nix attempt to plan hundreds of source derivations; binary-cache provisioning
-needed only 2.3 MiB and the workflow check then passed. Follow the [environment guidance](environment.md)
-and retain local configuration outside the repository. Continue collecting native per-test times
-instead of repeating complete gates during worker iteration.
+The next rich-content work has [source findings](rich-actions-references.md) for links and rich
+buttons. It is research only. Establish exact shared interfaces and original native targeting,
+and prepare a concrete offline navigation proposal before consequential design decisions. No
+external navigation or runtime egress is authorized. Rich actions, media, custom emoji, Mini Apps,
+interactive mode and the wider product inventory remain unfinished; the full goal stays active.
 
 ## Previous rich-message checkpoint
 

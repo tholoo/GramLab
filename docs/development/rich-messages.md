@@ -85,8 +85,12 @@ complete content; input and returned objects cannot mutate stored state after th
 
 The integrated list World/HTTP suite passes all 82 focused cases, including the Unicode property
 test. Public captures find nested list fragments while preserving canonical history and rejecting
-metadata or cross-fragment text targets. List rendering and native input remain under integrated
-verification; the preceding renderer checkpoint below does not establish those additions.
+metadata or cross-fragment text targets. Focused native evidence covers the list codec, original
+checkbox input without user mutation, bot edits, cold restart, nested inline targeting and
+offscreen metadata-only ambiguity rejection. The final reusable scene's corrected native rerun passes. A concurrent checkbox case reports
+a cold-launch timeout; the list-inclusive combined Android gate remains pending. The integrated full core gate passes
+326 tests at 80.52% coverage in 46 seconds; the installed-wheel list scenario also passes complete
+semantic verification. See the [reusable list example](../../examples/rich_lists/README.md).
 
 The dedicated tests exercise actual HTTP sends/edits through both request encodings, full responses,
 atomic malformed/unsupported rejection, wrong bot/message ownership, normalization, plain/rich
@@ -98,7 +102,7 @@ unshare --user --map-root-user --net bash -eu -c \
   'ip link set lo up; .venv/bin/pytest tests/test_rich_messages.py tests/test_rich_bot_api.py'
 ```
 
-The integrated real-bot scenario and [native projection checks](android-rich-projection.md) now
+At the earlier pre-list checkpoint, the real-bot scenario and [native projection checks](android-rich-projection.md)
 pass, including original send/edit/restart captures. The full core gate passes 269 tests at
 82.06% coverage. The combined Android regression gate passes all 29 tests without skips. Broader rich-content
 rendering remains separate required evidence. The [public scenario example](scenario-rich-messages.md)
