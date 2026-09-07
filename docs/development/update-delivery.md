@@ -30,6 +30,24 @@ openers recheck the version after acquiring the writer lock. Selection and enque
 same SQLite writer ordering. The public world/client snapshot schemas and Android adapter remain
 unchanged. A world/server restart retains the selection; it is scoped to one bot in one world.
 
+## Polling startup
+
+`deleteWebhook` succeeds when no webhook is configured. Its optional `drop_pending_updates`
+parameter discards the authenticated bot's queued deliveries when true. Omission or false leaves
+them intact. Messages, callbacks and answers, event history, client snapshots, subscriptions and
+the next update ID are preserved. An already waiting empty poll stays active and can receive a
+later arrival. Repeating deletion succeeds; queue discard persists across restart.
+
+Boolean values and strings are accepted. Strings are trimmed and lowercased: `true`, `yes` and
+`1` mean true; other strings mean false. Numeric, null, array and object values reject under the
+existing strict request profile. `setWebhook` and webhook delivery remain unsupported.
+
+The [startup tests](../../tests/test_polling_startup.py) and
+[independent contained bot](../../tests/test_polling_startup_round_trip.py) verify reset, retained
+state and subsequent delivery through actual HTTP. The bot fixture first reproduced HTTP 404;
+the integrated startup, polling and Bot API selection passes 38 cases in 27.39 seconds.
+Combined full-core acceptance remains pending for the current integration batch.
+
 ## Negative offsets
 
 An offset of `-N` keeps the last N queued updates by count and forgets older entries. The response

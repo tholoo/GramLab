@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by coordinator
-Blocked by: ticket 03 for green behavior; red fixture work is independent
+Work state: integrated; focused acceptance passed, combined batch gate pending
+Blocked by: none for focused acceptance
 
 Coordinator owns `tests/fixtures/polling_startup_bot.py`,
 `tests/probes/polling_startup_round_trip.py`, `tests/test_polling_startup_round_trip.py` and this
@@ -29,3 +29,8 @@ The independent contained bot passes `getMe`, then receives HTTP 404 for `delete
 unchanged core. The real fixture fails at that boundary in 1.22 seconds; its original JUnit and
 stderr are retained in ignored artifacts. Three new source files pass scoped Ruff/format/mypy
 after routine fixture formatting. Green acceptance waits for the worker branch; no guest was run.
+
+After worker integration the independent bot fixture passes in a 38-case combined startup,
+polling and Bot API selection (27.39 seconds). All complete transcript, reset snapshot, new
+delivery/response, event/history and restart observations pass. The original red result remains
+unchanged; the full-core batch gate is still pending.

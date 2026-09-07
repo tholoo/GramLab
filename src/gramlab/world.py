@@ -754,6 +754,15 @@ class World:
                 )
             ]
 
+    def discard_pending_updates(self, bot_id: int) -> int:
+        """Remove queued deliveries for one bot without resetting its update sequence."""
+        if not self.get_user(bot_id)["is_bot"]:
+            raise ValueError("Only bots have update queues")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            cursor = self._connection.execute("DELETE FROM updates WHERE bot_id=?", (bot_id,))
+            return cursor.rowcount
+
     def snapshot(self) -> dict[str, Any]:
         seed, now = self._connection.execute("SELECT seed, now FROM configuration").fetchone()
         return {

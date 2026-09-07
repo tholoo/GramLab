@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: integrated; focused acceptance passed, combined batch gate pending
 Blocked by: none; polling-only scope and shared contract frozen below
 
 A normal bot may call `deleteWebhook(drop_pending_updates=True)` before `getUpdates`. GramLab
@@ -27,8 +27,8 @@ Android, dependency, renderer, network or webhook-registration change is assigne
   restart; this operation is distinct from deleting messages or resetting a World.
 - JSON Boolean and form/query textual input follow the existing supported transport shapes.
   The pinned textual decoder lowercases/trims and recognizes `true`, `yes`, `1`; other text is
-  false. Resolve JSON non-Boolean handling explicitly from source or preserve a documented strict
-  typed boundary; do not use Python truthiness to turn arbitrary objects into deletion.
+  false. Strings use that decoder in JSON, form and query transports. Numeric, null, array and
+  object JSON values are rejected; do not use Python truthiness to turn them into deletion.
 - Deleting an absent webhook must not manufacture a same-bot long-poll conflict. Preserve an
   already waiting empty poll and prove a later arrival still completes it normally.
 - Wrong capability, malformed requests, repeated members/parameters and unsupported fields fail
@@ -61,3 +61,23 @@ mypy. No guest or full gate is assigned. Commit only owned files; return a froze
 precise observed limits and terminal resources. Leave the ticket claimed until coordinator review
 and integrated acceptance. Consumer source/code/names/configuration must remain out of this public
 repository; use independently authored generic fixtures.
+
+## Worker evidence
+
+- Three pre-implementation HTTP cases against an immutable copy of the assigned base returned
+  unsupported-method 404 instead of success; `/tmp/polling-startup-http-red.xml` retains that red
+  run. The public World method was absent as well.
+- The final focused suite passes 19 cases under the loopback-only outer network guard;
+  `/tmp/polling-startup-focused-final.xml` retains the result.
+- The new tests plus `test_update_delivery.py`, `test_polling.py` and `test_bot_api.py` pass 63
+  cases together under the same guard; `/tmp/polling-startup-regression.xml` retains the result.
+- Scoped Ruff check/format and mypy pass. These checks establish only the polling startup reset
+  contract; webhook registration/delivery, an external bot and Android were not exercised.
+- Review follow-up strengthened pending-callback preservation, exact callback-record retention and
+  JSON textual decoding; the focused suite passes 21 cases in
+  `/tmp/polling-startup-followup.xml`.
+
+Coordinator integration passes 38 startup, independent contained-bot, polling and Bot API tests
+in 27.39 seconds. The independent bot now clears an existing update, observes an empty queue,
+receives only the next arrival and responds while complete client/history/event state is retained.
+Original HTTP 404 evidence remains separate. The batch full-core gate remains pending.
