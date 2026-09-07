@@ -1,5 +1,5 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
-index 5bd5d9e..03bed3b 100644
+index 5bd5d9e..dcb4293 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 @@ -60,7 +60,7 @@ public final class GramLabBridge {
@@ -29,16 +29,21 @@ index 5bd5d9e..03bed3b 100644
          long result = nonnegative(value, key);
          require(result <= Integer.MAX_VALUE);
          return (int) result;
-@@ -97,7 +97,7 @@ public final class GramLabBridge {
+@@ -97,7 +97,12 @@ public final class GramLabBridge {
      }
  
      private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
 -        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
 +        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
++        boolean photoRecord = record.has("photo");
++        require(!record.has("caption") || photoRecord);
++        require(!record.has("caption_entities") || photoRecord);
++        require(!photoRecord || !record.has("entities"));
++        require(!record.has("rich_message") || !photoRecord && !record.has("caption") && !record.has("caption_entities"));
          long sender = identifier(record, "sender_id");
          require(sender == persona || sender == bot);
          TLRPC.TL_message message = new TLRPC.TL_message();
-@@ -116,9 +116,23 @@ public final class GramLabBridge {
+@@ -116,9 +121,26 @@ public final class GramLabBridge {
              require(sender == bot && message.message.isEmpty() && !record.has("entities"));
              message.rich_message = GramLabRichMessage.decode(record.getJSONObject("rich_message"));
              message.flags2 |= 1 << 13;
@@ -53,7 +58,10 @@ index 5bd5d9e..03bed3b 100644
 +            media.photo = GramLabMedia.photo(identifier(photoRecord, "asset_id"), message.date);
 +            media.flags |= 1;
 +            message.media = media;
-+            if (record.has("caption")) message.message = record.getString("caption");
++            if (record.has("caption")) {
++                require(record.get("caption") instanceof String);
++                message.message = record.getString("caption");
++            }
 +        } else message.media = new TLRPC.TL_messageMediaEmpty();
          message.flags = (1 << 8) | (1 << 9);
 +        if (record.has("caption_entities")) {
@@ -64,7 +72,7 @@ index 5bd5d9e..03bed3b 100644
          if (record.has("entities")) {
              message.entities = entities(record.getJSONArray("entities"), message.message);
              if (!message.entities.isEmpty()) message.flags |= 1 << 7;
-@@ -238,7 +252,7 @@ public final class GramLabBridge {
+@@ -238,7 +260,7 @@ public final class GramLabBridge {
      }
  
      private static JSONObject exchange(JSONObject configuration, String path, JSONObject parameters) throws Exception {
@@ -73,7 +81,7 @@ index 5bd5d9e..03bed3b 100644
          URL endpoint = new URL(configuration.getString("endpoint"));
          require("http".equals(endpoint.getProtocol())
                  && ("10.0.2.2".equals(endpoint.getHost()) || "127.0.0.1".equals(endpoint.getHost()))
-@@ -288,19 +302,25 @@ public final class GramLabBridge {
+@@ -288,19 +310,25 @@ public final class GramLabBridge {
          } finally {
              connection.disconnect();
          }
@@ -103,7 +111,7 @@ index 5bd5d9e..03bed3b 100644
          long cursor = nonnegative(body, "cursor");
          int now = integer(body, "now");
          TLRPC.TL_messages_dialogs dialogs = new TLRPC.TL_messages_dialogs();
-@@ -363,13 +383,22 @@ public final class GramLabBridge {
+@@ -363,13 +391,22 @@ public final class GramLabBridge {
          }
          require(users.size() == peersByChat.size() + 1);
          records = body.getJSONArray("messages");
@@ -127,7 +135,7 @@ index 5bd5d9e..03bed3b 100644
              long chat = identifier(record, "chat_id");
              require(peersByChat.containsKey(chat));
              long bot = peersByChat.get(chat);
-@@ -456,6 +485,21 @@ public final class GramLabBridge {
+@@ -456,6 +493,21 @@ public final class GramLabBridge {
          }
      }
  
@@ -149,13 +157,14 @@ index 5bd5d9e..03bed3b 100644
      private static long peerForChat(Snapshot state, long chat) {
          for (Map.Entry<Long, Long> entry : state.chatIdsByPeer.entrySet()) {
              if (entry.getValue() == chat) return entry.getKey();
-@@ -478,8 +522,11 @@ public final class GramLabBridge {
+@@ -478,8 +530,12 @@ public final class GramLabBridge {
  
      public static EventBatch events(JSONObject configuration, Snapshot state, long after, int limit) throws Exception {
          require(after >= 0 && after <= Integer.MAX_VALUE && limit > 0 && limit <= 1000);
 -        JSONObject body = exchange(configuration, "/v2/changes?after=" + after + "&limit=" + limit, null);
 -        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes");
 +        int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
++        GramLabMedia.beginRequest(configuration);
 +        JSONObject body = exchange(configuration, (version == 3 ? "/v3/changes" : "/v2/changes") + "?after=" + after + "&limit=" + limit, null);
 +        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes", "users", "assets");
 +        if (version == 3) { dependencyUsers(body.getJSONArray("users"), state); GramLabMedia.install(body.getJSONArray("assets")); }
@@ -163,7 +172,7 @@ index 5bd5d9e..03bed3b 100644
          int cursor = integer(body, "cursor");
          int head = integer(body, "head");
          require(cursor >= after && cursor <= head);
-@@ -489,7 +536,8 @@ public final class GramLabBridge {
+@@ -489,7 +545,8 @@ public final class GramLabBridge {
          long previous = after;
          for (int index = 0; index < records.length(); index++) {
              JSONObject record = records.getJSONObject(index);
@@ -173,12 +182,13 @@ index 5bd5d9e..03bed3b 100644
              int position = integer(record, "position");
              require(position == previous + 1 && position <= cursor);
              previous = position;
-@@ -637,15 +685,20 @@ public final class GramLabBridge {
+@@ -637,15 +694,21 @@ public final class GramLabBridge {
          long chat = state.chatIdsByPeer.get(query.peer.user_id);
          JSONObject parameters = new JSONObject().put("request_id", UUID.randomUUID().toString())
                  .put("chat_id", chat).put("message_id", query.msg_id).put("data", data);
 -        JSONObject body = exchange(configuration, "/v1/callbacks", parameters);
 +        int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
++        GramLabMedia.beginRequest(configuration);
 +        String callbackPath = version == 3 ? "/v3/callbacks" : "/v1/callbacks";
 +        JSONObject body = exchange(configuration, callbackPath, parameters);
          long deadline = SystemClock.elapsedRealtime() + 15000;
@@ -197,7 +207,7 @@ index 5bd5d9e..03bed3b 100644
              id = receivedId;
              require(identifier(record, "user_id") == state.persona && identifier(record, "chat_id") == chat
                      && identifier(record.getJSONObject("message"), "id") == query.msg_id
-@@ -655,7 +708,7 @@ public final class GramLabBridge {
+@@ -655,7 +718,7 @@ public final class GramLabBridge {
                  throw new IllegalStateException("GRAMLAB_CALLBACK_ANSWER_TIMEOUT");
              }
              Thread.sleep(100);
@@ -208,10 +218,10 @@ index 5bd5d9e..03bed3b 100644
  }
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
 new file mode 100644
-index 0000000..3570686
+index 0000000..6812eb8
 --- /dev/null
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,149 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +package org.telegram.gramlab;
 +
@@ -243,16 +253,30 @@ index 0000000..3570686
 +
 +    private static String worldId;
 +    private static JSONObject configuration;
++    private static long persona;
 +    private static final Map<Long, Asset> assets = new LinkedHashMap<>();
 +
 +    private GramLabMedia() {}
 +
 +    public static synchronized void beginWorld(JSONObject config, String world) throws JSONException {
-+        if (!world.equals(worldId)) {
++        long configuredPersona = GramLabBridge.identifier(config, "user_id");
++        if (!world.equals(worldId) || persona != configuredPersona) {
 +            assets.clear();
 +            worldId = world;
++            persona = configuredPersona;
 +        }
++        beginRequest(config);
++    }
++
++    public static synchronized void beginRequest(JSONObject config) throws JSONException {
++        int version = config.has("bridge_version") ? GramLabBridge.integer(config, "bridge_version") : 2;
++        if (version != 2 && version != 3) throw new IllegalArgumentException("GRAMLAB_BRIDGE_VERSION");
 +        configuration = new JSONObject(config.toString());
++    }
++
++    public static synchronized void requireVersion3() {
++        if (configuration == null || configuration.optInt("bridge_version", 2) != 3)
++            throw new IllegalArgumentException("GRAMLAB_BRIDGE_MEDIA_REQUIRES_V3");
 +    }
 +
 +    public static synchronized void install(JSONArray records) throws JSONException {
@@ -287,6 +311,7 @@ index 0000000..3570686
 +    }
 +
 +    public static TLRPC.TL_photo photo(long assetId, int date) {
++        requireVersion3();
 +        Asset asset = asset(assetId);
 +        if (asset == null) throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_ASSET");
 +        TLRPC.TL_fileLocationToBeDeprecated location = new TLRPC.TL_fileLocationToBeDeprecated();
@@ -341,13 +366,13 @@ index 0000000..3570686
 +                .put("file_size", size.size);
 +    }
 +
-+    public static boolean isSynthetic(org.telegram.messenger.ImageLocation location) {
-+        return location != null && location.location != null && location.dc_id == 0
-+                && location.location.dc_id == 0 && location.location.volume_id > 0 && location.location.local_id == 1;
++    public static boolean isReserved(org.telegram.messenger.ImageLocation location) {
++        return location != null && location.location != null
++                && (location.dc_id == 0 || location.location.dc_id == 0);
 +    }
 +}
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
-index ae536ef..0a8d2c2 100644
+index ae536ef..42c624e 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
 @@ -82,7 +82,9 @@ public final class GramLabRichMessage {
@@ -361,7 +386,7 @@ index ae536ef..0a8d2c2 100644
          return result;
      }
  
-@@ -180,6 +182,25 @@ public final class GramLabRichMessage {
+@@ -180,6 +182,26 @@ public final class GramLabRichMessage {
          return result;
      }
  
@@ -372,9 +397,10 @@ index ae536ef..0a8d2c2 100644
 +        } else if (value instanceof JSONObject) {
 +            JSONObject object = (JSONObject) value;
 +            if ("photo".equals(object.optString("type"))) {
-+                long id = GramLabBridge.positiveIdentifier(object, "asset_id");
-+                for (org.telegram.tgnet.TLRPC.Photo photo : result.photos) require(photo.id != id);
-+                result.photos.add(GramLabMedia.photo(id, 0));
++                long id = GramLabBridge.identifier(object, "asset_id");
++                boolean present = false;
++                for (org.telegram.tgnet.TLRPC.Photo photo : result.photos) present |= photo.id == id;
++                if (!present) result.photos.add(GramLabMedia.photo(id, 0));
 +            }
 +            Iterator<String> keys = object.keys();
 +            while (keys.hasNext()) {
@@ -387,14 +413,14 @@ index ae536ef..0a8d2c2 100644
      private static TL_iv.RichText text(Object value) throws JSONException {
          if (value instanceof String) {
              TL_iv.textPlain result = new TL_iv.textPlain();
-@@ -290,6 +311,22 @@ public final class GramLabRichMessage {
+@@ -290,6 +312,22 @@ public final class GramLabRichMessage {
                  pre.language = record.has("language") ? string(record, "language") : "";
                  return pre;
              }
 +            case "photo": {
 +                fields(record, "type", "asset_id", "caption");
 +                TL_iv.pageBlockPhoto photo = new TL_iv.pageBlockPhoto();
-+                photo.photo_id = GramLabBridge.positiveIdentifier(record, "asset_id");
++                photo.photo_id = GramLabBridge.identifier(record, "asset_id");
 +                photo.caption = new TL_iv.PageCaption();
 +                photo.caption.text = new TL_iv.textEmpty();
 +                photo.caption.credit = new TL_iv.textEmpty();
@@ -411,7 +437,7 @@ index ae536ef..0a8d2c2 100644
                  fields(record, "type");
                  return new TL_iv.pageBlockDivider();
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
-index 87465e9..d169f07 100644
+index 87465e9..6d812cd 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
 @@ -8,6 +8,9 @@
@@ -445,26 +471,34 @@ index 87465e9..d169f07 100644
          LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);
          Runnable runnable = uiObject != null ? uiObject.loadInternalRunnable : null;
          boolean removed = uiObject != null;
-@@ -757,6 +767,117 @@ public class FileLoader extends BaseController {
+@@ -757,6 +767,143 @@ public class FileLoader extends BaseController {
          }
      }
  
 +    private final class SyntheticPhotoLoad implements Runnable {
 +        final String fileName;
 +        final GramLabMedia.Asset asset;
++        final JSONObject configuration;
 +        final Object parentObject;
 +        final File temporary;
 +        final File target;
-+        volatile boolean canceled;
-+        volatile java.net.HttpURLConnection connection;
-+        boolean terminal;
++        private boolean canceled;
++        private boolean terminal;
++        private java.net.HttpURLConnection connection;
 +
-+        SyntheticPhotoLoad(String fileName, GramLabMedia.Asset asset, Object parentObject, File target) {
-+            this.fileName = fileName; this.asset = asset; this.parentObject = parentObject; this.target = target;
-+            this.temporary = new File(target.getParentFile(), fileName + ".gramlab-part");
++        SyntheticPhotoLoad(String fileName, GramLabMedia.Asset asset, JSONObject configuration,
++                Object parentObject, File target) {
++            this.fileName = fileName; this.asset = asset; this.configuration = configuration;
++            this.parentObject = parentObject; this.target = target;
++            this.temporary = new File(target.getParentFile(), fileName + ".gramlab-" + java.util.UUID.randomUUID() + ".part");
 +        }
 +
-+        synchronized boolean finish() { if (terminal) return false; terminal = true; return true; }
++        private synchronized boolean attach(java.net.HttpURLConnection value) {
++            if (terminal || canceled) return false;
++            connection = value;
++            return true;
++        }
++
 +        synchronized void cancel(boolean deleteFile) {
 +            if (terminal) return;
 +            canceled = true; terminal = true;
@@ -472,65 +506,76 @@ index 87465e9..d169f07 100644
 +            if (active != null) active.disconnect();
 +            temporary.delete();
 +            if (deleteFile) target.delete();
-+            syntheticPhotoLoads.remove(fileName, this); loadOperationPathsUI.remove(fileName);
++            loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
 +            GramLabMedia.trace("media_load_cancel", asset.id, fileName, asset.size, false);
 +            if (delegate != null) delegate.fileDidFailedLoad(fileName, 1);
 +        }
-+        void terminalFailure(int reason, String event) {
-+            if (!finish()) return;
-+            syntheticPhotoLoads.remove(fileName, this);
-+            loadOperationPathsUI.remove(fileName);
-+            temporary.delete();
-+            GramLabMedia.trace(event, asset.id, fileName, asset.size, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, reason);
++
++        private void fail() {
++            boolean wasCanceled;
++            synchronized (this) {
++                if (terminal) return;
++                wasCanceled = canceled;
++                terminal = true;
++            }
++            loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
++            GramLabMedia.trace(wasCanceled ? "media_load_cancel" : "media_load_failure",
++                    asset.id, fileName, asset.size, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, wasCanceled ? 1 : 0);
 +        }
++
 +        @Override public void run() {
-+            java.security.MessageDigest digest;
++            java.net.HttpURLConnection active = null;
 +            try {
-+                digest = java.security.MessageDigest.getInstance("SHA-256");
-+                JSONObject config = GramLabMedia.configuration();
-+                java.net.URL endpoint = new java.net.URL(config.getString("endpoint"));
++                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
++                java.net.URL endpoint = new java.net.URL(configuration.getString("endpoint"));
 +                java.net.URL targetUrl = new java.net.URL(endpoint, "/v3/assets/" + asset.id);
-+                connection = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
-+                connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(3000); connection.setReadTimeout(5000);
-+                connection.setUseCaches(false); connection.setRequestProperty("Authorization", "Bearer " + config.getString("capability"));
-+                connection.setRequestProperty("Accept", asset.mimeType); connection.setRequestProperty("Connection", "close");
-+                int status = connection.getResponseCode();
-+                if (status != 200 || connection.getContentLengthLong() != asset.size
-+                        || !asset.mimeType.equals(connection.getContentType())) throw new java.io.IOException("asset_response");
++                active = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
++                if (!attach(active)) return;
++                active.setInstanceFollowRedirects(false); active.setConnectTimeout(3000); active.setReadTimeout(5000);
++                active.setUseCaches(false); active.setRequestProperty("Authorization", "Bearer " + configuration.getString("capability"));
++                active.setRequestProperty("Accept", asset.mimeType); active.setRequestProperty("Connection", "close");
++                int status = active.getResponseCode();
++                if (status != 200 || active.getContentLengthLong() != asset.size
++                        || !asset.mimeType.equals(active.getContentType())) throw new java.io.IOException("asset_response");
 +                long count = 0; byte[] buffer = new byte[8192];
-+                try (java.io.InputStream input = connection.getInputStream(); java.io.FileOutputStream output = new java.io.FileOutputStream(temporary)) {
++                synchronized (this) { if (terminal || canceled) return; }
++                try (java.io.InputStream input = active.getInputStream(); java.io.FileOutputStream output = new java.io.FileOutputStream(temporary)) {
 +                    int read;
 +                    while ((read = input.read(buffer)) != -1) {
-+                        if (canceled || count + read > asset.size) throw new java.io.InterruptedIOException();
++                        synchronized (this) { if (terminal || canceled) return; }
++                        if (count + read > asset.size) throw new java.io.IOException("asset_oversized");
 +                        output.write(buffer, 0, read); digest.update(buffer, 0, read); count += read;
 +                        if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, asset.size);
 +                    }
 +                    output.getFD().sync();
 +                }
-+                boolean digestOk = count == asset.size && GramLabMedia.hex(digest.digest()).equals(asset.sha256);
-+                if (!digestOk || canceled) throw new java.io.IOException("asset_integrity");
++                if (count != asset.size || !GramLabMedia.hex(digest.digest()).equals(asset.sha256))
++                    throw new java.io.IOException("asset_integrity");
 +                synchronized (this) {
-+                    if (canceled || terminal) throw new java.io.InterruptedIOException();
-+                    java.nio.file.Files.move(temporary.toPath(), target.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
++                    if (terminal || canceled) return;
++                    java.nio.file.Files.move(temporary.toPath(), target.toPath(),
++                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
++                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 +                    terminal = true;
 +                }
-+                syntheticPhotoLoads.remove(fileName, this); loadOperationPathsUI.remove(fileName);
++                loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
 +                GramLabMedia.trace("media_load_success", asset.id, fileName, asset.size, true);
 +                if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
-+            } catch (java.io.InterruptedIOException error) {
-+                terminalFailure(1, "media_load_cancel");
 +            } catch (Exception error) {
-+                terminalFailure(0, "media_load_failure");
++                fail();
 +            } finally {
-+                if (connection != null) connection.disconnect();
++                if (active != null) active.disconnect();
++                temporary.delete();
++                syntheticPhotoLoads.remove(fileName, this);
 +            }
 +        }
 +    }
 +
 +    private void loadSyntheticPhoto(ImageLocation location, Object parentObject, String ext, int cacheType) {
 +        String fileName = getAttachFileName(location.location, ext);
-+        GramLabMedia.Asset asset = GramLabMedia.asset(location.location.volume_id);
++        GramLabMedia.Asset asset = location.location.volume_id > 0 && location.location.local_id == 1
++                ? GramLabMedia.asset(location.location.volume_id) : null;
 +        if (asset == null) {
 +            GramLabMedia.trace("media_load_failure", location.location.volume_id, fileName, 0, false);
 +            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
@@ -548,7 +593,14 @@ index 87465e9..d169f07 100644
 +            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
 +            return;
 +        }
-+        SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, asset, parentObject, target);
++        JSONObject configuration;
++        try { configuration = GramLabMedia.configuration(); }
++        catch (Exception error) {
++            GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++            return;
++        }
++        SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, asset, configuration, parentObject, target);
 +        SyntheticPhotoLoad existing = syntheticPhotoLoads.putIfAbsent(fileName, load);
 +        if (existing != null) {
 +            GramLabMedia.trace("media_load_coalesced", asset.id, fileName, asset.size, false);
@@ -563,11 +615,11 @@ index 87465e9..d169f07 100644
      public File getLocalFile(ImageLocation imageLocation) {
          if (imageLocation == null) return null;
          String fileName;
-@@ -791,6 +912,10 @@ public class FileLoader extends BaseController {
+@@ -791,6 +938,10 @@ public class FileLoader extends BaseController {
          if (imageLocation == null) {
              return;
          }
-+        if (GramLabMedia.isSynthetic(imageLocation)) {
++        if (GramLabMedia.isReserved(imageLocation)) {
 +            loadSyntheticPhoto(imageLocation, parentObject, ext, cacheType);
 +            return;
 +        }
@@ -575,10 +627,34 @@ index 87465e9..d169f07 100644
              cacheType = 1;
          }
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
-index 73815bc..8872682 100644
+index 73815bc..843061f 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
-@@ -2230,7 +2230,7 @@ public class ImageLoader {
+@@ -132,6 +132,7 @@ public class ImageLoader {
+     private DispatchQueue imageLoadQueue = new DispatchQueue("imageLoadQueue");
+     private HashMap<String, String> replacedBitmaps = new HashMap<>();
+     private ConcurrentHashMap<String, long[]> fileProgresses = new ConcurrentHashMap<>();
++    private ConcurrentHashMap<String, Long> syntheticProgressTimes = new ConcurrentHashMap<>();
+     private HashMap<String, ThumbGenerateTask> thumbGenerateTasks = new HashMap<>();
+     private HashMap<String, Integer> forceLoadingImages = new HashMap<>();
+     private static ThreadLocal<byte[]> bytesLocal = new ThreadLocal<>();
+@@ -2188,6 +2189,7 @@ public class ImageLoader {
+                 @Override
+                 public void fileDidLoaded(final String location, final File finalFile, Object parentObject, final int type) {
+                     fileProgresses.remove(location);
++                    syntheticProgressTimes.remove(location);
+                     AndroidUtilities.runOnUIThread(() -> {
+                         if (finalFile != null && (location.endsWith(".mp4") || location.endsWith(".jpg"))) {
+                             FilePathDatabase.FileMeta meta = FileLoader.getFileMetadataFromParent(currentAccount, parentObject);
+@@ -2220,6 +2222,7 @@ public class ImageLoader {
+                 @Override
+                 public void fileDidFailedLoad(final String location, final int canceled) {
+                     fileProgresses.remove(location);
++                    syntheticProgressTimes.remove(location);
+                     AndroidUtilities.runOnUIThread(() -> {
+                         ImageLoader.this.fileDidFailedLoad(location, canceled);
+                         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.fileLoadFailed, location, canceled);
+@@ -2230,7 +2233,7 @@ public class ImageLoader {
                  public void fileLoadProgressChanged(FileLoadOperation operation, final String location, long uploadedSize, long totalSize) {
                      fileProgresses.put(location, new long[]{uploadedSize, totalSize});
  
@@ -587,14 +663,77 @@ index 73815bc..8872682 100644
                          imageLoadQueue.postRunnable(() -> {
                              CacheImage img = imageLoadingByUrlPframe.remove(location);
                              if (img == null) {
-@@ -2279,8 +2279,8 @@ public class ImageLoader {
+@@ -2279,9 +2282,14 @@ public class ImageLoader {
                          });
                      }
                      long currentTime = SystemClock.elapsedRealtime();
 -                    if (operation.lastProgressUpdateTime == 0 || operation.lastProgressUpdateTime < currentTime - 500 || uploadedSize == 0) {
 -                        operation.lastProgressUpdateTime = currentTime;
-+                    if (operation == null || operation.lastProgressUpdateTime == 0 || operation.lastProgressUpdateTime < currentTime - 500 || uploadedSize == totalSize) {
+-
++                    Long syntheticTime = operation == null ? syntheticProgressTimes.get(location) : null;
++                    boolean notify = operation != null
++                            ? operation.lastProgressUpdateTime == 0 || operation.lastProgressUpdateTime < currentTime - 500 || uploadedSize == 0
++                            : syntheticTime == null || syntheticTime < currentTime - 500 || uploadedSize == totalSize;
++                    if (notify) {
 +                        if (operation != null) operation.lastProgressUpdateTime = currentTime;
- 
++                        else if (uploadedSize == totalSize) syntheticProgressTimes.remove(location);
++                        else syntheticProgressTimes.put(location, currentTime);
                          AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.fileLoadProgressChanged, location, uploadedSize, totalSize));
                      }
+                 }
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+index 93d3014..2ad5c4c 100644
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -162,6 +162,24 @@ public final class BridgeProbe {
+             if (!language.isEmpty()) result.put("language", language);
+             return result;
+         }
++        if (block instanceof TL_iv.pageBlockPhoto) {
++            TL_iv.pageBlockPhoto photo = (TL_iv.pageBlockPhoto) block;
++            if (photo.flags != 0 || photo.spoiler || photo.url != null || photo.webpage_id != 0)
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_PHOTO_FLAGS");
++            result.put("type", "photo").put("asset_id", photo.photo_id);
++            boolean text = photo.caption != null && photo.caption.text != null
++                    && !(photo.caption.text instanceof TL_iv.textEmpty)
++                    && !(photo.caption.text instanceof TL_iv.textPlain && ((TL_iv.textPlain) photo.caption.text).text.isEmpty());
++            boolean credit = photo.caption != null && photo.caption.credit != null
++                    && !(photo.caption.credit instanceof TL_iv.textEmpty)
++                    && !(photo.caption.credit instanceof TL_iv.textPlain && ((TL_iv.textPlain) photo.caption.credit).text.isEmpty());
++            if (text || credit) {
++                JSONObject caption = new JSONObject().put("text", richText(photo.caption.text));
++                if (credit) caption.put("credit", richText(photo.caption.credit));
++                result.put("caption", caption);
++            }
++            return result;
++        }
+         if (block instanceof TL_iv.pageBlockDivider) return result.put("type", "divider");
+         if (block instanceof TL_iv.pageBlockBlockquoteBlocks) {
+             TL_iv.pageBlockBlockquoteBlocks quote = (TL_iv.pageBlockBlockquoteBlocks) block;
+@@ -255,10 +273,15 @@ public final class BridgeProbe {
+     }
+ 
+     private static JSONObject richMessage(TL_iv.RichMessage value) throws Exception {
+-        if (value.part || !value.photos.isEmpty() || !value.documents.isEmpty()) {
++        if (value.part || !value.documents.isEmpty()) {
+             throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_RICH_MEDIA");
+         }
+         JSONObject result = new JSONObject().put("blocks", richBlocks(value.blocks));
++        if (!value.photos.isEmpty()) {
++            JSONArray photos = new JSONArray();
++            for (TLRPC.Photo photo : value.photos) photos.put(GramLabMedia.describePhoto(photo));
++            result.put("native_photos", photos);
++        }
+         if (value.rtl) result.put("is_rtl", true);
+         return result;
+     }
+@@ -319,6 +342,9 @@ public final class BridgeProbe {
+                 if (message.rich_message != null) {
+                     observed.put("rich_message", richMessage(message.rich_message));
+                 }
++                if (message.media instanceof TLRPC.TL_messageMediaPhoto) {
++                    observed.put("native_photo", GramLabMedia.describePhoto(message.media.photo));
++                }
+                 messages.put(observed);
+             }
+         }

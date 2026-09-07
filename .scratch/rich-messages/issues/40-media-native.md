@@ -56,3 +56,11 @@ Immutable normal16 preimages used for the patch have SHA-256 values
 The patch applies to these copies with `patch --dry-run --batch --fuzz=0 -p1`. This worker did not
 compile, build an APK or run a guest; coordinator-owned build, transfer faults, original rendering,
 cache bytes, cancellation and retry remain required acceptance evidence.
+
+Follow-up review adds the immutable BridgeProbe preimage
+`3424cba845735756c3113dd92e61368c0c0ebd7775c14f585cfd4c1d2c406baf` and corrects cancellation,
+retry ownership, failure reasons, strict mixed-version media rejection, repeated rich-photo reuse
+and message field combinations. Its ordinary-message observation adds `native_photo`; a rich
+message adds canonical photo blocks and `native_photos`. Each native photo object is exactly
+`asset_id`, `dc_id`, `access_hash`, `file_reference_bytes`, `size_type`, `volume_id`, `local_id`,
+`width`, `height`, and `file_size`. Existing non-media probe output remains unchanged.
