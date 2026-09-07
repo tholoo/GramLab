@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: focused acceptance passed; combined native inventory running
+Work state: resolved
 Blocked by: tickets 29/30 for green behavior; red fixtures are independent
 
 Coordinator owns `tests/fixtures/rich-links-scene.json`,
@@ -60,3 +60,19 @@ PNGs and desktop/mobile reports were inspected; embedded bytes match, all images
 use milliseconds, and neither viewport overflows or requests external resources. The remaining
 43 Android cases run on the same immutable APK after verifying retained source/profile/import
 inputs; full 45-case acceptance remains pending.
+
+
+## Combined integration acceptance
+
+The corrected normal16 inventory passes all 45 distinct Android cases: two focused rich-link
+cases in 135.98 seconds plus the remaining 43 in 2525.72 seconds. The coordinator independently
+verifies exact collection coverage with no duplicate or missing cases, unchanged source/fixtures,
+APK and runtime profiles, and the primary checkout import. This is resumed coverage on one
+immutable APK, not one uninterrupted run. No earlier contaminated result is reused.
+
+The 447-case core gate passes at 81.18% coverage, and applicable static/workflow checks pass.
+Fresh quoted-code edit/restart and list restart PNGs were inspected alongside the already reviewed
+rich-link originals and reports. Original missing-field, disk-space, late-launch and import
+failures remain retained; passing this gate does not establish their broader causes as fixed.
+The assigned feature/fix is integrated and accepted. Media, mentions, automatic rich detection,
+custom emoji and the full operational milestone remain unfinished.

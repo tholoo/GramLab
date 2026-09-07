@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by native worker
+Work state: resolved
 Blocked by: none; normal15 failure retained
 
 Normal15 successfully serializes the baseline, initial/edited scenes and three URL metadata
@@ -50,3 +50,19 @@ verification pass. The normal16 strict offline build passes in 1 minute 59 secon
 8 executed), and APK signature/source-digest checks pass. Native codec and real-bot rendering
 both pass in 135.98 seconds, including all 29 invalid records and 11 valid shapes. The original
 failure reports remain unchanged. The remaining43 combined gate is running on this APK.
+
+
+## Combined integration acceptance
+
+The corrected normal16 inventory passes all 45 distinct Android cases: two focused rich-link
+cases in 135.98 seconds plus the remaining 43 in 2525.72 seconds. The coordinator independently
+verifies exact collection coverage with no duplicate or missing cases, unchanged source/fixtures,
+APK and runtime profiles, and the primary checkout import. This is resumed coverage on one
+immutable APK, not one uninterrupted run. No earlier contaminated result is reused.
+
+The 447-case core gate passes at 81.18% coverage, and applicable static/workflow checks pass.
+Fresh quoted-code edit/restart and list restart PNGs were inspected alongside the already reviewed
+rich-link originals and reports. Original missing-field, disk-space, late-launch and import
+failures remain retained; passing this gate does not establish their broader causes as fixed.
+The assigned feature/fix is integrated and accepted. Media, mentions, automatic rich detection,
+custom emoji and the full operational milestone remain unfinished.

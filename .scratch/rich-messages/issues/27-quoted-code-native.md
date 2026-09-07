@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: none for patch implementation; coordinator owns integrated native acceptance
 
 Follow [the frozen core/native contract](../../../docs/development/quoted-code-formatting.md) and
@@ -35,3 +35,19 @@ source, only `GramLabBridge.java` differs under `TMessagesProj/src`. All 1,471 o
 files and 5,195 original resource files match acquired upstream byte-for-byte, and the source lock
 and dependency-verification metadata are unchanged. This is preparation/source evidence only;
 the coordinator still owns compilation, old/new codec behavior and real Android acceptance.
+
+
+## Combined integration acceptance
+
+The corrected normal16 inventory passes all 45 distinct Android cases: two focused rich-link
+cases in 135.98 seconds plus the remaining 43 in 2525.72 seconds. The coordinator independently
+verifies exact collection coverage with no duplicate or missing cases, unchanged source/fixtures,
+APK and runtime profiles, and the primary checkout import. This is resumed coverage on one
+immutable APK, not one uninterrupted run. No earlier contaminated result is reused.
+
+The 447-case core gate passes at 81.18% coverage, and applicable static/workflow checks pass.
+Fresh quoted-code edit/restart and list restart PNGs were inspected alongside the already reviewed
+rich-link originals and reports. Original missing-field, disk-space, late-launch and import
+failures remain retained; passing this gate does not establish their broader causes as fixed.
+The assigned feature/fix is integrated and accepted. Media, mentions, automatic rich detection,
+custom emoji and the full operational milestone remain unfinished.

@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: integrated and compiled; native acceptance pending
+Work state: resolved
 Blocked by: none; canonical shared contract frozen
 
 Follow [the contract](../../../docs/development/rich-links-contract.md). Native worker owns only
@@ -54,3 +54,19 @@ rich-link scene in 60.26 seconds. Normal15 codec/rendering and combined native a
 Normal15 reveals the missing-field bug tracked in ticket 32. The corrected normal16 APK passes
 the complete 11-valid/29-invalid codec and real-bot rendering/edit/restart pair in 135.98 seconds,
 with original images and reports inspected. The remaining43 combined native gate is running.
+
+
+## Combined integration acceptance
+
+The corrected normal16 inventory passes all 45 distinct Android cases: two focused rich-link
+cases in 135.98 seconds plus the remaining 43 in 2525.72 seconds. The coordinator independently
+verifies exact collection coverage with no duplicate or missing cases, unchanged source/fixtures,
+APK and runtime profiles, and the primary checkout import. This is resumed coverage on one
+immutable APK, not one uninterrupted run. No earlier contaminated result is reused.
+
+The 447-case core gate passes at 81.18% coverage, and applicable static/workflow checks pass.
+Fresh quoted-code edit/restart and list restart PNGs were inspected alongside the already reviewed
+rich-link originals and reports. Original missing-field, disk-space, late-launch and import
+failures remain retained; passing this gate does not establish their broader causes as fixed.
+The assigned feature/fix is integrated and accepted. Media, mentions, automatic rich detection,
+custom emoji and the full operational milestone remain unfinished.

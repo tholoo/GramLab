@@ -79,6 +79,8 @@ Account-free component/network isolation assertions pass; no link is opened.
 
 All three original PNGs were inspected. Desktop and mobile reports load three 320-by-640 images,
 use millisecond timings and have no horizontal overflow or external resources. Embedded PNG
-digests match the originals. The 43 remaining Android cases are running on the same immutable
-normal16 APK after verifying all retained source, runtime-profile and import inputs. Combined
-45-case acceptance is not yet claimed.
+digests match the originals. The 43 remaining Android cases pass in 2525.72 seconds on the same
+immutable normal16 APK. Independent reconciliation verifies all 45 distinct collected cases,
+unchanged source/fixtures/APK/runtime profiles and the primary checkout import. This is two
+retained focused passes plus 43 continued passes, not one uninterrupted run. No earlier
+contaminated pass is reused. The original failure reports remain retained.

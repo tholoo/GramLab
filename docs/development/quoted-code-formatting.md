@@ -43,7 +43,16 @@ evidence. The old normal APK must reject a valid quoted-code fixture at the nati
 the new APK must accept it and preserve the independent malformed rejections. Fresh preparation
 and source comparison must show that only the adapter changes, with original rendering preserved.
 
-## Current verification
+## Current combined acceptance
+
+The corrected normal16 gate passes all 45 Android cases: two focused rich-link cases plus 43
+continued cases in 2525.72 seconds. The coordinator verifies exact collection coverage and
+unchanged source, APK, runtime profiles and primary imports, without reusing contaminated passes.
+Fresh quoted-code edit/restart and list restart PNGs were inspected. Tickets 26/27 are resolved;
+the latest full core gate passes 447 cases at 81.18% coverage. This is resumed coverage, and the
+earlier failed trials below remain preserved rather than relabeled green.
+
+## Feature verification and retained trial history
 
 The independent real-bot send fails on the old core with HTTP 400 in 0.99 seconds. After the
 core merge, 37 focused World/HTTP/real-bot tests pass, including the unchanged rich harness
@@ -98,5 +107,5 @@ checkout before this continuation and the isolated list control. On-disk source 
 verify host import origin. Original counts, images and failed reports remain unchanged. The
 earlier 411-case core run and focused quoted-code rendering precede that environment change.
 The [checkout guard correction](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
-repairs the install and rejects wrong imports before collection. Combined native acceptance must
-be repeated on the next integrated normal APK; tickets 26/27 remain pending that gate.
+repairs the install and rejects wrong imports before collection. This required repeating combined
+native acceptance on the next integrated normal APK; the corrected result is recorded above.

@@ -36,7 +36,8 @@ offline safety, licensing and completion requirements before the corresponding a
   later 27-case continuation reports all passes, but its combined acceptance was invalidated by
   a wrong host editable import. The same qualification applies to the isolated list control.
   Earlier core and focused quoted-code rendering precede the environment change. Original disk
-  and late-launch failures remain recorded. Tickets 26/27 await the corrected combined gate.
+  and late-launch failures remain recorded. The corrected 45-case normal16 gate now passes;
+  tickets 26/27 are resolved without reusing contaminated results.
 - [Polling startup](../../.scratch/update-delivery/issues/03-polling-startup-reset.md) and
   [structured rich-link core](rich-links-contract.md) are integrated. After repairing the editable
   install, 144 combined feature tests pass, including independent contained bots and public
@@ -50,8 +51,9 @@ offline safety, licensing and completion requirements before the corresponding a
   adds required-field checks in patch 0016; the reviewed fix compiles offline in 1 minute 59 seconds.
   Both focused native tests pass in 135.98 seconds: all 11 valid/29 malformed codec cases and
   real-bot original rendering/live edit/cold restart. Three original PNGs and desktop/mobile
-  reports were inspected. The remaining 43 cases of the 45-case inventory are running on the
-  same normal16 APK with source/profile/import equivalence verified. No destination is opened.
+  reports were inspected. The remaining 43 cases pass in 2525.72 seconds on the same normal16
+  APK. Independent reconciliation proves exact 45-case coverage with unchanged source, APK,
+  profiles and imports. Tickets 30/31/32 are resolved. No destination is opened.
 - [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
   rejects another worktree's editable package before test collection. Always provision through
   the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
@@ -85,11 +87,11 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Surface | Current evidence and next boundary |
 | --- | --- |
 | Normal rich messages | Structured blocks, inline formatting, effects, lists and callback/copy/disabled representation reach the original renderer. See [rich API](rich-messages.md), [projection](android-rich-projection.md), [list sources](rich-list-references.md) and [actions](rich-buttons-contract.md). Media and broader content remain open. |
-| Normal Android inventory | The same immutable 13-patch APK covers all 41 cases: 19 retained passes plus 22 continuation passes after correcting the old preformatted-tab fixture. This is resumed coverage, not one uninterrupted green run. See [ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md). |
+| Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the integration batch. Later native fixture diagnostics pass focused static checks; current configuration/local links pass across 155 Markdown files. |
+| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the integration batch. Later native fixture diagnostics pass focused static checks; current configuration/local links pass across 160 Markdown files. |
 | Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Deterministic generation/static checks pass. Pinned [photo source research](rich-photo-references.md) is integrated. This establishes fixtures/contracts, not media API or native photo support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
@@ -99,8 +101,8 @@ stale input, offscreen/long-press behavior and atomic observation/input remain o
 
 The old native continuation, repeated old-APK red, core, static and workflow checks are terminal.
 Normal15/16 builds, required-field reds, focused native acceptance and report preview are terminal.
-The remaining43 native suite is live; poll its exact handle and preserve source inputs while it
-runs. Worker
+The remaining43 native suite and independent combined-coverage verification are terminal and
+passing. Original custom-emoji fixture work is active in its isolated worktree; other implementation
 branches remain frozen, with coordinator-owned integration and acceptance. Host paths, handles,
 fingerprints and artifact locations stay in ignored local notes.
 
