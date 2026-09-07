@@ -27,6 +27,7 @@ DIRECTORY = "files/gramlab/"
 def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     experiment: dict[str, Any] = {"taps": [], "age_limit_ms": AGE_LIMIT_MS}
     activation: dict[str, Any] = {}
+    binding: dict[str, Any] = {}
     expected = json.loads(Path("action-expected.json").read_text())["world_initial"]
     original_state: tuple[dict[str, Any], list[dict[str, Any]]] | None = None
 
@@ -63,7 +64,8 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
         experiment.setdefault("activations", []).append(dict(activation))
 
     def configured(configuration: dict[str, Any]) -> None:
-        nonlocal original_state
+        nonlocal original_state, binding
+        binding = {key: configuration[key] for key in ("world_id", "user_id")}
         original_state = world_state()
         snapshot = original_state[0]
         if (
@@ -73,7 +75,6 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
             or snapshot["messages"][1] != expected
         ):
             raise RuntimeError("Experimental activation does not match the real initial world")
-        activate(configuration, expected["id"] + 1000000)
 
     def clock_and_pid() -> tuple[int, int]:
         process = adb("shell", "pidof", PACKAGE).split()
@@ -175,17 +176,9 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
                 raise RuntimeError("Original rectangle lies outside the pinned guest viewport")
         return dict(targets[index])
 
-    def initial(_: str) -> None:
-        wrong = sample_after(0, unavailable=True)
-        wrong_now, wrong_pid = fresh(wrong, 0)
-        experiment["wrong_checked_uptime_ms"] = wrong_now
-        experiment["wrong_checked_pid"] = wrong_pid
-        experiment["wrong_identity"] = wrong
-        experiment["wrong_identity_unchanged"] = original_state == world_state()
-        if not experiment["wrong_identity_unchanged"]:
-            raise RuntimeError("Wrong identity observation changed authoritative state")
+    def restart_with_activation(name: str, message_id: int) -> None:
         adb("shell", "am", "force-stop", PACKAGE)
-        activate(activation, expected["id"])
+        activate(binding, message_id)
         launch = adb(
             "shell",
             "am",
@@ -200,10 +193,40 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
             "2",
             timeout=40,
         )
-        Path("correct-launch.log").write_text(launch)
-        experiment["correct_launch"] = launch
+        Path(name + "-launch.log").write_text(launch)
+        experiment[name + "_launch"] = launch
         if "Status: ok" not in launch or "LaunchState: COLD" not in launch:
-            raise RuntimeError("Correct activation did not cold launch successfully")
+            raise RuntimeError("Experimental activation did not cold launch successfully")
+
+    def initial(_: str) -> None:
+        # A successful directory listing distinguishes absence from an unreadable app directory.
+        files = set(adb("shell", "run-as", PACKAGE, "ls", "-1", DIRECTORY).splitlines())
+        now, pid = clock_and_pid()
+        absent = {
+            "pid": pid,
+            "checked_uptime_ms": now,
+            "activation_present": "rich-action-geometry.json" in files,
+            "geometry_present": "rich-action-geometry-result.json" in files,
+            "world_unchanged": original_state == world_state(),
+        }
+        experiment["absent_activation"] = absent
+        if (
+            absent["activation_present"]
+            or absent["geometry_present"]
+            or not absent["world_unchanged"]
+        ):
+            raise RuntimeError("Absent activation exposed geometry or changed authoritative state")
+        restart_with_activation("wrong", expected["id"] + 1000000)
+        capture("before-wrong")
+        wrong = sample_after(0, unavailable=True)
+        wrong_now, wrong_pid = fresh(wrong, 0)
+        experiment["wrong_checked_uptime_ms"] = wrong_now
+        experiment["wrong_checked_pid"] = wrong_pid
+        experiment["wrong_identity"] = wrong
+        experiment["wrong_identity_unchanged"] = original_state == world_state()
+        if not experiment["wrong_identity_unchanged"] or wrong_pid == pid:
+            raise RuntimeError("Wrong identity changed authoritative state or reused its process")
+        restart_with_activation("correct", expected["id"])
         sample_after(0)  # Wait for actual stable drawing before asking UIAutomator to capture.
         minimum = 0
         process = None

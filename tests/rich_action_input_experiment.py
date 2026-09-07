@@ -310,9 +310,24 @@ def test_experimental_original_row_and_inline_callback_taps(tmp_path: Path) -> N
             ],
         }
     assert "Accounts: 0" in client["accounts"]
-    for launch in [*client["launches"].values(), observed["input"]["correct_launch"]]:
+    for launch in [
+        *client["launches"].values(),
+        observed["input"]["wrong_launch"],
+        observed["input"]["correct_launch"],
+    ]:
         assert "Status: ok" in launch and "LaunchState: COLD" in launch
     experiment = observed["input"]
+    absent = experiment["absent_activation"]
+    assert absent == {
+        "pid": absent["pid"],
+        "checked_uptime_ms": absent["checked_uptime_ms"],
+        "activation_present": False,
+        "geometry_present": False,
+        "world_unchanged": True,
+    }
+    assert type(absent["pid"]) is int and absent["pid"] > 0
+    assert type(absent["checked_uptime_ms"]) is int and absent["checked_uptime_ms"] > 0
+    assert absent["pid"] != experiment["wrong_identity"]["pid"]
     assert experiment["wrong_identity"]["available"] is False
     assert experiment["wrong_identity"]["reason"] == "message_not_unique_or_visible"
     assert experiment["wrong_identity_unchanged"] is True
@@ -362,7 +377,7 @@ def test_experimental_original_row_and_inline_callback_taps(tmp_path: Path) -> N
         left, top, right, bottom = tap["target"]["screen_bounds"]
         assert left < tap["x"] < right and top < tap["y"] < bottom
         previous_generation = sample["generation"]
-    phases = ("initial", "before-row", "before-inline", "edited", "restarted")
+    phases = ("initial", "before-wrong", "before-row", "before-inline", "edited", "restarted")
     for phase in phases:
         assert (tmp_path / f"{phase}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
         assert (tmp_path / f"{phase}.xml").read_text()
