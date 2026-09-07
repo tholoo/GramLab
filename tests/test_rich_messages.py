@@ -677,7 +677,8 @@ def test_rich_messages_world_scope_and_bot_authority(tmp_path):
         assert second.client_changes(1, after=0)["changes"] == []
 
 
-@settings(max_examples=25)
+# Persistent World creation, fsync and reopen are semantic checks, not a per-example latency bound.
+@settings(max_examples=25, deadline=None)
 @given(
     st.text(
         alphabet=st.characters(
