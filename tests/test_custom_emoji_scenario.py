@@ -59,7 +59,29 @@ def _post(
             "Authorization": "Bearer " + capability,
         }
         headers.update(extra_headers or {})
-        connection.request("POST", path, body, headers)
+        try:
+            connection.request("POST", path, body, headers)
+        except BrokenPipeError:
+            # A bounded server can reject from Content-Length before consuming a large body.
+            pass
+        response = connection.getresponse()
+        return response.status, json.loads(response.read())
+    finally:
+        connection.close()
+
+
+def _post_duplicate_length(
+    endpoint: str, path: str, body: bytes, capability: str
+) -> tuple[int, dict[str, Any]]:
+    url = urlsplit(endpoint)
+    connection = http.client.HTTPConnection("127.0.0.1", url.port, timeout=5)
+    try:
+        connection.putrequest("POST", path)
+        connection.putheader("Content-Type", "application/json")
+        connection.putheader("Authorization", "Bearer " + capability)
+        connection.putheader("Content-Length", str(len(body)))
+        connection.putheader("Content-Length", str(len(body)))
+        connection.endheaders(body)
         response = connection.getresponse()
         return response.status, json.loads(response.read())
     finally:
@@ -189,9 +211,7 @@ def test_lost_registration_response_recovers_without_advancing_allocation(tmp_pa
         ) == expected | {"custom_emoji_id": "2", "fallback": "بعدی"}
 
 
-@pytest.mark.parametrize(  # type: ignore[untyped-decorator]
-    "operation", ["snapshot", "create_user", "register_custom_emoji"]
-)
+@pytest.mark.parametrize("operation", ["snapshot", "create_user", "register_custom_emoji"])
 def test_dedicated_registration_route_rejects_wrong_operation_or_invalid_bytes(
     tmp_path: Path, operation: str
 ) -> None:
@@ -290,15 +310,40 @@ def test_control_routes_keep_distinct_encoded_limits_and_strict_framing(tmp_path
     with World.create(directory, seed=7, now=100):
         pass
     with WorldControl(directory) as control:
+        main = Path("tests/assets/custom-emoji/emoji-static.webp").read_bytes()
+        thumbnail = Path("tests/assets/custom-emoji/emoji-thumbnail.webp").read_bytes()
         duplicate = (
             '{"schema":1,"schema":1,"world_id":'
             + json.dumps(control.world_id)
             + ',"operation":"register_custom_emoji","parameters":{}}'
         ).encode()
+        registration = {
+            "schema": 1,
+            "world_id": control.world_id,
+            "operation": "register_custom_emoji",
+            "parameters": {
+                "request_id": "route-bound",
+                "main": base64.b64encode(main).decode(),
+                "thumbnail": base64.b64encode(thumbnail).decode(),
+                "fallback": "🙂",
+            },
+        }
+        ordinary = {
+            "schema": 1,
+            "world_id": control.world_id,
+            "operation": "snapshot",
+            "parameters": {},
+        }
+        registration_body = json.dumps(registration).encode()
+        ordinary_body = json.dumps(ordinary).encode()
         for path, body, headers in (
             ("/v1/custom-emoji", duplicate, None),
-            ("/v1/custom-emoji", b"x" * (1024 * 1024 + 1), None),
-            ("/v1/world", b"x" * 65537, None),
+            (
+                "/v1/custom-emoji",
+                registration_body + b" " * (1024 * 1024 + 1 - len(registration_body)),
+                None,
+            ),
+            ("/v1/world", ordinary_body + b" " * (65537 - len(ordinary_body)), None),
             ("/v1/custom-emoji", b"{}", {"Transfer-Encoding": "chunked"}),
         ):
             status, response = _post(
@@ -310,16 +355,21 @@ def test_control_routes_keep_distinct_encoded_limits_and_strict_framing(tmp_path
             )
             assert status == 400
             assert response["error"]["code"] == "invalid_request"
-        ordinary = {
-            "schema": 1,
-            "world_id": control.world_id,
-            "operation": "snapshot",
-            "parameters": {},
-        }
+        status, response = _post_duplicate_length(
+            control.base_url, "/v1/world", ordinary_body, control.capability
+        )
+        assert status == 400 and response["error"]["code"] == "invalid_request"
         status, response = _post(
             control.base_url,
             "/v1/custom-emoji",
             json.dumps(ordinary).encode(),
+            control.capability,
+        )
+        assert status == 404 and response["error"]["code"] == "unsupported"
+        status, response = _post(
+            control.base_url,
+            "/v1/world",
+            registration_body,
             control.capability,
         )
         assert status == 404 and response["error"]["code"] == "unsupported"
