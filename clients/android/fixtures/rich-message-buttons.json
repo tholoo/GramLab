@@ -1,0 +1,390 @@
+{
+  "blocks": [
+    {
+      "type": "buttons",
+      "buttons": [
+        {
+          "text": [
+            "Choose ",
+            [
+              "\u06a9\u0647\u200c\u0631\u0628\u0627",
+              "",
+              "\ud83d\ude42"
+            ]
+          ],
+          "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+          "style": "primary"
+        },
+        {
+          "text": [
+            "Copy ",
+            [
+              "label"
+            ]
+          ],
+          "copy_text": {
+            "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+          },
+          "style": "success"
+        },
+        {
+          "text": "",
+          "disabled": {},
+          "style": "danger"
+        },
+        {
+          "text": "Open choice",
+          "callback_data": "inline:amber",
+          "style": "link"
+        },
+        {
+          "text": "Plain",
+          "callback_data": "default"
+        },
+        {
+          "text": [
+            ""
+          ],
+          "disabled": {}
+        },
+        {
+          "text": "Copy",
+          "copy_text": {
+            "text": "x"
+          }
+        },
+        {
+          "text": "Last",
+          "callback_data": "end"
+        }
+      ]
+    },
+    {
+      "type": "buttons",
+      "align": "left",
+      "buttons": [
+        {
+          "text": [
+            "Copy ",
+            [
+              "label"
+            ]
+          ],
+          "copy_text": {
+            "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+          },
+          "style": "success"
+        }
+      ]
+    },
+    {
+      "type": "buttons",
+      "align": "center",
+      "buttons": [
+        {
+          "text": "",
+          "disabled": {},
+          "style": "danger"
+        }
+      ]
+    },
+    {
+      "type": "buttons",
+      "align": "right",
+      "buttons": [
+        {
+          "text": [
+            "Choose ",
+            [
+              "\u06a9\u0647\u200c\u0631\u0628\u0627",
+              "",
+              "\ud83d\ude42"
+            ]
+          ],
+          "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+          "style": "primary"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": [
+        "Before ",
+        {
+          "type": "button",
+          "button": {
+            "text": "Open choice",
+            "callback_data": "inline:amber",
+            "style": "link"
+          }
+        },
+        " after ",
+        {
+          "type": "bold",
+          "text": {
+            "type": "button",
+            "button": {
+              "text": [
+                "Choose ",
+                [
+                  "\u06a9\u0647\u200c\u0631\u0628\u0627",
+                  "",
+                  "\ud83d\ude42"
+                ]
+              ],
+              "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+              "style": "primary"
+            }
+          }
+        },
+        {
+          "type": "button",
+          "button": {
+            "text": [
+              "Copy ",
+              [
+                "label"
+              ]
+            ],
+            "copy_text": {
+              "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+            },
+            "style": "success"
+          }
+        },
+        {
+          "type": "button",
+          "button": {
+            "text": "",
+            "disabled": {},
+            "style": "danger"
+          }
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "size": 2,
+      "text": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Choose ",
+            [
+              "\u06a9\u0647\u200c\u0631\u0628\u0627",
+              "",
+              "\ud83d\ude42"
+            ]
+          ],
+          "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+          "style": "primary"
+        }
+      }
+    },
+    {
+      "type": "footer",
+      "text": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Copy ",
+            [
+              "label"
+            ]
+          ],
+          "copy_text": {
+            "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+          },
+          "style": "success"
+        }
+      }
+    },
+    {
+      "type": "pre",
+      "text": {
+        "type": "button",
+        "button": {
+          "text": "",
+          "disabled": {},
+          "style": "danger"
+        }
+      }
+    },
+    {
+      "type": "blockquote",
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Open choice",
+              "callback_data": "inline:amber",
+              "style": "link"
+            }
+          ]
+        }
+      ],
+      "credit": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Copy ",
+            [
+              "label"
+            ]
+          ],
+          "copy_text": {
+            "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+          },
+          "style": "success"
+        }
+      }
+    },
+    {
+      "type": "expandable_blockquote",
+      "text": {
+        "type": "button",
+        "button": {
+          "text": "Open choice",
+          "callback_data": "inline:amber",
+          "style": "link"
+        }
+      },
+      "credit": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Choose ",
+            [
+              "\u06a9\u0647\u200c\u0631\u0628\u0627",
+              "",
+              "\ud83d\ude42"
+            ]
+          ],
+          "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+          "style": "primary"
+        }
+      }
+    },
+    {
+      "type": "pullquote",
+      "text": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Copy ",
+            [
+              "label"
+            ]
+          ],
+          "copy_text": {
+            "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+          },
+          "style": "success"
+        }
+      },
+      "credit": {
+        "type": "button",
+        "button": {
+          "text": "",
+          "disabled": {},
+          "style": "danger"
+        }
+      }
+    },
+    {
+      "type": "details",
+      "summary": {
+        "type": "button",
+        "button": {
+          "text": [
+            "Choose ",
+            [
+              "\u06a9\u0647\u200c\u0631\u0628\u0627",
+              "",
+              "\ud83d\ude42"
+            ]
+          ],
+          "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+          "style": "primary"
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": {
+            "type": "button",
+            "button": {
+              "text": [
+                "Copy ",
+                [
+                  "label"
+                ]
+              ],
+              "copy_text": {
+                "text": "Amber 42\n\u0641\u0627\u0631\u0633\u06cc\u200c"
+              },
+              "style": "success"
+            }
+          }
+        }
+      ],
+      "is_open": true
+    },
+    {
+      "type": "list",
+      "items": [
+        {
+          "label": "\u2022",
+          "blocks": [
+            {
+              "type": "buttons",
+              "buttons": [
+                {
+                  "text": "",
+                  "disabled": {},
+                  "style": "danger"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "caption": {
+        "type": "button",
+        "button": {
+          "text": "Open choice",
+          "callback_data": "inline:amber",
+          "style": "link"
+        }
+      },
+      "cells": [
+        [
+          {
+            "text": {
+              "type": "button",
+              "button": {
+                "text": [
+                  "Choose ",
+                  [
+                    "\u06a9\u0647\u200c\u0631\u0628\u0627",
+                    "",
+                    "\ud83d\ude42"
+                  ]
+                ],
+                "callback_data": "pick:amber\t\u202e\u030a\u200e\u200f",
+                "style": "primary"
+              }
+            },
+            "align": "left",
+            "valign": "top"
+          }
+        ]
+      ]
+    }
+  ],
+  "is_rtl": true
+}

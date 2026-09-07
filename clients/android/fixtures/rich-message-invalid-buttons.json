@@ -1,0 +1,886 @@
+[
+  {
+    "name": "missing-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "callback_data": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "null-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": null,
+              "callback_data": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "numeric-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": 1,
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty-label-array",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": [],
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "nested-empty-label-array",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": [
+                "a",
+                []
+              ],
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "formatted-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": {
+                "type": "bold",
+                "text": "x"
+              },
+              "callback_data": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "button-label",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": {
+                "type": "button",
+                "button": {
+                  "text": "Choose",
+                  "callback_data": "pick"
+                }
+              },
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-entity",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": {
+                "type": "custom_emoji",
+                "text": "x",
+                "custom_emoji_id": "1"
+              },
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing-action",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "multiple-actions",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "nested-action",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "action": {
+                "callback_data": "x"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unsupported-action",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "url": "https://invalid.example/"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown-button-field",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "extra": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "callback-empty",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": ""
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "callback-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-empty",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": ""
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-string",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": "x"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-null",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-extra",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": "x",
+                "extra": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-text-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "disabled-nonempty",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "disabled": {
+                "value": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "disabled-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "disabled": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "style-empty",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "style": ""
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "style-default",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "style": "default"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "style-case",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "style": "Primary"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "style-unknown",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "style": "secondary"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "style-null",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick",
+              "style": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "link-copy",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": "x"
+              },
+              "style": "link"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "link-disabled",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "disabled": {},
+              "style": "link"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-tab",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "a\tb",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-removed",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "a\u2028b",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-combining-removed",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "a\u033fb",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-direction-pair",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "a\u200e\u200fb",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-tab",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": "a\tb"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-removed",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": "a\u030ab"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "copy-direction-pair",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "x",
+              "copy_text": {
+                "text": "\u200f\u200e"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "callback-control",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "x\u0000"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "label-surrogate",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "\ud800",
+              "disabled": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty-row",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "row-count-nine",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "row-buttons-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "row-button-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            "x"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "align-empty",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "align": ""
+        }
+      ]
+    }
+  },
+  {
+    "name": "align-case",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "align": "Left"
+        }
+      ]
+    }
+  },
+  {
+    "name": "align-unknown",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "align": "fill"
+        }
+      ]
+    }
+  },
+  {
+    "name": "align-null",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "align": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "align-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "align": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown-row-field",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "buttons",
+          "buttons": [
+            {
+              "text": "Choose",
+              "callback_data": "pick"
+            }
+          ],
+          "extra": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "inline-button-type",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": {
+            "type": "button",
+            "button": "x"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "inline-invalid-action",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": {
+            "type": "button",
+            "button": {
+              "text": "x",
+              "callback_data": ""
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "inline-extra",
+    "rich_message": {
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": {
+            "type": "button",
+            "button": {
+              "text": "Choose",
+              "callback_data": "pick"
+            },
+            "text": "x"
+          }
+        }
+      ]
+    }
+  }
+]
