@@ -106,6 +106,7 @@ uv run --locked mypy tests/fixtures/rich_mentions_bot.py tests/probes/rich_menti
 uv run --locked mypy --strict tests/test_custom_emoji_media.py tests/test_custom_emoji_world.py tests/test_custom_emoji_api.py tests/test_custom_emoji_bridge.py tests/test_custom_emoji_text.py tests/test_custom_emoji_scenario.py tests/test_emoji_runtime_selection.py tests/test_custom_emoji_isolation.py tests/test_runner_custom_emoji_registration.py
 uv run --locked mypy tests/probes/android_custom_emoji_codec.py tests/test_android_custom_emoji_codec.py
 uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py
+uv run --locked mypy --strict src/gramlab/_captures.py tests/test_runner_custom_emoji_captures.py
 uv run --locked mypy --strict tests/fixtures/custom_emoji_bot.py tests/probes/custom_emoji_round_trip.py tests/test_custom_emoji_round_trip.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/custom_emoji_fault_server.py tests/test_custom_emoji_fault_server.py
 MYPYPATH=tests/probes uv run --locked mypy --strict --explicit-package-bases tests/probes/android_custom_emoji_faults.py

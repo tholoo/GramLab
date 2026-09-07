@@ -6,7 +6,7 @@ import re
 import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gramlab.reports import _Redactor
 from gramlab.world import World
@@ -17,6 +17,8 @@ def _rich_text(value: Any) -> str:
         return value
     if isinstance(value, list):
         return "".join(_rich_text(child) for child in value)
+    if value["type"] == "custom_emoji":
+        return cast(str, value["alternative_text"])
     if value["type"] == "button":
         return _rich_text(value["button"]["text"])
     return _rich_text(value["text"])

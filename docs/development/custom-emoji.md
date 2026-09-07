@@ -59,7 +59,9 @@ Ordinary `custom_emoji` entities use UTF-16 offsets and lengths and retain the e
 The local admission predicate is the pinned BSL-licensed TDLib emoji predicate described in
 [its provenance](tdlib-emoji-provenance.json), not an assertion of production server admission.
 Rich custom-emoji leaves retain their explicit `alternative_text`, including different or empty
-alternatives and leaves inside supported rich-button labels. Free/repainting metadata describes
+alternatives and leaves inside supported rich-button labels. Public semantic captures use those
+canonical alternatives, including nested button-label arrays; they do not substitute the catalog
+fallback. The contained capture regression and existing capture controls pass focused checks. Free/repainting metadata describes
 local fixtures; it does not prove a real entitlement or production document availability.
 
 `getCustomEmojiStickers` accepts up to 200 decimal-string IDs, returns unique known entries sorted
