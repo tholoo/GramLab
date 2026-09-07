@@ -1,9 +1,13 @@
 # Review explicit rich-mention identity and visibility
 
+The user explicitly approved all four prepared designs and then resumed the goal. This approval
+supersedes the pending-consultation instructions retained below as proposal history. Proceed with
+the recommended direction; freeze shared implementation contracts before parallel dispatch.
+
 Type: feature
-Status: needs-triage
-Work state: concrete proposal prepared; awaiting consultation
-Blocked by: user review of identity disclosure and bridge versioning
+Status: ready-for-agent
+Work state: design approved; implementation pending
+Blocked by: none; user approved all four designs on 2026-09-07
 
 The [proposal](../../../docs/development/rich-mention-proposal.md) separates Bot API input User
 claims from authoritative output and original Android's numeric user carrier. It recommends

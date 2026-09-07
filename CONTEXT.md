@@ -28,3 +28,22 @@ supported surfaces against which compatibility claims are evaluated.
 or rendering match for a fidelity profile.
 
 **Conversation example**: A synthetic, labeled conversation used for previews, tutorials or help.
+
+
+**Media asset**: Immutable validated media belonging to one simulated world. Different messages
+can refer to the same asset without changing its bytes.
+
+**Bot file identity**: A reusable file reference belonging to one bot in one simulated world.
+It is distinct from a content identity or a custom-emoji identity.
+
+**Media grant**: A recipient's access to media published in their conversation, retained until
+the owning world is deleted even if that message is later edited.
+
+**Custom-emoji identity**: A logical identifier for a registered emoji in one simulated world.
+It does not grant access to the emoji's files.
+
+**Client instance**: One virtual or rendered client participating in a simulated world, with its
+own local state such as its clipboard and cache.
+
+**Rich-button target**: One observed occurrence of a button in a particular message revision and
+client lifetime. Its label need not distinguish it from other buttons.

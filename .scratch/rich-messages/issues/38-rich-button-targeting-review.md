@@ -1,9 +1,13 @@
 # Review public rich-button targets and input receipts
 
+The user explicitly approved all four prepared designs and then resumed the goal. This approval
+supersedes the pending-consultation instructions retained below as proposal history. Proceed with
+the recommended direction; freeze shared implementation contracts before parallel dispatch.
+
 Type: task
-Status: needs-triage
-Work state: concrete proposal prepared; awaiting consultation
-Blocked by: user review of permanent observation, revision/receipt and client-local effect boundaries
+Status: ready-for-agent
+Work state: design approved; implementation pending
+Blocked by: none; user approved all four designs on 2026-09-07
 
 The [proposal](../../../docs/development/rich-button-targeting-proposal.md) turns the existing
 original callback/copy/disabled experiments into a reviewable public interface. It recommends

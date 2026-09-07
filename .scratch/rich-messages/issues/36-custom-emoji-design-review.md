@@ -1,9 +1,13 @@
 # Review the required custom-emoji catalog and delivery boundary
 
+The user explicitly approved all four prepared designs and then resumed the goal. This approval
+supersedes the pending-consultation instructions retained below as proposal history. Proceed with
+the recommended direction; freeze shared implementation contracts before parallel dispatch.
+
 Type: feature
-Status: needs-triage
-Work state: proposal prepared
-Blocked by: consultation on catalog admission and the shared media architecture
+Status: ready-for-agent
+Work state: design approved; implementation pending
+Blocked by: none; user approved all four designs on 2026-09-07
 
 Review [the concrete proposal](../../../docs/development/custom-emoji-proposal.md) before
 implementation. Preserve optional scenario-selected logical IDs, message-specific fallback text,

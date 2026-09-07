@@ -22,11 +22,14 @@ in the full goal. A text-only subset is not the operational milestone.
 Read [AGENTS.md](../../AGENTS.md) and the assigned ticket. Follow its linked testing, architecture,
 offline safety, licensing and completion requirements before the corresponding action.
 
-- Photo delivery awaits user consultation in [ticket 24](../../.scratch/rich-messages/issues/24-rich-photo-design-review.md).
-  The [concrete proposal](rich-photo-proposal.md) recommends multipart uploads/reuse, World-owned
-  immutable bytes and authenticated delivery through original Android FileLoader. Source research
-  and independently decoded original PNG/JPEG fixtures are merged. Asset storage, file APIs and native
-  media delivery are absent. A goal continuation alone is not approval of these decisions.
+- The user approved all four designs on 2026-09-07 and explicitly resumed the goal. Proceed with
+  [media](rich-photo-proposal.md), [custom emoji](custom-emoji-proposal.md),
+  [mentions](rich-mention-proposal.md) and [rich-button targeting](rich-button-targeting-proposal.md)
+  under [ADR 0005](../adr/0005-local-media-and-client-interaction-boundaries.md). Do not ask for
+  these approvals again. Their implementations and acceptance gates remain incomplete.
+  Shared immutable media/API/delivery is the first dependency. Coordinate the successor bridge
+  schema before splitting core, GPL and real-bot acceptance work. Existing PNG/JPEG/WebP/WebM
+  fixtures are prepared; fixture decoding does not establish runtime media support.
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
   still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
@@ -60,27 +63,27 @@ offline safety, licensing and completion requirements before the corresponding a
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
-  Admission, document resolution and missing-asset policy remain design decisions; no runtime
-  custom-emoji support is claimed.
+  The synthetic catalog and shared delivery direction are approved; freeze exact schemas and
+  verify resolution/failure behavior during implementation. No runtime custom-emoji support is claimed.
   The [concrete catalog proposal](custom-emoji-proposal.md) preserves caller-selected IDs and
   message fallback text, separates bot file identities from recipient document/media access,
   and requires transparent VP9 WebM. Original WebP/WebM fixtures are integrated with independent
   browser decoding, exact lossless WebP colors, four transparent video frames and a one-second
   duration. Initial color/duration failures are preserved. The catalog and shared media
-  architecture remain unapproved; fixture decoding is not original Android playback.
+  architecture are approved; fixture decoding is not original Android playback.
 - [Default rich detection](rich-auto-detection.md) is a separate operational gap: the pinned
   open source forwards a server autolink flag and does not establish enrichment grammar or
   nesting/block rules. Do not treat ordinary-text detection as proof; a local fidelity policy
   needs consultation. No account/DC observation is authorized.
-- [Explicit rich mentions](rich-mention-proposal.md) have a concrete identity proposal for review:
+- [Explicit rich mentions](rich-mention-proposal.md) have approved identity rules:
   bot-contact admission, authoritative User projection, message-derived recipient visibility and
-  versioned identity dependencies before native message application. No mention support or new
-  disclosure rule is implemented or approved yet.
+  versioned identity dependencies before native message application. Runtime mention support
+  remains unimplemented.
 - Public rich-button targeting now has a [concrete proposal](rich-button-targeting-proposal.md):
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
   outcomes and client-local copy effects. Independent review and a guarded same-clock edit
-  experiment inform the contract. The permanent GPL observation seam and public effects remain
-  unapproved; the existing experiments do not establish a stable public geometry API.
+  experiment inform the approved contract. The permanent GPL observation seam and public effects
+  remain unimplemented; the experiments do not establish a stable public geometry API.
 
 Preserve the full scope while pursuing independent work during a pending decision. No external
 runtime egress or remote publication is authorized. Provisioning and primary-source research are

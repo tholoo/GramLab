@@ -21,3 +21,12 @@ redistribution license. Use original/deterministically generated fixtures where 
 Follow upstream's [branding guidance](https://github.com/DrKLO/Telegram/blob/master/README.md):
 identify GramLab as unofficial and use distinct app branding. Do not reuse Telegram's standard
 logo as GramLab's logo. Preserve in-chat rendering fidelity without implying affiliation.
+
+## Image decoder dependency
+
+The first photo profile pins Pillow 12.3.0 in the Python lock and the existing Nix input. The
+installed package's license identifies Pillow/PIL under MIT-CMU and includes notices for bundled
+codec dependencies. Preserve those notices when packaging the dependency; this does not relicense
+third-party code under GramLab's MIT license. Local runtime uses the Nix dependency closure; host
+wheel validation and distribution review are separate from Android's GPL boundary. No dependency
+source is copied into the simulator and no binary distribution is authorized by this addition.

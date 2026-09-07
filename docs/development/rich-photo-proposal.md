@@ -1,6 +1,11 @@
 # Proposed first rich-photo milestone
 
-Status: proposed for user review; implementation is not authorized by this document.
+Approval covers the recommended decisions below. References to future consultation describe the
+original proposal stage; do not request this approval again. Further consequential changes outside
+these decisions still require consultation. Mini Apps remain deferred, and runtime Internet/DC
+access and artifact publication remain excluded.
+
+Status: approved by the user on 2026-09-07; implementation and acceptance remain incomplete.
 
 Add real multipart photo uploads to the existing Bot API surface, keep immutable media in the
 World, and satisfy original Android file-loading requests through authenticated local delivery.

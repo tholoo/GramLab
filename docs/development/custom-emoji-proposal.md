@@ -1,6 +1,11 @@
 # Proposed custom-emoji fixture catalog and original delivery
 
-Status: prepared for consultation; no catalog, admission policy or media transport is approved.
+Approval covers the recommended decisions below. References to future consultation describe the
+original proposal stage; do not request this approval again. Further consequential changes outside
+these decisions still require consultation. Mini Apps remain deferred, and runtime Internet/DC
+access and artifact publication remain excluded.
+
+Status: approved by the user on 2026-09-07; implementation and acceptance remain incomplete.
 
 Support registered local custom emoji in outgoing rich messages and button labels, ordinary
 message entities, and incoming user updates. Resolve their documents and bytes through the

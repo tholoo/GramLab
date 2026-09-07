@@ -5,7 +5,9 @@ description = "Offline Telegram bot laboratory — experimental runtime foundati
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 license = "MIT"
-dependencies = []
+dependencies = [
+    "pillow==12.3.0",
+]
 
 [project.scripts]
 gramlab = "gramlab.__main__:main"

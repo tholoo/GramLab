@@ -13,8 +13,8 @@ consumer acceptance still needs executable scenarios. Do not treat unsupported f
 
 Current [compatibility evidence](../compatibility/matrix.md) establishes bounded text/callback,
 formatting and rich-block loops. Media storage/delivery and custom-emoji document support remain
-unimplemented. The [photo design](rich-photo-proposal.md) still requires consultation; the required
-feature list alone does not approve its consequential architecture choices. HTML parsing is also
+unimplemented. The user approved the [photo design](rich-photo-proposal.md) and the other three prepared
+designs on 2026-09-07; implementation and public/native acceptance remain required. HTML parsing is also
 unsupported. Prioritize closing consumer-facing gaps after the current quoted-code correction;
 keep developer tooling/research bounded to blockers in those workflows.
 
@@ -37,8 +37,8 @@ collages/album paths. The animated custom-emoji profile must include transparent
 TGS-only evidence would leave that required path untested. Custom emoji must work in rich button
 labels as well as message content and incoming ordinary entities. Preserve supplied logical IDs
 and message fallback text at the scenario/application boundary; do not invent an owner-bot or
-catalog-fallback-equality restriction from sticker administration prerequisites. A synthetic
-catalog/admission design still needs consultation and must distinguish logical emoji IDs from
+catalog-fallback-equality restriction from sticker administration prerequisites. The approved synthetic
+catalog/admission design distinguishes logical emoji IDs from
 bot-scoped file identities and recipient media access. Static/animated fixtures can be prepared
 independently while that design is reviewed.
 

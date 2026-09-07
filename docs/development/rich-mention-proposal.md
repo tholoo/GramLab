@@ -1,6 +1,11 @@
 # Proposed explicit rich-user mentions
 
-Status: proposal for consultation; identity disclosure and bridge changes are not approved.
+Approval covers the recommended decisions below. References to future consultation describe the
+original proposal stage; do not request this approval again. Further consequential changes outside
+these decisions still require consultation. Mini Apps remain deferred, and runtime Internet/DC
+access and artifact publication remain excluded.
+
+Status: approved by the user on 2026-09-07; implementation and acceptance remain incomplete.
 
 Support a bot mentioning a known synthetic user in recursive rich text, including a user outside
 the recipient's conversation. Store the referenced ID in the World, return authoritative User

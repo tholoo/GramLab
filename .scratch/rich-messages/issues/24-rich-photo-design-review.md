@@ -1,9 +1,13 @@
 # Review the first media storage and delivery boundary
 
+The user explicitly approved all four prepared designs and then resumed the goal. This approval
+supersedes the pending-consultation instructions retained below as proposal history. Proceed with
+the recommended direction; freeze shared implementation contracts before parallel dispatch.
+
 Type: task
-Status: needs-triage
-Work state: proposal prepared; awaiting user consultation
-Blocked by: user review of consequential asset/API/delivery choices
+Status: ready-for-agent
+Work state: design approved; implementation pending
+Blocked by: none; user approved all four designs on 2026-09-07
 
 The coordinator has prepared the [concrete photo proposal](../../../docs/development/rich-photo-proposal.md)
 from the merged pinned source research and independently decoded original fixtures. It recommends

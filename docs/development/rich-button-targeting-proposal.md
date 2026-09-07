@@ -1,6 +1,11 @@
 # Public rich-button targeting proposal
 
-Status: proposed; user consultation required before implementation.
+Approval covers the recommended decisions below. References to future consultation describe the
+original proposal stage; do not request this approval again. Further consequential changes outside
+these decisions still require consultation. Mini Apps remain deferred, and runtime Internet/DC
+access and artifact publication remain excluded.
+
+Status: approved by the user on 2026-09-07; implementation and acceptance remain incomplete.
 
 Rich row and inline buttons render correctly, but `Scenario.tap_inline_button` addresses only
 reply-markup keyboards. The separate [callback experiment](rich-action-input-experiment.md) and
