@@ -483,6 +483,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         snapshot=initial, assets=assets, capability=CAPABILITY, default_fault="missing"
     ) as server:
         server.plan(1, "complete")
+        # Original fileAttach and RichPhotoBlock select separate destinations for leading A.
+        # Concurrent requests coalesce; a later destination-specific request needs the same bytes.
+        server.plan(1, "complete")
         transfer = server.plan(2, "gated")
         try:
             observe.configure(

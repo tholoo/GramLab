@@ -113,3 +113,18 @@ Retained `artifacts/rich-and-ordinary-photo-interactions-01/` contains the origi
 147.14-second rich case, all 18 independently attempted guard results, screenshots and unchanged
 source/APK receipt. The same run passes the separate ordinary interactions in 99.43 seconds.
 Fresh rich guard and complete host acceptance remain required; do not relabel this JUnit green.
+
+The second native run passes all 18 guards and again reaches the complete four-capture B/C
+interaction. It exposes a separate fixture error: leading A can have one coalesced request or
+one request per original image/cache destination. The fixture supplied only one complete A body;
+a legitimate second request received its default missing fault. Original MessageObject.findPhoto
+selects leading A for ChatMessageCell.fileAttach (cache type 0), while RichPhotoBlock uses type 1.
+FileLoader coalesces concurrent final filenames, but later requests check their chosen destination.
+Independent source review confirms the one-or-two request boundary; no A-before-B order is promised.
+
+The fixture now offers two complete A responses and requires matching one-or-two native A
+starts/successes, only allowed original destinations with exact bytes, and no failure/cancel or
+partial files. B and C still require exactly one request/success each and all pre-release and
+post-release receiver invariants. `artifacts/rich-photo-late-native-02/` preserves the unmodified
+failed run, complete guard results, captures and source/APK receipt. Fresh full acceptance remains
+pending; this corrects auxiliary fixture availability without changing original media behavior.

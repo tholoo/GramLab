@@ -157,15 +157,24 @@ def assert_late_completion(
     assert case["completed"]["messages"][1]["has_image"] is True
     assert case["stable"]["messages"][1]["has_image"] is True
     requests = asset_requests(case["requests"])
-    assert Counter((row["asset_id"], row["fault"]) for row in requests) == Counter(
-        {(1, "complete"): 1, (2, "gated"): 1, (3, "complete"): 1}
-    )
+    assert {row["asset_id"] for row in requests} == {1, 2, 3}
+    auxiliary = [row for row in requests if row["asset_id"] == 1]
+    assert 1 <= len(auxiliary) <= 2
+    assert all(row["fault"] == "complete" for row in auxiliary)
+    assert Counter(
+        (row["asset_id"], row["fault"]) for row in requests if row["asset_id"] != 1
+    ) == Counter({(2, "gated"): 1, (3, "complete"): 1})
     trace = case["trace"]
     for row in trace:
         assert set(row) == {"event", "asset_id", "cache_file", "file_size", "digest_ok"}
         assert row["asset_id"] in (1, 2, 3)
         assert row["cache_file"] == f"{row['asset_id']}_1.jpg"
-        assert row["event"] != "media_load_failure"
+        assert row["event"] not in ("media_load_failure", "media_load_cancel")
+    for asset_id, count in ((1, len(auxiliary)), (2, 1), (3, 1)):
+        for event in ("media_load_start", "media_load_success"):
+            assert (
+                sum(row["event"] == event and row["asset_id"] == asset_id for row in trace) == count
+            )
     assert sum(row["event"] == "media_load_success" and row["asset_id"] == 2 for row in trace) == 1
     assert any(row["event"] == "media_load_coalesced" and row["asset_id"] == 2 for row in trace)
     assert not any(row["event"] == "media_load_cancel" and row["asset_id"] == 2 for row in trace)
@@ -175,6 +184,11 @@ def assert_late_completion(
     assert {Path(row["path"]).name for row in final_files} == {"1_1.jpg", "2_1.jpg", "3_1.jpg"}
     for row in final_files:
         asset_id = int(Path(row["path"]).name.split("_")[0])
+        base = "/storage/emulated/0/Android/data/org.gramlab.android/"
+        assert row["path"] in {
+            base + f"cache/{asset_id}_1.jpg",
+            base + f"files/Telegram/Telegram Images/{asset_id}_1.jpg",
+        }
         assert row["size"] == expected[asset_id - 1]["file_size"]
         assert row["sha256"] == expected[asset_id - 1]["sha256"]
 
