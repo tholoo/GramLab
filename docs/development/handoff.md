@@ -31,12 +31,15 @@ offline safety, licensing and completion requirements before the corresponding a
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
   still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
   are distinct stages; feeding raw HTML entities into the existing validator is insufficient.
-- Next correct [quoted code/pre entities](../../.scratch/rich-messages/issues/26-quoted-code-entities.md):
-  pinned TDLib admits code/pre inside quotes, while a real public World reproduction rejects it.
-  The GPL bridge repeats that rejection. Freeze core/native ownership, retain equal-range ordering
-  and malformed/ancestor rejection checks, then prove original rendering/edit/restart. This fixes
-  existing formatting independently of HTML and the pending photo design; it does not complete
-  either feature. Current integration points are `entities.py`, World send/edit and GPL validation.
+- [Quoted code/pre correction](quoted-code-formatting.md) is integrated in the core and normal
+  Android adapter. Public World/real-bot regression checks and original rendering/edit/restart
+  pass. The broader 43-case Android inventory has eight passes across retained focused and
+  continuation runs; the next case failed at emulator startup for insufficient disk space.
+  Preserve results, reclaim only proven disposable runtime state and continue the remaining
+  identities. Tickets 26/27 remain claimed until combined verification finishes.
+- [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
+  is ready for bounded independent research while native verification continues. It establishes
+  input/document/asset requirements; no custom-emoji runtime support is claimed.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
   before consequential targeting/navigation changes.
@@ -53,8 +56,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable 13-patch APK covers all 41 cases: 19 retained passes plus 22 continuation passes after correcting the old preformatted-tab fixture. This is resumed coverage, not one uninterrupted green run. See [ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 390 passed at 80.99% coverage in 195.36 seconds serially; 41 Android skips are unavailable coverage. The preceding parallel run passes the exact same 390 identities in 54.01 seconds. No production performance conclusion follows from different scheduling. |
-| Latest static/workflow | All 21 documented static commands, maintained configuration/local links and pinned offline workflow check pass after effect/fixture integration. Subsequent research/proposal changes are documentation only. |
+| Latest core | 411 passed at 81.01% coverage in 70.49 seconds using four isolated workers, with Android excluded. No production performance conclusion follows from test scheduling. |
+| Latest static/workflow | All 22 documented static commands, 143 configuration/local-link checks and pinned offline workflow check pass after quoted-code integration. The later report-unit correction passes focused static and retained-result validation; corrected desktop/mobile reports were inspected. |
 | Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Deterministic generation/static checks pass. Pinned [photo source research](rich-photo-references.md) is integrated. This establishes fixtures/contracts, not media API or native photo support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
@@ -62,8 +65,9 @@ fingerprints; experimental geometry is absent from the normal patch series. Curr
 coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/nesting, duplicate or
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
-At this checkpoint all native/build/core/check/preview processes are terminal. Research assignments
-may run independently; inspect current agent state and exact process handles before dispatch or
+The quoted-code native continuation stopped after six passes and one disk-space startup failure;
+its JUnit remains failed. The two focused passes are retained separately. Build/core/check/preview
+processes are terminal. Inspect current agent state and exact process handles before dispatch or
 resume. Host paths, handles, fingerprints and artifact locations stay in ignored local notes.
 
 ## Development throughput

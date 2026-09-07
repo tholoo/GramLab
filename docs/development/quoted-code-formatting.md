@@ -55,5 +55,27 @@ additional equal-extent emphasis/code ancestor permutations added after that red
 Fresh preparation and the integrated build-cache comparison examine 43,268 exported files and
 find only `GramLabBridge.java` different before applying patch 0014 with zero fuzz. All 6,666
 checked original UI/resource files and dependency metadata remain unchanged. The normal APK
-build and actual native/rendering acceptance remain in progress; none is claimed from source
-inspection or core tests alone.
+builds offline in 2 minutes 50 seconds with strict verification; signatures pass. The independent
+native codec and real-bot original-renderer scenario both pass in 170.23 seconds. Complete
+World/API/native comparisons, account-free guest isolation, live edit and cold restart pass.
+All three original PNGs were inspected. Quotes show the original purple treatment and monospaced
+code; the preformatted portion is visually separated by the upstream quote layout. No renderer
+fix or language-header presentation is claimed.
+
+All 411 core tests pass at 81.01% coverage in 70.49 seconds. Twenty-two documented static scopes
+and the pinned workflow check pass. Browser review found seconds passed into the report's
+millisecond field; the report now converts units explicitly. Retained-result validation preserves
+every native assertion (checked by AST comparison) and every original PNG/XML/JSON/JSONL hash.
+The original passing JUnit is retained; no guest was rerun for this presentation correction.
+The report writer initially refused replacement of an existing file as designed; the original
+report was preserved before regenerating into a fresh destination.
+
+The two focused Android passes are retained for the combined 43-case inventory. Before starting
+the remaining 41 serial cases on the same APK, current inputs, both staged APKs, 56 staged Python
+files and both runtime profiles were verified against the retained run. The later host-only
+report conversion/extraction is separately revalidated as described above; runtime inputs and
+native assertions are unchanged. The continuation stopped after six passes and one emulator
+startup failure caused by insufficient disk space (631.48 seconds). Preserve that failed JUnit
+and reclaim only proven disposable runtime state before selecting the remaining identities.
+Combined acceptance and ticket resolution remain pending. Corrected desktop/mobile reports were
+inspected: all three images load, timing units are milliseconds and neither viewport overflows.

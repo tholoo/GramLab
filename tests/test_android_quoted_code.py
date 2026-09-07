@@ -236,8 +236,7 @@ def test_native_quoted_code_codec_and_independent_rejections(tmp_path: Path) -> 
             ]
 
 
-def test_real_bot_quoted_code_renders_edits_and_restarts(tmp_path: Path) -> None:
-    observed, apk = run_probe(tmp_path, "android_quoted_code")
+def validate_render_result(tmp_path: Path, observed: dict[str, Any], apk: str) -> None:
     assert_scenario(observed)
     client = observed["client"]
     expected_entities = {
@@ -324,10 +323,18 @@ def test_real_bot_quoted_code_renders_edits_and_restarts(tmp_path: Path) -> None
             limitations=(
                 "HTML parsing and quote expansion gestures are not established by this fixture.",
             ),
-            timings=client["timings"],
+            timings={
+                name.removesuffix("_seconds"): seconds * 1000
+                for name, seconds in client["timings"].items()
+            },
             screenshots=tuple(
                 Screenshot(png=(tmp_path / f"{phase}.png").read_bytes(), caption=phase)
                 for phase in ("initial", "edited", "restarted")
             ),
         ),
     )
+
+
+def test_real_bot_quoted_code_renders_edits_and_restarts(tmp_path: Path) -> None:
+    observed, apk = run_probe(tmp_path, "android_quoted_code")
+    validate_render_result(tmp_path, observed, apk)
