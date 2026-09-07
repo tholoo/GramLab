@@ -287,6 +287,127 @@ def test_rich_http_send_edit_reopen_and_complete_events(tmp_path: Path, form):
 
 
 @pytest.mark.parametrize("form", [False, True])
+def test_rich_http_cleaning_is_canonical_and_durable(tmp_path: Path, form):
+    directory = tmp_path / "world"
+    token, _ = setup_world(directory)
+    raw = {
+        "blocks": [
+            {
+                "type": "paragraph",
+                "text": ["Amber\t42", {"type": "bold", "text": "X\u200e\u200f\u200eY"}],
+            },
+            {"type": "pre", "text": "A\u030aB\u0333C\u033fD", "language": "py\t\u202ethon"},
+        ]
+    }
+    canonical = {
+        "blocks": [
+            {
+                "type": "paragraph",
+                "text": ["Amber 42", {"type": "bold", "text": "X\u200c\u200c\u200eY"}],
+            },
+            {"type": "pre", "text": "ABCD", "language": "py thon"},
+        ]
+    }
+    raw_edited = {
+        "blocks": [
+            {"type": "paragraph", "text": "Changed\u2028\tvalue"},
+            {
+                "type": "pre",
+                "text": "سلام\nنیم\u200cفاصله",  # noqa: RUF001
+                "language": "py\u0333",
+            },
+        ]
+    }
+    canonical_edited = {
+        "blocks": [
+            {"type": "paragraph", "text": "Changed value"},
+            {
+                "type": "pre",
+                "text": "سلام\nنیم\u200cفاصله",  # noqa: RUF001
+                "language": "py",
+            },
+        ]
+    }
+    keyboard = {"inline_keyboard": [[{"text": "Inspect", "callback_data": "clean"}]]}
+
+    with BotAPIServer(directory) as server:
+        assert request(
+            server,
+            token,
+            "sendRichMessage",
+            {
+                "chat_id": 1,
+                "rich_message": {**raw, "skip_entity_detection": True},
+                "reply_markup": keyboard,
+            },
+            form=form,
+        ) == (200, {"ok": True, "result": {**api_message(canonical), "reply_markup": keyboard}})
+        created = {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 100,
+            "text": "",
+            "rich_message": canonical,
+            "reply_markup": keyboard,
+        }
+        with World.open(directory) as world:
+            callback = world.create_callback(
+                user_id=1,
+                chat_id=1,
+                message_id=1,
+                data="clean",
+                request_id="clean-click",
+            )
+            world.advance_time(5)
+        assert request(
+            server,
+            token,
+            "editMessageText",
+            {
+                "chat_id": 1,
+                "message_id": 1,
+                "rich_message": {**raw_edited, "skip_entity_detection": True},
+            },
+            form=form,
+        ) == (200, {"ok": True, "result": api_message(canonical_edited, edited=True)})
+        with World.open(directory) as world:
+            before_noop = world.client_snapshot(1, version=2), world.events()
+        status, response = request(
+            server,
+            token,
+            "editMessageText",
+            {
+                "chat_id": 1,
+                "message_id": 1,
+                "rich_message": {**raw_edited, "skip_entity_detection": True},
+            },
+            form=form,
+        )
+        assert status == 400
+        assert response["ok"] is False
+        assert "MESSAGE_NOT_MODIFIED" in response["description"]
+        with World.open(directory) as world:
+            assert (world.client_snapshot(1, version=2), world.events()) == before_noop
+
+    edited = {**created, "edit_date": 105, "rich_message": canonical_edited}
+    edited.pop("reply_markup")
+    with World.open(directory) as world:
+        assert world.history(1) == [edited]
+        assert world.client_changes(1, after=0)["changes"] == [
+            {"position": 1, "type": "message.created", "data": created},
+            {"position": 2, "type": "message.edited", "data": edited},
+        ]
+        assert world.get_callback(user_id=1, callback_id=callback["id"])["message"] == created
+        message_events = [event for event in world.events() if event["type"].startswith("message.")]
+        assert [event["type"] for event in message_events] == [
+            "message.created",
+            "message.edited",
+        ]
+        assert [event["data"] for event in message_events] == [created, edited]
+
+
+@pytest.mark.parametrize("form", [False, True])
 def test_list_http_send_edit_callback_differences_and_reopen(tmp_path: Path, form):
     directory = tmp_path / "world"
     token, _ = setup_world(directory)

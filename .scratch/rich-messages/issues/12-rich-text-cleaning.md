@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: assigned; awaiting worker claim
+Work state: claimed by rich-text-cleaning on task/rich-text-cleaning
 Blocked by: none
 
 The direct World boundary preserves a tab in a rich paragraph where the pinned TDLib
@@ -39,3 +39,13 @@ report its deferred coverage, and retain all observed failures. No guest or buil
 Commit only owned files and return a frozen clean branch with exact red/green evidence. Focused tests belong to the worker;
 the coordinator retains the full combined gates and native normalization evidence. This correction
 does not complete the rich-action or wider product inventory.
+
+## Worker evidence
+
+The tracked cleaning selection was replayed against the base validator after offline provisioning:
+seven cases failed and the unaffected singleton/separated direction-marker case passed. Failures
+covered recursive string cleaning, all four UTF-8 truncation boundaries and both real HTTP
+encodings. With the correction applied, all eight selected cases pass. The combined focused
+selection passes 30 cases, including the existing C0 rejection and raw/canonical resource-budget
+checks. Scoped Ruff format/check and source mypy pass. The unrestricted property/full rich suite
+remains deferred while the coordinator-owned Android gate runs, as assigned.

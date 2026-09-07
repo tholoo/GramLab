@@ -21,6 +21,127 @@ def rich(blocks, **fields):
     return {"blocks": blocks, "skip_entity_detection": True, **fields}
 
 
+def test_rich_strings_clean_each_plain_leaf_and_pre_language(tmp_path):
+    payload = rich(
+        [
+            {
+                "type": "paragraph",
+                "text": [
+                    "Amber\t42",
+                    {"type": "bold", "text": "a\u2028b\u2029c\u202ad\u202be\u202cf\u202dg\u202eh"},
+                    {"type": "italic", "text": "X\u200e\u200f\u200eY"},
+                ],
+            },
+            {
+                "type": "pre",
+                "text": "سلام\nنیم\u200cفاصله",  # noqa: RUF001
+                "language": "py\t\u0333thon",
+            },
+            {
+                "type": "blockquote",
+                "blocks": [{"type": "paragraph", "text": "unchanged"}],
+                "credit": "\u202e",
+            },
+            {
+                "type": "table",
+                "caption": {"type": "underline", "text": "A\u030aB\u0333C\u033fD"},
+                "cells": [[{"text": "\u2028"}]],
+            },
+            {
+                "type": "details",
+                "summary": "\u2029",
+                "blocks": [{"type": "divider"}],
+            },
+        ]
+    )
+    expected = {
+        "blocks": [
+            {
+                "type": "paragraph",
+                "text": [
+                    "Amber 42",
+                    {"type": "bold", "text": "abcdefgh"},
+                    {"type": "italic", "text": "X\u200c\u200c\u200eY"},
+                ],
+            },
+            {
+                "type": "pre",
+                "text": "سلام\nنیم\u200cفاصله",  # noqa: RUF001
+                "language": "py thon",
+            },
+            {
+                "type": "blockquote",
+                "blocks": [{"type": "paragraph", "text": "unchanged"}],
+            },
+            {
+                "type": "table",
+                "caption": {"type": "underline", "text": "ABCD"},
+                "cells": [[{"align": "left", "valign": "middle"}]],
+            },
+            {
+                "type": "details",
+                "summary": "",
+                "blocks": [{"type": "divider"}],
+            },
+        ]
+    }
+    pristine = copy.deepcopy(payload)
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+        assert sent["rich_message"] == expected
+        assert payload == pristine
+        with pytest.raises(ValueError, match="MESSAGE_NOT_MODIFIED"):
+            world.edit_message(
+                chat_id=1,
+                message_id=sent["id"],
+                bot_id=2,
+                rich_message={**expected, "skip_entity_detection": True},
+            )
+
+
+@pytest.mark.parametrize(
+    ("input_text", "expected_text"),
+    [
+        ("a" * 34_996 + "b", "a" * 34_996),
+        ("a" * 34_996 + "é", "a" * 34_996),
+        ("a" * 34_995 + "éZ", "a" * 34_995 + "é"),
+        ("a" * 34_995 + "💡Z", "a" * 34_995 + "💡"),
+    ],
+)
+def test_rich_plain_leaf_truncation_stops_at_utf8_character_boundaries(
+    tmp_path, input_text, expected_text
+):
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(
+            chat_id=1,
+            sender_id=2,
+            rich_message=rich(
+                [{"type": "paragraph", "text": {"type": "code", "text": input_text}}]
+            ),
+        )
+
+    assert sent["rich_message"] == {
+        "blocks": [{"type": "paragraph", "text": {"type": "code", "text": expected_text}}]
+    }
+
+
+def test_single_and_separated_direction_markers_are_preserved(tmp_path):
+    text = [
+        "\u200e",
+        "x",
+        "\u200f",
+        "سلام نیم\u200cفاصله\nEnglish e\u0301",  # noqa: RUF001
+    ]
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(
+            chat_id=1,
+            sender_id=2,
+            rich_message=rich([{"type": "paragraph", "text": text}]),
+        )
+    assert sent["rich_message"] == {"blocks": [{"type": "paragraph", "text": text}]}
+
+
 def test_list_items_are_normalized_through_the_world_boundary(tmp_path):
     payload = rich(
         [
@@ -507,7 +628,16 @@ def test_rich_messages_world_scope_and_bot_authority(tmp_path):
 
 
 @settings(max_examples=25)
-@given(st.text(alphabet=st.characters(blacklist_categories=("Cs", "Cc")), min_size=1, max_size=80))
+@given(
+    st.text(
+        alphabet=st.characters(
+            blacklist_categories=("Cs", "Cc"),
+            blacklist_characters="\u030a\u0333\u033f\u200e\u200f\u2028\u2029\u202a\u202b\u202c\u202d\u202e",
+        ),
+        min_size=1,
+        max_size=80,
+    )
+)
 def test_unicode_nested_text_round_trip_uses_complete_content(tmp_path_factory, text):
     directory = tmp_path_factory.mktemp("unicode") / "world"
     payload = rich(

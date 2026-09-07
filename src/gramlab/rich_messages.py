@@ -20,6 +20,22 @@ _BLOCK_FIELDS = {
 }
 
 _LIST_TYPES = frozenset(("a", "A", "i", "I", "1"))
+_REMOVED_CHARACTERS = frozenset(
+    (
+        "\u030a",
+        "\u0333",
+        "\u033f",
+        "\u2028",
+        "\u2029",
+        "\u202a",
+        "\u202b",
+        "\u202c",
+        "\u202d",
+        "\u202e",
+    )
+)
+_DIRECTION_MARKERS = frozenset(("\u200e", "\u200f"))
+_STRING_STOP_BYTES = 34_996
 
 
 def _object(value: Any, required: set[str], optional: set[str]) -> dict[str, Any]:
@@ -66,9 +82,28 @@ def _bounded(value: Any) -> None:
             pending.extend((child, depth + 1) for child in item)
 
 
+def _clean_string(value: str) -> str:
+    cleaned: list[str] = []
+    size = 0
+    for character in value:
+        if character in _REMOVED_CHARACTERS:
+            continue
+        if size >= _STRING_STOP_BYTES:
+            break
+        if character == "\t":
+            character = " "
+        cleaned.append(character)
+        size += len(character.encode("utf-8"))
+
+    for index in range(len(cleaned) - 1):
+        if cleaned[index] in _DIRECTION_MARKERS and cleaned[index + 1] in _DIRECTION_MARKERS:
+            cleaned[index] = "\u200c"
+    return "".join(cleaned)
+
+
 def _text(value: Any) -> Any:
     if isinstance(value, str):
-        return value
+        return _clean_string(value)
     if isinstance(value, list):
         if not value:
             raise ValueError("GRAMLAB_UNSUPPORTED: empty rich text arrays")
@@ -221,8 +256,9 @@ def _block(value: Any) -> dict[str, Any]:
     if "language" in obj:
         if not isinstance(obj["language"], str):
             raise ValueError("Preformatted language must be a string")
-        if obj["language"]:
-            result["language"] = obj["language"]
+        language = _clean_string(obj["language"])
+        if language:
+            result["language"] = language
     if kind == "table":
         rows = obj["cells"]
         if (
