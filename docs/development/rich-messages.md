@@ -29,9 +29,15 @@ API `text` and `entities` are absent from rich-only responses. Internally the wo
 ## Supported content
 
 RichText values are UTF-8 strings, non-empty arrays of RichText, or objects with exactly `type`
-and nested `text`, or the inline button shape below. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
+and nested `text`, or the link and inline button shapes below. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
 `spoiler`, `subscript`, `superscript`, `marked` and `code`. Arrays and nested wrappers retain
 structure and multilingual content.
+
+Structured links have `type` equal to `url`, `email_address` or `phone_number`, recursive `text`,
+and a required string metadata field with the same name as the type. Metadata uses the existing
+cleaner; empty and non-address strings are preserved. Captures match visible labels and exclude
+destinations. [Core, real-bot and capture checks pass](rich-links-contract.md); original Android
+rendering acceptance is pending. This support does not enable navigation or automatic detection.
 
 | Block type | Required fields besides `type` | Optional fields |
 | --- | --- | --- |
@@ -83,7 +89,7 @@ Admitted plain RichText leaves and preformatted language undergo the pinned
 direction-marker normalization and per-leaf UTF-8 truncation. Optional plain-empty fields omit
 after cleaning; required text and nested wrappers/arrays preserve their structure.
 Unknown fields, unsupported wrappers/blocks and ambiguous text plus rich content fail explicitly.
-HTML/Markdown parsing, automatic entities, links, navigation actions, media, custom emoji, streaming,
+HTML/Markdown parsing, automatic entities, ordinary link entities, navigation actions, media, custom emoji, streaming,
 and the remaining rich inventory are still open. No network asset is fetched.
 
 ## State and evidence

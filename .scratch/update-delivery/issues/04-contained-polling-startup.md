@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: integrated; focused acceptance passed, combined batch gate pending
+Work state: resolved
 Blocked by: none for focused acceptance
 
 Coordinator owns `tests/fixtures/polling_startup_bot.py`,
@@ -38,3 +38,6 @@ unchanged; the full-core batch gate is still pending.
 The earlier 38-case run loaded the worker checkout through a misdirected editable install;
 it is not integrated acceptance. The repaired primary import passes the complete independent
 fixture in a 144-case combined feature selection (60.27 seconds). The full-core gate remains.
+
+The combined full-core gate subsequently passes 447 tests at 81.18% coverage in 104.55 seconds.
+The independent contained-bot acceptance is complete; webhook delivery remains unsupported.

@@ -102,3 +102,10 @@ emphasis/code nesting, crossing ranges and nested quotes invalid. Only `GramLabB
 Fresh preparation and comparison of 43,268 exported files find that one adapter difference;
 all 6,666 checked upstream UI/resource files remain unchanged. Integrated compilation and
 runtime acceptance are tracked in [the quoted-code correction](../../../docs/development/quoted-code-formatting.md).
+
+`0015-rich-link-text.patch` projects recursive URL/email/phone text into original `TL_iv` types
+and observes the same fields after serialization. URL cached-page identity stays zero and the
+independent probe checks that invariant. Only `GramLabRichMessage` and `BridgeProbe` change;
+the 43,268-file comparison against normal14 finds exactly those two adapter differences, and
+the patch applies without fuzz or offset. Build and actual rendering/edit/restart acceptance are
+tracked in [the structured link contract](../../../docs/development/rich-links-contract.md).

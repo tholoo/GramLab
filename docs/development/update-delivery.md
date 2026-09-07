@@ -48,7 +48,7 @@ state and subsequent delivery through actual HTTP. The bot fixture first reprodu
 after an editable-install correction, the combined startup/polling/API and rich-link selection
 passes 144 cases in 60.27 seconds. An earlier 38-case run loaded a worker checkout and is retained
 as worker-equivalent observation, not integrated acceptance.
-Combined full-core acceptance remains pending for the current integration batch.
+The current combined full-core gate passes 447 tests at 81.18% coverage in 104.55 seconds.
 
 ## Negative offsets
 

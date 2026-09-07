@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: integrated; focused acceptance passed, combined batch gate pending
+Work state: resolved for core; native acceptance is tracked in tickets 30/31
 Blocked by: none; shared contract frozen
 
 Follow [the contract](../../../docs/development/rich-links-contract.md). Core worker owns only
@@ -37,3 +37,6 @@ node. The complete 144-case combined rich-link/startup/polling/API selection pas
 virtualenv pointed to the polling worker; its 6-failure/100-pass result is retained as invalid
 integration evidence. After repairing that install, an import-origin guard rejects wrong-checkout
 runs before collection. Scoped Ruff/format/mypy pass. Native and full-core batch gates remain.
+
+All 447 core tests pass at 81.18% coverage in 104.55 seconds with the import guard active; all
+24 maintained static commands pass. Native/rendering acceptance remains separately tracked.

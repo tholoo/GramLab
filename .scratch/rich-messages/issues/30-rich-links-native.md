@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: integrated and compiled; native acceptance pending
 Blocked by: none; canonical shared contract frozen
 
 Follow [the contract](../../../docs/development/rich-links-contract.md). Native worker owns only
@@ -25,3 +25,28 @@ than fresh full preparation, compilation or runtime proof. Do not mutate the sha
 Use the assigned worktree/branch; commit only owned files and return the exact preimage proof,
 patch check and frozen clean branch with terminal resources. Leave ticket claimed until combined
 acceptance. Report an unexpected required UI/network change before expanding ownership.
+
+## Worker evidence
+
+The append-only patch projects `url`, `email_address`, and `phone_number` nodes recursively into
+the pinned client's original `textUrl`, `textEmail`, and `textPhone` classes. Each decoder branch
+admits only its canonical fields, requires string metadata, and gives URL values a zero cached
+webpage ID. The independent probe reconstructs those exact metadata keys and rejects a nonzero URL
+webpage ID.
+
+The verified fourteen-patch preimages have SHA-256
+`1b8e5ec6c6a97fdbbcc6fdca2a3f493f43f8a6f64d91ae40e705b5bd731511fd` for
+`GramLabRichMessage.java` and
+`5ce379226b7a319131f9845b8de711be7e786d3931fc4e24a1b28b8195af961f` for
+`BridgeProbe.java`. Private ignored copies compare byte-for-byte with those shared read-only files.
+`patch --dry-run --fuzz=0 -p1` applies both patch sections cleanly to that exact source. This is
+source-only validation; full prepared-source comparison, compilation, adversarial codec checks,
+and native rendering remain coordinator-owned.
+
+Coordinator preparation compares all 43,268 normal14 reference files before and after zero-fuzz,
+zero-offset patch application. Only the two owned adapters change; independently patched private
+copies match their resulting digests. Original renderer/resources and strict dependency metadata
+are preserved. The incremental offline normal15 build passes in 2 minutes 48 seconds (78 tasks,
+11 executed), source digests remain unchanged and the immutable APK passes signature verification.
+With verified primary imports, normal14 first passes its baseline and then rejects the valid
+rich-link scene in 60.26 seconds. Normal15 codec/rendering and combined native acceptance remain.

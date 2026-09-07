@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: integrated; focused acceptance passed, combined batch gate pending
+Work state: resolved
 Blocked by: none; polling-only scope and shared contract frozen below
 
 A normal bot may call `deleteWebhook(drop_pending_updates=True)` before `getUpdates`. GramLab
@@ -85,3 +85,6 @@ Original HTTP 404 evidence remains separate. The batch full-core gate remains pe
 An import audit found that the 38-case run loaded the worker's editable install. Its integrated
 acceptance claim is withdrawn. After repairing the primary environment, all 144 combined
 startup/polling/API and rich-link tests pass in 60.27 seconds with the new import guard active.
+
+The combined full-core gate now passes 447 tests at 81.18% coverage in 104.55 seconds, with
+Android excluded and primary imports verified. All 24 maintained static commands pass.

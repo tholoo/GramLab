@@ -63,5 +63,6 @@ through a misdirected editable install and is retained as invalid integration ev
 now rejects this condition before collection. The stale unknown-type test now uses `text_link`,
 which remains unsupported, instead of the newly supported structured `url` type.
 
-Full-core and original Android acceptance remain separate pending gates. No automatic detection,
+The full core gate passes 447 tests at 81.18% coverage in 104.55 seconds with Android excluded.
+All 24 maintained static commands pass. Original Android acceptance remains pending. No automatic detection,
 navigation, media or custom-emoji support follows from the current core checks.

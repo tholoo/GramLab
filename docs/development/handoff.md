@@ -33,18 +33,23 @@ offline safety, licensing and completion requirements before the corresponding a
   are distinct stages; feeding raw HTML entities into the existing validator is insufficient.
 - [Quoted code/pre correction](quoted-code-formatting.md) is integrated in core and the normal
   Android adapter. Public World/real-bot and original rendering/edit/restart checks pass. The
-  broader 43-case inventory retains 16 passes; 27 remaining cases are running on unchanged inputs.
-  Original disk-space and late activity-launch failures remain recorded. The unchanged list
-  control passes with both cold-launch statuses and inspected edited/restarted images. This does
-  not prove the launch-delay cause fixed. Tickets 26/27 await combined acceptance.
-- [Polling startup](../../.scratch/update-delivery/issues/03-polling-startup-reset.md) has a reviewed
-  worker implementation of `deleteWebhook` and scoped queue discard. Its independent contained
-  bot fixture currently reproduces HTTP 404 on the integration branch. Keep the worker frozen until
-  the current native source snapshot is no longer needed, then integrate and run that fixture.
-- [Structured rich links](rich-links-contract.md) are assigned to separate core/native workers.
-  Coordinator owns real-bot/capture/native acceptance; canonical URL/email/phone text and metadata
-  are frozen. This changes rendering data, not navigation or network access. Automatic detection,
-  text mentions, custom emoji and media remain additional operational requirements.
+  later 27-case continuation reports all passes, but its combined acceptance was invalidated by
+  a wrong host editable import. The same qualification applies to the isolated list control.
+  Earlier core and focused quoted-code rendering precede the environment change. Original disk
+  and late-launch failures remain recorded. Tickets 26/27 await the corrected combined gate.
+- [Polling startup](../../.scratch/update-delivery/issues/03-polling-startup-reset.md) and
+  [structured rich-link core](rich-links-contract.md) are integrated. After repairing the editable
+  install, 144 combined feature tests pass, including independent contained bots and public
+  captures. All 447 core tests pass at 81.18% coverage. URL/email/phone metadata and labels
+  are preserved; automatic detection, mentions, custom emoji and media remain separate needs.
+- The native rich-link patch is integrated and compiled. Normal14 passes its baseline codec and rejects
+  the valid link scene in a 60.26-second dedicated red run with the corrected import guard.
+  All 43,268 reference source files compare with exactly two adapter differences; normal15
+  incremental offline compilation passes in 2 minutes 48 seconds. Actual rich-link rendering/edit/restart and the
+  combined 45-case Android inventory remain pending. No destination is opened.
+- [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
+  rejects another worktree's editable package before test collection. Always provision through
+  the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
@@ -66,8 +71,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable 13-patch APK covers all 41 cases: 19 retained passes plus 22 continuation passes after correcting the old preformatted-tab fixture. This is resumed coverage, not one uninterrupted green run. See [ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 411 passed at 81.01% coverage in 70.49 seconds using four isolated workers, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 22 documented static commands, 143 configuration/local-link checks and pinned offline workflow check pass after quoted-code integration. The later report-unit correction passes focused static and retained-result validation; corrected desktop/mobile reports were inspected. |
+| Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
+| Latest static/workflow | All 24 documented static commands, configuration/local-link checks across 152 Markdown files and the pinned offline workflow check pass for the integration batch. |
 | Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Deterministic generation/static checks pass. Pinned [photo source research](rich-photo-references.md) is integrated. This establishes fixtures/contracts, not media API or native photo support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
@@ -75,10 +80,10 @@ fingerprints; experimental geometry is absent from the normal patch series. Curr
 coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/nesting, duplicate or
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
-The current native continuation is live; inspect its exact handle before resuming. Earlier
-build/core/check/preview and list-control processes are terminal. Worker branches have separate
-status and acceptance. Host paths, handles, fingerprints and artifact locations stay in ignored
-local notes. Preserve the existing native source snapshot while its continued gate runs.
+The old native continuation, repeated old-APK red, core, static and workflow checks are terminal.
+Normal15 build is terminal; the focused normal15 native check is next. Worker
+branches remain frozen, with coordinator-owned integration and acceptance. Host paths, handles,
+fingerprints and artifact locations stay in ignored local notes.
 
 ## Development throughput
 
