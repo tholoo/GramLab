@@ -167,8 +167,10 @@ unchanged. The [retained-test selection tool](test-timings.md) passes 27 integra
 reproduces the real 41/19/22 selection, avoiding unnecessary repeat guest work.
 
 All current native/build/check/preview handles are terminal; actual fingerprints and paths remain
-in ignored local notes. Next prove original copy/disabled effects through ordinary guest input and
-original composer paste, retaining unchanged World/API state. Paste-key handling and transient
+in ignored local notes. The [copy/disabled experiment](../../.scratch/rich-messages/issues/21-rich-copy-disabled-native-experiment.md)
+is now in preparation: a real-bot simulation and scoped Python static checks pass. The isolated
+geometry worker is frozen for review. Next build its separately fingerprinted experimental APK
+and prove ordinary guest input and original composer paste, retaining unchanged World/API state. Paste-key handling and transient
 copy feedback need direct evidence. Keep that bounded experiment separate from any permanent
 observation interface or public targeting design.
 

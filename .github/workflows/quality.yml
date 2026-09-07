@@ -117,6 +117,8 @@ jobs:
         run: uv run --locked mypy examples/recovery
       - name: Type check the independent composer consumer example
         run: uv run --locked mypy examples/composer
+      - name: Type check the explicit copy and disabled experiment
+        run: uv run --locked mypy tests/probes/android_rich_action_effect.py tests/rich_action_effect_experiment.py tests/probes/rich_action_effect_round_trip.py tests/fixtures/rich_action_effect_bot.py
       - name: Type check the independent rich-message consumer example
         run: uv run --locked mypy examples/rich tests/test_runner_rich_example.py
       - name: Type check the original effects observation
