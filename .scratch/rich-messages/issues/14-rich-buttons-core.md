@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by rich-buttons-core on task/rich-buttons-core
+Work state: resolved after coordinator integration and core acceptance
 Blocked by: none
 
 Implement the frozen [button contract](../../../docs/development/rich-buttons-contract.md) in the
@@ -34,3 +34,12 @@ containers and labels, three actions, every admitted style, fill and explicit al
 labels/copy values, byte-preserved callback data, multibyte limits, atomic rejection/no-op edits,
 ownership, aggregate limits and durable reopen state. Scoped Ruff format/check and source mypy
 pass. No guest, build, full gate or network run was performed.
+
+
+## Coordinator acceptance
+
+The frozen branch is merged. Integrated World/HTTP rich-button checks pass all 31 cases in
+3.67 seconds, and the real public runner capture check passes in 1.28 seconds with complete
+initial/edit/repeated histories and rejected action metadata. The combined core gate passes
+368 tests in 49.71 seconds at 80.99% coverage. All documented static scopes pass. Native codec,
+rendering and input are separately tracked; this ticket does not claim those outcomes.

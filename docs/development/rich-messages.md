@@ -29,7 +29,7 @@ API `text` and `entities` are absent from rich-only responses. Internally the wo
 ## Supported content
 
 RichText values are UTF-8 strings, non-empty arrays of RichText, or objects with exactly `type`
-and nested `text`. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
+and nested `text`, or the inline button shape below. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
 `spoiler`, `subscript`, `superscript`, `marked` and `code`. Arrays and nested wrappers retain
 structure and multilingual content.
 
@@ -44,6 +44,14 @@ structure and multilingual content.
 | `table` | `cells` (array of rows of cells) | RichText `caption`; boolean `is_bordered`, `is_striped`, `is_compact` |
 | `details` | RichText `summary`, `blocks` | boolean `is_open` |
 | `list` | non-empty `items` array | — |
+| `buttons` | array of 1–8 buttons | `align`: left, center or right |
+
+Rich buttons use the [callback/copy/disabled contract](rich-buttons-contract.md). An inline
+RichText button has `type: "button"` and a `button` object; row and inline buttons share plain
+string/recursive-array labels, optional normalized style, and exactly one direct action field.
+Labels and copied text are cleaned; callback bytes are preserved. Captures read labels and exclude
+action metadata. Core/API and public simulation capture checks pass; native projection is merged,
+with rebuilt-APK acceptance pending. Public `tap_inline_button` still selects reply-markup cells.
 
 List items require `blocks`, including an empty array, and accept optional boolean `has_checkbox`
 and `is_checked`, signed 32-bit integer `value`, and label `type`. An absent or empty type means
@@ -75,7 +83,7 @@ Admitted plain RichText leaves and preformatted language undergo the pinned
 direction-marker normalization and per-leaf UTF-8 truncation. Optional plain-empty fields omit
 after cleaning; required text and nested wrappers/arrays preserve their structure.
 Unknown fields, unsupported wrappers/blocks and ambiguous text plus rich content fail explicitly.
-HTML/Markdown parsing, automatic entities, links, buttons, media, custom emoji, streaming,
+HTML/Markdown parsing, automatic entities, links, navigation actions, media, custom emoji, streaming,
 and the remaining rich inventory are still open. No network asset is fetched.
 
 ## State and evidence

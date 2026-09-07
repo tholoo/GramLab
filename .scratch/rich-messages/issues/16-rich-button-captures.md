@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by rich-buttons-captures on task/rich-buttons-captures
+Work state: resolved after coordinator integration and core acceptance
 Blocked by: ticket 14 for positive public execution
 
 Follow the frozen [button contract](../../../docs/development/rich-buttons-contract.md).
@@ -42,3 +42,12 @@ World insertion or database fixture bypasses that expected ticket-14 dependency.
 lint/format and strict mypy pass for both owned Python files. Positive public execution remains
 coordinator-owned after integrating the core branch. No guest, APK build, full gate or external
 network access was used.
+
+
+## Coordinator acceptance
+
+The frozen branch is merged. Integrated World/HTTP rich-button checks pass all 31 cases in
+3.67 seconds, and the real public runner capture check passes in 1.28 seconds with complete
+initial/edit/repeated histories and rejected action metadata. The combined core gate passes
+368 tests in 49.71 seconds at 80.99% coverage. All documented static scopes pass. Native codec,
+rendering and input are separately tracked; this ticket does not claim those outcomes.

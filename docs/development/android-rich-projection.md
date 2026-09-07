@@ -38,6 +38,9 @@ not import native types. The patch retains the [client license boundary](licensi
 | Unordered list and recursive item blocks | `pageBlockList`, `TL_pageListItemBlocks` |
 | Ordered list and recursive item blocks | `pageBlockOrderedList`, `TL_pageListOrderedItemBlocks`; item label/type/value presence flags |
 | Item checkbox and checked state | Original item `checkbox` and `checked` flags |
+| Button row / inline text button | `pageBlockButtonRow` with `PageButton` / `textButton` |
+| Callback, copy, disabled | Original corresponding `TL_inlineButtonType` constructors |
+| Optional style / row alignment | `RichButtonStyle` flags / row left-center-right flags; default omits |
 
 Absent optional text uses native `textEmpty`; required empty text remains `textPlain("")`.
 The core omits plain empty optional credit/caption/cell text, matching pinned server output;
@@ -55,11 +58,19 @@ bytes to 65,536, and each explicit span to 100. Table expanded cell area (sum of
 missing spans treated as one) cannot exceed 10,000; no later row may be wider than the first. Unpaired UTF-16 surrogates and control characters
 other than newline/tab are rejected. These are local resource/support limits, not production
 Telegram acceptance claims. HTML/Markdown parsing, automatic entity detection, links, media,
-buttons, custom emoji and draft parts remain outside this projection slice.
+navigation buttons, custom emoji and draft parts remain outside this projection slice.
 
 ## Verification and integration
 
-The current twelve-patch queue applies to a fresh pinned export, preserving all 6,666 original
+The integrated thirteenth patch adds canonical [rich buttons](rich-buttons-contract.md) in the
+adapter and serializer probe. The two GPL files compile; fresh patch application preserves all
+10,759 original UI/resource/asset files in the worker comparison. The old APK's valid button
+catalog fails as expected with an unsupported-rich-block error after its baseline/isolation pass.
+Rebuilt-APK codec and original real-bot rendering acceptance remain pending. The opt-in
+[geometry experiment](../../clients/android/experiments/rich-actions/README.md) is outside the normal
+series and has compilation evidence only; no rich-button input is claimed yet.
+
+The preceding twelve-patch queue applies to a fresh pinned export, preserving all 6,666 original
 UI/resource files. The list integration changes two Java inputs; its incremental offline APK
 build completes in 2 minutes 31 seconds. Actual native serialization preserves the complete list
 catalog, and 42 malformed list/budget cases reject explicitly. Empty item block vectors survive
