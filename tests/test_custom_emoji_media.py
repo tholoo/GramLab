@@ -194,6 +194,44 @@ def test_custom_emoji_rejects_truncation_after_a_complete_valid_webm() -> None:
         validate_custom_emoji(main, fixture("emoji-thumbnail.webp"))
 
 
+def test_custom_emoji_rejects_bytes_after_a_finite_webm_segment() -> None:
+    main = fixture("emoji-animated.webm") + b"garbage"
+
+    with pytest.raises(ValueError):
+        validate_custom_emoji(main, fixture("emoji-thumbnail.webp"))
+
+
+def test_custom_emoji_accepts_unknown_outer_segment_with_complete_finite_children() -> None:
+    main = bytearray(fixture("emoji-animated.webm"))
+    assert main[36:40] == b"\x18S\x80g"
+    assert main[40:48] == b"\x01\x00\x00\x00\x00\x00\x05v"
+    main[40:48] = b"\x01" + b"\xff" * 7
+
+    media = validate_custom_emoji(bytes(main), fixture("emoji-thumbnail.webp"))
+
+    assert media.duration_ms == 1000
+
+
+def test_custom_emoji_rejects_incomplete_child_after_unknown_outer_segment() -> None:
+    main = bytearray(fixture("emoji-animated.webm"))
+    main[40:48] = b"\x01" + b"\xff" * 7
+    main.extend(b"garbage")
+
+    with pytest.raises(ValueError):
+        validate_custom_emoji(bytes(main), fixture("emoji-thumbnail.webp"))
+
+
+def test_custom_emoji_explicitly_rejects_unknown_segment_child_size() -> None:
+    main = bytearray(fixture("emoji-animated.webm"))
+    main[40:48] = b"\x01" + b"\xff" * 7
+    cluster = main.index(b"\x1fC\xb6u")
+    assert main[cluster + 4 : cluster + 6] == b"C\xea"
+    main[cluster + 4 : cluster + 6] = b"\x7f\xff"
+
+    with pytest.raises(ValueError, match="unknown-sized Segment child"):
+        validate_custom_emoji(bytes(main), fixture("emoji-thumbnail.webp"))
+
+
 @pytest.mark.parametrize(
     "options",
     [
@@ -285,6 +323,15 @@ os.execv(real, [real, *sys.argv[1:]])
         (fixture("emoji-static.webp"), b"\x89PNG\r\n\x1a\ninvalid"),
         (fixture("emoji-truncated-invalid.webm"), fixture("emoji-thumbnail.webp")),
     ],
+    ids=(
+        "main-geometry",
+        "thumbnail-geometry",
+        "animated-main-webp",
+        "animated-thumbnail-webp",
+        "main-png",
+        "thumbnail-png",
+        "truncated-webm",
+    ),
 )
 def test_custom_emoji_rejects_invalid_format_geometry_animation_or_truncation(
     main: bytes, thumbnail: bytes
