@@ -7,13 +7,16 @@ import os
 import shutil
 from collections import Counter
 from dataclasses import asdict
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
 import pytest
-from custom_emoji_visual import animation_states, require_complete_cycle
+from custom_emoji_visual import animation_states, locate_static, require_complete_cycle
 from PIL import Image
+from test_android_quoted_code import assert_isolation
 
+from gramlab.reports import Report, Screenshot, write_report
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 pytestmark = pytest.mark.android
@@ -63,6 +66,7 @@ def test_original_custom_emoji_edit_animation_and_cold_cache(tmp_path: Path) -> 
     (tmp_path / "custom-emoji-native-stderr.log").write_text(result.stderr)
     assert result.returncode == 0, result.stderr
     full = json.loads(result.stdout)
+    assert_isolation(full)
     helper.assert_scenario(full["extra_probe"])
     assert_native_lifecycle(tmp_path, full["extra_probe"], apk)
 
@@ -98,29 +102,28 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     assert all(row["status"] == 200 and row["error"] is None for row in documents)
     with Image.open(tmp_path / "initial.png") as opened:
         initial = opened.convert("RGB")
-    blue_carriers = 0
-    for raw_box in client["carrier_bounds"]["initial"]:
-        raw_pixels = initial.crop(tuple(raw_box)).tobytes()
-        pixels = zip(raw_pixels[::3], raw_pixels[1::3], raw_pixels[2::3], strict=True)
-        if any(
-            abs(pixel[0] - 88) <= 45 and abs(pixel[1] - 104) <= 45 and abs(pixel[2] - 240) <= 45
-            for pixel in pixels
-        ):
-            blue_carriers += 1
-    assert blue_carriers >= 3
+    initial_boxes = client["carrier_bounds"]["initial"]
+    assert set(initial_boxes) == {"incoming", "ordinary", "rich", "button"}
+    assert len({tuple(box) for box in initial_boxes.values()}) == 4
+    assert all(locate_static(initial, tuple(raw_box)) for raw_box in initial_boxes.values())
     burst = []
+    timestamps = client["burst_timestamps_ns"]
+    assert len(timestamps) == 24
+    assert all(left < right for left, right in pairwise(timestamps))
     for index in range(24):
         with Image.open(tmp_path / f"edited-burst-{index:02d}.png") as opened:
             burst.append(opened.copy())
     complete = 0
-    for raw_box in client["carrier_bounds"]["edited"]:
+    edited_boxes = client["carrier_bounds"]["edited"]
+    for carrier in ("ordinary", "rich", "button"):
+        raw_box = edited_boxes[carrier]
         states = animation_states(burst, [tuple(raw_box)] * len(burst))
         try:
             require_complete_cycle(states)
         except AssertionError:
             continue
         complete += 1
-    assert complete >= 2, "Ordinary and rich/button carriers must show the authored animation"
+    assert complete == 3, "All three edited bot carriers must show the authored animation"
     expected = {
         "2_2.jpg": (THUMBNAIL.stat().st_size, hashlib.sha256(THUMBNAIL.read_bytes()).hexdigest()),
         "-1_1109.webm": (
@@ -137,4 +140,25 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
                 continue
             assert copies
             assert all(copy["size"] == size and copy["sha256"] == digest for copy in copies)
-    assert hashlib.sha256(Path(apk).read_bytes()).hexdigest()
+    assert (tmp_path / "client.apk").read_bytes() == Path(apk).read_bytes()
+    write_report(
+        tmp_path / "report.html",
+        Report(
+            run_id="custom-emoji-native-lifecycle",
+            title="Original custom emoji lifecycle",
+            mode="headless-android",
+            outcome="passed",
+            seed=31,
+            profile={"APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest()},
+            summary="Original static and animated custom emoji survive an edit and cold restart.",
+            evidence={"Assets": requests, "Documents": documents, "Cache": client["cache"]},
+            limitations=(
+                "Synthetic local catalog evidence does not establish production entitlement.",
+                "Broader resolver fault and cancellation coverage remains separate.",
+            ),
+            screenshots=tuple(
+                Screenshot(caption=phase, png=(tmp_path / f"{phase}.png").read_bytes())
+                for phase in ("initial", "edited", "restarted")
+            ),
+        ),
+    )
