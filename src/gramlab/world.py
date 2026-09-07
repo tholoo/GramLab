@@ -671,14 +671,6 @@ class World:
                 except ValueError:
                     continue
                 main = self.asset_descriptor(descriptor["main_asset_id"])
-                thumb = (
-                    self.photo_size(bot_id, descriptor["thumbnail_asset_id"])
-                    if self._connection.execute(
-                        "SELECT 1 FROM bot_files WHERE bot_id=? AND asset_id=?",
-                        (bot_id, descriptor["thumbnail_asset_id"]),
-                    ).fetchone()
-                    else None
-                )
                 self._file_identity(bot_id, descriptor["main_asset_id"])
                 self._file_identity(bot_id, descriptor["thumbnail_asset_id"])
                 thumb = self.photo_size(bot_id, descriptor["thumbnail_asset_id"])
@@ -1195,6 +1187,8 @@ class World:
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         if not isinstance(custom_emoji_ids, list) or not 1 <= len(custom_emoji_ids) <= 200:
             raise ValueError("custom_emoji_ids must contain 1 to 200 identifiers")
+        if any(not isinstance(value, str) for value in custom_emoji_ids):
+            raise ValueError("custom_emoji_ids must contain decimal strings")
         identifiers = sorted({int(canonical_custom_emoji_id(value)) for value in custom_emoji_ids})
         descriptors = []
         assets: set[int] = set()
