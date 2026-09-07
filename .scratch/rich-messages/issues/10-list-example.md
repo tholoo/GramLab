@@ -16,8 +16,10 @@ output: output-only labels must never be resubmitted. Use concise content that f
 Exercise nested unordered/ordered content, all five ordered label types across send/edit, both
 checkbox states, an empty item, mixed Persian/English text, wrapping and RTL edit. Use an actual
 inline callback to perform the edit; verify complete callback message content and answer. Capture
-before input, live edit and a cold reopen through the public capture API. No production toggle or
-new API is assigned. The coordinator separately verifies bot-owned checkbox input cannot mutate.
+before input, after edit and through a second cold reopen through the public capture API. Every
+public capture cold-launches the client; the coordinator's separate native probe verifies the live
+edit. No production toggle or new API is assigned. The coordinator separately verifies bot-owned
+checkbox input cannot mutate.
 
 Host tests must assert full expected canonical histories/captures/events, real Bot API send/edit,
 callback correctness, unchanged semantic results across modes, and native evidence/isolation/report
@@ -47,3 +49,8 @@ acceptance. Report pending native checks explicitly.
   expectations. No Android guest or APK build was run. Native list traversal red/green, three
   original capture inspections, ambiguity rejection, isolation/report metadata and bot-owned
   checkbox immutability remain coordinator acceptance work, so this ticket stays claimed.
+- Review correction: the public capture API force-stops and relaunches the client for every capture.
+  The post-edit labels are therefore `after-edit` and `cold-reopen`; neither is live-rendering
+  evidence. The coordinator-owned native probe remains the live-edit check. The focused offline
+  rerun passes with `1 passed, 2 deselected`; scoped Ruff lint/format and mypy also pass. No guest
+  was started.

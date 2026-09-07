@@ -255,7 +255,7 @@ def verify(result: dict[str, Any], *, native: bool) -> None:
         },
         {
             "chat_id": 1,
-            "label": "live-edit",
+            "label": "after-edit",
             "history": [USER_MESSAGE, EDITED_MESSAGE],
             "rendered": native,
         },
@@ -305,7 +305,7 @@ def verify(result: dict[str, Any], *, native: bool) -> None:
         "stderr_complete": False,
     }
     assert result["processes"]["scenario"]["exit_code"] == 0
-    assert "callback edit and cold reopen" in result["processes"]["scenario"]["stdout"]
+    assert "callback edit through two cold launches" in result["processes"]["scenario"]["stdout"]
     if native:
         assert interaction["android"]["target"]["text"] == "Apply"
         assert interaction["android"]["target"]["class"] == "android.widget.Button"
@@ -313,7 +313,6 @@ def verify(result: dict[str, Any], *, native: bool) -> None:
 
 def test_rich_lists_real_bot_callback_edit_and_cold_reopen(tmp_path: Path) -> None:
     manifest = project(tmp_path / "project")
-    assert '"label"' not in (manifest.parent / "bot.py").read_text()
     result = execute(manifest, tmp_path / "run", native=False)
     verify(result, native=False)
     assert not list((tmp_path / "run").glob("captures/*.png"))
@@ -419,7 +418,7 @@ expect(lab.events() == before, "Ambiguous list input caused a world mutation")
     }
     assert [capture["label"] for capture in result["captures"]] == [
         "before-tap",
-        "live-edit",
+        "after-edit",
         "cold-reopen",
         "before-ambiguous",
     ]

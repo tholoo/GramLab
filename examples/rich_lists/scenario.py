@@ -46,10 +46,10 @@ expect(
     answer == {"text": "Lists updated", "show_alert": False, "cache_time": 0},
     "Unexpected callback answer",
 )
-for label in ("live-edit", "cold-reopen"):
+for label in ("after-edit", "cold-reopen"):
     lab.capture_chat(
         chat_id=chat["id"],
         label=label,
         contains=["ویرایش راست‌به‌چپ RTL", "مرحله nested", "چهار IV", "پنج decimal"],
     )
-print("Rich lists retained through callback edit and cold reopen")
+print("Rich lists retained after callback edit through two cold launches")
