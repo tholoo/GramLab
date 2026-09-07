@@ -1,0 +1,23 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -69,7 +69,7 @@
+     }
+ 
+     static long identifier(JSONObject value, String key) throws JSONException {
+-        Object number = value.get(key);
++        Object number = value.opt(key);
+         require(number instanceof Integer || number instanceof Long);
+         long result = ((Number) number).longValue();
+         require(result > 0);
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+@@ -60,6 +60,7 @@
+         for (int i = 0; i < records.length(); i++) {
+             JSONObject record = records.getJSONObject(i);
+             GramLabBridge.fields(record, "asset_id", "mime_type", "file_size", "sha256", "width", "height");
++            if (record.length() != 6) throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_DATA");
+             long id = GramLabBridge.identifier(record, "asset_id");
+             long size = GramLabBridge.identifier(record, "file_size");
+             int width = GramLabBridge.integer(record, "width");

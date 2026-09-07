@@ -53,3 +53,8 @@ Corrected native run on normal18 completes all 28 attempts: all four valid full-
 comparisons and 16 malformed rejections match. Eight missing-field cases terminate app_process
 with exit 137 and no JSON. This is a native rejection defect, not a passing suite. Positive
 photo/volume IDs and local ID 1 survive ordinary/rich serialization after patch 0018.
+
+Patch 0019 rejects incomplete six-field asset descriptors before JSON access and makes positive
+identifier validation handle an absent field as invalid data. This addresses the eight native
+missing-field failures without catching arbitrary crashes in the probe or changing valid output.
+Corrected compilation and the complete native inventory remain required.
