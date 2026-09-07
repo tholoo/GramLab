@@ -92,6 +92,7 @@ uv run --locked mypy tests/test_rich_links_round_trip.py tests/test_android_rich
   tests/test_runner_rich_link_captures.py tests/probes/rich_links_round_trip.py \
   tests/probes/android_rich_links.py tests/probes/android_message_codec.py
 uv run --locked mypy tests/test_runner_media_captures.py
+uv run --locked mypy tests/fixtures/media_bot.py tests/probes/media_round_trip.py tests/test_media_round_trip.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
