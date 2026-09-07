@@ -62,5 +62,6 @@ name for a later loan. Confirm the worker's final commit contains only owned fil
 
 The tool never runs `git reset`, `git clean`, merge, rebase, cherry-pick, worktree removal or a
 remote Git operation. A filesystem write failure triggers a best-effort rollback to the retained
-batch bytes and exits with an error; inspect the receipt and target before retrying after such an
-external failure.
+batch bytes and exits with an error. If any rollback write also fails, the receipt is retained with
+state `failed` and the CLI reports that recovery is incomplete. Inspect every named target and all
+retained evidence before taking any manual recovery action.

@@ -58,12 +58,13 @@ commits, target, paths, modes and SHA-256 values. Restore validates every receip
 target, current `HEAD` and index before mutation. It refuses modified, staged or committed loans
 as one batch. Only an exact tool-created file that remains untracked is removed. A successful
 receipt remains as `restored`, so repeated restoration is explicit rather than destructive.
-Filesystem write failures use retained values for best-effort batch rollback. The CLI never resets,
-cleans, integrates branches, removes worktrees or accesses remotes.
+Filesystem write failures use retained values for best-effort batch rollback. An incomplete
+rollback retains a `failed` receipt and reports that manual inspection is required. The CLI never
+resets, cleans, integrates branches, removes worktrees or accesses remotes.
 
 The test suite creates only temporary repositories and real linked worktrees. Its meaningful red
 was 13 cases failing because the executable did not yet exist. Final focused verification through
-this checkout's pinned default shell passes **13 tests in 2.17 seconds**, covering tracked and
+this checkout's pinned default shell initially passed **13 tests in 2.17 seconds**, covering tracked and
 absent restore, executable mode, unrelated edits, full-batch dirty/modified/committed refusals,
 symlink and traversal rejection, wrong repositories, unsupported Git modes, immutable source IDs,
 receipt collision and repeated restore. Retained evidence is ignored at
@@ -71,3 +72,12 @@ receipt collision and repeated restore. Retained evidence is ignored at
 tool and test; Python bytecode compilation, executable-bit verification, `git diff --check` and
 the assigned-worktree check pass. No live worker dependency, full gate, native test or guest ran;
 all test processes are terminal.
+
+Independent review then found three bounded defects. A pre-existing deterministic temporary-name
+collision was unlinked even though this invocation had not created it; restore trusted a receipt
+whose stored bytes and hash were edited together instead of comparing them with the recorded Git
+commits; and an exception during install rollback could delete the only recovery evidence. The
+follow-up makes temporary cleanup ownership explicit, compares installed/original bytes and modes
+with the actual source/base Git blobs, and retains a failed receipt when rollback is incomplete.
+Focused collision plus original/installed receipt-tampering regressions bring the suite to **16
+passing tests**; final retained evidence supersedes the earlier 13-test JUnit.

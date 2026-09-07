@@ -213,18 +213,21 @@ def ensure_receipt_storage(target: Path, directory: Path) -> None:
 
 def write_exact(path: Path, value: bytes, mode: str) -> None:
     temporary = path.with_name(f".{path.name}.worktree-dependency-{os.getpid()}")
+    created = False
     try:
         with temporary.open("xb") as stream:
+            created = True
             stream.write(value)
             stream.flush()
             os.fsync(stream.fileno())
         temporary.chmod(VALID_MODES[mode])
         os.replace(temporary, path)
     finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+        if created:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def write_receipt(path: Path, receipt: dict[str, Any]) -> None:
@@ -334,23 +337,37 @@ def install(coordinator: Path, arguments: argparse.Namespace) -> None:
             if original_value is not None:
                 write_exact(directory / "original" / str(index), original_value, "100644")
         write_receipt(directory / "receipt.json", receipt)
-        applied = 0
-        try:
-            for entry, value in zip(entries, installed_values, strict=True):
-                write_exact(target / entry["path"], value, entry["installed"]["mode"])
-                applied += 1
-        except OSError:
-            for entry, original_value in reversed(
-                list(zip(entries[:applied], original_values[:applied], strict=True))
-            ):
+    except (OSError, KeyError, TypeError):
+        shutil.rmtree(directory, ignore_errors=True)
+        fail("Dependency receipt preparation failed; no target was changed.")
+
+    applied = 0
+    try:
+        for entry, value in zip(entries, installed_values, strict=True):
+            write_exact(target / entry["path"], value, entry["installed"]["mode"])
+            applied += 1
+    except (OSError, KeyError, TypeError):
+        rollback_complete = True
+        for entry, original_value in reversed(
+            list(zip(entries[:applied], original_values[:applied], strict=True))
+        ):
+            try:
                 if original_value is None:
                     (target / entry["path"]).unlink(missing_ok=True)
                 else:
                     write_exact(target / entry["path"], original_value, entry["original"]["mode"])
-            raise
-    except (OSError, KeyError, TypeError):
-        shutil.rmtree(directory, ignore_errors=True)
-        fail("Dependency installation failed; applied targets were rolled back.")
+            except (OSError, KeyError, TypeError):
+                rollback_complete = False
+        if rollback_complete:
+            shutil.rmtree(directory, ignore_errors=True)
+            fail("Dependency installation failed; applied targets were rolled back.")
+        receipt["state"] = "failed"
+        receipt["failure"] = "Installation failed and rollback was incomplete; inspect every path."
+        try:
+            write_receipt(directory / "receipt.json", receipt)
+        except OSError:
+            pass
+        fail("Dependency installation failed and rollback was incomplete; receipt retained.")
     print(f"Installed {len(entries)} frozen dependencies under receipt {name}.")
 
 
@@ -441,6 +458,22 @@ def prevalidate_restore(
         original = (
             None if original_record is None else receipt_value(directory, original_record, path)
         )
+        source_entry = tree_entry(target, source, path)
+        if source_entry is None or source_entry[0] not in VALID_MODES:
+            fail(f"Receipt source commit differs: {path}")
+        source_value = blob(target, source_entry[1], path)
+        if value["installed"]["mode"] != source_entry[0] or installed != source_value:
+            fail(f"Receipt installed differs from source commit: {path}")
+        base_entry = tree_entry(target, base, path)
+        if original_record is None:
+            if base_entry is not None:
+                fail(f"Receipt original differs from base commit: {path}")
+        else:
+            if original is None or base_entry is None or base_entry[0] not in VALID_MODES:
+                fail(f"Receipt original differs from base commit: {path}")
+            base_value = blob(target, base_entry[1], path)
+            if original_record["mode"] != base_entry[0] or original != base_value:
+                fail(f"Receipt original differs from base commit: {path}")
         target_mode = filesystem_mode(target / path)
         if target_mode == "unsupported" or target_mode is None:
             fail(f"Installed dependency is not a regular file: {path}")
@@ -455,18 +488,10 @@ def prevalidate_restore(
             if staged is not None:
                 fail(f"Index dependency changed since install: {path}")
         else:
-            expected = tree_entry(target, base, path)
-            if expected is None or committed != expected:
+            if base_entry is None or committed != base_entry:
                 fail(f"Committed dependency changed since install: {path}")
-            if staged != expected:
+            if staged != base_entry:
                 fail(f"Index dependency changed since install: {path}")
-            if original is None:
-                fail(f"Receipt original is missing: {path}")
-            if (
-                original_record["mode"] != expected[0]
-                or sha256(original) != original_record["sha256"]
-            ):
-                fail(f"Receipt original differs from base commit: {path}")
         entries.append(value)
         installed_values.append(installed)
         original_values.append(original)

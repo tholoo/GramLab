@@ -1,12 +1,15 @@
 """Exercise guarded dependency loans in disposable real Git worktrees."""
 
 import hashlib
+import importlib.machinery
+import importlib.util
 import json
 import shutil
 import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -28,6 +31,15 @@ def command(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def load_helper_module() -> ModuleType:
+    loader = importlib.machinery.SourceFileLoader("worktree_dependency", str(HELPER))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
 
 
 @dataclass(frozen=True)
@@ -190,6 +202,49 @@ def test_restore_refuses_modified_installed_batch_without_partial_restore(
         (repository.worker / ".cache/worktree-dependencies/loan/receipt.json").read_text()
     )
     assert receipt["state"] == "installed"
+
+
+def test_exact_write_preserves_preexisting_temporary_collision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helper = load_helper_module()
+    target = tmp_path / "target"
+    target.write_text("original target\n")
+    collision = tmp_path / ".target.worktree-dependency-17"
+    collision.write_text("preexisting collision\n")
+    monkeypatch.setattr(helper.os, "getpid", lambda: 17)
+    with pytest.raises(FileExistsError):
+        helper.write_exact(target, b"replacement\n", "100644")
+    assert target.read_text() == "original target\n"
+    assert collision.read_text() == "preexisting collision\n"
+
+
+@pytest.mark.parametrize("kind", ["original", "installed"])
+def test_restore_rejects_tampered_receipt_bytes_even_with_matching_receipt_hash(
+    repository: Repository, kind: str
+) -> None:
+    assert install(repository).returncode == 0
+    directory = repository.worker / ".cache/worktree-dependencies/loan"
+    receipt_path = directory / "receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    tampered = b"tampered receipt bytes\n"
+    if kind == "original":
+        (directory / "original/0").write_bytes(tampered)
+        receipt["entries"][0]["original"]["sha256"] = digest(tampered)
+        expected = "Receipt original differs from base commit: tracked.txt\n"
+    else:
+        (directory / "installed/0").write_bytes(tampered)
+        receipt["entries"][0]["installed"]["sha256"] = digest(tampered)
+        (repository.worker / "tracked.txt").write_bytes(tampered)
+        expected = "Receipt installed differs from source commit: tracked.txt\n"
+    receipt_path.write_text(json.dumps(receipt))
+    result = restore(repository)
+    assert result.returncode == 2
+    assert result.stderr == expected
+    assert (repository.worker / "tracked.txt").read_bytes() == (
+        b"borrowed\x00bytes\n" if kind == "original" else tampered
+    )
+    assert (repository.worker / "new tool.sh").read_text() == "#!/bin/sh\nexit 0\n"
 
 
 def test_restore_refuses_accidentally_committed_dependency_without_mutation(
