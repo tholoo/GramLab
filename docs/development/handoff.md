@@ -100,6 +100,16 @@ and prepare a concrete offline navigation proposal before consequential design d
 external navigation or runtime egress is authorized. Rich actions, media, custom emoji, Mini Apps,
 interactive mode and the wider product inventory remain unfinished; the full goal stays active.
 
+During that gate, the coordinator reproduced a rich-string normalization gap through the World:
+an admitted tab survives instead of becoming a space. The pinned cleaner also establishes
+Unicode-marker removal/replacement and a per-string UTF-8 stopping rule. The
+[reviewed normalization contract](rich-text-cleaning.md) and
+[worker ticket](../../.scratch/rich-messages/issues/12-rich-text-cleaning.md) assign a correction
+to `task/rich-text-cleaning` in its separate worktree. That worker owns only the validator, its
+World/HTTP tests and ticket. The integration code/APK remain frozen; the current gate does not
+cover this unmerged correction. Review its frozen handoff after the gate, then run affected
+combined checks. Rich actions and permanent native geometry/target identity remain separate work.
+
 ## Previous rich-message checkpoint
 
 The completed first parallel rich-message batch has a passing real-bot send/edit scenario and original
