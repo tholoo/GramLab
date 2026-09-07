@@ -30,3 +30,14 @@ codec dependencies. Preserve those notices when packaging the dependency; this d
 third-party code under GramLab's MIT license. Local runtime uses the Nix dependency closure; host
 wheel validation and distribution review are separate from Android's GPL boundary. No dependency
 source is copied into the simulator and no binary distribution is authorized by this addition.
+
+## Pinned emoji predicate reuse
+
+Custom-emoji work reuses only TDLib's BSL-1.0 emoji membership data and predicate, independently of
+the GPL Android adapter. The Python adaptation must retain its upstream copyright and the complete
+Boost license in the module so a staged scenario supervisor receives those notices with the code.
+That adapted module retains BSL-1.0; the root MIT license does not replace it. The accompanying
+[license](../../LICENSES/BSL-1.0.txt) and [provenance](tdlib-emoji-provenance.json) pin exact source
+hashes, scope and known generation limits. Preserve these notices in future packaging; no remote
+publication or binary distribution is authorized. Predicate reuse supplies a documented local
+coverage check, not evidence of production custom-emoji entitlement or server admission.

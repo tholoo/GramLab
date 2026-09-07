@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/tdlib/td",
+  "revision": "bc9c263e2bfee06aaab41e82db51a103376030bc",
+  "license": "BSL-1.0",
+  "copyright": "Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2026",
+  "sources": [
+    {
+      "path": "tdutils/td/utils/emoji.cpp",
+      "sha256": "58cf48748f356357a016a193dd9d5da80f2a2edbd93e58eac2c44edbed9dc0c0",
+      "url": "https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/emoji.cpp"
+    },
+    {
+      "path": "tdutils/test/emoji.cpp",
+      "sha256": "ef9889ceaf2f8035f7244045e02c4af10978837073044e4f05e1753cc34808b6",
+      "url": "https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/test/emoji.cpp"
+    },
+    {
+      "path": "LICENSE_1_0.txt",
+      "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+      "url": "https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/LICENSE_1_0.txt"
+    }
+  ],
+  "scope": "Emoji membership data and predicate only; no Android-derived code. Python adaptation must retain the copyright and full BSL text in its source module.",
+  "table_entries": 2334,
+  "unicode_version_evidence": {
+    "revision": "33803279745be78286c547b7e54bd0ebbb11c9a9",
+    "commit_subject": "Update emoji to Unicode 16.0."
+  },
+  "generation_limit": "The pinned source contains the compressed table but no identified generator or exact Unicode source-file inputs. No reproducible original table-generation claim."
+}
