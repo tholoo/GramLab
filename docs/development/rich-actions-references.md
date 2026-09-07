@@ -20,8 +20,23 @@ and [row parser](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9
 Button styles are case-normalized; missing, empty or `default` becomes omitted default output.
 Alignment accepts exact left/center/right; missing or empty is omitted. Button output retains
 rich text and the selected action. Login actions serialize as URL actions; user-profile actions
-as `tg://user?id=…`; disabled actions as `{}`. See the [button parser](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L10378)
+as `tg://user?id=…`; disabled actions retain the field `"disabled": {}`. See the [button parser](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L10378)
 and [serialization](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L18115).
+
+Action fields are direct siblings of `text` and optional `style`, with no `action` wrapper.
+The following independently authored fragments show source-predicted canonical output, not
+observed server responses:
+
+| Input button | Canonical button |
+| --- | --- |
+| `{"text":"Choose amber","style":"PrImArY","callback_data":"pick:amber"}` | `{"text":"Choose amber","style":"primary","callback_data":"pick:amber"}` |
+| `{"text":"Copy label","style":"DEFAULT","copy_text":{"text":"Amber 42"}}` | `{"text":"Copy label","copy_text":{"text":"Amber 42"}}` |
+| `{"text":"Available later","style":"","disabled":{}}` | `{"text":"Available later","disabled":{}}` |
+
+For a row, these objects appear in `{"type":"buttons","buttons":[...]}`. Explicit `align`
+left/center/right survives; empty or absent alignment omits from output. For inline text, the
+wrapper is `{"type":"button","button":...}`. The [button serializer](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L917)
+always emits `text`, followed by the optional style and selected action fields.
 
 ## Documentation versus pinned conversion
 
