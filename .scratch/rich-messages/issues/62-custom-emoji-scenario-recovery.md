@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: ready for integration from custom-emoji-scenario
 Blocked by: none after scenario registration integration
 
 Own this ticket, `tests/test_custom_emoji_scenario.py`, and new
@@ -26,3 +26,9 @@ and provisioning; do not weaken containment or add an external endpoint.
 Run focused tests with unique retained JUnit/logs inside the outer loopback-only guard, plus scoped
 Ruff/format/strict mypy. No full gate, build or guest. Claim/check the assigned separate worktree,
 commit only owned files, retain evidence, stop processes and return a frozen clean tip for review.
+
+Implemented evidence covers authenticated identity rejection, strict request framing and route
+limits, decoded media limits, a response dropped after committed registration with exact recovery,
+and a contained public runner registering both original static and animated fixtures. The final
+focused run passed 8 tests; scoped Ruff, formatting and strict mypy passed. Retained local evidence
+is under `artifacts/custom-emoji-scenario-worker-01/`.
