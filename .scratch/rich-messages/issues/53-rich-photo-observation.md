@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none for source work; coordinator owns native verification
 
 Own this ticket and new `clients/android/patches/0023-rich-photo-observation.patch` only.
@@ -12,9 +12,10 @@ storage cleanup, image loading, input handlers, or expose a public targeting API
 
 Preserve schema-1 ordinary-photo activation/results exactly. Add private schema-2 activation with
 exact fields schema, nonce, world_id, user_id, peer_id and targets. Targets is an ordered list of
-one to eight distinct objects with exactly message_id, kind and asset_id: positive native int32
-message_id, kind ordinary or rich, positive signed-int64 asset_id. Allow at most one target per
-message for this bounded seam. Match observed original Photo.id to the explicit asset ID. Schema-2
+one to eight distinct objects with exactly message_id, kind and asset_ids: positive native int32
+message_id, kind ordinary or rich, and one to eight unique positive signed-int64 asset IDs. Allow
+at most one target per message for this bounded seam. Match exactly one observed original Photo.id
+to the explicit allowed set and report that single actual ID. Schema-2
 results retain existing envelope fields and ordered messages; each message adds kind and asset_id.
 Ordinary results preserve progress/icon fields; rich results use null for both because original
 rich radial state has no public getter. Never infer a rich progress icon from geometry or HTTP.
@@ -43,3 +44,37 @@ guest. Produce an append-only zero-fuzz patch, verify reconstructed source exact
 compatibility and strict malformed activation rejection. Keep the ticket claimed until coordinator
 native guards, rich receiver geometry and unchanged ordinary regressions pass. Send frozen clean
 commit, mappings, focused source evidence and remaining runtime risks.
+
+## Worker evidence
+
+Patch 0023 adds the strict schema-2 target parser and leaves schema-1 message-ID parsing and
+ordinary observation fields on their existing path. Schema 2 accepts one to eight ordered,
+message-unique targets with bounded to eight allowed asset IDs each and rejects wrong fields, kinds,
+scalar types, duplicates and identifier ranges. Its ordinary target validates the original media
+Photo ID is in that set before adding `kind` and the single actual `asset_id`.
+
+The rich path accepts only an ungrouped, non-spoiler article with one matching direct-root
+`RichPhotoBlock`. It reads that block's public original `photo`, `padding`, `currY` and
+`imageReceiver`, rejects duplicate matches, layout animation, receiver fade/animation and ancestor
+transforms, and projects receiver bounds from the cell's stable animated top padding plus original
+text origin. The centered 48dp control rectangle reconstructs the original integer sizing and is
+required to fit the original receiver, visible cell rectangle and complete cell. Rich progress/icon
+are JSON null.
+No reflection, input, storage, loader or renderer code is changed.
+
+The patch applies to the retained normal21 source with `--fuzz=0`; the reconstructed Java file is
+byte-identical to the independently edited candidate. `git diff --check` passes. Per assignment,
+no APK build or Android guest was run. Coordinator still must compile, exercise malformed schema-2
+activations, verify fresh observer identity/generation/age, inspect rich geometry on the original
+screen and rerun schema-1 ordinary regressions before resolving this ticket.
+
+
+Coordinator source/compile checkpoint: independent review found and corrected omitted outer
+cell top padding, layout interpolation and receiver fades. The strict allowed-asset set permits
+observing B-to-C edits while rejecting multiple matching roots. Zero-fuzz preparation preserves
+seven other verified source files; the normal23 APK compiles offline in 2m01s (9 executed tasks,
+69 cached). Native schema-2 geometry/guards and unchanged ordinary regression remain required.
+The controlled server's empty update batches now preserve snapshot identities, with a retained
+HTTP red and nine passing fixture checks. The new original 4:1 PNG decodes independently with
+exact dimensions/corner pixels; all prior PNG bytes are unchanged. These inputs support ticket55
+but do not replace original Android late-completion evidence.

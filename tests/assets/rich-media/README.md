@@ -31,3 +31,10 @@ tools/dev media --offline --command unshare --user --map-root-user --net \
 tools/dev media --offline --command unshare --user --map-root-user --net \
   python tests/assets/rich-media/jpeg_verify.py
 ```
+
+
+`photo-landscape-48x12.png` uses the same original generator and corner colors with a 4:1 ratio.
+It keeps the original rich-photo 48dp control inside its image at the fixed acceptance viewport,
+while allowing a shared ordinary receiver and the edited rich receiver to remain visible. The
+older 6:1 fixture is shorter than that control in rich layout; it remains unchanged for existing
+ordinary-photo scenarios. This fixture changes no renderer, density, viewport or timeout.

@@ -57,7 +57,8 @@ offline safety, licensing and completion requirements before the corresponding a
   original behavior. Ordinary edit still globally cancels the old transfer through upstream cleanup.
   Preserve the failed late-completion case and original combined JUnit
   and use original rich receivers to prove a stronger late-completion case. Complete visual and
-  combined native regression remain required. See ticket
+  combined native regression remain required. Normal23 now compiles the reviewed private rich
+  observer; ticket 55 owns its pending native geometry/guard/late-completion scenario. See ticket
   [40](../../.scratch/rich-messages/issues/40-media-native.md),
   [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
   [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).

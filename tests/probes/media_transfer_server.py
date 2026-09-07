@@ -51,7 +51,7 @@ class MediaTransferServer:
             "user_id": snapshot.get("user_id", 1),
             "head": snapshot.get("message_position", 0),
             "now": snapshot.get("now", 1700000000),
-            "users": [],
+            "users": json.loads(json.dumps(snapshot.get("users", []))),
             "assets": [],
             "changes": [],
         }

@@ -19,7 +19,7 @@ No reflection, loader calls or public target API. This case needs live editing b
 
 Use two messages and three distinct original photo assets: a rich message with direct root photo
 A first and B second; an ordinary message also using B. A can be the existing square PNG, B the
-wide PNG and C the existing JPEG. A is complete locally; B is held after first bytes on one
+4:1 landscape PNG (`photo-landscape-48x12.png`) and C the existing JPEG. A is complete locally; B is held after first bytes on one
 controlled HTTP request. Target the rich message allowing B/C and the ordinary message allowing
 B, so unchanged leading A cannot be mistaken for the target. Both target images must be visibly
 observable; use bounded original framing if necessary. Capture only after drawn cells are ready.
@@ -51,3 +51,11 @@ checkout's pinned environment. No worker APK/guest. Coordinator builds normal ob
 native acceptance under android-gate, reviews images and retains behavioral red/green evidence.
 Send frozen clean commit, helper dependency requests, exact expected outputs and remaining runtime
 assumptions; keep claimed until integrated native acceptance. Preserve original renderer/fidelity.
+
+
+Coordinator fixture dependency: the shared HTTP server now preserves snapshot identity
+records in an empty initial v3 change response. Strict native mention-enabled clients require
+those base identities even without message changes. A real HTTP regression first fails on the
+empty list and then verifies the corrected complete envelope. This is test-server fidelity, not
+a World/bridge schema change. The original 4:1 PNG uses the established deterministic generator;
+all earlier PNG bytes remain unchanged.

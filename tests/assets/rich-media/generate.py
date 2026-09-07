@@ -15,6 +15,7 @@ _VALID_FIXTURES = {
     "photo-square-16x16.png": (16, 16),
     "photo-tall-8x48.png": (8, 48),
     "photo-wide-48x8.png": (48, 8),
+    "photo-landscape-48x12.png": (48, 12),
 }
 _INVALID_FIXTURE = "photo-truncated-invalid.png"
 

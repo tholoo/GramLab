@@ -1,6 +1,18 @@
 {
   "fixtures": [
     {
+      "filename": "photo-landscape-48x12.png",
+      "height": 12,
+      "mime": "image/png",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "0dac9b061c961092051b181f5c4eb70e1d011cc4ec4f78805334cbc83459f54d",
+      "valid": true,
+      "width": 48
+    },
+    {
       "filename": "photo-square-16x16.png",
       "height": 16,
       "mime": "image/png",

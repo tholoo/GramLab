@@ -153,3 +153,13 @@ envelopes and differences carry that response's users before original message ap
 The renderer is unchanged. All 75 independently authored native mention codec cases and 28 existing photo codec cases
 pass on the compiled normal APK; real-bot rendering/edit/restart remains separate acceptance. See
 [ticket 52](../../../.scratch/rich-messages/issues/52-rich-mentions-native.md).
+
+
+`0023-rich-photo-observation.patch` extends private diagnostics with schema-2 targets carrying
+bounded allowed asset IDs. It observes a unique direct-root original rich photo through a live
+edit and reports its actual asset ID, key and image state. Coordinates include original animated
+top padding, text origin and block padding; layout interpolation and receiver fades reject.
+Rich progress/icon are null because original public getters do not expose them. Schema 1 retains
+its existing ordinary-photo path. Native geometry/guard/late-completion acceptance remains in
+[ticket 53](../../../.scratch/rich-messages/issues/53-rich-photo-observation.md) and
+[ticket 55](../../../.scratch/rich-messages/issues/55-rich-photo-late-completion.md).

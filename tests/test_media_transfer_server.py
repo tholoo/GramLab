@@ -180,3 +180,33 @@ def test_default_fault_prevents_unplanned_complete_response_until_explicitly_ena
             {"operation": "asset", "asset_id": 1, "fault": "missing"},
             {"operation": "asset", "asset_id": 1, "fault": "complete"},
         ]
+
+
+def test_empty_changes_preserve_snapshot_identity_dependencies() -> None:
+    users = [
+        {"id": 1, "is_bot": False, "first_name": "Sara"},
+        {"id": 2, "is_bot": True, "first_name": "Echo"},
+    ]
+    with MediaTransferServer(
+        snapshot=SNAPSHOT | {"user_id": 1, "users": users},
+        assets={},
+        capability="synthetic-fixture-capability",
+    ) as server:
+        client = connection(server)
+        try:
+            client.request("GET", "/v3/changes?after=0", headers=AUTHORIZATION)
+            response = client.getresponse()
+            assert response.status == 200
+            assert json.loads(response.read()) == {
+                "schema": 3,
+                "world_id": "fixture",
+                "user_id": 1,
+                "cursor": 0,
+                "head": 0,
+                "now": 1700000000,
+                "users": users,
+                "assets": [],
+                "changes": [],
+            }
+        finally:
+            client.close()
