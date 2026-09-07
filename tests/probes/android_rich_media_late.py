@@ -337,7 +337,7 @@ def guard_cases(base: dict[str, Any]) -> list[tuple[str, Any, str | None]]:
                 [{"message_id": 1, "kind": "rich", "asset_ids": [3]}],
                 "wrong-asset",
             ),
-            "message_not_unique_or_visible",
+            "unsupported_photo",
         ),
         (
             "ambiguous",
@@ -364,7 +364,7 @@ def guard_cases(base: dict[str, Any]) -> list[tuple[str, Any, str | None]]:
                 [{"message_id": 1, "kind": "ordinary", "asset_ids": [2]}],
                 "wrong-kind",
             ),
-            "message_not_unique_or_visible",
+            "asset_mismatch",
         ),
     ]
     return malformed
@@ -378,51 +378,61 @@ def run_guards(observe: Observation, assets: dict[int, tuple[str, bytes]]) -> di
         with MediaTransferServer(
             snapshot=value, assets=assets, capability=CAPABILITY, default_fault="missing"
         ) as server:
-            observe.configure(server, value, activation(value["world_id"], [], name))
-            if isinstance(configured, dict):
-                configured = copy.deepcopy(configured)
-                configured["nonce"] = name
-            observe.adb(
-                "shell",
-                "-T",
-                "run-as",
-                PACKAGE,
-                "sh",
-                "-c",
-                shlex.quote(f"cat > {DIRECTORY}photo-observation.json"),
-                input=json.dumps(configured),
-            )
-            observe.adb(
-                "shell",
-                "am",
-                "start",
-                "-W",
-                "-n",
-                f"{PACKAGE}/org.telegram.ui.LaunchActivity",
-                "-a",
-                "com.tmessages.openchat",
-                "--el",
-                "userId",
-                "2",
-                timeout=45,
-                required=False,
-            )
-            deadline = time.monotonic() + 10
             sample = None
-            while time.monotonic() < deadline:
-                sample = observe.raw_sample()
-                if reason is None:
-                    if sample is None:
+            try:
+                observe.configure(server, value, activation(value["world_id"], [], name))
+                if isinstance(configured, dict):
+                    configured = copy.deepcopy(configured)
+                    configured["nonce"] = name
+                observe.adb(
+                    "shell",
+                    "-T",
+                    "run-as",
+                    PACKAGE,
+                    "sh",
+                    "-c",
+                    shlex.quote(f"cat > {DIRECTORY}photo-observation.json"),
+                    input=json.dumps(configured),
+                )
+                observe.adb(
+                    "shell",
+                    "am",
+                    "start",
+                    "-W",
+                    "-n",
+                    f"{PACKAGE}/org.telegram.ui.LaunchActivity",
+                    "-a",
+                    "com.tmessages.openchat",
+                    "--el",
+                    "userId",
+                    "2",
+                    timeout=45,
+                    required=False,
+                )
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    sample = observe.raw_sample()
+                    if reason is None and sample is None:
                         break
-                elif sample is not None and sample.get("reason") == reason:
-                    break
-                time.sleep(0.05)
-            if reason is None and sample is not None:
-                raise RuntimeError(f"Malformed schema-2 activation accepted: {name}")
-            if reason is not None and (sample is None or sample.get("reason") != reason):
-                raise RuntimeError(f"Schema-2 lookup guard unavailable: {name}")
-            results[name] = {"sample": sample, "requests": server.requests()}
-            observe.adb("shell", "am", "force-stop", PACKAGE, required=False)
+                    if reason is not None and sample is not None and sample.get("reason") == reason:
+                        break
+                    time.sleep(0.05)
+                if reason is None and sample is not None:
+                    raise RuntimeError(f"Malformed schema-2 activation accepted: {name}")
+                if reason is not None and (sample is None or sample.get("reason") != reason):
+                    raise RuntimeError(f"Schema-2 lookup guard unavailable: {name}")
+                results[name] = {"sample": sample, "requests": server.requests()}
+            except Exception as failure:
+                results[name] = {
+                    "sample": sample,
+                    "requests": server.requests(),
+                    "failure": {
+                        "type": type(failure).__name__,
+                        "message": str(failure).replace(CAPABILITY, "<redacted>"),
+                    },
+                }
+            finally:
+                observe.adb("shell", "am", "force-stop", PACKAGE, required=False)
     return results
 
 

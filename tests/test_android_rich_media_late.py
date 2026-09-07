@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -107,6 +108,8 @@ def assert_late_completion(
     assert [row["asset_id"] for row in case["loading"]["messages"]] == [2, 2]
     assert not any(row["has_image"] for row in case["loading"]["messages"])
     rich_loading, ordinary_loading = case["loading"]["messages"]
+    assert rich_loading["image_key"].startswith("2_1@")
+    assert ordinary_loading["image_key"].startswith("2_1@")
     assert rich_loading["progress"] is None and rich_loading["progress_icon"] is None
     assert ordinary_loading["progress_icon"] == 3
     assert case["edited_snapshot"]["messages"][0]["rich_message"]["blocks"] == [
@@ -147,14 +150,13 @@ def assert_late_completion(
         assert rich["asset_id"] == 3 and rich["has_image"] is True
         assert rich["image_key"].startswith("3_1@")
         assert ordinary["asset_id"] == 2
+        assert ordinary["image_key"].startswith("2_1@")
     assert case["completed"]["messages"][1]["has_image"] is True
     assert case["stable"]["messages"][1]["has_image"] is True
     requests = asset_requests(case["requests"])
-    assert requests == [
-        {"operation": "asset", "asset_id": 1, "fault": "complete"},
-        {"operation": "asset", "asset_id": 2, "fault": "gated"},
-        {"operation": "asset", "asset_id": 3, "fault": "complete"},
-    ]
+    assert Counter((row["asset_id"], row["fault"]) for row in requests) == Counter(
+        {(1, "complete"): 1, (2, "gated"): 1, (3, "complete"): 1}
+    )
     trace = case["trace"]
     for row in trace:
         assert set(row) == {"event", "asset_id", "cache_file", "file_size", "digest_ok"}
@@ -195,11 +197,13 @@ def assert_late_completion(
         "wrong-kind",
     }
     assert set(guards) == expected_guards
+    failures = {name: guard["failure"] for name, guard in guards.items() if "failure" in guard}
+    assert not failures, json.dumps(failures, indent=2)
     unavailable = {
-        "wrong-asset": "message_not_unique_or_visible",
+        "wrong-asset": "unsupported_photo",
         "ambiguous": "ambiguous_photo",
         "missing-message": "message_not_unique_or_visible",
-        "wrong-kind": "message_not_unique_or_visible",
+        "wrong-kind": "asset_mismatch",
     }
     for name, guard in guards.items():
         if name in unavailable:

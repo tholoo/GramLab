@@ -79,3 +79,12 @@ Scoped Ruff formatting/checking, mypy and pytest collection pass in the checkout
 environment. No APK build or Android guest was run. Native acceptance remains coordinator-owned.
 The new 4:1 B is expected to render about 60--67 pixels high at the bounded 320-pixel viewport,
 which leaves room for the original 48dp control at 160 dpi; native geometry remains to be proven.
+
+Follow-up review removed the unrelated A/B request-order assumption while retaining exact
+per-asset fault counts, B's partial-response deadline and C-before-release native ordering. Every
+guard now records its own failure and reaches the independent force-stop/reset before the host
+oracle rejects the complete matrix. Source-aligned unavailable reasons are `unsupported_photo`
+for a rich allowed set with no matching root and `asset_mismatch` when a rich message is requested
+as ordinary. Loading and final samples also require the exact B receiver key. The main observation
+poll performs one result read per iteration; there is no repeated consecutive read around the
+loading capture. Focused Ruff, mypy and collection checks pass after these corrections.
