@@ -11,8 +11,141 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from gramlab.runtime import RuntimeProfile, Sandbox
+
+_STARTUP_LOG_LIMIT = 256 * 1024
+
+
+def startup_log_command(adb: str) -> list[str]:
+    """Return the fixed dedicated-device system log command used by this probe."""
+    return [
+        adb,
+        "-s",
+        "emulator-5554",
+        "logcat",
+        "-b",
+        "system",
+        "-b",
+        "main",
+        "-v",
+        "threadtime",
+        "ActivityManager:I",
+        "ActivityTaskManager:I",
+        "WindowManager:I",
+        "InputDispatcher:I",
+        "InputReader:I",
+        "UwbService:I",
+        "UwbSessionManager:I",
+        "BugreportManagerService:I",
+        "DumpstateListener:I",
+        "dumpstate:I",
+        "*:S",
+    ]
+
+
+class StartupLogCollector:
+    """Drain an owned child while retaining a bounded prefix of its merged output."""
+
+    def __init__(self, command: list[str], *, max_bytes: int = _STARTUP_LOG_LIMIT) -> None:
+        if max_bytes <= 0:
+            raise ValueError("Startup log byte limit must be positive")
+        self._command = command
+        self._max_bytes = max_bytes
+        self._process: subprocess.Popen[bytes] | None = None
+        self._reader: threading.Thread | None = None
+        self._retained = bytearray()
+        self._truncated = False
+        self._error: str | None = None
+        self.result: dict[str, Any] = {}
+
+    @property
+    def pid(self) -> int | None:
+        return self._process.pid if self._process is not None else None
+
+    @property
+    def running(self) -> bool:
+        return self._process is not None and self._process.poll() is None
+
+    @property
+    def retained_bytes(self) -> int:
+        return len(self._retained)
+
+    def start(self) -> "StartupLogCollector":
+        if self._process is not None or self._error is not None:
+            return self
+        try:
+            self._process = subprocess.Popen(  # noqa: S603 — fixed probe command or test-owned child
+                self._command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+        except OSError:
+            self._error = "start_failed"
+            return self
+        self._reader = threading.Thread(target=self._drain, name="guest-startup-log", daemon=True)
+        self._reader.start()
+        return self
+
+    def _drain(self) -> None:
+        assert self._process is not None and self._process.stdout is not None
+        try:
+            while chunk := os.read(self._process.stdout.fileno(), 4096):
+                remaining = self._max_bytes - len(self._retained)
+                if remaining > 0:
+                    self._retained.extend(chunk[:remaining])
+                if len(chunk) > remaining:
+                    self._truncated = True
+        except OSError:
+            self._error = "read_failed"
+
+    def finish(self) -> dict[str, Any]:
+        if self.result:
+            return self.result
+        process = self._process
+        early_exit = process is not None and process.poll() is not None
+        if process is not None:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+            if self._reader is not None:
+                self._reader.join(timeout=5)
+                if self._reader.is_alive():
+                    self._error = "reader_did_not_stop"
+            if process.stdout is not None:
+                process.stdout.close()
+            if process.returncode is not None and process.returncode >= 0:
+                early_exit = True
+        if self._error is not None:
+            status = "error"
+        elif early_exit:
+            status = "early_exit"
+        elif self._truncated:
+            status = "truncated"
+        else:
+            status = "complete"
+        self.result = {
+            "status": status,
+            "truncated": self._truncated,
+            "retained_bytes": len(self._retained),
+            "returncode": process.returncode if process is not None else None,
+            "log": self._retained.decode("utf-8", errors="replace"),
+        }
+        if self._error is not None:
+            self.result["error"] = self._error
+        return self.result
+
+    def __enter__(self) -> "StartupLogCollector":
+        return self.start()
+
+    def __exit__(self, exception_type: object, exception: object, traceback: object) -> None:
+        self.finish()
 
 
 def probe_emulator_filesystem() -> dict[str, object]:
@@ -94,6 +227,8 @@ def main(
     command = [profile.python, "/work/emulator_process.py", emulator, avdmanager, image_package]
     print("Starting the isolated AOSP guest", file=sys.stderr, flush=True)
     started = time.monotonic()
+    observations: dict[str, object] = {}
+    startup_log: StartupLogCollector | None = None
     with Sandbox(profile).component(command, data=data, kvm=True) as guest:
         try:
 
@@ -121,13 +256,16 @@ def main(
                         )
                     )
                 boot = adb_command("shell", "getprop", "sys.boot_completed")
+                if boot.returncode == 0 and startup_log is None:
+                    startup_log = StartupLogCollector(startup_log_command(adb)).start()
+                    observations["startup_log_started_seconds"] = time.monotonic() - started
                 if boot.returncode == 0 and boot.stdout.strip() == "1":
                     ready = True
                     break
                 time.sleep(1)
             if not ready:
                 raise RuntimeError("Guest did not complete boot within 120 seconds")
-            observations: dict[str, object] = {}
+            observations["boot_ready_seconds"] = time.monotonic() - started
             for name, arguments in {
                 "api": ("shell", "getprop", "ro.build.version.sdk"),
                 "abi": ("shell", "getprop", "ro.product.cpu.abi"),
@@ -152,7 +290,11 @@ def main(
             observations["interfaces"] = adb_command("shell", "ip", "address").stdout
             observations["host_interfaces"] = socket.if_nameindex()
             if extra_probe is not None:
+                probe_started = time.monotonic()
                 observations["extra_probe"] = extra_probe(adb_command)
+                observations["extra_probe_seconds"] = time.monotonic() - probe_started
+            if startup_log is not None:
+                observations["startup_log"] = startup_log.finish()
             observations["emulator_filesystem"] = probe_emulator_filesystem()
             screenshot = subprocess.run(  # noqa: S603 — dedicated namespace/serial only
                 [adb, "-s", "emulator-5554", "exec-out", "screencap", "-p"],
@@ -165,9 +307,25 @@ def main(
             Path("guest.json").write_text(json.dumps(observations, indent=2) + "\n")
             print(json.dumps(observations), flush=True)
         except BaseException:
+            if startup_log is not None:
+                observations["startup_log"] = startup_log.finish()
+            else:
+                observations["startup_log"] = {
+                    "status": "error",
+                    "truncated": False,
+                    "retained_bytes": 0,
+                    "returncode": None,
+                    "log": "",
+                    "error": "adb_unavailable",
+                }
+            observations["boot_seconds"] = time.monotonic() - started
+            observations["failure"] = "guest_probe_failed"
+            Path("guest.json").write_text(json.dumps(observations, indent=2) + "\n")
             print(f"Dedicated guest exit on failure: {guest.poll()}", file=sys.stderr)
             raise
         finally:
+            if startup_log is not None:
+                startup_log.finish()
             if guest.poll() is None:
                 guest.terminate()
                 try:
