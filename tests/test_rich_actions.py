@@ -143,6 +143,34 @@ def test_rich_actions_normalize_detach_edit_and_reopen(tmp_path):
         }
         assert sent == expected
         assert payload == pristine
+        callback = world.create_callback(
+            user_id=1,
+            chat_id=1,
+            message_id=1,
+            data="pick:\t\u202eamber",
+            request_id="rich-action",
+        )
+        assert callback["message"] == expected
+        assert world.get_callback(user_id=1, callback_id=callback["id"])["message"] == expected
+
+        payload["blocks"][0]["buttons"][0]["text"] = "mutated input"
+        payload["blocks"][0]["buttons"][1]["copy_text"]["text"] = "mutated copy"
+        sent["rich_message"]["blocks"][0]["buttons"][0]["callback_data"] = "mutated output"
+        sent["rich_message"]["blocks"][0]["buttons"][1]["text"][1][0] = "mutated label"
+        assert world.get_message(1, 1) == expected
+        assert world.get_callback(user_id=1, callback_id=callback["id"])["message"] == expected
+
+        before_invalid = world.client_snapshot(1, version=2), world.events()
+        with pytest.raises(ValueError):
+            world.edit_message(
+                chat_id=1,
+                message_id=1,
+                bot_id=2,
+                rich_message=rich(
+                    [{"type": "buttons", "buttons": [{"text": "invalid", "disabled": []}]}]
+                ),
+            )
+        assert (world.client_snapshot(1, version=2), world.events()) == before_invalid
         with pytest.raises(ValueError, match="MESSAGE_NOT_MODIFIED"):
             world.edit_message(
                 chat_id=1, message_id=1, bot_id=2, rich_message=rich(action_blocks())
@@ -155,6 +183,22 @@ def test_rich_actions_normalize_detach_edit_and_reopen(tmp_path):
         assert [
             event["data"] for event in world.events() if event["type"] == "message.created"
         ] == [expected]
+
+
+def test_eight_button_fill_row_omits_empty_alignment_and_default_styles(tmp_path):
+    buttons = [
+        {"text": "", "style": "DeFaUlT" if index % 2 else "", "callback_data": str(index)}
+        for index in range(8)
+    ]
+    expected_buttons = [{"text": "", "callback_data": str(index)} for index in range(8)]
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(
+            chat_id=1,
+            sender_id=2,
+            rich_message=rich([{"type": "buttons", "buttons": buttons, "align": ""}]),
+        )
+
+    assert sent["rich_message"] == {"blocks": [{"type": "buttons", "buttons": expected_buttons}]}
 
 
 @pytest.mark.parametrize(
