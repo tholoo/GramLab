@@ -15,15 +15,18 @@ python tests/assets/custom-emoji/generate.py /tmp/gramlab-custom-emoji
 python tests/assets/custom-emoji/verify.py
 ```
 
-The verifier repeats generation, checks repeatable WebP bytes and manifest hashes, decodes committed
-WebPs pixel-for-pixel, compares repeated WebM generation by decoded pixels, decodes every committed
-WebM frame through `libvpx-vp9`, and checks changing frames and transparent/opaque
-geometry, checks container metadata, and requires both ffprobe and ffmpeg to reject the truncated
-fixture. WebM mux metadata varies between runs under this FFmpeg profile, so WebM reproducibility is
-defined by exact decoded pixels. Codec or FFmpeg version changes may produce different valid bytes
-or pixels and require explicit review.
+The verifier repeats generation, checks byte-identical assets and manifest hashes, and decodes the
+committed WebPs with exact alpha and exact visible RGB from lossless VP8L payloads. It compares
+repeated WebM generation by decoded pixels, decodes every
+committed WebM frame through `libvpx-vp9`, checks the full expected alpha geometry and interior
+colors, and checks the WebM container, VP9 stream, and every frame timestamp/duration. Both ffprobe
+and ffmpeg must reject the truncated fixture. A seekable WebM output lets the muxer record the final
+one-second duration; output-side bitexact flags make repeated bytes stable under this profile.
+Codec or FFmpeg version changes may produce different valid bytes or pixels and require review.
 
 These assets establish controlled static/animated inputs. They do not establish Bot API admission,
 custom-emoji ownership, Android media delivery, original-client rendering, or animation playback.
 The locally retained contract sources do not establish an upload dimension limit; 100px square
 inputs were selected conservatively and successful decoding is not an API-admission claim.
+The manifest records FFmpeg and libavcodec versions. The selected executable reports libvpx and
+libwebp support without their exact library revisions, so those revisions are explicitly unpinned.

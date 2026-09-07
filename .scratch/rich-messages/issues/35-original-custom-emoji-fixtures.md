@@ -47,14 +47,27 @@ an upload dimension limit; choosing 100×100 is conservative and is not an API-a
 
 Generation used FFmpeg 6.1.6 with locally available `libwebp` and `libvpx-vp9`, one encoder thread,
 local raw RGBA input, and no input URL. The exact flags and full fixture hashes are portable in the
-manifest. WebP bytes repeat under this profile. Two WebM generations differed at mux metadata while
-decoding to identical pixels, so the documented WebM reproducibility boundary is decoded content,
-not cross-run container identity.
+manifest. An initial pipe-muxed WebM lacked final container duration and varied mux metadata; that
+red output was replaced. The final generator writes WebM to a seekable temporary file and applies
+bitexact flags to the output, producing byte-identical repeated assets with an explicit one-second
+duration. Removing the WebP preset makes the requested lossless option effective; final WebPs use
+VP8L and preserve visible colors exactly.
 
 Direct verification decodes both committed WebPs, all four committed WebM frames through the
 explicit `libvpx-vp9` decoder, and a separately generated WebM. It checks dimensions, VP9 codec,
 four 250ms packets, the WebM alpha-mode tag, actual decoded transparent and opaque alpha pixels,
-four distinct frames, expected fixed/moving geometry, manifest hashes, and decoder rejection of the
-truncated fixture. Static, thumbnail, first-frame, and last-frame images were also inspected. This
-does not establish browser decoding, original Android rendering/playback, custom-emoji ownership,
+four distinct frames, complete expected fixed/moving alpha geometry and interior colors, exact
+per-frame timestamps/durations, WebM container identity/duration, manifest hashes, and decoder
+rejection of the truncated fixture. Static, thumbnail, first-frame, and last-frame images were also
+inspected. This does not establish browser decoding, original Android rendering/playback, custom-emoji ownership,
 or Bot API admission.
+
+Review follow-up preserves the original browser reds: the first static WebP used lossy VP8 despite
+the requested option, and the pipe-muxed WebM exposed only 0.75 seconds to Chromium. Removing the
+WebP preset produces VP8L with exact independently decoded visible colors. Seekable WebM output
+plus output-side bitexact flags records the intended one-second duration and repeats byte-for-byte.
+The strengthened verifier checks the full alpha mask, fixed/moving interior colors, exact packet
+timestamps and durations, and actual WebM container identity. Pinned Ruff 0.16.5 format/check and
+strict mypy 1.20.2 pass for both scripts. The manifest records libavcodec 60.31.102; the selected
+executable exposes libvpx/libwebp support but not their exact linked revisions, which remain
+explicitly unavailable rather than described as fully pinned.

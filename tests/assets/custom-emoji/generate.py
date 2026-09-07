@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 
 WIDTH = 100
@@ -43,41 +44,138 @@ def thumbnail_rgba() -> bytes:
 
 
 def run_encoder(command: list[str], data: bytes) -> bytes:
-    result = subprocess.run(command, input=data, capture_output=True, check=False)
+    result = subprocess.run(command, input=data, capture_output=True, check=False)  # noqa: S603
     if result.returncode:
         raise RuntimeError(result.stderr.decode(errors="replace"))
     return result.stdout
 
 
-def ffmpeg_version(ffmpeg: str) -> str:
-    result = subprocess.run([ffmpeg, "-version"], capture_output=True, text=True, check=True)
-    return result.stdout.splitlines()[0]
+def run_encoder_file(command: list[str], data: bytes, suffix: str) -> bytes:
+    with tempfile.TemporaryDirectory(prefix="gramlab-custom-emoji-") as temporary:
+        destination = Path(temporary) / f"encoded{suffix}"
+        result = subprocess.run(  # noqa: S603
+            [*command, str(destination)], input=data, capture_output=True, check=False
+        )
+        if result.returncode:
+            raise RuntimeError(result.stderr.decode(errors="replace"))
+        return destination.read_bytes()
+
+
+def ffmpeg_profile(ffmpeg: str) -> dict[str, object]:
+    result = subprocess.run(  # noqa: S603
+        [ffmpeg, "-version"], capture_output=True, text=True, check=True
+    )
+    lines = result.stdout.splitlines()
+    libavcodec = (
+        next(line for line in lines if line.startswith("libavcodec"))
+        .split("/")[0]
+        .split(maxsplit=1)[1]
+    )
+    normalized_libavcodec = ".".join(part.strip(".") for part in libavcodec.split())
+    return {
+        "ffmpeg": lines[0],
+        "libavcodec": normalized_libavcodec,
+        "libvpx": "enabled; exact library revision unavailable from selected executable",
+        "libwebp": "enabled; exact library revision unavailable from selected executable",
+    }
 
 
 def generated_files(ffmpeg: str) -> dict[str, bytes]:
     common = [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba"]
     webp = run_encoder(
-        common + ["-s", "100x100", "-r", "1", "-i", "pipe:0", "-frames:v", "1", "-c:v", "libwebp",
-                  "-pix_fmt", "bgra",
-                  "-lossless", "1", "-compression_level", "6", "-preset", "icon", "-threads", "1",
-                  "-f", "webp", "pipe:1"],
+        [
+            *common,
+            "-s",
+            "100x100",
+            "-r",
+            "1",
+            "-i",
+            "pipe:0",
+            "-frames:v",
+            "1",
+            "-c:v",
+            "libwebp",
+            "-pix_fmt",
+            "bgra",
+            "-lossless",
+            "1",
+            "-compression_level",
+            "6",
+            "-threads",
+            "1",
+            "-f",
+            "webp",
+            "pipe:1",
+        ],
         rgba_frame(0),
     )
     thumbnail = run_encoder(
-        common + ["-s", "16x16", "-r", "1", "-i", "pipe:0", "-frames:v", "1", "-c:v", "libwebp",
-                  "-pix_fmt", "bgra",
-                  "-lossless", "1", "-compression_level", "6", "-preset", "icon", "-threads", "1",
-                  "-f", "webp", "pipe:1"],
+        [
+            *common,
+            "-s",
+            "16x16",
+            "-r",
+            "1",
+            "-i",
+            "pipe:0",
+            "-frames:v",
+            "1",
+            "-c:v",
+            "libwebp",
+            "-pix_fmt",
+            "bgra",
+            "-lossless",
+            "1",
+            "-compression_level",
+            "6",
+            "-threads",
+            "1",
+            "-f",
+            "webp",
+            "pipe:1",
+        ],
         thumbnail_rgba(),
     )
-    animation = run_encoder(
-        common + ["-fflags", "+bitexact", "-s", "100x100", "-r", str(FPS), "-i", "pipe:0",
-                  "-frames:v", str(FRAMES),
-                  "-an", "-c:v", "libvpx-vp9", "-lossless", "1", "-pix_fmt", "yuva420p",
-                  "-flags:v", "+bitexact",
-                  "-deadline", "good", "-cpu-used", "0", "-row-mt", "0", "-tile-columns", "0",
-                  "-frame-parallel", "0", "-threads", "1", "-f", "webm", "pipe:1"],
+    animation = run_encoder_file(
+        [
+            *common,
+            "-s",
+            "100x100",
+            "-r",
+            str(FPS),
+            "-i",
+            "pipe:0",
+            "-fflags",
+            "+bitexact",
+            "-frames:v",
+            str(FRAMES),
+            "-an",
+            "-c:v",
+            "libvpx-vp9",
+            "-lossless",
+            "1",
+            "-pix_fmt",
+            "yuva420p",
+            "-flags:v",
+            "+bitexact",
+            "-deadline",
+            "good",
+            "-cpu-used",
+            "0",
+            "-row-mt",
+            "0",
+            "-tile-columns",
+            "0",
+            "-frame-parallel",
+            "0",
+            "-threads",
+            "1",
+            "-f",
+            "webm",
+            "-y",
+        ],
         b"".join(rgba_frame(index) for index in range(FRAMES)),
+        ".webm",
     )
     files = {
         "emoji-static.webp": webp,
@@ -99,14 +197,21 @@ def generated_files(ffmpeg: str) -> dict[str, bytes]:
         else:
             record.update(mime="video/webm", codec="vp9")
             if record["valid"]:
-                record.update(width=WIDTH, height=HEIGHT, frames=FRAMES, duration_seconds=1.0, alpha=True)
+                record.update(
+                    width=WIDTH, height=HEIGHT, frames=FRAMES, duration_seconds=1.0, alpha=True
+                )
         records.append(record)
     manifest = {
         "generator_profile": {
-            "ffmpeg": ffmpeg_version(ffmpeg),
-            "reproducibility": "WebP bytes repeat under this profile; WebM mux metadata varies, so verify decoded semantics",
-            "webp_flags": "libwebp bgra lossless=1 compression_level=6 preset=icon threads=1",
-            "webm_flags": "fflags=+bitexact libvpx-vp9 lossless=1 yuva420p flags:v=+bitexact deadline=good cpu-used=0 row-mt=0 tile-columns=0 frame-parallel=0 threads=1",
+            **ffmpeg_profile(ffmpeg),
+            "reproducibility": (
+                "byte-identical under this recorded encoder profile; other versions may differ"
+            ),
+            "webp_flags": "libwebp bgra lossless=1 compression_level=6 threads=1",
+            "webm_flags": (
+                "fflags=+bitexact libvpx-vp9 lossless=1 yuva420p flags:v=+bitexact "
+                "deadline=good cpu-used=0 row-mt=0 tile-columns=0 frame-parallel=0 threads=1"
+            ),
         },
         "fixtures": records,
     }
