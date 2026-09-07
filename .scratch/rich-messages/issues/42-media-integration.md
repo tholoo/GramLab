@@ -27,3 +27,15 @@ source/APK/profile/import identity before combining any retained gates.
 Static fixture/source checks are not native rendering evidence. Finish applicable core/static and
 Android gates, update compatibility and handoff with precise limitations, and retain the full
 operational milestone (files/albums/emoji/mentions/input remain required).
+
+## Coordinator preparation evidence
+
+The independent local transfer fixture sends complete, truncated, corrupt, redirected, missing and
+explicitly gated bodies. Seven guarded real-HTTP checks pass, including changing a snapshot while
+an earlier transfer is held partially delivered and denying unauthorized requests without consuming
+the planned fault. Scoped Ruff/format and strict typing pass. This validates fault stimuli only;
+Android loader cancellation/retry/integrity and original visual acceptance remain incomplete.
+
+The pinned Pillow runtime fully decodes original PNG/JPEG and rejects a truncated JPEG inside
+Sandbox. All nine existing runtime boundary checks pass. Core and Android runtime profiles include
+the new decoder closure; historical native gates retain their original profile fingerprints.
