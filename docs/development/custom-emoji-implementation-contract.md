@@ -127,6 +127,61 @@ must continue to reject emoji before publication. Original composer behavior rem
 until an explicit custom-emoji input contract is implemented; scenario-created incoming entities
 are required in this batch.
 
+## Bot API, text and scenario integration
+
+`World.custom_emoji_stickers(bot_id, custom_emoji_ids)` implements standard
+`getCustomEmojiStickers` for an array of 0–200 decimal JSON strings. Validate the entire array
+before issuing file identities. The explicit local duplicate/order policy is one result per found
+ID, sorted numerically; unknown IDs are omitted. Return a Sticker with main `file_id`,
+`file_unique_id`, `file_size`, `type:"custom_emoji"`, `width`, `height`, `is_animated:false`,
+`is_video` according to WebM, `custom_emoji_id` as string, `emoji` equal to catalog fallback,
+and `thumbnail` containing a complete PhotoSize with that bot's thumbnail file identity.
+Emit `needs_repainting:true` only when true; omit it when false. Omit sticker-set and premium
+entitlement metadata. Public JSON and form-array inputs follow the same rules. Both files support
+standard `getFile` and authenticated byte download; generated WebP/WebM paths use
+`stickers/<file_id>.<extension>`, while existing photo paths remain unchanged. Cross-bot file IDs,
+logical IDs and file_unique_id do not authorize reuse/download.
+
+Ordinary custom-emoji entities accept an integer or decimal-string ID and normalize output to
+the canonical string; rich nodes do likewise. Rich alternative text is a required string cleaned
+by the existing text cleaner, without catalog-fallback equality or an invented nonempty rule.
+Rich button labels extend their existing string/array grammar with custom-emoji leaves, not
+arbitrary previously unsupported rich nodes. Resolve catalog membership inside the publication
+transaction, under existing recursion/text budgets.
+
+Ordinary covered text must be one emoji under a pinned local predicate, `is_single_emoji(text)`
+in `gramlab._emoji_text`. Reuse the BSL-1.0 predicate/data from TDLib commit
+`bc9c263e2bfee06aaab41e82db51a103376030bc` with preserved per-file notices and provenance, rather
+than a generic Python emoji package with different recognized sequences. The
+[pinned source](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/emoji.cpp)
+accepts listed elements, an optional trailing variation selector and chains of recognized
+elements separated by ZWJ; it is broader than Unicode RGI membership. This is GramLab's synthetic
+admission policy: the schema documents emoji coverage, but the inspected ordinary TDLib input
+path does not call this predicate, so it does not prove Telegram server enforcement.
+
+Retain exact UTF-16 boundary validation. Partial intersections and distinct overlapping custom
+emoji entities reject; identical duplicates collapse. Custom emoji may coexist with nested
+ordinary styles and be inside blockquotes, but cannot overlap code/pre or contain a blockquote.
+Canonical ordering puts custom emoji before styles on an equal range, after an enclosing quote.
+Reject overlapping emoji entities with differing IDs rather than selecting one. This extends the
+existing admitted entity surface; it does not silently add URL/mention/entity-repair support.
+
+`Scenario.register_custom_emoji` mirrors the World signature with caller bytes. The SDK encodes
+main and thumbnail as strict base64 strings solely for the authenticated internal control request;
+the handler decodes them before invoking World. Use a dedicated `/v1/custom-emoji` control route
+with the existing schema-1 world/operation/parameters envelope and only operation
+`register_custom_emoji`. Cap this route at 1 MiB, sufficient for both maximum supported media
+inputs plus envelope; other operations keep the existing 65,536-byte bound and `/v1/world` route.
+Reject duplicate members, wrong world/capability, transfer encoding, invalid base64, extra fields
+and oversized bodies before mutation. No host path or executable argument is accepted. Use a
+30-second request timeout unless the caller explicitly chooses one. Lost responses remain
+uncertain mutations; the caller can repeat the same registration request ID safely.
+
+Trusted runner/CLI selection adds `bridge_version=3` by default, accepting only exact integers
+3 or 4. Record the selected version with Android APK/profile evidence and pass it to the native
+configuration. Existing scenario TOML grammar does not gain a mutable bridge-version field.
+Version 4 is an explicit launch selection, and an incompatible APK must fail without downgrade.
+
 ## GPL projection and original loaders
 
 Neutral ordinary/caption entities add exactly `custom_emoji_id` to their existing `type`,

@@ -1,0 +1,35 @@
+# Implement the immutable custom-emoji catalog and public delivery
+
+Type: feature
+Status: ready-for-agent
+Work state: open
+Blocked by: media validator ticket 57 for integrated codec acceptance
+
+Own this ticket, `src/gramlab/world.py`, `src/gramlab/entities.py`,
+`src/gramlab/rich_messages.py`, `src/gramlab/bot_api.py`, `src/gramlab/client_bridge.py`,
+new `src/gramlab/_emoji_text.py`, and new `tests/test_custom_emoji_world.py`,
+`tests/test_custom_emoji_api.py`, `tests/test_custom_emoji_bridge.py`,
+`tests/test_custom_emoji_text.py`. The coordinator owns the BSL notice/provenance files; request
+their addition before adapting the pinned predicate/table. Do not modify decoder, SDK/control,
+runtime configuration, existing tests, native patches, shared docs or dependency locks.
+
+Follow the entire [implementation contract](../../../docs/development/custom-emoji-implementation-contract.md)
+for schema-7 migration, immutable/idempotent catalog, independent allocated/chosen logical IDs,
+main/thumbnail asset reuse, transactional persona grants and all recursive entity carriers.
+Implement complete Bot API lookup/download projection and v4 snapshot/change/callback/incoming/
+document/asset delivery, plus explicit legacy rejection based on selected/frozen content. Preserve
+all existing photo/mention contracts. No real entitlement, external downloads, silent omissions
+or alternate renderer. Do not make registration append a new unsupported client event type.
+
+Use independent complete expected HTTP/World/history/events/dependencies and public operations to
+cover retries/conflicts/no-op/edit/reopen, two bots/personas/Worlds, chosen maximum then allocated
+ID, unknown/mixed lookup, wrong identities, legacy frozen retries and unchanged state after
+rejection. Incoming text tests include Persian/English, ZWJ, flags, skin tone and UTF-16 boundaries.
+Use actual decoder from ticket 57 for final registered media acceptance; compile/implement the
+stable interface while that dependency is in progress, but do not claim mocked media support.
+
+Read AGENTS.md, handoff, TESTING, offline safety/licensing and parallel-work. Claim/check the
+assigned worktree and verify imports through its tools/dev. Run focused tests in the outer
+loopback-only guard and scoped Ruff/format/strict mypy. No full gate, APK build or guest.
+Commit only owned files; send frozen clean tip/base, red/green evidence and missing dependency or
+native acceptance honestly. Coordinator owns notice integration, merges and combined verification.
