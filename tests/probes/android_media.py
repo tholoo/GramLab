@@ -1,9 +1,12 @@
 """Observe local photos in the original Android renderer and its private cache."""
 
 import json
+import re
 import shlex
+import shutil
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -22,6 +25,85 @@ MEDIA_EVENTS = {
     "media_load_failure",
     "media_load_cancel",
 }
+BOUNDS = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
+
+
+def bounds(node: ET.Element) -> tuple[int, int, int, int]:
+    match = BOUNDS.fullmatch(node.get("bounds", ""))
+    if match is None:
+        raise ValueError("UI node has invalid bounds")
+    left, top, right, bottom = (int(value) for value in match.groups())
+    return left, top, right, bottom
+
+
+def ordinary_frame(xml: str) -> dict[str, int] | None:
+    """Locate the ordinary caption and derive unobscured chat bounds from UI structure."""
+    root = ET.fromstring(xml)  # noqa: S314 — dedicated guest UIAutomator output
+    parents = {child: parent for parent in root.iter() for child in parent}
+    target = next(
+        (
+            node
+            for node in root.iter("node")
+            if "PNG ordinary / تصویر معمولی" in node.get("text", "")
+        ),
+        None,
+    )
+    if target is None:
+        return None
+    header_controls = [
+        node
+        for node in root.iter("node")
+        if node.get("content-desc") in ("Go back", "More options")
+    ]
+    editor = next(
+        (
+            node
+            for node in root.iter("node")
+            if node.get("class") == "android.widget.EditText" and node.get("text") == "Message"
+        ),
+        None,
+    )
+    if not header_controls or editor is None:
+        raise ValueError("Chat chrome is unavailable in UI structure")
+    message_list = next(
+        (
+            node
+            for node in root.iter("node")
+            if node.get("class") == "androidx.recyclerview.widget.RecyclerView"
+            and node.get("scrollable") == "true"
+        ),
+        None,
+    )
+    if message_list is None:
+        raise ValueError("Chat message list is unavailable in UI structure")
+    viewport_left, _, viewport_right, message_list_bottom = bounds(message_list)
+    header_bottom = max(bounds(node)[3] for node in header_controls)
+    composer = editor
+    ancestor = editor
+    while ancestor in parents:
+        candidate = parents[ancestor]
+        if not candidate.get("bounds"):
+            ancestor = candidate
+            continue
+        left, top, right, bottom = bounds(candidate)
+        if (
+            right - left >= (viewport_right - viewport_left) * 0.9
+            and top > header_bottom
+            and bottom < message_list_bottom
+        ):
+            composer = candidate
+        ancestor = candidate
+    target_left, target_top, target_right, target_bottom = bounds(target)
+    return {
+        "target_left": target_left,
+        "target_top": target_top,
+        "target_right": target_right,
+        "target_bottom": target_bottom,
+        "viewport_left": viewport_left,
+        "viewport_top": header_bottom,
+        "viewport_right": viewport_right,
+        "viewport_bottom": bounds(composer)[1],
+    }
 
 
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
@@ -31,6 +113,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     timings: dict[str, float] = {}
     captures: dict[str, str] = {}
     cache: dict[str, dict[str, object]] = {}
+    framing: list[dict[str, int]] = []
 
     def adb(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         result = guest(*arguments, **kwargs)
@@ -107,6 +190,59 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         adb("pull", "/data/local/tmp/media.png", f"/work/{name}.png")
         captures[name] = ui
         return ui
+
+    def frame_ordinary() -> str:
+        for attempt in range(7):
+            name = f"initial-framing-{attempt}"
+            ui = capture(name)
+            captures.pop(name)
+            frame = ordinary_frame(ui)
+            if frame is not None:
+                if (
+                    frame["target_left"] >= frame["viewport_left"]
+                    and frame["target_right"] <= frame["viewport_right"]
+                    and frame["target_top"] >= frame["viewport_top"]
+                    and frame["target_bottom"] <= frame["viewport_bottom"]
+                ):
+                    wait_for_media("initial-framing", {1, 2})
+                    ui = capture(name)
+                    captures.pop(name)
+                    frame = ordinary_frame(ui)
+                    if frame is None:
+                        raise RuntimeError("Ordinary photo disappeared after media loading")
+                framing.append(frame | {"attempt": attempt})
+                if (
+                    frame["target_left"] >= frame["viewport_left"]
+                    and frame["target_right"] <= frame["viewport_right"]
+                    and frame["target_top"] >= frame["viewport_top"]
+                    and frame["target_bottom"] <= frame["viewport_bottom"]
+                ):
+                    # Preserve four public captures; intermediate framing artifacts remain separate.
+                    shutil.copy2(f"{name}.xml", "initial-top.xml")
+                    shutil.copy2(f"{name}.png", "initial-top.png")
+                    captures["initial-top"] = ui
+                    Path(f"{name}-structure.json").write_text(
+                        json.dumps({"attempt": attempt, "frame": frame}, indent=2) + "\n"
+                    )
+                    return ui
+                downward = frame["target_top"] < frame["viewport_top"]
+            else:
+                downward = True
+            Path(f"{name}-structure.json").write_text(
+                json.dumps({"attempt": attempt, "frame": frame}, indent=2) + "\n"
+            )
+            adb(
+                "shell",
+                "input",
+                "swipe",
+                "160",
+                "220" if downward else "470",
+                "160",
+                "380" if downward else "310",
+                "350",
+            )
+            time.sleep(0.35)
+        raise RuntimeError("Ordinary photo could not be framed in seven bounded gestures")
 
     def media_rows(name: str) -> list[dict[str, Any]]:
         rows = [row for row in trace(name) if row.get("event") in MEDIA_EVENTS]
@@ -189,10 +325,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         if stage == "initial":
             wait_for_media(stage, {2})
             bottom = capture("initial-bottom")
-            adb("shell", "input", "swipe", "160", "180", "160", "520", "500")
-            time.sleep(0.5)
+            top = frame_ordinary()
             wait_for_media(stage, {1, 2})
-            top = capture("initial-top")
             cache_files(stage)
             return bottom + "\n" + top
         wait_for_media(stage, {1, 2}, edited=stage == "edited")
@@ -211,6 +345,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "timings": timings,
             "media_trace": [row for row in final_trace if row.get("event") in MEDIA_EVENTS],
             "cache": cache,
+            "framing": framing,
             "accounts": adb("shell", "dumpsys", "account").stdout,
         }
 

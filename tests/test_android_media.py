@@ -92,6 +92,27 @@ def assert_media_observation(
     assert "PNG ordinary / تصویر معمولی" in initial_labels
     assert "Original JPEG" in initial_labels
     assert "عکس اصلی" in initial_labels
+    assert client["framing"]
+    final_frame = client["framing"][-1]
+    assert final_frame["target_left"] >= final_frame["viewport_left"]
+    assert final_frame["target_right"] <= final_frame["viewport_right"]
+    assert final_frame["target_top"] >= final_frame["viewport_top"]
+    assert final_frame["target_bottom"] <= final_frame["viewport_bottom"]
+    final_attempt = final_frame["attempt"]
+    for attempt in range(final_attempt + 1):
+        assert (tmp_path / f"initial-framing-{attempt}.xml").is_file()
+        assert (
+            (tmp_path / f"initial-framing-{attempt}.png")
+            .read_bytes()
+            .startswith(b"\x89PNG\r\n\x1a\n")
+        )
+        assert (tmp_path / f"initial-framing-{attempt}-structure.json").is_file()
+    assert (tmp_path / "initial-top.xml").read_text() == (
+        tmp_path / f"initial-framing-{final_attempt}.xml"
+    ).read_text()
+    assert (tmp_path / "initial-top.png").read_bytes() == (
+        tmp_path / f"initial-framing-{final_attempt}.png"
+    ).read_bytes()
     for phase in ("edited", "restart"):
         visible = labels(client["captures"][phase])
         assert "ویرایش / Edited" in visible
