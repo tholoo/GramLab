@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: claimed by `task/current-semantic-inline-callbacks`
 Blocked by: none for simulation; native regression remains separate
 
 Own this ticket, `src/gramlab/_interactions.py`, and new
@@ -33,3 +33,17 @@ AGENTS, TESTING, offline safety and parallel workflow. Retain real red/green JUn
 contained checks plus scoped Ruff/format/strict typing only, and return a frozen clean branch.
 No guest, build, full core gate, lockfile or shared interface changes. All processes terminal at
 handoff; coordinator owns merge and combined verification.
+
+## Worker evidence
+
+The contained public scenario failed at its first photo-message tap with no callback event while
+the virtual client selected the legacy callback contract. Passing `version=4` at that single
+internal call makes photo, explicit rich-mention and custom-emoji keyboard taps succeed. The real
+contained bot receives and answers each callback; complete frozen World messages, histories and
+callback events are checked, and an invalid row leaves events unchanged.
+
+The focused contained test passes under the checkout's offline pinned shell. Ruff formatting and
+lint plus strict mypy pass for both owned source files. Red and green JUnit/log evidence is retained
+under `artifacts/current-semantic-inline-callbacks/`. An initial attempt inherited an obsolete
+runtime profile without Pillow; the retained semantic red and all accepted evidence use the
+checkout-selected profile.
