@@ -111,7 +111,9 @@ offline safety, licensing and completion requirements before the corresponding a
   versioned identity dependencies before native message application. Core/API/v3 projection is
   integrated: authoritative profiles, atomic admission, response-specific disclosure and frozen
   legacy callback retry checks pass. The combined core gate passes 496 tests at 81.98% coverage
-  in 64.12 seconds. Native projection and real-bot/rendering acceptance remain tickets 52/54.
+  in 64.12 seconds. Normal22 compiles offline in 2m13s and passes all 75 native mention codec
+  cases plus the 28 existing photo codec cases. Real-bot rendering/live edit/removal/restart
+  remains ticket 54; source review and codec success alone do not close native UI acceptance.
 - Public rich-button targeting now has a [concrete proposal](rich-button-targeting-proposal.md):
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
   outcomes and client-local copy effects. Independent review and a guarded same-clock edit

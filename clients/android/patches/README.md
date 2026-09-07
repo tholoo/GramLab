@@ -132,7 +132,8 @@ handler changes. Missing activation installs nothing; invalid activation rejects
 This is a private test observation seam, not the approved public rich-target API or an atomic
 input guarantee. See [ticket 48](../../../.scratch/rich-messages/issues/48-media-view-observer.md)
 and [interaction acceptance](../../../.scratch/rich-messages/issues/49-media-native-interactions.md).
-Compilation and native acceptance remain pending at source integration.
+Compilation and focused ordinary-photo/activation checks pass; shared and late-completion
+acceptance is tracked in the interaction ticket.
 
 
 `0021-cancellable-first-photo.patch` reserves nonzero ImageLoader tags for local synthetic
@@ -141,4 +142,14 @@ and targeted diagnostic logs establish that the first otherwise-zero tag prevent
 cancel path from removing that receiver. The guard leaves non-synthetic registration behavior
 and all rendering/input handlers unchanged. See the
 [regression ticket](../../../.scratch/rich-messages/issues/51-first-photo-cancel-tag.md); corrected
-normal APK compilation and native acceptance remain required.
+normal APK compiles and focused cancel/retry and shared-consumer assertions pass, with six
+inspected original captures. Broader native regression remains required.
+
+
+`0022-rich-text-mentions.patch` projects response-local explicit mention identities into original
+recursive `TL_iv.textMentionName`, preserving signed 64-bit IDs. Snapshot lineage privately
+remembers immutable supported profiles after complete response validation. Histories, live update
+envelopes and differences carry that response's users before original message application.
+The renderer is unchanged. All 75 independently authored native mention codec cases and 28 existing photo codec cases
+pass on the compiled normal APK; real-bot rendering/edit/restart remains separate acceptance. See
+[ticket 52](../../../.scratch/rich-messages/issues/52-rich-mentions-native.md).
