@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import http.client
 import json
 import math
@@ -98,6 +99,7 @@ class Scenario:
     def _request(
         self, operation: str, parameters: dict[str, Any], *, timeout: float | None = None
     ) -> Any:
+        registration = operation == "register_custom_emoji"
         try:
             payload = json.dumps(
                 {
@@ -109,7 +111,7 @@ class Scenario:
                 ensure_ascii=False,
                 allow_nan=False,
             ).encode("utf-8")
-            if len(payload) > 65536:
+            if len(payload) > (1024 * 1024 if registration else 65536):
                 raise ValueError
         except (TypeError, ValueError, RecursionError):
             raise ScenarioError(
@@ -127,7 +129,7 @@ class Scenario:
             attempted = True
             connection.request(
                 "POST",
-                "/v1/world",
+                "/v1/custom-emoji" if registration else "/v1/world",
                 payload,
                 {
                     "Content-Type": "application/json",
@@ -241,6 +243,50 @@ class Scenario:
         return cast(
             dict[str, Any],
             self._request("open_private_chat", {"user_id": user_id, "bot_id": bot_id}),
+        )
+
+    def register_custom_emoji(
+        self,
+        *,
+        request_id: str,
+        main: bytes,
+        thumbnail: bytes,
+        fallback: str,
+        custom_emoji_id: int | str | None = None,
+        free: bool = True,
+        needs_repainting: bool = False,
+        timeout: float = 30,
+    ) -> dict[str, Any]:
+        """Register immutable local bytes; repeat the request ID after an uncertain response."""
+        if (
+            not isinstance(main, bytes)
+            or not isinstance(thumbnail, bytes)
+            or not 0 < len(main) <= 512 * 1024
+            or not 0 < len(thumbnail) <= 128 * 1024
+            or type(timeout) not in (int, float)
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ScenarioError(
+                "Invalid custom emoji media or timeout; nothing was sent",
+                operation="register_custom_emoji",
+                code="invalid_request",
+            )
+        return cast(
+            dict[str, Any],
+            self._request(
+                "register_custom_emoji",
+                {
+                    "request_id": request_id,
+                    "main": base64.b64encode(main).decode("ascii"),
+                    "thumbnail": base64.b64encode(thumbnail).decode("ascii"),
+                    "fallback": fallback,
+                    "custom_emoji_id": custom_emoji_id,
+                    "free": free,
+                    "needs_repainting": needs_repainting,
+                },
+                timeout=timeout,
+            ),
         )
 
     def send_message(

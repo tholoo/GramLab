@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import secrets
 import socket
@@ -106,7 +107,8 @@ class WorldControl:
                 if len(auth) != 1 or not secrets.compare_digest(auth[0].encode(), expected):
                     self.error(401, "unauthorized", "Run control capability required")
                     return
-                if self.path != "/v1/world":
+                registration = self.path == "/v1/custom-emoji"
+                if self.path not in ("/v1/world", "/v1/custom-emoji"):
                     self.error(404, "unsupported", "Unknown world control endpoint")
                     return
                 try:
@@ -116,7 +118,7 @@ class WorldControl:
                     if self.headers.get_content_type() != "application/json":
                         raise ValueError("Control requires application/json")
                     length = int(lengths[0])
-                    if not 0 < length <= 65536:
+                    if not 0 < length <= (1024 * 1024 if registration else 65536):
                         raise ValueError("Control request exceeds the body limit")
                     raw = self.rfile.read(length)
                     if len(raw) != length:
@@ -140,6 +142,23 @@ class WorldControl:
                     if body["world_id"] != owner.world_id:
                         self.error(409, "wrong_world", "Control request identifies another world")
                         return
+                    if registration != (body["operation"] == "register_custom_emoji"):
+                        self.error(404, "unsupported", "Unknown world control operation")
+                        return
+                    if registration:
+                        parameters = body["parameters"]
+                        required = {"request_id", "main", "thumbnail", "fallback"}
+                        optional = {"custom_emoji_id", "free", "needs_repainting"}
+                        if required - parameters.keys() or parameters.keys() - required - optional:
+                            raise ValueError("Invalid custom emoji registration fields")
+                        for field, maximum in (("main", 512 * 1024), ("thumbnail", 128 * 1024)):
+                            encoded = parameters[field]
+                            if not isinstance(encoded, str):
+                                raise ValueError("Custom emoji media must be base64 text")
+                            data = base64.b64decode(encoded, validate=True)
+                            if not 0 < len(data) <= maximum:
+                                raise ValueError("Custom emoji media exceeds the byte limit")
+                            parameters[field] = data
                     with World.open(directory) as world:
                         if world.world_id != owner.world_id:
                             self.error(409, "wrong_world", "Control world has been replaced")
@@ -156,6 +175,8 @@ class WorldControl:
                             "create_callback": world.create_callback,
                             "get_callback": world.get_callback,
                         }
+                        if registration:
+                            operations = {"register_custom_emoji": world.register_custom_emoji}
                         if capture_chat is not None:
                             operations["capture_chat"] = capture_chat
                         if tap_inline_button is not None:
