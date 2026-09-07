@@ -91,7 +91,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         if set(selected) != {"incoming", "ordinary", "rich"}:
             raise RuntimeError("Custom emoji carriers lack semantic message regions")
         rich = selected["rich"]
-        middle = (rich[1] + rich[3]) // 2
+        # The source-authored rich paragraph precedes its button row. Keep a gap between
+        # their visual regions so antialiased pixels cannot join the two glyph clusters.
+        middle = rich[1] + (rich[3] - rich[1]) * 2 // 5
         selected["rich"] = [rich[0], rich[1], rich[2], middle]
         selected["button"] = [rich[0], middle, rich[2], rich[3]]
         if len({tuple(value) for value in selected.values()}) != 4:
