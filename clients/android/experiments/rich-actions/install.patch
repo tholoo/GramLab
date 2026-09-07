@@ -1,0 +1,11 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -98,6 +98,7 @@
+             worldTime = loaded.now;
+             eventCursor = loaded.messagePosition;
+             trace("initialized", "snapshot", 0, 0);
++            RichActionGeometryProbe.install(context, loaded);
+         } catch (Exception failure) {
+             String reason = failure instanceof StartupRejected
+                     ? ((StartupRejected) failure).reason : "configuration_unavailable";
