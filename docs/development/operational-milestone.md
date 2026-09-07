@@ -22,3 +22,12 @@ Track acceptance in the current [handoff](handoff.md) and individual tickets. Re
 complete semantic comparisons, original visual evidence where relevant, isolation, useful reports
 and honest unsupported-feature errors. Neither aggregate test counts nor individual successful
 screenshots establish operational readiness for the entire required workflow.
+
+A read-only workflow inventory prioritizes structural rich formatting over HTML parse modes for
+the first representative consumer flow. Keep HTML in the full library inventory. The immediate
+flow needs polling startup, rich links/mentions/custom emoji, callback-driven edits and multipart
+photo/file reuse. It also leaves `skip_entity_detection` at its normal default; requiring a
+consumer to force it off is not equivalent compatibility. Incoming custom-emoji entities must
+survive update delivery as well as outgoing rendering. Preserve these requirements when ordering
+implementation; a smaller explicit-entity example cannot stand in for this flow. Consumer-specific
+source locations and configuration stay in ignored local notes.

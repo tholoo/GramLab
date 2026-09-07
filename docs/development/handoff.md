@@ -39,8 +39,10 @@ offline safety, licensing and completion requirements before the corresponding a
   retained evidence hashes unchanged; the remaining 35 identities are running on unchanged inputs.
   Tickets 26/27 remain claimed until combined verification finishes.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
-  is assigned for bounded independent research while native verification continues. It establishes
-  input/document/asset requirements; no custom-emoji runtime support is claimed.
+  is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
+  identities and requires a resolvable original Document plus local static/animated bytes.
+  Admission, document resolution and missing-asset policy remain design decisions; no runtime
+  custom-emoji support is claimed.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
   before consequential targeting/navigation changes.
