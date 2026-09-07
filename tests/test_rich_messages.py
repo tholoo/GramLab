@@ -100,6 +100,56 @@ def test_rich_strings_clean_each_plain_leaf_and_pre_language(tmp_path):
             )
 
 
+def test_rich_string_cleaning_keeps_leaf_counters_and_optional_wrappers_separate(tmp_path):
+    first_long_leaf = "a" * 30_000
+    second_long_leaf = "b" * 30_000
+    payload = rich(
+        [
+            {"type": "pre", "text": "code", "language": "\u202e"},
+            {
+                "type": "blockquote",
+                "blocks": [{"type": "divider"}],
+                "credit": {"type": "italic", "text": "\u2028"},
+            },
+            {
+                "type": "table",
+                "caption": {"type": "underline", "text": "\u0333"},
+                "cells": [[{}]],
+            },
+            {"type": "paragraph", "text": ["\u200e", "\u200f"]},
+            {
+                "type": "footer",
+                "text": [first_long_leaf, {"type": "bold", "text": second_long_leaf}],
+            },
+        ]
+    )
+    expected = {
+        "blocks": [
+            {"type": "pre", "text": "code"},
+            {
+                "type": "blockquote",
+                "blocks": [{"type": "divider"}],
+                "credit": {"type": "italic", "text": ""},
+            },
+            {
+                "type": "table",
+                "caption": {"type": "underline", "text": ""},
+                "cells": [[{"align": "left", "valign": "middle"}]],
+            },
+            {"type": "paragraph", "text": ["\u200e", "\u200f"]},
+            {
+                "type": "footer",
+                "text": [first_long_leaf, {"type": "bold", "text": second_long_leaf}],
+            },
+        ]
+    }
+
+    with world_at(tmp_path / "world") as world:
+        sent = world.send_rich_message(chat_id=1, sender_id=2, rich_message=payload)
+
+    assert sent["rich_message"] == expected
+
+
 @pytest.mark.parametrize(
     ("input_text", "expected_text"),
     [
