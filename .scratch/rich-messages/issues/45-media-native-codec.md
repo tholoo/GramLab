@@ -39,3 +39,6 @@ Scoped Ruff format/check, mypy and pytest collection pass with the assigned chec
 is static authoring evidence only. The worker did not build an APK or start a guest. Coordinator
 execution against normal17 is expected to expose the already observed upstream PhotoSize
 serialization mismatch; the oracle deliberately does not accept negative reconstructed locations.
+Snapshot construction deep-copies messages and assets so malformed-case mutations cannot alter the
+valid rich inputs or expected output. Two independent inventory constructions retain rich asset IDs
+`[2, 2]` and compare identically.

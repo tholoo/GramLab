@@ -97,23 +97,25 @@ def message(message_id: int, **content: Any) -> dict[str, Any]:
 
 
 def snapshot(messages: list[dict[str, Any]], assets: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
-        "schema": 3,
-        "world_id": WORLD_ID,
-        "user_id": 1,
-        "cursor": 20,
-        "now": 1700000000,
-        "users": USERS,
-        "chats": [{"id": 1, "type": "private", "user_id": 1, "bot_id": 2}],
-        "messages": messages,
-        "message_position": len(messages),
-        "sends": [],
-        "assets": assets,
-        "message_revisions": [
-            {"chat_id": 1, "message_id": item["id"], "revision": 10 + index}
-            for index, item in enumerate(messages)
-        ],
-    }
+    return copy.deepcopy(
+        {
+            "schema": 3,
+            "world_id": WORLD_ID,
+            "user_id": 1,
+            "cursor": 20,
+            "now": 1700000000,
+            "users": USERS,
+            "chats": [{"id": 1, "type": "private", "user_id": 1, "bot_id": 2}],
+            "messages": messages,
+            "message_position": len(messages),
+            "sends": [],
+            "assets": assets,
+            "message_revisions": [
+                {"chat_id": 1, "message_id": item["id"], "revision": 10 + index}
+                for index, item in enumerate(messages)
+            ],
+        }
+    )
 
 
 def native_output(messages: list[dict[str, Any]]) -> dict[str, Any]:
