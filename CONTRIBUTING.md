@@ -64,6 +64,9 @@ uv run --locked mypy tests/probes/android_rich_button_codec.py tests/test_androi
 uv run --locked mypy tests/test_runner_rich_action_captures.py
 uv run --locked mypy tests/test_rich_action_round_trip.py tests/test_android_rich_actions.py \
   tests/probes/android_rich_actions.py
+uv run --locked mypy tests/probes/android_rich_messages.py tests/probes/android_rich_action_input.py \
+  tests/probes/rich_action_input_round_trip.py tests/fixtures/rich_action_input_bot.py \
+  tests/rich_action_input_experiment.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```

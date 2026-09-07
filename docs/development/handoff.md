@@ -115,8 +115,7 @@ plus baseline and guest isolation. The old APK failed the same valid catalog in 
 The real-bot native rendering case passes in 67.08 seconds with complete serialization, live RTL
 edit, cold restart, zero accounts and isolation. All three original captures were inspected; they
 show the original button styles and inline pill in the initial and edited scenes. No button input
-is claimed from those captures. Tickets 15 and 18 await combined native acceptance; core/capture
-tickets 14 and 16 are resolved.
+is claimed from those captures. Tickets 14–16 and 18 are resolved after combined normal acceptance below.
 
 The normal serial Android gate stopped with 19 passes and one failure in 1,423.98 seconds.
 The older comprehensive catalog still expected a preformatted tab, which the accepted cleaner
@@ -124,13 +123,15 @@ correctly converts to one ASCII space. A new real World-boundary check reproduce
 mismatch in 0.22 seconds without a guest. The corrected canonical fixture passes alongside the
 real-bot case (two tests in 1.96 seconds), and the complete retained native catalog matches it.
 Production code and the normal APK are unchanged. [Ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md)
-tracks the correction. The 19 unaffected passing cases are retained, and the failed plus 21
-unexecuted cases are now running on the same immutable normal APK. Exact collected node IDs and
-the retained JUnit define that partition. Do not call the stopped gate a complete pass.
+tracks the correction and is resolved. All 22 failed-or-unexecuted cases pass on continuation
+in 1,143.57 seconds. Together with the 19 unaffected retained passes, the exact 41-case inventory
+is covered without skips on the same immutable normal APK. Preserve both original JUnit reports:
+this is resumed gate coverage, not one uninterrupted green run. The full core gate also passes
+370 tests in 58.87 seconds at 81.03% coverage. The normal run handles are terminal.
 
 The ticket 19 input harness is frozen and independently reviewed without a blocking source
-finding; its real-bot simulation and scoped static checks pass. Its shared-probe hooks remain on
-the worker branch until the normal gate's remaining scope is terminal. The coordinator's separate
+finding; its real-bot simulation and scoped static checks pass. The coordinator is integrating its
+shared-probe hooks now that the normal gate is terminal. The coordinator's separate
 experimental source matches all 43,250 files in the fresh normal export before the two-file GPL
 overlay. That overlay applies with zero fuzz, and its isolated offline build passes in 2 minutes
 8 seconds. Normal and experimental APKs have separate immutable copies and fingerprints. No
@@ -142,8 +143,7 @@ The [startup diagnostics worker](../../.scratch/developer-tooling/issues/07-gues
 is frozen and reviewed after passing five real-process tests and scoped static checks. Failed
 extra probes retain elapsed time, an 8 MiB controlled emitter proves draining beyond pipe capacity
 after the output cap, and cleanup handles child exit during termination while checking reader
-shutdown. The finite system-tag list includes UWB tags observed in retained logs. This work stays
-on its worker branch until the normal gate's remaining scope finishes. Actual guest applicability
+shutdown. The finite system-tag list includes UWB tags observed in retained logs. Its frozen branch is ready for coordinator integration after the completed normal gate. Actual guest applicability
 remains unverified; no startup cause or parallel Android scheduling fix is claimed.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom

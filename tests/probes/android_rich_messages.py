@@ -21,6 +21,10 @@ def probe(
     *,
     scene_checks: dict[str, list[str]] | None = None,
     on_initial: Callable[[str], None] | None = None,
+    on_configured: Callable[[dict[str, Any]], None] | None = None,
+    run_scenario: Callable[
+        [Callable[[dict[str, Any]], str], Callable[[], dict[str, Any]]], dict[str, Any]
+    ] = run,
 ) -> dict[str, object]:
     capability = ""
     launches: dict[str, str] = {}
@@ -224,6 +228,8 @@ def probe(
         adb("push", "/work/client.apk", "/data/local/tmp/gramlab-rich.apk", timeout=30)
         configure_codec(configuration)
         codec("initial")
+        if on_configured is not None:
+            on_configured(configuration)
         launch("initial")
         initial = screen("initial")
         if on_initial is not None:
@@ -246,7 +252,7 @@ def probe(
         }
 
     try:
-        result = run(show, observe)
+        result = run_scenario(show, observe)
         adb("shell", "am", "force-stop", "org.gramlab.android")
         if scene_checks is None:
             catalog()

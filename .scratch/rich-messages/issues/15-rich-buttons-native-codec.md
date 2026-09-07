@@ -2,7 +2,7 @@
 
 Type: task
 Status: claimed
-Work state: ready for coordinator integration; native acceptance pending
+Work state: resolved
 Assigned branch: task/rich-buttons-codec
 Assigned worker: rich_button_seam
 Blocked by: none for independent canonical codec; ticket 14 for real-bot execution
@@ -103,3 +103,13 @@ visually inspected. The serial Android gate stopped after 19 passes on an older 
 in [ticket 20](20-canonical-catalog-regression.md); this ticket remains claimed pending the
 failed and unexecuted cases on the same immutable normal APK. No geometry instrumentation
 or button input is part of the normal APK/rendering check.
+
+## Combined normal Android acceptance
+
+All 22 failed-or-unexecuted cases pass on continuation in 1,143.57 seconds. Together with the
+19 unaffected retained passes, the exact 41-case collected inventory is covered without skips on
+the same immutable normal APK. The stopped 19-pass/one-failure run remains retained; this is
+resumed gate coverage, not one uninterrupted green run. The comprehensive catalog's correction
+is fixture-only, with complete World/native equality and a fast regression. The full core gate
+now passes 370 cases in 58.87 seconds at 81.03% coverage. Experimental geometry/input remains a
+separate acceptance boundary.

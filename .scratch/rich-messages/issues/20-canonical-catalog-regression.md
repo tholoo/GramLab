@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by coordinator
+Work state: resolved
 Blocked by: none
 
 The normal Android gate stopped with 19 passes and one catalog assertion failure. The retained
@@ -27,3 +27,13 @@ The World canonical-catalog and real-bot checks then pass together in 1.96 secon
 Ruff, formatting and strict typing pass. The complete retained native catalog now equals the
 fixture. This re-evaluated evidence is not a new guest run; native rerun and remaining gate scope
 are still required. No production source or APK change was needed.
+
+## Combined normal Android acceptance
+
+All 22 failed-or-unexecuted cases pass on continuation in 1,143.57 seconds. Together with the
+19 unaffected retained passes, the exact 41-case collected inventory is covered without skips on
+the same immutable normal APK. The stopped 19-pass/one-failure run remains retained; this is
+resumed gate coverage, not one uninterrupted green run. The comprehensive catalog's correction
+is fixture-only, with complete World/native equality and a fast regression. The full core gate
+now passes 370 cases in 58.87 seconds at 81.03% coverage. Experimental geometry/input remains a
+separate acceptance boundary.
