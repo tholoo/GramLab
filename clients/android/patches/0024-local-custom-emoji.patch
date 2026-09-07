@@ -13,7 +13,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +                    long emojiId = GramLabCustomEmoji.identifier(record.opt("custom_emoji_id"));
 +                    GramLabMedia.requireEmoji(emojiId);
 +                    entity = new TLRPC.TL_messageEntityCustomEmoji();
-+                    entity.document_id = emojiId;
++                    ((TLRPC.TL_messageEntityCustomEmoji) entity).document_id = emojiId;
 +                    break;
                  case "bold": entity = new TLRPC.TL_messageEntityBold(); break;
                  case "italic": entity = new TLRPC.TL_messageEntityItalic(); break;
@@ -28,7 +28,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +                for (TLRPC.MessageEntity old : result) {
 +                    if (old instanceof TLRPC.TL_messageEntityCustomEmoji && old.offset < entity.offset + entity.length
 +                            && entity.offset < old.offset + old.length) {
-+                        require(old.offset == entity.offset && old.length == entity.length && old.document_id == entity.document_id);
++                        require(old.offset == entity.offset && old.length == entity.length && ((TLRPC.TL_messageEntityCustomEmoji) old).document_id == ((TLRPC.TL_messageEntityCustomEmoji) entity).document_id);
 +                        duplicate = true;
 +                    }
 +                }
@@ -246,7 +246,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +                body.getJSONArray("assets"), body.getJSONArray("custom_emoji"))) {
 +            require(scope.incomingDocuments.keySet().equals(ids));
 +            java.util.Set<Long> assets = new HashSet<>();
-+            org.telegram.tgnet.Vector result = new org.telegram.tgnet.Vector();
++            org.telegram.tgnet.Vector result = new org.telegram.tgnet.Vector<TLRPC.Document>(TLRPC.Document::TLdeserialize);
 +            for (GramLabCustomEmoji.Entry entry : scope.incomingDocuments.values()) {
 +                assets.add(entry.main); assets.add(entry.thumbnail);
 +                result.objects.add(GramLabCustomEmoji.project(entry));
@@ -820,7 +820,7 @@ diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProb
              for (TLRPC.MessageEntity entity : message.entities) {
                  JSONObject value = new JSONObject().put("kind", entity.getClass().getSimpleName())
                          .put("offset", entity.offset).put("length", entity.length);
-+                if (entity instanceof TLRPC.TL_messageEntityCustomEmoji) value.put("custom_emoji_id", Long.toString(entity.document_id));
++                if (entity instanceof TLRPC.TL_messageEntityCustomEmoji) value.put("custom_emoji_id", Long.toString(((TLRPC.TL_messageEntityCustomEmoji) entity).document_id));
                  if (entity instanceof TLRPC.TL_messageEntityPre) value.put("language", entity.language);
                  if (entity instanceof TLRPC.TL_messageEntityBlockquote) value.put("collapsed", entity.collapsed);
                  entities.put(value);
