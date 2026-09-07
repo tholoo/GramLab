@@ -164,8 +164,10 @@ an overlap. TDLib specifically permits pre/code nested inside a blockquote while
 inside other entity kinds
 ([nesting validation](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageEntity.cpp#L1560-L1607));
 `<blockquote><code>x</code></blockquote>` therefore uses only existing GramLab entity names but
-still conflicts with GramLab's current blanket code/pre-overlap rejection. Existing-nine HTML
-support can require validator and native changes even after parser normalization. Finally, HTML
+exposed GramLab's former blanket code/pre-overlap rejection. The subsequent
+[quoted-code correction](quoted-code-formatting.md) admits that existing-entity combination in
+core and native focused checks. Existing-nine HTML support still requires the separate parser
+and normalization pipeline. Finally, HTML
 parsing changes the stored text through markup removal and entity
 decoding, and the later cleaner can change it again, so applying the existing plain-text length
 and equality behavior before those stages would be observably different.

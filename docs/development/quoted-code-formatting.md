@@ -1,11 +1,11 @@
 # Quoted code correction
 
-Status: core and native corrections integrated; combined/native acceptance in progress.
+Status: core and native corrections integrated; focused acceptance passes; broader gate in progress.
 
 Pinned [TDLib nesting validation](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageEntity.cpp#L1560-L1607)
-admits code/pre entities whose enclosing entities are blockquotes. GramLab currently rejects
-them in both its independent Python validator and GPL adapter. Correct that existing nine-type
-boundary without changing text, adding HTML parsing, or changing upstream rendering.
+admits code/pre entities whose enclosing entities are blockquotes. GramLab previously rejected
+them in both its independent Python validator and GPL adapter. The correction fixes that existing
+nine-type boundary without changing text, adding HTML parsing, or changing upstream rendering.
 
 ## Frozen core/native contract
 
@@ -49,7 +49,7 @@ The independent real-bot send fails on the old core with HTTP 400 in 0.99 second
 core merge, 37 focused World/HTTP/real-bot tests pass, including the unchanged rich harness
 defaults. The old normal APK passes its baseline codec, then rejects valid quoted code with
 `GRAMLAB_BRIDGE_INVALID_DATA`; the original native failure is retained (119.72 seconds).
-The next codec includes 16 positive combinations and 14 independent rejections, including two
+The corrected codec includes 16 positive combinations and 14 independent rejections, including two
 additional equal-extent emphasis/code ancestor permutations added after that red run.
 
 Fresh preparation and the integrated build-cache comparison examine 43,268 exported files and
@@ -75,7 +75,9 @@ the remaining 41 serial cases on the same APK, current inputs, both staged APKs,
 files and both runtime profiles were verified against the retained run. The later host-only
 report conversion/extraction is separately revalidated as described above; runtime inputs and
 native assertions are unchanged. The continuation stopped after six passes and one emulator
-startup failure caused by insufficient disk space (631.48 seconds). Preserve that failed JUnit
-and reclaim only proven disposable runtime state before selecting the remaining identities.
+startup failure caused by insufficient disk space (631.48 seconds). That failed JUnit remains
+unchanged. Disposable userdata overlays from three completed passing suites were reclaimed under
+the shared Android lock; all 5,114 retained evidence-file hashes match. Eight passing identities
+are now retained and the remaining 35 are running with source/APK/profile equivalence checked.
 Combined acceptance and ticket resolution remain pending. Corrected desktop/mobile reports were
 inspected: all three images load, timing units are milliseconds and neither viewport overflows.

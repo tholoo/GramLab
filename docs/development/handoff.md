@@ -35,10 +35,11 @@ offline safety, licensing and completion requirements before the corresponding a
   Android adapter. Public World/real-bot regression checks and original rendering/edit/restart
   pass. The broader 43-case Android inventory has eight passes across retained focused and
   continuation runs; the next case failed at emulator startup for insufficient disk space.
-  Preserve results, reclaim only proven disposable runtime state and continue the remaining
-  identities. Tickets 26/27 remain claimed until combined verification finishes.
+  Original results remain preserved. Disposable disks from completed suites were reclaimed with
+  retained evidence hashes unchanged; the remaining 35 identities are running on unchanged inputs.
+  Tickets 26/27 remain claimed until combined verification finishes.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
-  is ready for bounded independent research while native verification continues. It establishes
+  is assigned for bounded independent research while native verification continues. It establishes
   input/document/asset requirements; no custom-emoji runtime support is claimed.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
@@ -65,10 +66,10 @@ fingerprints; experimental geometry is absent from the normal patch series. Curr
 coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/nesting, duplicate or
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
-The quoted-code native continuation stopped after six passes and one disk-space startup failure;
-its JUnit remains failed. The two focused passes are retained separately. Build/core/check/preview
-processes are terminal. Inspect current agent state and exact process handles before dispatch or
-resume. Host paths, handles, fingerprints and artifact locations stay in ignored local notes.
+The first quoted-code native continuation stopped after six passes and one disk-space startup
+failure; its JUnit remains failed. The two focused passes are retained separately. The second
+continuation is running only the remaining 35 identities. Build/core/check/preview processes are
+terminal. Inspect current agent state and exact process handles before dispatch or resume. Host paths, handles, fingerprints and artifact locations stay in ignored local notes.
 
 ## Development throughput
 
