@@ -107,6 +107,7 @@ def test_rich_photo_caption_edit_revision_and_old_grant(tmp_path: Path) -> None:
     assert world.granted_asset(user["id"], 1)[1] == first_data
     with pytest.raises(ValueError, match="v3"):
         world.client_snapshot(user["id"], version=2)
+    world.__exit__(None, None, None)
 
 
 @pytest.mark.parametrize("bad", [b"", b"not an image", image_bytes()[:-8]])
@@ -128,6 +129,7 @@ def test_rejected_photo_leaves_identifiers_and_state_unchanged(tmp_path: Path, b
         uploads={"good": image_bytes()},
     )
     assert (good["id"], good["photo"]["asset_id"]) == (1, 1)
+    world.__exit__(None, None, None)
 
 
 def test_failed_rich_upload_is_atomic(tmp_path: Path) -> None:
@@ -151,6 +153,7 @@ def test_failed_rich_upload_is_atomic(tmp_path: Path) -> None:
         uploads={"first": image_bytes()},
     )
     assert (sent["id"], sent["photo"]["asset_id"]) == (1, 1)
+    world.__exit__(None, None, None)
 
 
 def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Path) -> None:
