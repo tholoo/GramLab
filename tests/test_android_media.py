@@ -90,18 +90,23 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
         },
     }
     assert set(client["cache"]) == {"initial", "edited", "restart"}
-    initial_paths: dict[str, str] = {}
+    initial_paths: dict[str, list[str]] = {}
     for phase, files in client["cache"].items():
         assert set(files) == set(expected_cache)
         for filename, expected in expected_cache.items():
-            observation = files[filename]
-            assert Path(observation["path"]).name == filename
-            assert observation["sha256"] == expected["sha256"]
-            assert observation["size"] == expected["size"]
+            copies = files[filename]["copies"]
+            assert copies
+            paths = []
+            for observation in copies:
+                assert Path(observation["path"]).name == filename
+                assert observation["sha256"] == expected["sha256"]
+                assert observation["size"] == expected["size"]
+                paths.append(observation["path"])
+            assert paths == sorted(set(paths))
             if phase == "initial":
-                initial_paths[filename] = observation["path"]
+                initial_paths[filename] = paths
             else:
-                assert observation["path"] == initial_paths[filename]
+                assert paths == initial_paths[filename]
 
     media_trace = client["media_trace"]
     assert media_trace

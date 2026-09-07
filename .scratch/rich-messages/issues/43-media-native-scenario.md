@@ -54,3 +54,10 @@ Coordinator source review corrects a fixture assumption before native execution:
 ImageLoader may decode a cached file before FileLoader is called. Restart acceptance therefore
 checks unchanged cache bytes and no new transfer starts alongside original screenshots; it does
 not require a synthetic FileLoader cache-hit diagnostic. Runtime acceptance remains pending.
+
+Normal18 now renders both original PNG and JPEG in the real app, with inspected initial
+screenshots and verified loader success. The run fails before edit because the probe searched
+only internal files; upstream AndroidUtilities selects external cache and ImageLoader selects
+app-owned external image storage. The corrected probe searches both dedicated app roots, records
+every matching copy, quotes discovered paths and requires exact bytes plus stable paths across
+edit/restart. This changes evidence discovery only. Full lifecycle green remains required.

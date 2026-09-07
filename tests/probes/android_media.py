@@ -1,6 +1,7 @@
 """Observe local photos in the original Android renderer and its private cache."""
 
 import json
+import shlex
 import subprocess
 import time
 from collections.abc import Callable
@@ -114,6 +115,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             PACKAGE,
             "find",
             ".",
+            f"/storage/emulated/0/Android/data/{PACKAGE}",
             "-type",
             "f",
             "-name",
@@ -122,14 +124,19 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         selected: dict[str, object] = {}
         for filename in ("1_1.jpg", "2_1.jpg"):
             matches = [path for path in listing if Path(path).name == filename]
-            if len(matches) != 1:
-                raise RuntimeError(f"Expected one discovered private cache file for {filename}")
-            path = matches[0]
-            digest = adb("shell", "run-as", PACKAGE, "toybox", "sha256sum", path).stdout.split()[0]
-            size = int(
-                adb("shell", "run-as", PACKAGE, "toybox", "wc", "-c", path).stdout.split()[0]
-            )
-            selected[filename] = {"path": path, "sha256": digest, "size": size}
+            if not matches:
+                raise RuntimeError(f"No discovered app-owned cache file for {filename}")
+            copies = []
+            for path in sorted(matches):
+                quoted = shlex.quote(path)
+                digest = adb(
+                    "shell", "run-as", PACKAGE, "toybox", "sha256sum", quoted
+                ).stdout.split()[0]
+                size = int(
+                    adb("shell", "run-as", PACKAGE, "toybox", "wc", "-c", quoted).stdout.split()[0]
+                )
+                copies.append({"path": path, "sha256": digest, "size": size})
+            selected[filename] = {"copies": copies}
         Path(f"{name}-cache.json").write_text(json.dumps(selected, indent=2) + "\n")
         cache[name] = selected
         return selected
