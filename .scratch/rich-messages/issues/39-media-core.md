@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none; approved shared contract frozen
 
 Follow [the media contract](../../../docs/development/media-implementation-contract.md).
@@ -28,3 +28,17 @@ Run the new suites and relevant existing World/Bot API/client bridge/rich suites
 assigned shell and outer network guard; run scoped Ruff/format and source mypy. No guest or full
 core gate is assigned. Use an isolated worktree/environment; commit owned files and send a frozen
 clean branch, red/green evidence and terminal-resource handoff. Keep claimed until integration.
+
+## Worker evidence
+
+Implemented immutable SQLite PNG/JPEG assets, bot-scoped reusable file identities, persona grants,
+ordinary and rich photo publication/editing, bounded multipart upload, `getFile`/authenticated file
+download, and bridge v3 snapshots, changes, callbacks, assets and stored message revisions. The
+pre-change dispatcher and rich validator rejected `sendPhoto`, multipart and photo blocks; the new
+public boundary suites now cover both admitted formats, direct named file parts, rich upload/reuse,
+caption normalization, restart, concurrent schema migration, rollback, isolation, old grants and
+same-clock callback ABA revisions.
+
+Guarded focused media tests pass 15 cases. The guarded combined media plus existing World, Bot API,
+client bridge and rich-message selection passes 98 cases. Scoped Ruff format/check and strict mypy
+pass on all owned source; no Android, guest or full core gate was run.
