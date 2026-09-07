@@ -39,7 +39,17 @@ message removed its mention. No schema, navigation, automatic detection or persi
 added.
 
 The pre-change public rich validator rejected a valid mention with
-`GRAMLAB_UNSUPPORTED: rich content fields`. The guarded focused World, JSON/form API and bridge
-suites pass 12 tests. The guarded selected mention, rich, media, World, Bot API and bridge
-regressions pass 111 tests. Scoped Ruff format/check and strict mypy pass. Native rendering remains
-coordinator/worker acceptance; no guest, APK build or full core gate was run.
+`GRAMLAB_UNSUPPORTED: rich content fields`. The final guarded focused World, JSON/form API and
+real HTTP bridge suites pass 20 tests with `ResourceWarning` promoted to an error. They cover
+missing, malformed, unknown and other-bot-only identities; rejected-edit state and identifier
+invariance; duplicate nested mentions and existing depth/byte budgets; JSON/form send and edit;
+`getUpdates`; v1/v2 rejection; and exact v3 snapshot, truncated changes and frozen callback
+envelopes. The earlier guarded selected mention, rich, media, World, Bot API and bridge regression
+run passed 111 tests before the follow-up added test coverage without changing production. Scoped
+Ruff format/check and strict mypy pass for all three owned test modules; scoped production static
+checks passed before the test-only follow-up.
+
+Remaining acceptance is the coordinator's combined core gate and native rendering/round-trip
+work. The focused suite does not claim an exhaustive combinatorial pass over every rich block
+carrier or mutable-profile behavior (profiles are immutable), and automatic `@mention` detection
+is outside this ticket. No guest, APK build or full core gate was run here.
