@@ -51,10 +51,13 @@ initial = call(
                 {"type": "buttons", "buttons": [{"text": "Row action", "callback_data": "row:1"}]},
                 {
                     "type": "paragraph",
-                    "text": {
-                        "type": "button",
-                        "button": {"text": "Inline action", "callback_data": "inline:1"},
-                    },
+                    "text": [
+                        "Choose: ",
+                        {
+                            "type": "button",
+                            "button": {"text": "Inline action", "callback_data": "inline:1"},
+                        },
+                    ],
                 },
             ],
             "skip_entity_detection": True,

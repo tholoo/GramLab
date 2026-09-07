@@ -134,7 +134,7 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
         adb("shell", "uiautomator", "dump", "/data/local/tmp/rich-action.xml", timeout=15)
         ui = adb("shell", "cat", "/data/local/tmp/rich-action.xml")
         Path(name + ".xml").write_text(ui)
-        if "Inline action" not in ui:
+        if "Choose:" not in ui:
             raise RuntimeError("Initial original scene disappeared before input")
         adb("shell", "screencap", "-p", "/data/local/tmp/rich-action.png")
         adb("pull", "/data/local/tmp/rich-action.png", "/work/" + name + ".png")
@@ -239,7 +239,7 @@ def action_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
     try:
         result = probe(
             guest,
-            scene_checks={"initial": ["Inline action"], "edited": ["Rich actions complete"]},
+            scene_checks={"initial": ["Choose:"], "edited": ["Rich actions complete"]},
             on_configured=configured,
             on_initial=initial,
             run_scenario=run,
