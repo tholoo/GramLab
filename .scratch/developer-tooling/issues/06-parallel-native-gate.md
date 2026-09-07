@@ -39,3 +39,17 @@ fails the direct case's initial cold launch: `Status: timeout`, followed by firs
 assertion pass. The second suite takes 132 seconds. The affected case passes alone in 75 seconds,
 with the APK/profile/timeouts unchanged. This does not isolate the cause. Concurrent scheduling is not accepted yet; do
 not infer reliability or a speedup from either trial. The full native gate remains pending.
+
+The retained failed trial identifies a 58.073-second system report labelled
+`UWB Bugreport: error enabling UWB`. Collection overlaps the 14.459-second initial display and
+also a successful 9.080-second restart. Neither passing control's three retained log windows
+contains report collection; this does not prove absence throughout boot. Probe scripts, profiles
+and AVD settings match across trials, and every emulator log enables UWB streaming. The report's
+original request/error is outside the retained 2,000-line brief-format tail, so neither its
+underlying trigger nor its causal role in startup delay is established.
+
+The next economical diagnostic is timestamped log capture from first ADB availability through
+app startup during an already planned guest run. Preserve scheduling, profile and timeouts; do
+not disable a platform feature from correlation alone. Record boot readiness separately from
+total probe elapsed time: the current private `boot_seconds` field includes the extra probe and
+final capture, so it cannot be used as a boot-only measurement.
