@@ -1064,9 +1064,11 @@ class World:
             asset_id = self._store_asset(validate_image(uploads[name]))
         else:
             row = self._connection.execute(
-                "SELECT asset_id FROM bot_files WHERE bot_id=? AND file_id=?", (bot_id, media)
+                "SELECT f.asset_id, a.mime_type FROM bot_files f JOIN assets a ON a.id=f.asset_id "
+                "WHERE f.bot_id=? AND f.file_id=?",
+                (bot_id, media),
             ).fetchone()
-            if row is None:
+            if row is None or row[1] not in ("image/png", "image/jpeg"):
                 raise ValueError("Photo file identifier is unavailable")
             asset_id = int(row[0])
         self._file_identity(bot_id, asset_id)
@@ -1565,7 +1567,7 @@ class World:
                 emoji_ids.update(emojis)
                 asset_ids.update(media)
                 mentioned_ids.update(mentions)
-                if version == 3:
+                if version >= 3:
                     change["revision"] = self._connection.execute(
                         "SELECT event_sequence FROM client_changes WHERE user_id=? AND position=?",
                         (user_id, position),
@@ -1672,6 +1674,10 @@ class World:
                         raise ValueError(
                             "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
                         )
+                    if visible and self._message_custom_emoji(data):
+                        raise ValueError(
+                            "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
+                        )
                 elif kind == "chat.created":
                     visible = data["user_id"] == user_id
                 elif kind == "user.created":
@@ -1680,6 +1686,10 @@ class World:
                     visible = True
                 elif kind in ("callback.created", "callback.answered"):
                     visible = data["user_id"] == user_id
+                    if visible and self._message_custom_emoji(data.get("message", {})):
+                        raise ValueError(
+                            "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
+                        )
                 else:
                     raise ValueError("Unsupported client event type")
                 if visible:

@@ -79,3 +79,15 @@ def test_rich_custom_emoji_preserves_cleaned_alternative_and_button_leaf() -> No
         "alternative_text": "x ",
     }
     assert value["blocks"][1]["buttons"][0]["text"][1]["custom_emoji_id"] == "9"
+
+
+def test_nested_custom_emoji_checks_every_active_ancestor() -> None:
+    with pytest.raises(ValueError, match="cannot overlap"):
+        formatting_entities(
+            "👩‍👩",
+            [
+                {"type": "custom_emoji", "offset": 0, "length": 5, "custom_emoji_id": 1},
+                {"type": "bold", "offset": 0, "length": 5},
+                {"type": "custom_emoji", "offset": 3, "length": 2, "custom_emoji_id": 2},
+            ],
+        )

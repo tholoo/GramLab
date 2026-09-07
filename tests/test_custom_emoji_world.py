@@ -96,3 +96,71 @@ def test_unknown_reference_rolls_back_message_and_grants(tmp_path: Path) -> None
         assert world.history(chat["id"]) == []
         with pytest.raises(LookupError):
             world.granted_custom_emoji(user["id"], ["99"])
+
+
+def test_emoji_file_ids_cannot_be_reused_as_photos(tmp_path: Path) -> None:
+    world, _user, bot, chat = setup(tmp_path / "world")
+    with world:
+        registered = world.register_custom_emoji(
+            request_id="emoji", main=MAIN, thumbnail=THUMB, fallback="🙂", custom_emoji_id=4
+        )
+        sticker = world.custom_emoji_stickers(bot["id"], ["4"])[0]
+        before = world.events()
+        for file_id in (sticker["file_id"], sticker["thumbnail"]["file_id"]):
+            with pytest.raises(ValueError, match="unavailable"):
+                world.send_photo(
+                    chat_id=chat["id"],
+                    sender_id=bot["id"],
+                    photo={"type": "photo", "media": file_id},
+                )
+            with pytest.raises(ValueError, match="unavailable"):
+                world.send_rich_message(
+                    chat_id=chat["id"],
+                    sender_id=bot["id"],
+                    rich_message={
+                        "skip_entity_detection": True,
+                        "blocks": [{"type": "photo", "photo": {"type": "photo", "media": file_id}}],
+                    },
+                )
+        assert world.events() == before
+        assert world.history(chat["id"]) == []
+        assert registered["main_asset_id"] != registered["thumbnail_asset_id"]
+
+
+def test_v4_changes_have_revisions_and_legacy_events_reject(tmp_path: Path) -> None:
+    world, user, bot, chat = setup(tmp_path / "world")
+    with world:
+        world.register_custom_emoji(
+            request_id="emoji", main=MAIN, thumbnail=THUMB, fallback="🙂", custom_emoji_id=4
+        )
+        message = world.send_message(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            text="🙂",
+            entities=[{"type": "custom_emoji", "offset": 0, "length": 2, "custom_emoji_id": 4}],
+        )
+        changes = world.client_changes(user["id"], after=0, version=4)
+        assert changes["changes"] == [
+            {
+                "position": 1,
+                "type": "message.created",
+                "data": message,
+                "revision": changes["changes"][0]["revision"],
+            }
+        ]
+        assert type(changes["changes"][0]["revision"]) is int
+        callback = world.create_callback(
+            user_id=user["id"],
+            chat_id=chat["id"],
+            message_id=message["id"],
+            data="tap",
+            request_id="emoji-callback",
+            version=4,
+        )
+        world.edit_message(
+            chat_id=chat["id"], message_id=message["id"], bot_id=bot["id"], text="plain"
+        )
+        assert not world._message_custom_emoji(world.get_message(chat["id"], message["id"]))
+        with pytest.raises(ValueError, match="v4"):
+            world.client_events(user["id"], after=0)
+        assert world._message_custom_emoji(callback["message"]) == {4}

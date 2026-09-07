@@ -115,9 +115,13 @@ def formatting_entities(
                 raise ValueError("Entity ranges must be disjoint or fully nested")
             if parent["type"] in {"code", "pre"}:
                 raise ValueError("Code entities cannot overlap other formatting")
-            if entity["type"] in continuous and parent["type"] in continuous:
+            if entity["type"] in continuous and any(
+                ancestor["type"] in continuous for ancestor in active
+            ):
                 raise ValueError("Custom emoji entities cannot overlap")
-            if parent["type"] == "custom_emoji" and entity["type"] in quotations:
+            if entity["type"] in quotations and any(
+                ancestor["type"] == "custom_emoji" for ancestor in active
+            ):
                 raise ValueError("Custom emoji cannot contain a blockquote")
         if entity["type"] in {"code", "pre"} and any(
             ancestor["type"] not in quotations for ancestor in active

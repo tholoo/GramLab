@@ -53,3 +53,14 @@ checks.
   and is not part of this worker commit.
 
 Work state: ready for review
+
+### Review follow-up
+
+Fixed four independently reviewed gaps: v4 changes now carry per-change revisions; WebP/WebM bot
+file identities cannot enter ordinary or rich photo inputs; legacy event and frozen callback reads
+reject selected emoji content; and nested custom emoji checks every active ancestor. Complete literal
+v4 incoming, changes, snapshot, document and frozen callback response oracles now cover these paths.
+The focused follow-up gate passes 30 tests; its JUnit is retained at
+`.scratch/custom-emoji-core-followup.xml` for coordinator collection. Scoped Ruff and strict mypy
+remain green across the owned ten-file implementation/test selection. Checks use the
+coordinator-owned untracked decoder from frozen dependency `4bcf4` and do not commit it.

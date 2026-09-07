@@ -245,6 +245,10 @@ class ClientBridge:
                                 raise ValueError(
                                     "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
                                 )
+                            if version < 4 and world._message_custom_emoji(callback["message"]):
+                                raise ValueError(
+                                    "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
+                                )
                             result = {
                                 "schema": version,
                                 "world_id": world.world_id,
