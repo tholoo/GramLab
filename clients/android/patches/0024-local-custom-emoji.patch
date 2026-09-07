@@ -824,7 +824,7 @@ diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProb
                  if (entity instanceof TLRPC.TL_messageEntityPre) value.put("language", entity.language);
                  if (entity instanceof TLRPC.TL_messageEntityBlockquote) value.put("collapsed", entity.collapsed);
                  entities.put(value);
-@@ -454,6 +461,21 @@
+@@ -454,6 +461,24 @@
              observation.put("callback", new JSONObject().put("text", callback.message)
                      .put("show_alert", callback.alert).put("cache_time", callback.cache_time));
          }
@@ -844,5 +844,8 @@ diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProb
 +            observation.put("documents", documents);
 +        }
          System.out.println(observation);
++        // Original FileLoader creates non-daemon queues; this one-shot observer must exit.
++        System.out.flush();
++        System.exit(0);
      }
  }

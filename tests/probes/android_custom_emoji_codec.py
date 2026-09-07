@@ -101,17 +101,36 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "'umask 077; cat > /data/local/tmp/gramlab-custom-emoji-codec-ids.json'",
             input=json.dumps(case.get("requested_ids", [])),
         )
-        result = guest(
-            "shell",
-            "CLASSPATH=/data/local/tmp/gramlab-custom-emoji-codec.apk",
-            "/system/bin/app_process",
-            "/system/bin",
-            "org.telegram.gramlab.BridgeProbe",
-            "/data/local/tmp/gramlab-custom-emoji-codec-config.json",
-            case.get("mode", "custom-emoji"),
-            "/data/local/tmp/gramlab-custom-emoji-codec-ids.json",
-            timeout=30,
-        )
+        try:
+            result = guest(
+                "shell",
+                "CLASSPATH=/data/local/tmp/gramlab-custom-emoji-codec.apk",
+                "/system/bin/app_process",
+                "/system/bin",
+                "org.telegram.gramlab.BridgeProbe",
+                "/data/local/tmp/gramlab-custom-emoji-codec-config.json",
+                case.get("mode", "custom-emoji"),
+                "/data/local/tmp/gramlab-custom-emoji-codec-ids.json",
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired as error:
+
+            def redact(value: bytes | str | None) -> str:
+                text = value.decode(errors="replace") if isinstance(value, bytes) else value or ""
+                return text.replace(capability, "<REDACTED>")
+
+            Path(f"{case['name']}-codec-timeout.json").write_text(
+                json.dumps(
+                    {
+                        "stdout": redact(error.stdout),
+                        "stderr": redact(error.stderr),
+                        "requests": requests,
+                        "unconsumed_snapshots": len(snapshots),
+                    },
+                    indent=2,
+                )
+            )
+            raise RuntimeError(f"Custom emoji codec timed out: {case['name']}") from None
         if capability in result.stdout or capability in result.stderr:
             raise RuntimeError("Custom emoji codec diagnostics contained a capability")
         Path(f"{case['name']}-codec-process.json").write_text(
