@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Worker owns examples/rich_lists/ (new), tests/test_runner_rich_lists.py (new), and this ticket.
@@ -32,3 +32,18 @@ native red/green on the integrated build. Retain meaningful missing-feature red 
 existing integrated core/list capture support is already implemented, so do not invent a red for
 an example-only change. Commit a frozen clean branch; leave ticket claimed until integrated native
 acceptance. Report pending native checks explicitly.
+
+## Comments
+
+- Claimed on `task/rich-list-example`. This worker owns only `examples/rich_lists/`,
+  `tests/test_runner_rich_lists.py`, and this ticket. Acceptance covers the portable real HTTP bot,
+  the shared three-capture callback/edit/reopen scenario, independently authored complete expected
+  semantic output, and the native ambiguity rejection fixture. Coordinator-owned native build and
+  red/green acceptance remain pending after integration.
+- Focused simulation passes under the outer network guard: `1 passed, 2 deselected`. Scoped Ruff
+  lint/format and mypy checks also pass. The bot performs real local `sendRichMessage`,
+  `editMessageText`, update polling and callback answering; the test compares the complete
+  canonical world, history, captures and normalized dynamic callback events against independent
+  expectations. No Android guest or APK build was run. Native list traversal red/green, three
+  original capture inspections, ambiguity rejection, isolation/report metadata and bot-owned
+  checkbox immutability remain coordinator acceptance work, so this ticket stays claimed.
