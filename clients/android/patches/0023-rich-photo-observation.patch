@@ -1,0 +1,224 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java
+@@ -15,8 +15,10 @@
+ import org.json.JSONArray;
+ import org.json.JSONObject;
+ import org.json.JSONTokener;
++import org.telegram.messenger.AndroidUtilities;
+ import org.telegram.messenger.ImageReceiver;
+ import org.telegram.messenger.MessageObject;
++import org.telegram.messenger.RichMessageLayout;
+ import org.telegram.tgnet.TLRPC;
+ import org.telegram.ui.Cells.ChatMessageCell;
+ import org.telegram.ui.Components.RadialProgress2;
+@@ -42,7 +44,9 @@
+     private final String worldId;
+     private final long persona;
+     private final long peerId;
++    private final int schema;
+     private final ArrayList<Integer> messageIds = new ArrayList<>();
++    private final ArrayList<Target> targets = new ArrayList<>();
+     private final ExecutorService writer = Executors.newSingleThreadExecutor(
+             action -> new Thread(action, "GramLabPhotoObservation"));
+     private final Object writerLock = new Object();
+@@ -56,12 +60,28 @@
+     private long lastSample;
+     private int visited;
+ 
++    private static final class Target {
++        final int messageId;
++        final String kind;
++        final ArrayList<Long> assetIds;
++
++        Target(int messageId, String kind, ArrayList<Long> assetIds) {
++            this.messageId = messageId;
++            this.kind = kind;
++            this.assetIds = assetIds;
++        }
++    }
++
+     private GramLabPhotoObserver(File directory, JSONObject config, GramLabBridge.Snapshot snapshot) throws Exception {
+         this.directory = directory;
+-        GramLabBridge.fields(config, "schema", "nonce", "world_id", "user_id", "peer_id", "message_ids");
+-        if (config.length() != 6 || integer(config.get("schema")) != 1
++        long requestedSchema = integer(config.get("schema"));
++        if (requestedSchema != 1 && requestedSchema != 2) throw invalid();
++        schema = (int) requestedSchema;
++        GramLabBridge.fields(config, "schema", "nonce", "world_id", "user_id", "peer_id",
++                schema == 1 ? "message_ids" : "targets");
++        if (config.length() != 6
+                 || !(config.get("nonce") instanceof String) || !(config.get("world_id") instanceof String)
+-                || !(config.get("message_ids") instanceof JSONArray)) throw invalid();
++                || !(config.get(schema == 1 ? "message_ids" : "targets") instanceof JSONArray)) throw invalid();
+         nonce = (String) config.get("nonce");
+         worldId = (String) config.get("world_id");
+         persona = integer(config.get("user_id"));
+@@ -69,13 +89,39 @@
+         if (!nonce.matches("[A-Za-z0-9_-]{1,64}") || !worldId.equals(snapshot.worldId)
+                 || persona != snapshot.persona || persona <= 0 || peerId <= 0
+                 || !snapshot.chatIdsByPeer.containsKey(peerId)) throw invalid();
+-        JSONArray ids = config.getJSONArray("message_ids");
+-        if (ids.length() < 1 || ids.length() > 8) throw invalid();
++        JSONArray records = config.getJSONArray(schema == 1 ? "message_ids" : "targets");
++        if (records.length() < 1 || records.length() > 8) throw invalid();
+         Set<Integer> unique = new HashSet<>();
+-        for (int i = 0; i < ids.length(); i++) {
+-            long id = integer(ids.get(i));
+-            if (id <= 0 || id > Integer.MAX_VALUE || !unique.add((int) id)) throw invalid();
++        for (int i = 0; i < records.length(); i++) {
++            if (schema == 1) {
++                long id = integer(records.get(i));
++                if (id <= 0 || id > Integer.MAX_VALUE || !unique.add((int) id)) throw invalid();
++                messageIds.add((int) id);
++                continue;
++            }
++            Object value = records.get(i);
++            if (!(value instanceof JSONObject)) throw invalid();
++            JSONObject target = (JSONObject) value;
++            GramLabBridge.fields(target, "message_id", "kind", "asset_ids");
++            if (target.length() != 3 || !(target.get("kind") instanceof String)) throw invalid();
++            long id = integer(target.get("message_id"));
++            String kind = target.getString("kind");
++            if (id <= 0 || id > Integer.MAX_VALUE
++                    || !("ordinary".equals(kind) || "rich".equals(kind))
++                    || !unique.add((int) id)) throw invalid();
++            Object assetValues = target.get("asset_ids");
++            if (!(assetValues instanceof JSONArray)) throw invalid();
++            JSONArray ids = (JSONArray) assetValues;
++            if (ids.length() < 1 || ids.length() > 8) throw invalid();
++            ArrayList<Long> assetIds = new ArrayList<>();
++            Set<Long> uniqueAssets = new HashSet<>();
++            for (int assetIndex = 0; assetIndex < ids.length(); assetIndex++) {
++                long assetId = integer(ids.get(assetIndex));
++                if (assetId <= 0 || !uniqueAssets.add(assetId)) throw invalid();
++                assetIds.add(assetId);
++            }
+             messageIds.add((int) id);
++            targets.add(new Target((int) id, kind, assetIds));
+         }
+     }
+ 
+@@ -131,7 +177,7 @@
+     }
+ 
+     private void publish(String reason, JSONArray messages) throws Exception {
+-        JSONObject result = new JSONObject().put("schema", 1).put("nonce", nonce)
++        JSONObject result = new JSONObject().put("schema", schema).put("nonce", nonce)
+                 .put("world_id", worldId).put("user_id", persona).put("peer_id", peerId)
+                 .put("pid", android.os.Process.myPid()).put("generation", ++generation)
+                 .put("uptime_ms", SystemClock.uptimeMillis()).put("available", reason == null)
+@@ -232,13 +278,103 @@
+                 .put("progress", progress);
+     }
+ 
++    private JSONObject observeTarget(ChatMessageCell cell, Target target) throws Exception {
++        MessageObject message = cell.getMessageObject();
++        if ("ordinary".equals(target.kind)) {
++            require(message.messageOwner.media instanceof TLRPC.TL_messageMediaPhoto
++                    && message.messageOwner.media.photo != null
++                    && target.assetIds.contains(message.messageOwner.media.photo.id), "asset_mismatch");
++            long assetId = message.messageOwner.media.photo.id;
++            return observeCell(cell, target.messageId).put("kind", target.kind)
++                    .put("asset_id", assetId);
++        }
++
++        require(cell.getClass() == ChatMessageCell.class && message.type == MessageObject.TYPE_ARTICLE
++                && message.richLayout != null && message.messageOwner.rich_message != null
++                && cell.getCurrentMessagesGroup() == null && !message.hasMediaSpoilers(),
++                "unsupported_photo");
++        for (View view = cell; view != null;) {
++            require(view.getMatrix().isIdentity() && view.getAlpha() == 1
++                    && view.getScrollX() == 0 && view.getScrollY() == 0, "unsupported_transform");
++            ViewParent parent = view.getParent();
++            view = parent instanceof View ? (View) parent : null;
++        }
++        require(!cell.getTransitionParams().animateChange && !cell.getTransitionParams().messageEntering
++                && cell.getDeltaTop() == 0 && cell.getDeltaLeft() == 0
++                && cell.getDeltaRight() == 0 && cell.getDeltaBottom() == 0
++                && cell.getPaddingTopAnimated() == cell.getPaddingTop()
++                && !message.richLayout.detailsAnimating && !message.richLayout.blockquoteAnimating,
++                "unsupported_transform");
++
++        RichMessageLayout.RichPhotoBlock match = null;
++        for (RichMessageLayout.RichBlock block : message.richLayout.blocks) {
++            if (!(block instanceof RichMessageLayout.RichPhotoBlock)) continue;
++            RichMessageLayout.RichPhotoBlock photo = (RichMessageLayout.RichPhotoBlock) block;
++            if (photo.photo != null && photo.block.photo_id == photo.photo.id
++                    && target.assetIds.contains(photo.photo.id)) {
++                require(match == null, "ambiguous_photo");
++                match = photo;
++            }
++        }
++        require(match != null && match.sizeFull != null && match.currVisible, "unsupported_photo");
++        ImageReceiver image = match.imageReceiver;
++
++        require(image.getAnimation() == null && image.getAlpha() == 1
++                && image.getCurrentAlpha() == 1, "unsupported_photo");
++
++        int[] origin = new int[2];
++        cell.getLocationOnScreen(origin);
++        RectF cellBounds = new RectF(origin[0], origin[1], origin[0] + cell.getWidth(),
++                origin[1] + cell.getHeight());
++        Rect visible = new Rect();
++        require(cell.getGlobalVisibleRect(visible), "message_not_unique_or_visible");
++        int[] rootOrigin = new int[2];
++        cell.getRootView().getLocationOnScreen(rootOrigin);
++        visible.offset(rootOrigin[0], rootOrigin[1]);
++        RectF visibleBounds = new RectF(visible);
++        float blockX = origin[0] + cell.getTextX() + match.padding.left;
++        float blockY = origin[1] + cell.getPaddingTopAnimated() + cell.getTextY()
++                + match.currY + match.padding.top;
++        RectF imageBounds = new RectF(image.getImageX(), image.getImageY(),
++                image.getImageX2(), image.getImageY2());
++        imageBounds.offset(blockX, blockY);
++        int imageWidth = match.maxWidth;
++        float scale = imageWidth / (float) Math.max(1, match.sizeFull.w);
++        int imageHeight = (int) (scale * match.sizeFull.h);
++        int maxHeight = (int) (Math.max(AndroidUtilities.displaySize.x,
++                AndroidUtilities.displaySize.y) * 0.55f);
++        if (imageHeight > maxHeight) {
++            imageHeight = maxHeight;
++            scale = imageHeight / (float) Math.max(1, match.sizeFull.h);
++            imageWidth = (int) (scale * match.sizeFull.w);
++        }
++        int availableWidth = message.richLayout.getMinWidth()
++                - match.padding.left - match.padding.right;
++        int imageLeft = availableWidth > imageWidth ? (availableWidth - imageWidth) / 2 : 0;
++        int buttonSize = AndroidUtilities.dp(48);
++        float controlLeft = blockX + imageLeft + (imageWidth - buttonSize) / 2;
++        float controlTop = blockY + (imageHeight - buttonSize) / 2;
++        RectF progressBounds = new RectF(controlLeft, controlTop,
++                controlLeft + buttonSize, controlTop + buttonSize);
++        require(imageBounds.contains(progressBounds) && visibleBounds.contains(imageBounds)
++                && cellBounds.contains(imageBounds) && visibleBounds.contains(progressBounds)
++                && cellBounds.contains(progressBounds), "clipped_control");
++        return new JSONObject().put("message_id", target.messageId).put("kind", target.kind)
++                .put("asset_id", match.photo.id).put("cell_bounds", bounds(cellBounds))
++                .put("visible_bounds", bounds(visibleBounds)).put("image_bounds", bounds(imageBounds))
++                .put("progress_bounds", bounds(progressBounds))
++                .put("image_key", image.getImageKey() == null ? JSONObject.NULL : image.getImageKey())
++                .put("has_image", image.hasImageLoaded()).put("progress_icon", JSONObject.NULL)
++                .put("progress", JSONObject.NULL);
++    }
+     private JSONArray observe(View root) throws Exception {
+         require(root.isAttachedToWindow() && root.hasWindowFocus(), "inactive_window");
+         ArrayList<ChatMessageCell> cells = new ArrayList<>();
+         visited = 0;
+         find(root, cells, 0);
+         JSONArray messages = new JSONArray();
+-        for (int id : messageIds) {
++        for (int index = 0; index < messageIds.size(); index++) {
++            int id = messageIds.get(index);
+             ChatMessageCell match = null;
+             for (ChatMessageCell cell : cells) {
+                 if (cell.getMessageObject().getId() == id) {
+@@ -247,7 +383,7 @@
+                 }
+             }
+             require(match != null, "message_not_unique_or_visible");
+-            messages.put(observeCell(match, id));
++            messages.put(schema == 1 ? observeCell(match, id) : observeTarget(match, targets.get(index)));
+         }
+         return messages;
+     }
