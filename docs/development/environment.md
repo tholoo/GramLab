@@ -36,6 +36,14 @@ inputs. Each worktree keeps its own profiles. It does not change host garbage co
 provision Python dependencies, or replace the separate runtime network boundary. Profile links
 and their local store paths remain ignored. Ordinary `nix develop` remains available.
 
+If offline provisioning in a new worktree lacks a wheel already downloaded by another checkout,
+seed the new worktree's ignored `.cache/uv/` from that provisioned package cache while both caches
+are idle. Preserve relative cache links and keep the destination separate; never reuse another
+checkout's `.venv`. Run `uv sync --locked --offline` in the assigned worktree afterward and verify
+that importing GramLab resolves to that checkout. This avoids repeated downloads while preserving
+the pinned dependencies and independent editable installation. Cache seeding is provisioning;
+the runtime network guard remains mandatory. Keep actual source/destination paths in local notes.
+
 Core shell outputs are defined for x86_64 Linux, aarch64 Linux and aarch64 macOS. The pinned
 nixpkgs revision does not support x86_64 macOS. Evaluation on a platform is not evidence that
 GramLab's runtime is supported there; the initial Android profile targets x86_64 Linux only.
