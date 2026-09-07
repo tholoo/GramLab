@@ -163,6 +163,10 @@ def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Pat
     connection = sqlite3.connect(directory / "world.sqlite3")
     with connection:
         for table in (
+            "custom_emoji_grants",
+            "custom_emoji_registrations",
+            "custom_emoji_counter",
+            "custom_emoji",
             "callback_revisions",
             "message_revisions",
             "asset_grants",
@@ -183,7 +187,7 @@ def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Pat
             check.close()
 
     with ThreadPoolExecutor(max_workers=2) as workers:
-        assert list(workers.map(open_version, range(2))) == [6, 6]
+        assert list(workers.map(open_version, range(2))) == [7, 7]
     check = sqlite3.connect(directory / "world.sqlite3")
     try:
         assert (
