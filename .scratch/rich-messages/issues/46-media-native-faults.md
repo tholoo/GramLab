@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: reviewed APK for coordinator execution
 
 Own new `tests/probes/android_media_faults.py`, `tests/test_android_media_faults.py`, this ticket,
@@ -32,3 +32,22 @@ duplicate attempts and late completion after live edit remain separate required 
 Author scoped tests/probes, run Ruff/format/mypy and HTTP fixture checks, but no guest/build.
 Follow AGENTS.md, handoff, TESTING.md, offline safety and the parallel workflow. Return a frozen
 clean commit, exact static/fixture results, known runtime limitations and terminal resources.
+
+## Worker evidence
+
+The controlled server now accepts a thread-safe default fault; unplanned requests keep receiving
+that response until the test explicitly enables `complete`. Its real loopback HTTP checks pass,
+including two consecutive default-missing responses followed by one explicitly enabled complete
+response.
+
+The original-app probe is authored for independent truncate, corrupt, redirect and missing cases.
+It installs once, clears only the fixture app between Worlds, requires an actual native failure,
+inventories internal and dedicated external app storage for final/temporary bytes, captures original
+PNG/XML, then enables complete delivery and cold-starts recovery. Every ADB command retains stdout,
+stderr and return code with capability checks. The test requires no successful request before the
+retry boundary, exactly one complete request afterward, exact original JPEG cache size/SHA-256,
+changed failure/recovery screenshots and the established account/network/filesystem isolation.
+
+Scoped Ruff format/check and split-scope mypy pass, and the Android test collects. This worker ran
+the eight real HTTP fixture cases under the outer loopback-only namespace; all passed. No APK build
+or Android guest was run, so native failure, cleanup, rendering and retry remain coordinator-owned.
