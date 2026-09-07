@@ -80,6 +80,7 @@ def test_delayed_old_transfer_finishes_after_snapshot_edit() -> None:
             result = pool.submit(download)
             try:
                 assert old.partial_sent.wait(timeout=5)
+                assert old.partial_sent_at is not None
                 assert not result.done()
                 updated = {"schema": 3, "world_id": "fixture", "assets": [{"asset_id": 2}]}
                 change = {

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import socket
 import threading
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +26,7 @@ class Transfer:
     """One planned attempt; explicit events control its scheduling without sleeps."""
 
     fault: Fault = "complete"
+    partial_sent_at: float | None = None
     started: threading.Event = field(default_factory=threading.Event)
     partial_sent: threading.Event = field(default_factory=threading.Event)
     release: threading.Event = field(default_factory=threading.Event)
@@ -171,6 +173,7 @@ class MediaTransferServer:
                     elif transfer.fault == "gated":
                         split = len(body) // 2
                         self.reply(200, mime, body[:split], length=len(body))
+                        transfer.partial_sent_at = time.monotonic()
                         transfer.partial_sent.set()
                         if not transfer.release.wait(timeout=20):
                             return
