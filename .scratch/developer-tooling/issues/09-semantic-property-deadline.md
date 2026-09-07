@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: claimed by semantic-property-deadline on task/semantic-property-deadline
 Blocked by: none
 
 The combined core gate after the input/diagnostics/tool merges passes 389 tests but the rich-text
@@ -24,3 +24,12 @@ plus scoped Ruff/format. Record the actual retained timing failure and focused r
 an unchanged semantic rerun passing is not causal proof about filesystem or host load. Coordinator
 owns the combined gate, global docs and merge. No guest, APK, source acquisition or full gate is
 assigned. Commit the two owned files and return a frozen clean branch with process cleanup state.
+
+## Worker evidence
+
+The retained combined-gate log reports the same `text='0'` example at 666.56 ms initially and
+93.27 ms on replay against Hypothesis's default 200 ms deadline; it contains no semantic assertion
+failure. The property now explicitly disables that incidental per-example deadline while retaining
+its 25 examples, generated input domain and persistence/reopen assertions. The focused property and
+all 62 tests in `tests/test_rich_messages.py` pass under the offline network guard. Scoped Ruff
+check and format also pass. This rerun does not identify or claim a filesystem or host-load cause.
