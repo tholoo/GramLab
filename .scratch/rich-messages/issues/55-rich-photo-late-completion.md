@@ -59,3 +59,23 @@ those base identities even without message changes. A real HTTP regression first
 empty list and then verifies the corrected complete envelope. This is test-server fidelity, not
 a World/bridge schema change. The original 4:1 PNG uses the established deterministic generator;
 all earlier PNG bytes remain unchanged.
+
+## Worker implementation
+
+The dedicated probe independently constructs the initial and edited snapshots. It gates exactly
+one B response after its first bytes, observes rich B and ordinary B through the schema-2 identity
+set, publishes the complete B-to-C rich edit, and requires an original C binding before releasing
+B within 4.8 seconds. Four primary captures cover loading, C binding, B completion and a later
+stable sample. The host oracle checks the exact edit journal, one B request, native coalescing,
+successful C/B terminals, every matching final cache copy, no partial file and no B rebound in
+every retained post-release sample. A remains the byte-identical leading rich photo.
+
+Eighteen reset-isolated schema-2 guards cover malformed envelope, target and identifier values,
+duplicates, wrong asset, ambiguous rich roots, missing message and wrong target kind. Malformed
+activations must publish no result; valid unavailable targets must publish their exact reason.
+Failure in any guard fails the whole probe while preserving completed earlier evidence.
+
+Scoped Ruff formatting/checking, mypy and pytest collection pass in the checkout's isolated pinned
+environment. No APK build or Android guest was run. Native acceptance remains coordinator-owned.
+The new 4:1 B is expected to render about 60--67 pixels high at the bounded 320-pixel viewport,
+which leaves room for the original 48dp control at 160 dpi; native geometry remains to be proven.
