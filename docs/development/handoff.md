@@ -64,6 +64,10 @@ offline safety, licensing and completion requirements before the corresponding a
   open source forwards a server autolink flag and does not establish enrichment grammar or
   nesting/block rules. Do not treat ordinary-text detection as proof; a local fidelity policy
   needs consultation. No account/DC observation is authorized.
+- [Explicit rich mentions](rich-mention-proposal.md) have a concrete identity proposal for review:
+  bot-contact admission, authoritative User projection, message-derived recipient visibility and
+  versioned identity dependencies before native message application. No mention support or new
+  disclosure rule is implemented or approved yet.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
   before consequential targeting/navigation changes.
