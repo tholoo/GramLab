@@ -90,3 +90,15 @@ isolation pass. The valid rich-button catalog fails with `GRAMLAB_BRIDGE_UNSUPPO
 one failed test in 79.67 seconds. This is the expected native red, not a startup failure. Its
 terminal run retains complete codec observations and JUnit in ignored coordinator artifacts.
 Integrated positive execution and APK build remain pending.
+
+
+## Integrated native checkpoint
+
+The normal 13-patch APK builds offline in 2 minutes 50 seconds. The codec case passes in
+104.79 seconds with complete catalog/metadata, four valid boundaries, 57 exact rejections and
+baseline/isolation checks. The independent real-bot simulation passes in 1.23 seconds after
+integration. Original native rendering/live RTL edit/cold restart passes in 67.08 seconds with
+complete canonical serialization, zero accounts and guest isolation. All three original PNGs were
+visually inspected. The full serial Android gate is running on a separate immutable normal APK
+copy; this ticket remains claimed pending that combined acceptance. No geometry instrumentation
+or button input is part of the normal APK/rendering check.

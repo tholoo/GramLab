@@ -50,8 +50,8 @@ Rich buttons use the [callback/copy/disabled contract](rich-buttons-contract.md)
 RichText button has `type: "button"` and a `button` object; row and inline buttons share plain
 string/recursive-array labels, optional normalized style, and exactly one direct action field.
 Labels and copied text are cleaned; callback bytes are preserved. Captures read labels and exclude
-action metadata. Core/API and public simulation capture checks pass; native projection is merged,
-with rebuilt-APK acceptance pending. Public `tap_inline_button` still selects reply-markup cells.
+action metadata. Core/API and public simulation capture checks pass. The rebuilt normal APK passes focused native
+codec and real-bot rendering/live RTL edit/cold-restart checks; the full Android gate is running. Public `tap_inline_button` still selects reply-markup cells.
 
 List items require `blocks`, including an empty array, and accept optional boolean `has_checkbox`
 and `is_checked`, signed 32-bit integer `value`, and label `type`. An absent or empty type means

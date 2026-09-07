@@ -85,3 +85,13 @@ The twelve-patch export preserves all 6,666 original UI/resource files and RichM
 the integrated incremental offline build passes. See the [list contract](../../../docs/development/rich-list-references.md)
 and [integration ticket](../../../.scratch/rich-messages/issues/09-list-integration.md) for the
 separate runtime and original-rendering acceptance status.
+
+
+`0013-rich-button-projection.patch` adds canonical callback/copy/disabled rows and inline buttons
+to the GPL adapter and serializer observer. Labels remain recursive plain text; action/style and
+alignment flags use original native constructors. Fresh preparation preserves 10,759 original
+UI/resource/asset files in the broader worker comparison. The normal APK rebuild and focused native
+codec and real-bot rendering/live RTL edit/restart checks pass. Combined regression and actual
+rich-button input remain separate acceptance steps; see the
+[button contract](../../../docs/development/rich-buttons-contract.md). The optional geometry
+experiment is not part of this series or the normal APK.

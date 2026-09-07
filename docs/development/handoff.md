@@ -101,13 +101,28 @@ representation is integrated. Permanent geometry exposure and public target iden
 
 The three frozen branches are merged. All 31 World/HTTP checks and the real public capture case
 pass; the full core gate passes 368 tests in 49.71 seconds at 80.99% coverage. All documented static
-scopes pass. The old APK regression fails at the valid rich-button catalog after passing baseline
-and guest isolation (79.67 seconds). The normal 13-patch APK build is running; an initial launcher
-failed before Gradle because it used Python without the project install, and the corrected launch
-uses the checkout virtual environment. Confirm its live handle in ignored notes before starting
-another build. Ticket 18 prepares a separate real-bot/normal-APK rendering fixture in a worker.
-The coordinator's ticket 17 geometry helper compiles and its explicit install patch applies with
-zero fuzz; it has no native geometry/input evidence and is outside the normal patch queue.
+scopes pass. The later independent rendering fixture's real-bot case also passes in 1.23 seconds;
+it is additional focused evidence after that full core gate. Offline package build/install and the
+installed rich-button scenario pass with complete world/history/capture comparisons. The final
+workflow check passes.
+
+The normal 13-patch APK builds offline in 2 minutes 50 seconds. Its native codec case passes in
+104.79 seconds: complete catalog, four positive boundaries and 57 exact malformed rejections,
+plus baseline and guest isolation. The old APK failed the same valid catalog in 79.67 seconds.
+The real-bot native rendering case passes in 67.08 seconds with complete serialization, live RTL
+edit, cold restart, zero accounts and isolation. All three original captures were inspected; they
+show the original button styles and inline pill in the initial and edited scenes. No button input
+is claimed from those captures. Tickets 15 and 18 await combined native acceptance; core/capture
+tickets 14 and 16 are resolved.
+
+The full serial Android gate is running on an immutable normal APK copy. Keep main runtime/test
+sources frozen during that gate and inspect its current handle in ignored notes before another
+run. A separate worker on ticket 19 builds the real row/inline callback experiment in its own
+worktree. Its shared-probe hooks must not enter the main checkout until this gate finishes.
+The coordinator's ticket 17 GPL geometry helper compiles and its explicit install patch applies
+with zero fuzz; it remains outside the normal series and has no native observation/input evidence.
+Review the frozen input worker, then build and run a separately identified experimental APK.
+Retain normal and experimental fingerprints and do not infer permanent targeting support from it.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays

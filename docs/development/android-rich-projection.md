@@ -66,7 +66,11 @@ The integrated thirteenth patch adds canonical [rich buttons](rich-buttons-contr
 adapter and serializer probe. The two GPL files compile; fresh patch application preserves all
 10,759 original UI/resource/asset files in the worker comparison. The old APK's valid button
 catalog fails as expected with an unsupported-rich-block error after its baseline/isolation pass.
-Rebuilt-APK codec and original real-bot rendering acceptance remain pending. The opt-in
+The normal APK rebuild passes in 2 minutes 50 seconds. Its codec case then passes in 104.79
+seconds, including the complete catalog, four positive boundaries and all 57 exact rejections.
+The real-bot original rendering case passes in 67.08 seconds with complete native content,
+live RTL edit, cold restart and guest isolation; all three original PNGs were inspected. The
+full serial Android regression gate is running separately. The opt-in
 [geometry experiment](../../clients/android/experiments/rich-actions/README.md) is outside the normal
 series and has compilation evidence only; no rich-button input is claimed yet.
 

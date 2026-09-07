@@ -53,3 +53,15 @@ claim.
 Scoped Ruff lint/format and strict mypy pass for all three new Python files. Native execution,
 visual inspection and report inspection remain coordinator-owned against the integrated rebuilt
 APK. No guest, build, full gate or external network access was used by this worker.
+
+
+## Integrated native checkpoint
+
+The normal 13-patch APK builds offline in 2 minutes 50 seconds. The codec case passes in
+104.79 seconds with complete catalog/metadata, four valid boundaries, 57 exact rejections and
+baseline/isolation checks. The independent real-bot simulation passes in 1.23 seconds after
+integration. Original native rendering/live RTL edit/cold restart passes in 67.08 seconds with
+complete canonical serialization, zero accounts and guest isolation. All three original PNGs were
+visually inspected. The full serial Android gate is running on a separate immutable normal APK
+copy; this ticket remains claimed pending that combined acceptance. No geometry instrumentation
+or button input is part of the normal APK/rendering check.

@@ -1,8 +1,9 @@
 # Rich callback, copy and disabled buttons
 
 This implementation contract extends the existing rich-message subset using the
-[pinned action findings](rich-actions-references.md). It is a development target until the
-handoff and compatibility matrix record acceptance. It does not add a public input API or change
+[pinned action findings](rich-actions-references.md). Core/API/capture support and focused native
+codec/rendering checks now pass; the combined Android gate is running. Actual rich-button input
+remains experimental preparation, as recorded in the handoff and compatibility matrix. It does not add a public input API or change
 the original renderer. URL/navigation, Web Apps, login, switch-inline, pay/game and custom emoji
 remain separate inventory items requiring their own contracts and evidence.
 
