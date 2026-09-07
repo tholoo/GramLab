@@ -38,6 +38,7 @@ class MediaTransferServer:
         snapshot: Mapping[str, Any],
         assets: Mapping[int, tuple[str, bytes]],
         capability: str,
+        default_fault: Fault = "complete",
     ) -> None:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("Media fault server requires the isolated loopback runtime")
@@ -53,6 +54,7 @@ class MediaTransferServer:
             "changes": [],
         }
         self._assets = dict(assets)
+        self._default_fault = default_fault
         self._plans: dict[int, list[Transfer]] = {}
         self._transfers: list[Transfer] = []
         self._requests: list[dict[str, Any]] = []
@@ -140,7 +142,7 @@ class MediaTransferServer:
                 asset_id = int(suffix)
                 with owner._lock:
                     plans = owner._plans.get(asset_id, [])
-                    transfer = plans.pop(0) if plans else Transfer()
+                    transfer = plans.pop(0) if plans else Transfer(owner._default_fault)
                     if transfer not in owner._transfers:
                         owner._transfers.append(transfer)
                     owner._requests.append(
@@ -193,6 +195,11 @@ class MediaTransferServer:
             self._plans.setdefault(asset_id, []).append(transfer)
             self._transfers.append(transfer)
         return transfer
+
+    def default_fault(self, fault: Fault) -> None:
+        """Select the response for every otherwise unplanned asset request."""
+        with self._lock:
+            self._default_fault = fault
 
     def snapshot(self, value: Mapping[str, Any]) -> None:
         payload = json.dumps(value).encode()

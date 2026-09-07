@@ -144,3 +144,38 @@ def test_unauthorized_request_does_not_consume_planned_fault() -> None:
             assert fault.finished.wait(timeout=5)
         finally:
             client.close()
+
+
+def test_default_fault_prevents_unplanned_complete_response_until_explicitly_enabled() -> None:
+    with MediaTransferServer(
+        snapshot=SNAPSHOT,
+        assets={1: ("image/jpeg", PHOTO)},
+        capability="synthetic-fixture-capability",
+        default_fault="missing",
+    ) as server:
+        for expected_status in (404, 404):
+            client = connection(server)
+            try:
+                client.request("GET", "/v3/assets/1", headers=AUTHORIZATION)
+                response = client.getresponse()
+                assert response.status == expected_status
+                assert json.loads(response.read()) == {
+                    "schema": 3,
+                    "error": {"code": "asset_unavailable", "message": "Asset is unavailable"},
+                }
+            finally:
+                client.close()
+        server.default_fault("complete")
+        client = connection(server)
+        try:
+            client.request("GET", "/v3/assets/1", headers=AUTHORIZATION)
+            response = client.getresponse()
+            assert response.status == 200
+            assert response.read() == PHOTO
+        finally:
+            client.close()
+        assert server.requests() == [
+            {"operation": "asset", "asset_id": 1, "fault": "missing"},
+            {"operation": "asset", "asset_id": 1, "fault": "missing"},
+            {"operation": "asset", "asset_id": 1, "fault": "complete"},
+        ]
