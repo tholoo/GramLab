@@ -1,0 +1,13 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+@@ -92,7 +92,8 @@
+         if (asset == null) throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_ASSET");
+         TLRPC.TL_fileLocationToBeDeprecated location = new TLRPC.TL_fileLocationToBeDeprecated();
+         location.dc_id = 0; location.volume_id = asset.id; location.local_id = 1; location.secret = 0;
+-        TLRPC.TL_photoSize size = new TLRPC.TL_photoSize();
++        // Preserve the synthetic location through upstream TL/database round trips.
++        TLRPC.TL_photoSize size = new TLRPC.TL_photoSize_layer127();
+         size.type = "x"; size.location = location; size.w = asset.width; size.h = asset.height; size.size = (int) asset.size;
+         TLRPC.TL_photo photo = new TLRPC.TL_photo();
+         photo.id = asset.id; photo.access_hash = 0; photo.file_reference = new byte[0]; photo.date = date;

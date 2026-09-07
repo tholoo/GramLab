@@ -85,3 +85,18 @@ guest or behavioral red/green test was assigned to this correction worker; contr
 cancel/duplicate-load scheduling, timeout retry, cache bytes and original rendering remain
 coordinator-owned acceptance gates. The failure interleavings recorded in review are source
 findings, not runtime reproductions.
+
+## Native serialization regression
+
+Coordinator normal17 build passes offline in 3 minutes 7 seconds. The first original-app run
+fails with placeholders: upstream modern PhotoSize serialization discards the explicitly assigned
+location and reconstructs negative photo ID / character-code local ID. The native trace records
+asset -2 and filename -2_120.jpg, violating the positive-ID / local-1 contract. Original PNG/XML
+and failed JUnit are retained.
+
+Patch 0018 uses upstream TL_photoSize_layer127, which extends the same PhotoSize class and
+serializes the explicit location. This preserves the frozen mapping through upstream database/TL
+round trips without changing TLRPC, ImageReceiver, layout or resources. The deprecated location
+constructor preserves volume/local IDs and its unencoded DC/secret default to the required zero.
+Independent source review confirms the existing upstream renderer accepts this representation.
+Corrected build and original-app green remain required.
