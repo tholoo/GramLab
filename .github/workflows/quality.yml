@@ -80,6 +80,8 @@ jobs:
               raise SystemExit("Broken local links:\n" + "\n".join(errors))
           print(f"Validated configuration and links in {len(files)} Markdown files.")
           PY
+      - name: Guest startup diagnostics typing
+        run: MYPYPATH=tests uv run --locked mypy --explicit-package-bases tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
       - name: Explicit rich button input experiment typing
         run: uv run --locked mypy tests/probes/android_rich_messages.py tests/probes/android_rich_action_input.py tests/probes/rich_action_input_round_trip.py tests/fixtures/rich_action_input_bot.py tests/rich_action_input_experiment.py
       - name: Rich button rendering typing

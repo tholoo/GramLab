@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by guest-startup-diagnostics on task/guest-startup-diagnostics
 Blocked by: none for helper preparation; coordinator integration after current normal gate
 
 The [parallel trial](06-parallel-native-gate.md) retained only a late, brief-format log tail. It
@@ -41,3 +41,33 @@ Ruff/format and strict typing in the pinned offline shell and outer network guar
 red/green/cleanup evidence. Native applicability is coordinator-owned in the next planned guest.
 Commit only owned files and hand back a frozen clean branch; keep the ticket claimed until
 integrated process checks and actual guest observations pass.
+
+## Worker evidence
+
+The new process suite first failed at collection because no startup collector existed. All five
+focused cases now pass with real controlled child processes: a live stream, bounded overflow,
+natural early exit, launch failure and exceptional context exit. They verify exact beginning
+retention, explicit status/truncation/error fields, continued draining and owned-process reaping.
+The fixed command test covers the dedicated serial, timestamp format, system buffers, selected
+system tags and final tag suppression. Scoped Ruff format/check and strict typing of the staged
+probe pass. No emulator, guest, APK, build, network or shared gate was run; native applicability
+and actual startup evidence remain coordinator-owned.
+
+Review follow-up made failed extra probes retain their elapsed time, handles a process exit between
+the final poll and termination, and asserts reader shutdown after normal and exceptional cleanup.
+The overflow emitter now writes 8 MiB and creates a separate completion marker before cleanup,
+proving the collector drains beyond pipe capacity after its retained prefix is full. Retained boot
+logs showed `UwbServiceCore`, `UwbSettingsStore`, `UwbCountryCode`, `UwbContext`, `uwb` and hardware
+UWB tags, which were added to the finite system allowlist. The focused suite and scoped Ruff and
+strict typing checks, including the new test file, pass after the follow-up.
+
+## Timing and observation semantics
+
+`startup_log_started_seconds` measures the first successful existing ADB boot poll from guest
+launch; `boot_ready_seconds` measures observed `sys.boot_completed=1`. `extra_probe_seconds`
+measures only the supplied extra probe and survives its exception. The retained legacy
+`boot_seconds` is total probe elapsed time, including setup, extra probe and final capture; it is
+not boot readiness. `startup_log` records a bounded prefix and explicit collection outcome.
+A `complete` collector outcome means the owned stream stayed alive until intentional cleanup;
+it does not prove that every boot event was logged or identify a startup cause. Actual guest
+log format, buffering, tags and cleanup remain pending the coordinator's planned native trial.
