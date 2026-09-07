@@ -131,5 +131,7 @@ jobs:
         run: uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
       - name: Type check quoted-code acceptance
         run: uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py tests/test_android_quoted_code.py tests/probes/quoted_code_round_trip.py tests/probes/android_quoted_code.py tests/probes/android_quoted_code_codec.py tests/probes/rich_round_trip.py tests/fixtures/quoted_code_bot.py
+      - name: Type-check independent polling startup scenario
+        run: uv run --locked mypy tests/test_polling_startup_round_trip.py tests/probes/polling_startup_round_trip.py tests/fixtures/polling_startup_bot.py
       - name: Type check the retained timing command
         run: uv run --locked mypy tools/test-timings tests/test_test_timings.py

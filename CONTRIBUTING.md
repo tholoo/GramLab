@@ -77,6 +77,8 @@ uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_r
   tests/test_android_quoted_code.py tests/probes/quoted_code_round_trip.py \
   tests/probes/android_quoted_code.py tests/probes/android_quoted_code_codec.py \
   tests/probes/rich_round_trip.py tests/fixtures/quoted_code_bot.py
+uv run --locked mypy tests/test_polling_startup_round_trip.py \
+  tests/probes/polling_startup_round_trip.py tests/fixtures/polling_startup_bot.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
