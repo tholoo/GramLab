@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none for research
 
 Research worker owns this ticket and `docs/development/html-formatting-references.md` only,
@@ -24,3 +24,12 @@ for public HTTP tests, important rejection cases, and clear unresolved questions
 acquired sources first; external reference research only if needed, never account/DC calls.
 Validate links and changed-tree privacy, commit owned files, and return a frozen clean branch
 with exact evidence and terminal resource state. Research is not implementation acceptance.
+
+## Answer
+
+Pinned findings, independently derived parser fixtures, incompatibilities with the current nine
+entity types, and unresolved whole-message tests are recorded in
+[the HTML formatting source contract](../../../docs/development/html-formatting-references.md).
+The key integration boundary is that HTML parser output can contain unsupported types and
+overlaps which TDLib repairs only during its later send-time normalization; it cannot safely be
+passed straight to GramLab's existing entity validator.
