@@ -118,3 +118,11 @@ system share sheet. Both preceding XML captures show the original composer alrea
 This is a harness focus error, not clipboard-paste acceptance. Require that existing original
 focus and issue the ordinary paste key directly; retain exact text/deletion checks and no input
 retry. Move the capture's scene predicate after saving PNG so a failed scene retains both PNG/XML.
+
+
+The next native trial fails in 85.75 seconds after proving the exact copied payload in the
+original composer through the ordinary paste key, followed by successful ordinary deletion.
+Original pasted/cleared PNGs and XML were inspected. No IME was opened. The retained cleared XML
+has focus, while the next pre-disabled XML lacks it: the harness's unnecessary Escape key between
+those captures cleared focus. Remove that keypress and retain strict focus/paste checks. The
+second disabled-phase paste and cold restart remain unaccepted until a full native pass.

@@ -343,7 +343,6 @@ def effect_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
         adb("shell", "input", "keyevent", *(["67"] * len("GramLab-copy-73Q9")))
         if composer(capture(phase + "-cleared")).get("text") != "Message":
             raise RuntimeError("Ordinary deletion did not clear the copied draft")
-        adb("shell", "input", "keyevent", "111")
         experiment.setdefault("pastes", []).append(
             {"phase": phase, "text": pasted.get("text"), "cleared": True}
         )
