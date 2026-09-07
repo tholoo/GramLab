@@ -60,3 +60,18 @@ because its shared action-validation code changed. Keep normal APK evidence sepa
 failures, successful checks, fingerprint and process state in ignored artifacts; reconcile public
 docs and compatibility only after actual native proof. Public targeting, RTL/nesting, duplicate or
 stale edits, both placements of every action and long-press remain wider inventory work.
+
+## Geometry worker evidence
+
+The delegated GPL helper extension preserves callback output and emits exactly one action field
+for each admitted native constructor: callback data, copied text or `disabled: true`. It rejects
+password callbacks, null copied text, unsupported constructors and every inconsistent disabled
+state. The existing identity, freshness, two-target, layout and geometry behavior is unchanged.
+Coordinator-owned native input remains required before resolving this ticket.
+
+Source review used the pinned `TL_keyboard` definitions from the immutable normal source export.
+A focused JDK 17 compile against Android 36, the previously compiled pinned client classes and
+cached AndroidX jars produced `RichActionGeometryProbe.class`. It completed with 39 pre-existing
+dependency-annotation/serial warnings and no errors. The first narrower classpath attempt failed
+before compilation could complete because `LaunchActivity`'s AndroidX superclass was absent; the
+corrected cached classpath resolved it. No APK, guest, bot, network or shared resource lock ran.

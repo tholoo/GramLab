@@ -124,16 +124,28 @@ public final class RichActionGeometryProbe implements Application.ActivityLifecy
 
     private JSONObject target(String kind, int block, int index, RichMessageLayout.RichButton button,
                               RectF local, float originX, float originY, Rect visible) throws Exception {
-        require(button.type instanceof TL_keyboard.TL_inlineButtonTypeCallback && !button.isDisabled,
-                "initial_experiment_requires_callback");
-        TL_keyboard.TL_inlineButtonTypeCallback action = (TL_keyboard.TL_inlineButtonTypeCallback) button.type;
-        require(!action.requires_password, "password_callback");
         RectF screen = new RectF(local);
         screen.offset(originX, originY);
         require(screen.width() > 0 && screen.height() > 0 && new RectF(visible).contains(screen), "clipped_target");
-        return new JSONObject().put("kind", kind).put("block", block).put("index", index)
-                .put("text", button.text.layout.getText().toString())
-                .put("callback_data", new String(action.data, StandardCharsets.UTF_8))
+        JSONObject result = new JSONObject().put("kind", kind).put("block", block).put("index", index)
+                .put("text", button.text.layout.getText().toString());
+        if (button.type instanceof TL_keyboard.TL_inlineButtonTypeCallback) {
+            require(!button.isDisabled, "callback_disabled_state");
+            TL_keyboard.TL_inlineButtonTypeCallback action = (TL_keyboard.TL_inlineButtonTypeCallback) button.type;
+            require(!action.requires_password, "password_callback");
+            result.put("callback_data", new String(action.data, StandardCharsets.UTF_8));
+        } else if (button.type instanceof TL_keyboard.TL_inlineButtonTypeCopy) {
+            require(!button.isDisabled, "copy_disabled_state");
+            TL_keyboard.TL_inlineButtonTypeCopy action = (TL_keyboard.TL_inlineButtonTypeCopy) button.type;
+            require(action.copy_text != null, "copy_text_unavailable");
+            result.put("copy_text", action.copy_text);
+        } else if (button.type instanceof TL_keyboard.TL_inlineButtonTypeDisabled) {
+            require(button.isDisabled, "disabled_action_state_mismatch");
+            result.put("disabled", true);
+        } else {
+            throw new Unavailable("unsupported_action");
+        }
+        return result
                 .put("local_bounds", rect(local)).put("origin", new JSONArray().put(originX).put(originY))
                 .put("screen_bounds", rect(screen));
     }
