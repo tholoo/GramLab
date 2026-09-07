@@ -30,6 +30,21 @@ offline safety, licensing and completion requirements before the corresponding a
   Shared immutable media/API/delivery is the first dependency. Coordinate the successor bridge
   schema before splitting core, GPL and real-bot acceptance work. Existing PNG/JPEG/WebP/WebM
   fixtures are prepared; fixture decoding does not establish runtime media support.
+- [Local photo API](photos.md) and frozen [media contract](media-implementation-contract.md) are
+  integrated: PNG/JPEG upload, bot-scoped file reuse/download, ordinary and rich captions,
+  immutable assets/grants and v3 revisions/dependencies pass 17 focused World/HTTP/bridge/real-bot/
+  public-capture checks. All 471 core tests pass at 81.71% coverage. The schema-3/4 fixture
+  correction restores historically emitted callback events; no fabricated migration fallback was
+  introduced. The original Android adapter compiles and renders both photo formats in inspected
+  initial screenshots. Native serialization initially changed cache IDs; patch 0018 preserves
+  explicit locations using an existing upstream PhotoSize constructor. All four valid codec
+  outputs then match. Eight missing-field rejection failures motivate patch 0019; it compiles,
+  and combined codec/render/edit/restart verification is pending. Cache evidence discovery now
+  covers the app's external storage as selected by upstream. Transfer fault/cancel/retry and
+  combined native regression acceptance remain required; initial screenshots are not full media
+  completion. See tickets [40](../../.scratch/rich-messages/issues/40-media-native.md),
+  [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
+  [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
   still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
@@ -44,7 +59,7 @@ offline safety, licensing and completion requirements before the corresponding a
 - [Polling startup](../../.scratch/update-delivery/issues/03-polling-startup-reset.md) and
   [structured rich-link core](rich-links-contract.md) are integrated. After repairing the editable
   install, 144 combined feature tests pass, including independent contained bots and public
-  captures. All 447 core tests pass at 81.18% coverage. URL/email/phone metadata and labels
+  captures. The pre-media checkpoint passed 447 core tests at 81.18% coverage. URL/email/phone metadata and labels
   are preserved; automatic detection, mentions, custom emoji and media remain separate needs.
 - The native rich-link patch is integrated and compiled. Normal14 passes its baseline codec and rejects
   the valid link scene in a 60.26-second dedicated red run with the corrected import guard.
@@ -97,7 +112,7 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
+| Latest core | 471 passed at 81.71% coverage in 94.50 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
 | Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 165 Markdown files. Contributor guidance/CI include the new strict typing scope. |
 | Media preparation | Three original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
