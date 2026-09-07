@@ -306,6 +306,8 @@ def test_concurrent_v4_upgrade_preserves_filters_and_backfills_persona_positions
             world.get_callback(user_id=1, callback_id="legacy-callback")["answer"]["text"]
             == "retained"
         )
+        callback = world.get_callback(user_id=1, callback_id="legacy-callback")
+        assert world.callback_dependencies(1, callback)["message_revision"] == 5
         result = world.send_client_message(
             user_id=1, chat_id=1, request_id="after-upgrade", text="new"
         )

@@ -41,6 +41,8 @@ CREATE TABLE callbacks (
 );
 UPDATE bots SET next_update=3 WHERE id=2;
 INSERT INTO callbacks VALUES ('legacy-callback',1,2,'legacy-tap','{"chat_id": 1, "message_id": 2, "data": "legacy"}','{"id": "legacy-callback", "user_id": 1, "chat_id": 1, "message": {"id": 2, "chat_id": 1, "sender_id": 2, "date": 100, "text": "Legacy bot reply"}, "data": "legacy", "chat_instance": "synthetic-chat-instance"}','{"text": "retained", "show_alert": false, "cache_time": 0}');
+INSERT INTO events VALUES (6, 'callback.created', '{"id": "legacy-callback", "user_id": 1, "chat_id": 1, "message": {"id": 2, "chat_id": 1, "sender_id": 2, "date": 100, "text": "Legacy bot reply"}, "data": "legacy", "chat_instance": "synthetic-chat-instance"}');
+INSERT INTO events VALUES (7, 'callback.answered', '{"id": "legacy-callback", "user_id": 1, "answer": {"text": "retained", "show_alert": false, "cache_time": 0}}');
 INSERT INTO updates VALUES (2,2,'{"update_id": 2, "callback_query": {"id": "legacy-callback", "user_id": 1, "chat_id": 1, "message": {"id": 2, "chat_id": 1, "sender_id": 2, "date": 100, "text": "Legacy bot reply"}, "data": "legacy", "chat_instance": "synthetic-chat-instance"}}');
 INSERT INTO bot_tokens VALUES ('c7906cb19ca1ce73a79f39e944a4d5a8eadc60a1f59ef842523c8d6a0acd3a07',2);
 INSERT INTO client_tokens VALUES ('cd6f2bbed51c238ca3cadf6fcdd5ea3bf17761404c6cdb570bb1b808f3d63639',1);

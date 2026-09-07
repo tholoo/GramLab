@@ -408,12 +408,15 @@ def test_concurrent_v3_migration_preserves_capabilities_callbacks_and_world_iden
                 world.client_snapshot(1),
                 world.poll_updates(2),
                 world.get_callback(user_id=1, callback_id="legacy-callback"),
+                world.callback_dependencies(
+                    1, world.get_callback(user_id=1, callback_id="legacy-callback")
+                ),
             )
 
     with ThreadPoolExecutor(max_workers=4) as workers:
         results = list(workers.map(migrate, range(4)))
     assert all(result == results[0] for result in results)
-    snapshot, pending, callback = results[0]
+    snapshot, pending, callback, dependencies = results[0]
     assert snapshot["world_id"] == "11111111-2222-4333-8444-555555555555"
     assert pending == [
         {"update_id": 1, "message": snapshot["messages"][0]},
@@ -423,6 +426,7 @@ def test_concurrent_v3_migration_preserves_capabilities_callbacks_and_world_iden
         },
     ]
     assert callback["answer"] == {"text": "retained", "show_alert": False, "cache_time": 0}
+    assert dependencies["message_revision"] == 5
     with World.open(directory) as world:
         assert world.authenticate_bot("2:gramlab_" + "a" * 43) == 2
         assert world.authenticate_client("gramlab-client_" + "b" * 43) == 1
