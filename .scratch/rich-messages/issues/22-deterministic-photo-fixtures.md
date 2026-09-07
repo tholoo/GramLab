@@ -1,8 +1,8 @@
 # Prepare original deterministic PNG fixtures for the media milestone
 
 Type: task
-Status: ready-for-agent
-Work state: ready for isolated worker
+Status: claimed
+Work state: claimed by rich-photo-fixtures worker; awaiting coordinator integration and independent decoding
 Blocked by: none for fixtures; media API and delivery design remain unchosen
 
 Prepare reusable original image inputs while the coordinator finishes native rich effects and
