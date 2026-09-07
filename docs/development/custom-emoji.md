@@ -48,8 +48,8 @@ reuse immutable assets. Registration neither sends a message nor grants a person
 `request_id` identifies the normalized registration. Repeating identical input returns its original
 descriptor, including after reopen; changing bytes or metadata conflicts without a partial mutation.
 The SDK never retries automatically. A lost response may follow a committed registration: callers
-can retry the same request ID with the same inputs to recover it. Broader dropped-response and
-contained runner registration acceptance is tracked separately from initial HTTP checks.
+can retry the same request ID with the same inputs to recover it. An actual forwarding peer verifies this lost-response recovery, and a contained public CLI
+scenario registers both static and animated original fixtures through the trusted supervisor.
 
 ## Messages and delivery
 

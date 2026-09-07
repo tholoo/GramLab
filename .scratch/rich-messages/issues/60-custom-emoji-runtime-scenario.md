@@ -3,7 +3,7 @@
 Type: feature
 Status: ready-for-agent
 Work state: claimed
-Blocked by: ticket 62 and original Android v4 acceptance
+Blocked by: original Android v4 acceptance
 
 Coordinator owns Nix runtime/development provisioning, `runtime.py`, runner/CLI, `_android.py`,
 `_run.py`, `_control.py`, `scenario.py`, new runtime-selection/scenario tests and shared docs.
@@ -36,5 +36,7 @@ enhanced nine-case selection passes in 1.26 seconds. Original failed evidence is
 Scenario boundary red had two expected failures (missing registration method and missing route)
 and two existing wrong-operation rejections. The integrated SDK/control now passes all four
 actual HTTP checks, including a registration larger than the ordinary route limit, exact descriptor,
-reopen/idempotent retry and conflict rejection. Scoped Ruff and strict typing pass. Ticket 62 owns
-stronger dropped-response/framing/contained-runner acceptance; native v4 rendering is still pending.
+reopen/idempotent retry and conflict rejection. Scoped Ruff and strict typing pass. The integrated ticket62 selection passes eight tests for actual dropped-response recovery,
+encoded/decoded/framing/auth bounds and a real contained public CLI registering WebP and WebM.
+The runner fixture now typechecks independently without imported-check suppression and its
+contained execution passes again. Native v4 rendering is still pending.

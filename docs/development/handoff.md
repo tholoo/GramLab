@@ -93,9 +93,9 @@ offline safety, licensing and completion requirements before the corresponding a
 - [Local custom emoji](custom-emoji.md) now has integrated schema-7 immutable catalog, public
   Bot API lookup/download, atomic retained grants and v4 dependencies. Focused integrated checks
   pass 30 media, 31 catalog/API, 31 native request-proxy and four initial scenario cases. The
-  original source predicate has pinned BSL provenance. Stronger catalog isolation and dropped-response/
-  contained-runner tests are in parallel review; the observed integer-ID document-route admission
-  mismatch is being corrected under ticket64. The latest combined core gate above predates this
+  original source predicate has pinned BSL provenance. Seven catalog isolation regressions and eight dropped-response/
+  contained-runner tests are integrated and pass focused checks. The observed integer-ID document-route
+  admission mismatch is corrected under ticket64, with its original red preserved. The latest combined core gate above predates this
   batch. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
   a probe-only FileLoader-thread exit correction; original red and diagnostic evidence are retained.
   Actual static rendering, transparent animation, cache reuse and fault recovery remain open.
