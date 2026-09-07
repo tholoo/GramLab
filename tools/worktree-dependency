@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""Install and restore explicitly borrowed Git files in a linked worktree."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import stat
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+from typing import Any, NoReturn
+
+GIT = shutil.which("git")
+RECEIPT_ROOT = Path(".cache/worktree-dependencies")
+VALID_MODES = {"100644": 0o644, "100755": 0o755}
+MAX_FILES = 64
+MAX_FILE_BYTES = 64 * 1024 * 1024
+MAX_TOTAL_BYTES = 256 * 1024 * 1024
+
+
+class Refusal(Exception):
+    """A safe refusal with no requested target mutation."""
+
+
+def fail(message: str) -> NoReturn:
+    raise Refusal(message)
+
+
+def git(repo: Path, *arguments: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
+    if GIT is None:
+        fail("Git is required.")
+    result = subprocess.run(  # noqa: S603
+        [GIT, "-C", str(repo), *arguments], capture_output=True
+    )
+    if check and result.returncode != 0:
+        detail = result.stderr.decode(errors="replace").strip()
+        fail(detail or "Git operation failed.")
+    return result
+
+
+def git_text(repo: Path, *arguments: str) -> str:
+    return git(repo, *arguments).stdout.decode(errors="strict").strip()
+
+
+def worktree_root(path: Path) -> Path:
+    try:
+        return Path(git_text(path, "rev-parse", "--show-toplevel")).resolve(strict=True)
+    except (OSError, Refusal):
+        fail("TARGET must be another linked worktree of this repository.")
+
+
+def common_directory(path: Path) -> Path:
+    return Path(git_text(path, "rev-parse", "--path-format=absolute", "--git-common-dir")).resolve(
+        strict=True
+    )
+
+
+def linked_worktrees(repo: Path) -> set[Path]:
+    raw = git(repo, "worktree", "list", "--porcelain", "-z").stdout
+    result = set()
+    for field in raw.split(b"\0"):
+        if field.startswith(b"worktree "):
+            result.add(Path(os.fsdecode(field.removeprefix(b"worktree "))).resolve(strict=True))
+    return result
+
+
+def validate_target(coordinator: Path, supplied: str) -> Path:
+    target_input = Path(supplied)
+    try:
+        target = target_input.resolve(strict=True)
+    except OSError:
+        fail("TARGET must be another linked worktree of this repository.")
+    if not target.is_dir() or target_input.is_symlink():
+        fail("TARGET must be another linked worktree of this repository.")
+    target_root = worktree_root(target)
+    if (
+        target_root != target
+        or target == coordinator
+        or common_directory(target) != common_directory(coordinator)
+        or target not in linked_worktrees(coordinator)
+    ):
+        fail("TARGET must be another linked worktree of this repository.")
+    return target
+
+
+def validate_receipt_name(value: str) -> str:
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", value) is None or value in {".", ".."}:
+        fail("RECEIPT must contain 1-64 ASCII letters, digits, '.', '_' or '-'.")
+    return value
+
+
+def validate_path(value: str) -> str:
+    path = PurePosixPath(value)
+    if (
+        not value
+        or len(value.encode()) > 4096
+        or path.is_absolute()
+        or "\\" in value
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.as_posix() != value
+    ):
+        fail(f"Invalid repository-relative path: {value}")
+    return path.as_posix()
+
+
+def sha256(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def tree_entry(repo: Path, commit: str, path: str) -> tuple[str, str] | None:
+    raw = git(repo, "ls-tree", "-z", commit, "--", path).stdout
+    if not raw:
+        return None
+    records = [record for record in raw.split(b"\0") if record]
+    if len(records) != 1 or b"\t" not in records[0]:
+        fail(f"Cannot resolve Git object for dependency path: {path}")
+    metadata, returned = records[0].split(b"\t", 1)
+    fields = metadata.decode("ascii").split()
+    if len(fields) != 3 or os.fsdecode(returned) != path:
+        fail(f"Cannot resolve Git object for dependency path: {path}")
+    return fields[0], fields[2]
+
+
+def index_entry(repo: Path, path: str) -> tuple[str, str] | None:
+    raw = git(repo, "ls-files", "--stage", "-z", "--", path).stdout
+    if not raw:
+        return None
+    records = [record for record in raw.split(b"\0") if record]
+    if len(records) != 1 or b"\t" not in records[0]:
+        fail(f"Index has unsupported entries for dependency path: {path}")
+    metadata, returned = records[0].split(b"\t", 1)
+    fields = metadata.decode("ascii").split()
+    if len(fields) != 3 or fields[2] != "0" or os.fsdecode(returned) != path:
+        fail(f"Index has unsupported entries for dependency path: {path}")
+    return fields[0], fields[1]
+
+
+def blob(repo: Path, object_id: str, path: str) -> bytes:
+    result = git(repo, "cat-file", "blob", object_id)
+    if len(result.stdout) > MAX_FILE_BYTES:
+        fail(f"Dependency file exceeds 64 MiB: {path}")
+    return result.stdout
+
+
+def lstat(path: Path) -> os.stat_result | None:
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+
+
+def validate_parent_directories(root: Path, path: str) -> None:
+    current = root
+    for part in PurePosixPath(path).parts[:-1]:
+        current /= part
+        status = lstat(current)
+        if status is None or not stat.S_ISDIR(status.st_mode) or stat.S_ISLNK(status.st_mode):
+            fail(f"Refusing dependency path {path}: parent is not a regular directory.")
+
+
+def filesystem_mode(path: Path) -> str | None:
+    status = lstat(path)
+    if status is None:
+        return None
+    if not stat.S_ISREG(status.st_mode) or stat.S_ISLNK(status.st_mode):
+        return "unsupported"
+    permissions = stat.S_IMODE(status.st_mode)
+    for mode, expected in VALID_MODES.items():
+        if permissions == expected:
+            return mode
+    return "unsupported"
+
+
+def resolve_commit(repo: Path, value: str) -> str:
+    if re.fullmatch(r"[0-9a-fA-F]{40}", value) is None:
+        fail("SOURCE must be a complete 40-character commit ID.")
+    kind = git(repo, "cat-file", "-t", value, check=False)
+    if kind.returncode != 0 or kind.stdout.strip() != b"commit":
+        fail("SOURCE must identify an existing commit in this repository.")
+    return git_text(repo, "rev-parse", "--verify", f"{value}^{{commit}}")
+
+
+def receipt_directory(target: Path, name: str) -> Path:
+    return target / RECEIPT_ROOT / name
+
+
+def ensure_receipt_storage(target: Path, directory: Path) -> None:
+    ignored = git(
+        target,
+        "check-ignore",
+        "--quiet",
+        "--no-index",
+        "--",
+        str(directory / "receipt.json"),
+        check=False,
+    )
+    if ignored.returncode != 0:
+        fail("Receipt storage must be ignored by the target repository.")
+    current = target
+    for part in RECEIPT_ROOT.parts:
+        current /= part
+        status = lstat(current)
+        if status is not None and (
+            not stat.S_ISDIR(status.st_mode) or stat.S_ISLNK(status.st_mode)
+        ):
+            fail("Receipt storage must not contain symlinks or non-directories.")
+
+
+def write_exact(path: Path, value: bytes, mode: str) -> None:
+    temporary = path.with_name(f".{path.name}.worktree-dependency-{os.getpid()}")
+    created = False
+    try:
+        with temporary.open("xb") as stream:
+            created = True
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.chmod(VALID_MODES[mode])
+        os.replace(temporary, path)
+    finally:
+        if created:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def write_receipt(path: Path, receipt: dict[str, Any]) -> None:
+    encoded = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode()
+    write_exact(path, encoded, "100644")
+
+
+def prevalidate_install(
+    coordinator: Path, target: Path, source: str, paths: list[str]
+) -> tuple[str, list[dict[str, Any]], list[bytes], list[bytes | None]]:
+    base = git_text(target, "rev-parse", "--verify", "HEAD^{commit}")
+    entries: list[dict[str, Any]] = []
+    installed_values: list[bytes] = []
+    original_values: list[bytes | None] = []
+    total = 0
+    for index, path in enumerate(paths):
+        validate_parent_directories(target, path)
+        source_entry = tree_entry(coordinator, source, path)
+        if source_entry is None:
+            fail(f"Source commit does not contain dependency path: {path}")
+        source_mode, source_object = source_entry
+        if source_mode not in VALID_MODES:
+            fail(f"Unsupported source object mode {source_mode}: {path}")
+        installed = blob(coordinator, source_object, path)
+        total += len(installed)
+        if total > MAX_TOTAL_BYTES:
+            fail("Dependency batch exceeds 256 MiB.")
+
+        base_entry = tree_entry(target, base, path)
+        staged_entry = index_entry(target, path)
+        file_mode = filesystem_mode(target / path)
+        original: dict[str, str] | None
+        original_value: bytes | None
+        if base_entry is None:
+            if staged_entry is not None or file_mode is not None:
+                fail(f"Refusing dependency path {path}: target is not absent and untracked.")
+            original = None
+            original_value = None
+        else:
+            base_mode, base_object = base_entry
+            if base_mode not in VALID_MODES:
+                fail(f"Unsupported target object mode {base_mode}: {path}")
+            if staged_entry != base_entry:
+                fail(f"Refusing dependency path {path}: target index differs from HEAD.")
+            if file_mode != base_mode:
+                fail(f"Refusing dependency path {path}: target mode or type differs from HEAD.")
+            original_value = blob(target, base_object, path)
+            if (target / path).read_bytes() != original_value:
+                fail(f"Refusing dependency path {path}: target bytes differ from HEAD.")
+            original = {
+                "mode": base_mode,
+                "sha256": sha256(original_value),
+                "stored": f"original/{index}",
+            }
+        entries.append(
+            {
+                "path": path,
+                "original": original,
+                "installed": {
+                    "mode": source_mode,
+                    "sha256": sha256(installed),
+                    "stored": f"installed/{index}",
+                },
+            }
+        )
+        installed_values.append(installed)
+        original_values.append(original_value)
+    return base, entries, installed_values, original_values
+
+
+def install(coordinator: Path, arguments: argparse.Namespace) -> None:
+    target = validate_target(coordinator, arguments.target)
+    name = validate_receipt_name(arguments.receipt)
+    if not 1 <= len(arguments.paths) <= MAX_FILES:
+        fail("Install requires 1-64 dependency paths.")
+    paths = [validate_path(path) for path in arguments.paths]
+    if len(set(paths)) != len(paths):
+        fail("Dependency paths must be unique.")
+    source = resolve_commit(coordinator, arguments.source)
+    directory = receipt_directory(target, name)
+    ensure_receipt_storage(target, directory)
+    if lstat(directory) is not None:
+        fail("Receipt collision already exists.")
+    base, entries, installed_values, original_values = prevalidate_install(
+        coordinator, target, source, paths
+    )
+    receipt = {
+        "schema": 1,
+        "state": "installed",
+        "source_commit": source,
+        "base_commit": base,
+        "target_worktree": str(target),
+        "receipt": name,
+        "entries": entries,
+    }
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir()
+    except FileExistsError:
+        fail("Receipt collision already exists.")
+    try:
+        (directory / "installed").mkdir()
+        (directory / "original").mkdir()
+        for index, value in enumerate(installed_values):
+            write_exact(directory / "installed" / str(index), value, "100644")
+        for index, original_value in enumerate(original_values):
+            if original_value is not None:
+                write_exact(directory / "original" / str(index), original_value, "100644")
+        write_receipt(directory / "receipt.json", receipt)
+    except (OSError, KeyError, TypeError):
+        shutil.rmtree(directory, ignore_errors=True)
+        fail("Dependency receipt preparation failed; no target was changed.")
+
+    applied = 0
+    try:
+        for entry, value in zip(entries, installed_values, strict=True):
+            write_exact(target / entry["path"], value, entry["installed"]["mode"])
+            applied += 1
+    except (OSError, KeyError, TypeError):
+        rollback_complete = True
+        for entry, original_value in reversed(
+            list(zip(entries[:applied], original_values[:applied], strict=True))
+        ):
+            try:
+                if original_value is None:
+                    (target / entry["path"]).unlink(missing_ok=True)
+                else:
+                    write_exact(target / entry["path"], original_value, entry["original"]["mode"])
+            except (OSError, KeyError, TypeError):
+                rollback_complete = False
+        if rollback_complete:
+            shutil.rmtree(directory, ignore_errors=True)
+            fail("Dependency installation failed; applied targets were rolled back.")
+        receipt["state"] = "failed"
+        receipt["failure"] = "Installation failed and rollback was incomplete; inspect every path."
+        try:
+            write_receipt(directory / "receipt.json", receipt)
+        except OSError:
+            pass
+        fail("Dependency installation failed and rollback was incomplete; receipt retained.")
+    print(f"Installed {len(entries)} frozen dependencies under receipt {name}.")
+
+
+def load_receipt(target: Path, name: str) -> tuple[Path, dict[str, Any]]:
+    directory = receipt_directory(target, name)
+    status = lstat(directory)
+    receipt_path = directory / "receipt.json"
+    receipt_status = lstat(receipt_path)
+    if (
+        status is None
+        or not stat.S_ISDIR(status.st_mode)
+        or stat.S_ISLNK(status.st_mode)
+        or receipt_status is None
+        or not stat.S_ISREG(receipt_status.st_mode)
+        or stat.S_ISLNK(receipt_status.st_mode)
+    ):
+        fail(f"Receipt {name} does not exist or is unsafe.")
+    try:
+        receipt = json.loads(receipt_path.read_text())
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        fail(f"Receipt {name} is invalid.")
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("schema") != 1
+        or receipt.get("receipt") != name
+        or receipt.get("target_worktree") != str(target)
+        or not isinstance(receipt.get("entries"), list)
+    ):
+        fail(f"Receipt {name} is invalid.")
+    if receipt.get("state") == "restored":
+        fail(f"Receipt {name} is already restored.")
+    if receipt.get("state") != "installed":
+        fail(f"Receipt {name} is invalid.")
+    return directory, receipt
+
+
+def receipt_value(directory: Path, record: Any, path: str) -> bytes:
+    if (
+        not isinstance(record, dict)
+        or set(record) != {"mode", "sha256", "stored"}
+        or record["mode"] not in VALID_MODES
+        or not isinstance(record["sha256"], str)
+        or not isinstance(record["stored"], str)
+    ):
+        fail(f"Receipt entry is invalid: {path}")
+    stored = PurePosixPath(record["stored"])
+    if stored.is_absolute() or ".." in stored.parts:
+        fail(f"Receipt entry is invalid: {path}")
+    location = directory.joinpath(*stored.parts)
+    status = lstat(location)
+    if status is None or not stat.S_ISREG(status.st_mode) or stat.S_ISLNK(status.st_mode):
+        fail(f"Receipt evidence is missing or unsafe: {path}")
+    value = location.read_bytes()
+    if sha256(value) != record["sha256"]:
+        fail(f"Receipt evidence hash differs: {path}")
+    return value
+
+
+def prevalidate_restore(
+    target: Path, directory: Path, receipt: dict[str, Any]
+) -> tuple[list[dict[str, Any]], list[bytes], list[bytes | None]]:
+    base = receipt.get("base_commit")
+    source = receipt.get("source_commit")
+    entries_value = receipt["entries"]
+    if (
+        not isinstance(base, str)
+        or re.fullmatch(r"[0-9a-f]{40}", base) is None
+        or not isinstance(source, str)
+        or re.fullmatch(r"[0-9a-f]{40}", source) is None
+        or not 1 <= len(entries_value) <= MAX_FILES
+    ):
+        fail(f"Receipt {receipt['receipt']} is invalid.")
+    current = git_text(target, "rev-parse", "--verify", "HEAD^{commit}")
+    entries: list[dict[str, Any]] = []
+    installed_values: list[bytes] = []
+    original_values: list[bytes | None] = []
+    seen = set()
+    for value in entries_value:
+        if not isinstance(value, dict) or set(value) != {"path", "original", "installed"}:
+            fail("Receipt entry is invalid.")
+        path = validate_path(value["path"]) if isinstance(value.get("path"), str) else ""
+        if not path or path in seen:
+            fail("Receipt entry is invalid.")
+        seen.add(path)
+        validate_parent_directories(target, path)
+        installed = receipt_value(directory, value["installed"], path)
+        original_record = value["original"]
+        original = (
+            None if original_record is None else receipt_value(directory, original_record, path)
+        )
+        source_entry = tree_entry(target, source, path)
+        if source_entry is None or source_entry[0] not in VALID_MODES:
+            fail(f"Receipt source commit differs: {path}")
+        source_value = blob(target, source_entry[1], path)
+        if value["installed"]["mode"] != source_entry[0] or installed != source_value:
+            fail(f"Receipt installed differs from source commit: {path}")
+        base_entry = tree_entry(target, base, path)
+        if original_record is None:
+            if base_entry is not None:
+                fail(f"Receipt original differs from base commit: {path}")
+        else:
+            if original is None or base_entry is None or base_entry[0] not in VALID_MODES:
+                fail(f"Receipt original differs from base commit: {path}")
+            base_value = blob(target, base_entry[1], path)
+            if original_record["mode"] != base_entry[0] or original != base_value:
+                fail(f"Receipt original differs from base commit: {path}")
+        target_mode = filesystem_mode(target / path)
+        if target_mode == "unsupported" or target_mode is None:
+            fail(f"Installed dependency is not a regular file: {path}")
+        if target_mode != value["installed"]["mode"] or (target / path).read_bytes() != installed:
+            fail(f"Installed dependency changed: {path}")
+
+        committed = tree_entry(target, current, path)
+        staged = index_entry(target, path)
+        if original_record is None:
+            if committed is not None:
+                fail(f"Committed dependency changed since install: {path}")
+            if staged is not None:
+                fail(f"Index dependency changed since install: {path}")
+        else:
+            if base_entry is None or committed != base_entry:
+                fail(f"Committed dependency changed since install: {path}")
+            if staged != base_entry:
+                fail(f"Index dependency changed since install: {path}")
+        entries.append(value)
+        installed_values.append(installed)
+        original_values.append(original)
+    return entries, installed_values, original_values
+
+
+def restore(coordinator: Path, arguments: argparse.Namespace) -> None:
+    target = validate_target(coordinator, arguments.target)
+    name = validate_receipt_name(arguments.receipt)
+    directory, receipt = load_receipt(target, name)
+    entries, installed_values, original_values = prevalidate_restore(target, directory, receipt)
+    applied = 0
+    try:
+        for entry, original in zip(entries, original_values, strict=True):
+            path = target / entry["path"]
+            if original is None:
+                path.unlink()
+            else:
+                write_exact(path, original, entry["original"]["mode"])
+            applied += 1
+    except OSError:
+        for entry, installed in reversed(
+            list(zip(entries[:applied], installed_values[:applied], strict=True))
+        ):
+            write_exact(target / entry["path"], installed, entry["installed"]["mode"])
+        fail("Dependency restoration failed; applied targets were rolled back.")
+    receipt["state"] = "restored"
+    try:
+        write_receipt(directory / "receipt.json", receipt)
+    except OSError:
+        for entry, installed in zip(entries, installed_values, strict=True):
+            write_exact(target / entry["path"], installed, entry["installed"]["mode"])
+        fail("Dependency restoration failed; applied targets were rolled back.")
+    print(f"Restored {len(entries)} frozen dependencies from receipt {name}.")
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Install or restore guarded files in another linked Git worktree."
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    install_parser = commands.add_parser("install")
+    install_parser.add_argument("--source", required=True)
+    install_parser.add_argument("--target", required=True)
+    install_parser.add_argument("--receipt", required=True)
+    install_parser.add_argument("paths", nargs="+")
+    restore_parser = commands.add_parser("restore")
+    restore_parser.add_argument("--target", required=True)
+    restore_parser.add_argument("--receipt", required=True)
+    return parser.parse_args()
+
+
+def main() -> int:
+    try:
+        coordinator = Path(git_text(Path.cwd(), "rev-parse", "--show-toplevel")).resolve(
+            strict=True
+        )
+        arguments = parse_arguments()
+        if arguments.command == "install":
+            install(coordinator, arguments)
+        else:
+            restore(coordinator, arguments)
+    except Refusal as error:
+        print(error, file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

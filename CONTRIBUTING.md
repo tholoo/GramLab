@@ -22,8 +22,8 @@ Nix and direnv changes. Store host inventory, proxy addresses and other machine-
 
 ```sh
 uv sync --locked
-uv run --locked ruff check . tools/test-timings
-uv run --locked ruff format --check . tools/test-timings
+uv run --locked ruff check . tools/test-timings tools/worktree-dependency
+uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency
 ```
 
 Pytest checks that its imported GramLab package belongs to this checkout before running tests.
@@ -80,6 +80,7 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
 MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/media_transfer_server.py tests/test_media_transfer_server.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
+uv run --locked mypy --strict tools/worktree-dependency tests/test_worktree_dependency.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py tests/assets/rich-media/jpeg_generate.py tests/assets/rich-media/jpeg_verify.py
 uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py tests/assets/custom-emoji/toolchain.py
 uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
@@ -139,7 +140,9 @@ Android fidelity or guest egress isolation. Extend it as those capabilities are 
 manual execution remains the initial product workflow.
 
 For concurrent implementation, use the [parallel development workflow](docs/development/parallel-work.md)
-and `tools/worktree`. Keep file ownership explicit and serialize expensive Android gates through
+and `tools/worktree`. The coordinator can lend reviewed immutable dependency files using
+[the guarded dependency tool](docs/development/worktree-dependencies.md); it retains originals
+and validates the whole batch before installation or restoration. Keep file ownership explicit and serialize expensive Android gates through
 its shared local resource lock. Developer helper checks run with `pytest tests/test_developer_tooling.py`, `bash -n tools/worktree`
 and `shellcheck tools/worktree` in the Nix shell. For repeated command-line work, `tools/dev`
 retains the selected development environment in an ignored Nix profile. Validate it with
