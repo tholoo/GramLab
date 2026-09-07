@@ -70,6 +70,10 @@ explicit GramLab limits for the supported native table profile, not asserted Tel
 production limits. Blocks, table rows and RichText arrays must be non-empty, except list-item
 block arrays, which may be empty. C0 controls other
 than newline and tab are rejected as unsupported normalization; invalid UTF-8 is rejected.
+Admitted plain RichText leaves and preformatted language undergo the pinned
+[string cleaning](rich-text-cleaning.md), including tab-to-space, selected Unicode removals,
+direction-marker normalization and per-leaf UTF-8 truncation. Optional plain-empty fields omit
+after cleaning; required text and nested wrappers/arrays preserve their structure.
 Unknown fields, unsupported wrappers/blocks and ambiguous text plus rich content fail explicitly.
 HTML/Markdown parsing, automatic entities, links, buttons, media, custom emoji, streaming,
 and the remaining rich inventory are still open. No network asset is fetched.
@@ -87,10 +91,11 @@ The integrated list World/HTTP suite passes all 82 focused cases, including the 
 test. Public captures find nested list fragments while preserving canonical history and rejecting
 metadata or cross-fragment text targets. Focused native evidence covers the list codec, original
 checkbox input without user mutation, bot edits, cold restart, nested inline targeting and
-offscreen metadata-only ambiguity rejection. The final reusable scene's corrected native rerun passes. A concurrent checkbox case reports
-a cold-launch timeout; the list-inclusive combined Android gate remains pending. The integrated full core gate passes
-326 tests at 80.52% coverage in 46 seconds; the installed-wheel list scenario also passes complete
-semantic verification. See the [reusable list example](../../examples/rich_lists/README.md).
+offscreen metadata-only ambiguity rejection. The list-inclusive combined Android gate passes all 38 cases without skips in 2,362.99 seconds.
+The pre-normalization full core gate passes 326 tests at 80.52% coverage in 46 seconds; the
+installed-wheel list scenario also passes complete semantic verification. The subsequent cleaning
+correction passes 91 focused World/HTTP cases and the real-bot regression; its full core and native
+acceptance remain pending. See the [reusable list example](../../examples/rich_lists/README.md).
 
 The dedicated tests exercise actual HTTP sends/edits through both request encodings, full responses,
 atomic malformed/unsupported rejection, wrong bot/message ownership, normalization, plain/rich

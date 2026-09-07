@@ -54,67 +54,48 @@ This complements direnv and keeps local store paths out of tracked files.
 
 ## First action
 
-Rich lists are integrated on the coordinator branch: independent normalization, native patch
-0012, public nested capture/input traversal, and a reusable real HTTP bot/scenario. The focused
-World/HTTP suite passes 82 cases; the full core gate passes 326 tests at 80.52% coverage in 46
-seconds. Full static checks, workflow validation and installed-wheel execution pass. The installed
-list result also passes complete semantic verification. The twelve-patch fresh export preserves
-all 6,666 original UI/resource files; one incremental offline APK build took 2 minutes 31 seconds.
+The list milestone is accepted: all 38 cases in the serial Android gate pass without skips in
+2,362.99 seconds. It includes the integrated list codec and 42 malformed rejections, original
+checkbox input without user mutation, live bot edits/cold restart, and the final public list
+callback and offscreen metadata-only ambiguity scenarios. The pre-normalization full core gate
+passes 326 tests at 80.52% coverage. Static/workflow checks, installed-wheel execution, complete
+semantic comparisons and desktop/mobile report inspection pass. List tickets 07–10 are resolved.
+The twelve-patch APK preserves all 6,666 original UI/resource files. Original ordered-marker and
+checkbox overlap remains a documented upstream quirk, not a renderer fix.
 
-Focused native evidence covers the complete list codec and 42 malformed rejections, actual
-checkbox input without user mutation, live bot edits and cold restart, plus public inline
-callback/RTL editing and offscreen metadata-only ambiguity rejection. Original screenshots show
-real wrapping, all five ordered label styles and nested checked/unchecked items. Ordered markers
-can overlap checkboxes in the pinned renderer; preserve that quirk. The final reusable fixture
-places checkboxes on nested unordered items so its ordered labels remain visible. See
-[rich messages](rich-messages.md), [native projection](android-rich-projection.md) and the
-[list example](../../examples/rich_lists/README.md).
+The next correction is [rich-text cleaning](rich-text-cleaning.md). The coordinator reproduced a
+World tab mismatch; a separate worker implemented the pinned admitted-string transformations,
+per-leaf UTF-8 stopping rule and preformatted-language normalization. Its frozen branch is merged
+with all 91 World/HTTP cases passing in 24.84 seconds, including the Unicode property. A second
+worker's independent real-bot regression fails on the old base and passes after integration in
+1.01 seconds. That branch also supplies the focused native live-edit/restart acceptance case.
+Review and commit its merge after affected static checks, then run the full core gate and focused
+native normalization acceptance with the existing APK. The preceding 38-case gate does not cover
+this correction. Tickets 12–13 remain claimed until combined acceptance; actual handles and paths
+stay in ignored local notes. Check current Git merge state and those handles before another run.
 
-Two-worker Android verification is not yet accepted. The first pair completed both scenarios but
-failed a host assertion requiring the callback to remain unanswered at observation. The documented
-input contract permits an early answer; a retained-result replay established and verified the
-assertion correction, including rejection of an incorrect answer. The corrected second pair passes
-the public example, but the direct checkbox case reports an initial cold-launch timeout. Its later
-semantic steps complete, and logcat reports first display after 14.459 seconds. The unchanged case
-passes alone in 75 seconds. This does not establish the cause or accept concurrent scheduling.
-Do not increase timeouts, count that failure as a pass, or begin a two-worker full gate yet.
-Actual process handles and evidence paths stay in ignored local notes. The next check is the
-serial list-inclusive combined Android gate; poll its current handle before starting another guest.
-The combined gate remains pending;
-list integration/example and parallel-gate tickets remain claimed.
+The effects optimization is accepted in the 38-case gate: 20 navigation captures replace 39,
+while all four original states, complete history and original shader evidence remain. Its case
+passes in 132.683 seconds versus 175.800 in the preceding gate; differing load prevents a causal
+speedup claim. All four new original images were reviewed. Four added list cases contribute
+354.600 seconds; the 34 matched cases sum to 143.566 seconds more than the preceding gate, with
+none removed. Use the [timing command](test-timings.md) to distinguish wall and summed case time.
 
-The preceding pre-list combined Android gate passed all 34 tests without skips in 1,865 seconds.
-It is historical coverage, not a list-inclusive gate. The original effects probe's settings
-observations have since been reduced from 39 to 20; a focused unchanged-profile run passed in
-159 seconds versus earlier 174–176 second observations. Differing load prevents a causal speedup
-claim. The combined gate must also cover that optimization with the list-capable APK.
+Two-worker Android scheduling remains unaccepted. The corrected concurrent public example passes,
+but a direct case has a cold-launch timeout, followed by a passing unchanged serial run. Its
+retained logs identify an overlapping UWB-error-labelled system report; a successful restart also
+overlaps that report. The original trigger is outside the retained brief-format tail, so causality
+is unproven. Follow [the diagnostic ticket](../../.scratch/developer-tooling/issues/06-parallel-native-gate.md)
+for timestamped startup observations during a future planned guest; keep profile/timeouts intact.
+Offline worker package caches can be seeded independently as described in
+[environment guidance](environment.md), avoiding repeated dependency acquisition.
 
-The [timing command](test-timings.md) compares retained JUnit without rerunning guests and keeps
-suite wall time separate from summed case durations. Continue measuring expensive observations
-and use focused checks during iteration. Serializing all native cases remains a major development
-cost, but concurrent execution needs actual reliability evidence before adoption.
-
-The next rich-content work has [source findings](rich-actions-references.md) for links and rich
-buttons. It is research only. Establish exact shared interfaces and original native targeting,
-and prepare a concrete offline navigation proposal before consequential design decisions. No
-external navigation or runtime egress is authorized. Rich actions, media, custom emoji, Mini Apps,
-interactive mode and the wider product inventory remain unfinished; the full goal stays active.
-
-During that gate, the coordinator reproduced a rich-string normalization gap through the World:
-an admitted tab survives instead of becoming a space. The pinned cleaner also establishes
-Unicode-marker removal/replacement and a per-string UTF-8 stopping rule. The
-[reviewed normalization contract](rich-text-cleaning.md) and
-[worker ticket](../../.scratch/rich-messages/issues/12-rich-text-cleaning.md) assign a correction
-to `task/rich-text-cleaning` in its separate worktree. That worker owns only the validator, its
-World/HTTP tests and ticket. The integration code/APK remain frozen; the current gate does not
-cover this unmerged correction. Review its frozen handoff after the gate, then run affected
-combined checks. Rich actions and permanent native geometry/target identity remain separate work.
-The Python correction is now reviewed, including per-leaf counters and cleaned-empty wrapper
-boundaries. A second worker on `task/rich-cleaning-native` owns only the new real-bot/native
-acceptance files and [ticket 13](../../.scratch/rich-messages/issues/13-rich-cleaning-native.md).
-It can establish the real-bot red on its base; positive checks depend on coordinator integration of
-the frozen Python fix. No APK build or worker guest run is assigned. Merge the reviewed core fix
-before the separately reviewed acceptance branch, after the current list gate is terminal.
+The next rich-action work has [exact source shapes and native seams](rich-actions-references.md).
+Callbacks fit the existing bridge, but per-button accessibility is absent and native geometry/input
+still needs proof. Permanent geometry exposure and public target identity remain unchosen. Prepare
+concrete proposals before consequential design or navigation changes. Rich actions, media, custom
+emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays
+active. No external runtime egress or remote publication is authorized.
 
 ## Previous rich-message checkpoint
 

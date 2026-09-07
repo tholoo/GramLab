@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: assigned; awaiting worker claim
+Work state: claimed by rich-cleaning-native; frozen worker handoff, integration pending
 Blocked by: coordinator integration of ticket 12 for positive execution
 
 Worker owns new tests/test_rich_cleaning_round_trip.py, tests/test_android_rich_cleaning.py,
@@ -35,3 +35,46 @@ outer network guard. Positive simulation and native execution depend on the coor
 the frozen core fix; report this honestly rather than weakening expected output. The worker must
 not launch guests or build an APK. Commit only owned files and hand back a frozen clean branch;
 keep the ticket claimed until coordinator integration and acceptance.
+
+
+## Worker handoff
+
+The three assigned Python files are implemented. A short independent input/output fixture covers
+accepted tabs, removed Unicode characters, adjacent direction markers, preserved Persian/ZWNJ,
+preformatted language cleaning and omission, and a table caption that cleans to empty. Raw input
+and expected canonical output are separately retained in each run. The simulation asserts complete
+real HTTP bot send/edit replies and reopened durable history. Its shared assertions are reused by
+the native host test; the new native probe only supplies scene checks to the existing helper.
+
+The native test requires complete serialized message records, initial/live RTL edit/cold-restart
+PNG/XML, successful cold launches, applied-edit trace, zero accounts, local-only networking and
+emulator filesystem isolation. It generates a report retaining raw/expected content, observations,
+timings, APK fingerprint and original screenshots. No shared helper, Java, APK or profile changed.
+
+Verification on the assigned base before ticket 12 integration:
+
+- Offline provisioning and the editable-install path check passed in this checkout.
+- The real-bot simulation is red: one failed test in 1.96 seconds. Its subprocess succeeds;
+  complete output comparison catches dirty heading/text/language/caption values in bot replies
+  and durable history. For example, `Clean\tsta\u202art` remains dirty instead of `Clean start`,
+  and edited language `\u202c\u033f` remains present instead of being omitted.
+- Scoped Ruff, formatting and strict mypy pass for all three new files. Deliberate Persian
+  fixture strings have a local RUF001 exemption; no shared lint configuration changed.
+- Positive simulation, Android execution, original screenshot inspection and combined acceptance
+  are deferred to the coordinator after integration of the frozen ticket 12 fix. No Android
+  tests, builds or full gates ran in this worker.
+
+Reproduce the simulation red on this base in the provisioned shell:
+
+```sh
+tools/dev default --offline --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest tests/test_rich_cleaning_round_trip.py'
+```
+
+Run Ruff/check-format/mypy against `tests/test_rich_cleaning_round_trip.py`,
+`tests/test_android_rich_cleaning.py` and `tests/probes/android_rich_cleaning.py`.
+Retained local JUnit, test log, raw/expected/actual JSON and static logs are under the ignored
+worker artifact directory identified in the coordinator handoff. All worker commands are terminal.
+Coordinator follow-up: add the new files to shared static-check coverage where explicit file lists
+are used, integrate ticket 12 before this ticket's positive checks, run the focused native test
+with the existing APK, inspect all three original captures and reconcile shared evidence docs.

@@ -72,8 +72,10 @@ flips both states; the live view and cold restart retain its complete edit. Orde
 overlap checkboxes in the pinned renderer; this observed quirk is preserved. The reusable
 [list scene](../../examples/rich_lists/README.md) uses nested unordered checkboxes so its ordered
 labels remain visible. Public list inline input has focused callback/edit and offscreen
-metadata-only ambiguity-rejection evidence. The corrected fresh example rerun passes, but its concurrent checkbox case reports an initial
-cold-launch timeout. The list-inclusive combined Android gate remains pending.
+metadata-only ambiguity-rejection evidence. The list-inclusive combined Android gate passes all 38 cases without skips in 2,362.99 seconds.
+The subsequent world-side string-cleaning correction has separate native acceptance pending;
+it requires no APK change. A prior concurrent startup timeout remains an unresolved scheduling
+issue, recorded in the handoff.
 
 The following eleven-patch evidence is the earlier pre-list checkpoint.
 The full eleven-patch queue applies to a fresh export of the pinned source. The three changed
