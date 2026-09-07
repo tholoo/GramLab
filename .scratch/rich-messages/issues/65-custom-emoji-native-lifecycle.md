@@ -2,8 +2,8 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
-Blocked by: ticket63 frozen shared real-bot fixture for integrated execution
+Work state: ready for coordinator review; native execution remains coordinator-owned
+Blocked by: none; ticket63 frozen at e0fb984c0230c28f579c58b88dbf2dd47f3a934f
 
 Coordinator owns this ticket, new `tests/probes/android_custom_emoji.py`,
 `tests/test_android_custom_emoji.py`, optional original pixel-oracle helper/test, and native execution.
@@ -39,6 +39,12 @@ original bubble background. A running flag, one frame or a globally changed scre
 not prove animation/alpha. Original LiteMode/device animation restrictions must be diagnosed and
 reported, not bypassed. Match geometry with explicit sampling tolerances for real decoder/scaling
 and recording; preserve observed outputs for independent inspection.
+
+The worker implementation stages the frozen three-phase callback interface, records native-only
+document/asset journals, exact original cache destinations and a 24-frame edited burst. A small
+pixel oracle rejects global screenshot changes and requires the authored marker plus all four
+moving-color states inside semantic carrier bounds. Its two pure host cases and Android test
+collection pass. Native execution and inspection remain with the coordinator.
 
 Run one serial guest under android-gate with the verified immutable normal24 APK and outer network
 guard. Keep unchanged source/APK/profile/probe fingerprints before/after. Retain complete JUnit
