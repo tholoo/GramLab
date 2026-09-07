@@ -52,6 +52,7 @@ def test_world_discards_only_one_bot_queue_without_resetting_ids_or_client_state
             user_id=1, chat_id=1, message_id=choice["id"], data="choose", request_id="tap"
         )
         world.answer_callback(bot_id=2, callback_id=callback["id"], text="Done")
+        before_callback = world.get_callback(user_id=1, callback_id=callback["id"])
         world.create_user(first_name="Other", is_bot=True)
         world.open_private_chat(user_id=1, bot_id=3)
         other_token = world.issue_bot_token(3)
@@ -65,6 +66,7 @@ def test_world_discards_only_one_bot_queue_without_resetting_ids_or_client_state
         assert world.history(1) == before_history
         assert world.events() == before_events
         assert world.client_snapshot(1) == before_snapshot
+        assert world.get_callback(user_id=1, callback_id=callback["id"]) == before_callback
         assert [item["update_id"] for item in world.poll_updates(3)] == [1]
         with pytest.raises(ValueError, match="Only bots"):
             world.discard_pending_updates(1)
@@ -77,10 +79,16 @@ def test_world_discards_only_one_bot_queue_without_resetting_ids_or_client_state
 
 @pytest.mark.parametrize(
     ("parameters", "drops"),
-    [({}, False), ({"drop_pending_updates": False}, False), ({"drop_pending_updates": True}, True)],
+    [
+        ({}, False),
+        ({"drop_pending_updates": False}, False),
+        ({"drop_pending_updates": "false"}, False),
+        ({"drop_pending_updates": True}, True),
+        ({"drop_pending_updates": "true"}, True),
+    ],
 )
 def test_delete_webhook_json_is_repeatable_and_optionally_discards_pending(
-    tmp_path: Path, parameters: dict[str, bool], drops: bool
+    tmp_path: Path, parameters: dict[str, bool | str], drops: bool
 ) -> None:
     directory = tmp_path / "world"
     token = polling_world(directory)
@@ -138,7 +146,7 @@ def test_delete_webhook_rejects_non_boolean_json_without_mutation(
             {
                 "ok": False,
                 "error_code": 400,
-                "description": "drop_pending_updates must be a Boolean",
+                "description": "drop_pending_updates must be a Boolean or text",
             },
         )
         assert request(server, token, "deleteWebhook", {"unsupported": True})[0] == 400
@@ -199,28 +207,47 @@ def test_drop_preserves_update_selection_and_rejected_encodings_preserve_state(
             200,
             {"ok": True, "result": True},
         )
-        before = _state(directory)
-        rejected = [
-            request(
-                server,
-                token,
-                "deleteWebhook",
-                raw=b'{"drop_pending_updates":true,"drop_pending_updates":false}',
-            ),
-            _form_request(server, token, "drop_pending_updates=true&drop_pending_updates=false"),
-            request(
-                server,
-                token,
-                "deleteWebhook?drop_pending_updates=true",
-                {"drop_pending_updates": False},
-            ),
-        ]
-        assert [status for status, _ in rejected] == [400, 400, 400]
-        assert _state(directory) == before
         with World.open(directory) as world:
-            world.send_message(chat_id=1, sender_id=1, text="still filtered")
-        assert request(server, token, "getUpdates") == (200, {"ok": True, "result": []})
+            choice = world.send_message(chat_id=1, sender_id=2, text="Choose")
+            callback = world.create_callback(
+                user_id=1,
+                chat_id=1,
+                message_id=choice["id"],
+                data="choose",
+                request_id="retained-tap",
+            )
+        before = _state(directory)
+        rejected = request(
+            server,
+            token,
+            "deleteWebhook",
+            raw=b'{"drop_pending_updates":true,"drop_pending_updates":false}',
+        )
+        assert rejected[0] == 400
+        assert _state(directory) == before
+        rejected = _form_request(
+            server, token, "drop_pending_updates=true&drop_pending_updates=false"
+        )
+        assert rejected[0] == 400
+        assert _state(directory) == before
+        rejected = request(
+            server,
+            token,
+            "deleteWebhook?drop_pending_updates=true",
+            {"drop_pending_updates": False},
+        )
+        assert rejected[0] == 400
+        assert _state(directory) == before
     with BotAPIServer(directory) as restarted:
+        status, body = request(restarted, token, "getUpdates")
+        assert status == 200
+        assert len(body["result"]) == 1
+        assert body["result"][0]["update_id"] == 2
+        assert body["result"][0]["callback_query"]["id"] == callback["id"]
+        assert request(restarted, token, "getUpdates", {"offset": 3}) == (
+            200,
+            {"ok": True, "result": []},
+        )
         with World.open(directory) as world:
             world.send_message(chat_id=1, sender_id=1, text="filtered after restart")
         assert request(restarted, token, "getUpdates") == (200, {"ok": True, "result": []})

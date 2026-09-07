@@ -27,8 +27,8 @@ Android, dependency, renderer, network or webhook-registration change is assigne
   restart; this operation is distinct from deleting messages or resetting a World.
 - JSON Boolean and form/query textual input follow the existing supported transport shapes.
   The pinned textual decoder lowercases/trims and recognizes `true`, `yes`, `1`; other text is
-  false. Resolve JSON non-Boolean handling explicitly from source or preserve a documented strict
-  typed boundary; do not use Python truthiness to turn arbitrary objects into deletion.
+  false. Strings use that decoder in JSON, form and query transports. Numeric, null, array and
+  object JSON values are rejected; do not use Python truthiness to turn them into deletion.
 - Deleting an absent webhook must not manufacture a same-bot long-poll conflict. Preserve an
   already waiting empty poll and prove a later arrival still completes it normally.
 - Wrong capability, malformed requests, repeated members/parameters and unsupported fields fail
@@ -73,3 +73,6 @@ repository; use independently authored generic fixtures.
   cases together under the same guard; `/tmp/polling-startup-regression.xml` retains the result.
 - Scoped Ruff check/format and mypy pass. These checks establish only the polling startup reset
   contract; webhook registration/delivery, an external bot and Android were not exercised.
+- Review follow-up strengthened pending-callback preservation, exact callback-record retention and
+  JSON textual decoding; the focused suite passes 21 cases in
+  `/tmp/polling-startup-followup.xml`.

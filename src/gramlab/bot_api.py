@@ -54,7 +54,7 @@ def _boolean(value: Any, name: str) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"true", "yes", "1"}
     if type(value) is not bool:
-        raise ValueError(f"{name} must be a Boolean")
+        raise ValueError(f"{name} must be a Boolean or text")
     return value
 
 
