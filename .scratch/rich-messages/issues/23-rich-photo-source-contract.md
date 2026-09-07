@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: ready for isolated research worker
+Work state: resolved
 Blocked by: none for source research; public asset/delivery design requires user consultation
 
 Use the research skill and follow the parallel workflow in a dedicated `task/rich-photo-contract`
@@ -34,3 +34,11 @@ Write one concise source-backed Markdown findings file. Validate local links and
 privacy, commit only owned files, and return a clean frozen branch with primary-source references,
 verified facts, unresolved questions and terminal tool/resource state. No implementation support
 or native fidelity is claimed from this research.
+
+## Resolution
+
+The pinned request/output, TDLib conversion, Android object graph and local-cache/load path are
+recorded in [the source findings](../../../docs/development/rich-photo-references.md). The memo
+separates source facts from the inferred delivery seam and leaves asset identity, registration,
+authenticated delivery, cache semantics and first scope for user consultation. No source, asset,
+runtime or public interface was added.
