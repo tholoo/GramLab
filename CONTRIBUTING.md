@@ -107,6 +107,9 @@ uv run --locked mypy --strict tests/test_custom_emoji_media.py tests/test_custom
 uv run --locked mypy tests/probes/android_custom_emoji_codec.py tests/test_android_custom_emoji_codec.py
 uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py
 uv run --locked mypy --strict tests/fixtures/custom_emoji_bot.py tests/probes/custom_emoji_round_trip.py tests/test_custom_emoji_round_trip.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/custom_emoji_fault_server.py tests/test_custom_emoji_fault_server.py
+MYPYPATH=tests/probes uv run --locked mypy --strict --explicit-package-bases tests/probes/android_custom_emoji_faults.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/test_android_custom_emoji_faults.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

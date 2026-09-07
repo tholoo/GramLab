@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed; host harness integrated, native acceptance pending
 Blocked by: coordinator serial native execution and original baseline rendering acceptance
 
 Own this ticket and new `tests/probes/android_custom_emoji_faults.py`,
@@ -43,3 +43,30 @@ Follow AGENTS, TESTING, offline safety and parallel workflow. Use the assigned c
 environment; focused real HTTP/pure checks plus scoped typing/format/lint only. No guest or build
 until explicit coordinator assignment. Retain red/green JUnit/logs and return a clean frozen branch,
 all processes terminal, with original native execution and internal-race gaps clearly open.
+
+## Worker result
+
+The owned harness stages four isolated v4 Worlds. Three exercise a single 404, a naturally
+scheduled two-ID 404 and a partial 200; each retains phase-local document/asset journals, bounded
+idle evidence, original trace/UI, an optional post-eviction same-process refetch observation and
+an explicit force-stop/COLD healthy recovery. The fourth uses two distinct static document IDs
+with the same original thumbnail, holds its one actual HTTP response, removes one carrier and
+requires the surviving carrier's complete authored diamond plus exact destination bytes.
+
+The local HTTP peer and World/geometry checks pass seven focused tests. The Android case collects
+but remains unexecuted as assigned. A false `batch_observed` or `same_process_refetch` is retained
+as a narrow original-behavior limit. Journals and UI do not establish callback-owner identity or
+delivery into the removed receiver, and the assertions do not claim either internal property.
+
+## Coordinator integration
+
+Frozen tip `77cc5853262ec62b0eb9778d9b22af68c9133425` is integrated. Seven focused
+HTTP/staging/diamond-oracle tests pass in 5.27 seconds, with scoped Ruff/format and strict typing
+checks passing. The Android case is deselected explicitly, not reported as a pass.
+
+The reviewed fixture uses two distinct static logical IDs sharing one thumbnail; ticket65 owns
+WebM playback. Mixed/partial cases require an actual naturally batched pair, and the mixed peer
+leaves ID1 available while ID2 is unavailable. Missing batching must remain a failed/unproven
+case. Same-process refetch remains a bounded diagnostic, and callback owner identity and removed
+receiver delivery remain separate observation gaps. Native execution currently awaits disk-space
+cleanup approval; no failure/recovery screenshots or native report are accepted yet.

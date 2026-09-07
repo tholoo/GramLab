@@ -105,7 +105,11 @@ offline safety, licensing and completion requirements before the corresponding a
   254.284 seconds. A diagnostic screenshot visibly renders four static emoji, but a false
   accessibility readiness check stops the run before edit/restart. Static lifecycle acceptance,
   transparent animation, cache reuse and fault recovery remain open.
-  Ticket63 supplies the compact real-bot fixture and ticket65 owns original UI acceptance.
+  Ticket63 supplies the compact real-bot fixture. Ticket65 now has seven integrated pixel-oracle
+  tests and an original-settings diagnostic; its next guest could not start because of disk space.
+  Ticket66 has seven integrated HTTP/staging/diamond tests for static resolver faults and shared
+  delivery. Both native acceptance gates remain pending. Public semantic capture and virtual
+  callback compatibility regressions are assigned separately under tickets67/68.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
