@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Own this ticket, new `src/gramlab/_emoji_media.py` and new `tests/test_custom_emoji_media.py`.
