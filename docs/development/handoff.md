@@ -60,6 +60,10 @@ offline safety, licensing and completion requirements before the corresponding a
   identities and requires a resolvable original Document plus local static/animated bytes.
   Admission, document resolution and missing-asset policy remain design decisions; no runtime
   custom-emoji support is claimed.
+  The [concrete catalog proposal](custom-emoji-proposal.md) preserves caller-selected IDs and
+  message fallback text, separates bot file identities from recipient document/media access,
+  and requires transparent VP9 WebM. Original WebP/WebM fixture preparation is assigned to an
+  isolated worker; the catalog and shared media architecture remain unapproved.
 - [Default rich detection](rich-auto-detection.md) is a separate operational gap: the pinned
   open source forwards a server autolink flag and does not establish enrichment grammar or
   nesting/block rules. Do not treat ordinary-text detection as proof; a local fidelity policy
