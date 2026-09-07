@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by coordinator; shared button profile frozen, native input proof pending
+Work state: claimed by coordinator; bounded native input proven, public targeting proposal pending
 Blocked by: none
 
 The read-only worker's [source findings](../../../docs/development/rich-actions-references.md)
@@ -32,4 +32,7 @@ disabled normalization and canonical native projection. Tickets [14](14-rich-but
 codec and capture work. Existing public inline input remains reply-markup-only. The next geometry
 experiment must use actual world rich messages; no marker/native-content substitution is allowed.
 An opt-in app-private post-draw GPL observer outside the normal patch series is a feasible
-experiment candidate. It is not implemented and does not select a permanent public targeting API.
+experiment candidate. Tickets 17/19/21 subsequently implement and verify that bounded experiment.
+It does not select a permanent public targeting API. The concrete
+[targeting proposal](../../../docs/development/rich-button-targeting-proposal.md) and
+[ticket 38](38-rich-button-targeting-review.md) now cover the next consultation.

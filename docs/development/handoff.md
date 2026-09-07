@@ -76,9 +76,11 @@ offline safety, licensing and completion requirements before the corresponding a
   bot-contact admission, authoritative User projection, message-derived recipient visibility and
   versioned identity dependencies before native message application. No mention support or new
   disclosure rule is implemented or approved yet.
-- Public rich-button targeting remains open. The callback and copy/disabled experiments below
-  establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
-  before consequential targeting/navigation changes.
+- Public rich-button targeting now has a [concrete proposal](rich-button-targeting-proposal.md):
+  canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
+  outcomes and client-local copy effects. Independent review and a guarded same-clock edit
+  experiment inform the contract. The permanent GPL observation seam and public effects remain
+  unapproved; the existing experiments do not establish a stable public geometry API.
 
 Preserve the full scope while pursuing independent work during a pending decision. No external
 runtime egress or remote publication is authorized. Provisioning and primary-source research are
