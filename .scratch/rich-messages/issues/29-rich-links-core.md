@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: integrated; focused acceptance passed, combined batch gate pending
 Blocked by: none; shared contract frozen
 
 Follow [the contract](../../../docs/development/rich-links-contract.md). Core worker owns only
@@ -21,3 +21,19 @@ Run new tests plus existing rich-message/Bot API/cleaning suites in the pinned a
 outer network guard. Run scoped Ruff/format and source mypy; no guest/build/full gate is assigned.
 Use own worktree/branch and commit only owned files. Return red/green evidence and a frozen clean
 branch with terminal resources; keep ticket claimed until coordinator integration acceptance.
+
+## Worker evidence
+
+The owned World and HTTP suite now covers recursive URL, email-address and phone-number nodes,
+canonical metadata cleaning, exact persistence/events/snapshots, no-op edits, text-to-rich edits,
+JSON/form requests, size boundaries and rejection atomicity. The pre-change run had four expected
+valid-case failures; the completed owned suite has 12 passes. The selected existing suites have one
+expected stale assertion that still classifies URL RichText as unsupported; the coordinator owns
+that test update during integration.
+
+Coordinator integration replaces the stale unsupported URL case with an unsupported `text_link`
+node. The complete 144-case combined rich-link/startup/polling/API selection passes in
+60.27 seconds, including independent real-bot and public capture acceptance. An earlier primary
+virtualenv pointed to the polling worker; its 6-failure/100-pass result is retained as invalid
+integration evidence. After repairing that install, an import-origin guard rejects wrong-checkout
+runs before collection. Scoped Ruff/format/mypy pass. Native and full-core batch gates remain.

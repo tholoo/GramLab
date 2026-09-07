@@ -60,7 +60,12 @@ reassign work. Creating more branches is not a substitute for resolving a shared
    acceptance in that ticket before implementing; keep it claimed until integration succeeds.
 2. Use this checkout's `tools/dev` and pinned environment. `tools/dev` selects the checkout that
    contains the script, so calling the primary checkout's helper would enter the wrong checkout.
-   Provision this checkout with `uv sync --locked`; use the explicit workdir on every tool call.
+   Provision with `tools/dev default --command uv sync --locked` from this checkout; use the
+   explicit workdir on every tool call. The shell sets `UV_PROJECT_ENVIRONMENT` to its own `.venv`.
+   A worker can inherit the coordinator's `UV_PROJECT_ENVIRONMENT`; changing directories alone
+   does not change that target. Never run bare `uv sync` against an inherited target. If a separate
+   temporary environment is required, set its target explicitly and verify the imported
+   `gramlab.__file__` resolves to this checkout before reporting any checks.
    Keep `.venv`, Gradle homes, writable Android builds, AVDs and artifacts separate. Immutable Nix
    store inputs and an explicitly verified read-only APK may be shared. Copy no credentials or
    private consumer configuration into task branches.

@@ -81,3 +81,7 @@ Coordinator integration passes 38 startup, independent contained-bot, polling an
 in 27.39 seconds. The independent bot now clears an existing update, observes an empty queue,
 receives only the next arrival and responds while complete client/history/event state is retained.
 Original HTTP 404 evidence remains separate. The batch full-core gate remains pending.
+
+An import audit found that the 38-case run loaded the worker's editable install. Its integrated
+acceptance claim is withdrawn. After repairing the primary environment, all 144 combined
+startup/polling/API and rich-link tests pass in 60.27 seconds with the new import guard active.

@@ -91,3 +91,12 @@ then passes in 72.79 seconds with both cold-launch statuses, and its edited/rest
 inspected. This is evidence of variable launch delay, not a proven scheduling fix. Sixteen passing
 identities are retained across the four reports; the remaining 27 are running. Both failed JUnit
 reports remain unmodified.
+
+The 27-case continuation subsequently reports 27 passes in 1364.02 seconds, but a later import
+audit invalidates combined acceptance: the primary virtualenv had been redirected to a worker
+checkout before this continuation and the isolated list control. On-disk source hashes did not
+verify host import origin. Original counts, images and failed reports remain unchanged. The
+earlier 411-case core run and focused quoted-code rendering precede that environment change.
+The [checkout guard correction](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
+repairs the install and rejects wrong imports before collection. Combined native acceptance must
+be repeated on the next integrated normal APK; tickets 26/27 remain pending that gate.

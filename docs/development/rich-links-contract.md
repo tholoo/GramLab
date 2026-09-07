@@ -1,6 +1,7 @@
 # Structured rich link text
 
-Status: frozen implementation contract; not implemented or rendered yet.
+Status: core implementation and independent bot/capture acceptance pass; native integration and
+rendering acceptance remain pending.
 
 Structured URL text is required by the first operational workflow. Add URL, email-address and
 phone-number RichText values through the existing World/HTTP and original Android projection.
@@ -50,3 +51,17 @@ original bilingual/RTL rendering, live metadata/text edit and cold restart, with
 fields, original PNG/XML/report review and account-free offline isolation. Preserve the old
 core/native rejection, one normal append-only GPL patch and unchanged original UI/resources.
 No link navigation is exercised or claimed by those rendering checks.
+
+## Integrated core evidence
+
+The three recursive node types preserve metadata through World and JSON/form Bot API sends,
+edits and persistence. Independent real-bot and public CLI captures compare complete state and
+find visible labels while rejecting hidden destinations and text spanning separate fragments.
+The combined rich-link/startup/polling/API selection passes 144 cases in 60.27 seconds after
+verifying imports originate in the integration checkout. A prior run loaded another worktree
+through a misdirected editable install and is retained as invalid integration evidence. Pytest
+now rejects this condition before collection. The stale unknown-type test now uses `text_link`,
+which remains unsupported, instead of the newly supported structured `url` type.
+
+Full-core and original Android acceptance remain separate pending gates. No automatic detection,
+navigation, media or custom-emoji support follows from the current core checks.

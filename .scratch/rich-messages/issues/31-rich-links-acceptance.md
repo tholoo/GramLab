@@ -36,3 +36,11 @@ new Python acceptance/probe files pass scoped Ruff, formatting and strict projec
 their type-check command is maintained in contributor guidance and CI. Native old-APK red and
 integrated green checks remain pending. The earlier 43-case native baseline excludes these two
 new Android tests and cannot prove their acceptance.
+
+The combined integration selection passes 144 cases in 60.27 seconds after correcting a primary
+editable install that imported the polling worker. Earlier integration results affected by that
+environment error are not acceptance evidence. The public bot and captures now pass complete
+state/visible-label expectations. The native malformed-record oracle uses the established
+`GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE` diagnostic, as specified by the independent existing
+rich-button codec contract; the initial fixture incorrectly used the ordinary-message diagnostic.
+Old-APK rejection is being repeated with the verified primary import before native integration.

@@ -580,7 +580,7 @@ def test_list_http_send_edit_callback_differences_and_reopen(tmp_path: Path, for
             "blocks": [
                 {
                     "type": "paragraph",
-                    "text": {"type": "url", "text": "x", "url": "https://example.com"},
+                    "text": {"type": "text_link", "text": "x", "url": "https://example.com"},
                 }
             ],
             "skip_entity_detection": True,

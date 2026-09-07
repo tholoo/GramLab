@@ -25,6 +25,11 @@ uv run --locked ruff check . tools/test-timings
 uv run --locked ruff format --check . tools/test-timings
 ```
 
+Pytest checks that its imported GramLab package belongs to this checkout before running tests.
+An editable install pointing at another worktree invalidates integration evidence. Repair it with
+`tools/dev default --command uv sync --locked --reinstall-package gramlab`, then rerun the affected
+checks. Do not share writable virtualenvs or inherit another checkout's uv environment target.
+
 The experimental Python implementation is packaged with the pinned uv build backend. There is no
 stable simulator SDK yet. The [consumer runner](docs/development/consumer-runner.md) exposes
 `gramlab run` for simulation and headless captures, and the [experimental scenario client](docs/development/scenario-sdk.md)

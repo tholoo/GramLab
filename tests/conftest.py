@@ -6,7 +6,19 @@ from pathlib import Path
 import coverage
 import pytest
 
+import gramlab
 from gramlab.runtime import Sandbox
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Reject an editable install from another worktree before any test can run."""
+    del session
+    expected = Path(__file__).resolve().parents[1] / "src" / "gramlab"
+    if Path(gramlab.__file__).resolve().parent != expected:
+        raise pytest.UsageError(
+            "GramLab imports from another checkout. Reinstall this checkout with "
+            "tools/dev default --command uv sync --locked --reinstall-package gramlab."
+        )
 
 
 @pytest.fixture

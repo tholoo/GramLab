@@ -45,7 +45,9 @@ existing strict request profile. `setWebhook` and webhook delivery remain unsupp
 The [startup tests](../../tests/test_polling_startup.py) and
 [independent contained bot](../../tests/test_polling_startup_round_trip.py) verify reset, retained
 state and subsequent delivery through actual HTTP. The bot fixture first reproduced HTTP 404;
-the integrated startup, polling and Bot API selection passes 38 cases in 27.39 seconds.
+after an editable-install correction, the combined startup/polling/API and rich-link selection
+passes 144 cases in 60.27 seconds. An earlier 38-case run loaded a worker checkout and is retained
+as worker-equivalent observation, not integrated acceptance.
 Combined full-core acceptance remains pending for the current integration batch.
 
 ## Negative offsets

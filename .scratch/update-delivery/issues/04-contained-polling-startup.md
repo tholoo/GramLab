@@ -34,3 +34,7 @@ After worker integration the independent bot fixture passes in a 38-case combine
 polling and Bot API selection (27.39 seconds). All complete transcript, reset snapshot, new
 delivery/response, event/history and restart observations pass. The original red result remains
 unchanged; the full-core batch gate is still pending.
+
+The earlier 38-case run loaded the worker checkout through a misdirected editable install;
+it is not integrated acceptance. The repaired primary import passes the complete independent
+fixture in a 144-case combined feature selection (60.27 seconds). The full-core gate remains.

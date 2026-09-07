@@ -5,6 +5,11 @@ from typing import Any
 _WRAPPERS = frozenset(
     "bold italic underline strikethrough spoiler subscript superscript marked code".split()
 )
+_LINK_FIELDS = {
+    "url": "url",
+    "email_address": "email_address",
+    "phone_number": "phone_number",
+}
 _BLOCK_FIELDS = {
     "paragraph": ({"text"}, set()),
     "heading": ({"text", "size"}, set()),
@@ -170,6 +175,17 @@ def _text(value: Any) -> Any:
     if isinstance(value, dict) and value.get("type") == "button":
         obj = _object(value, {"type", "button"}, set())
         return {"type": "button", "button": _button(obj["button"])}
+    if (
+        isinstance(value, dict)
+        and isinstance(value.get("type"), str)
+        and value["type"] in _LINK_FIELDS
+    ):
+        kind = value["type"]
+        metadata = _LINK_FIELDS[kind]
+        obj = _object(value, {"type", "text", metadata}, set())
+        if not isinstance(obj[metadata], str):
+            raise ValueError(f"Rich {kind} metadata must be a string")
+        return {"type": kind, "text": _text(obj["text"]), metadata: _clean_string(obj[metadata])}
     obj = _object(value, {"type", "text"}, set())
     if not isinstance(obj["type"], str) or obj["type"] not in _WRAPPERS:
         raise ValueError("GRAMLAB_UNSUPPORTED: rich text type")

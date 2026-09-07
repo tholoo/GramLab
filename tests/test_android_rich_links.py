@@ -160,7 +160,7 @@ def test_original_codec_preserves_rich_links_and_rejects_malformed_metadata(tmp_
                 "result": baseline | {"messages": [baseline["messages"][0] | case["content"]]},
             }
             if case["valid"]
-            else {"returncode": 2, "result": {"error": "GRAMLAB_BRIDGE_INVALID_DATA"}}
+            else {"returncode": 2, "result": {"error": "GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE"}}
         )
         assert observed["cases"][case["name"]] == expected, case["name"]
 
