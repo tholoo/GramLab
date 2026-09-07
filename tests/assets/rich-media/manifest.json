@@ -1,0 +1,50 @@
+{
+  "fixtures": [
+    {
+      "filename": "photo-square-16x16.png",
+      "height": 16,
+      "mime": "image/png",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "f4a96a9199d874b45d4c71b0a59ba3dd39abb8639f4022e8b8ada40680f2be82",
+      "valid": true,
+      "width": 16
+    },
+    {
+      "filename": "photo-tall-8x48.png",
+      "height": 48,
+      "mime": "image/png",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "5d6a403fd2f5fd606495d8cb7a19269638c326c94ee5093d44a7ea1239d01e42",
+      "valid": true,
+      "width": 8
+    },
+    {
+      "filename": "photo-truncated-invalid.png",
+      "mime": "image/png",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "a810231667857fe89bb0d4d64e87f450c13ea45e69ac63734cc67c52960d6b00",
+      "valid": false
+    },
+    {
+      "filename": "photo-wide-48x8.png",
+      "height": 8,
+      "mime": "image/png",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "3fea666f3ee1033065a3ea185f86d7974956b530ee4dc564355f451f0638786b",
+      "valid": true,
+      "width": 48
+    }
+  ]
+}

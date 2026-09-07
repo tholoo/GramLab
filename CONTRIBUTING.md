@@ -72,6 +72,7 @@ uv run --locked mypy tests/probes/android_rich_action_effect.py tests/rich_actio
 MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
+uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

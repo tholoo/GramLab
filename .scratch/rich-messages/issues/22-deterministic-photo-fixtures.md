@@ -1,8 +1,8 @@
 # Prepare original deterministic PNG fixtures for the media milestone
 
 Type: task
-Status: ready-for-agent
-Work state: ready for isolated worker
+Status: claimed
+Work state: resolved
 Blocked by: none for fixtures; media API and delivery design remain unchosen
 
 Prepare reusable original image inputs while the coordinator finishes native rich effects and
@@ -29,3 +29,13 @@ coordinator browser-decode them. Do not add a dependency just for this task or c
 acceptance. No bot/guest/APK/build/network acquisition is assigned. Retain clean branch and terminal
 resource evidence for coordinator review and merge. Keep ticket claimed until integration and
 independent decoding pass; coordinator owns shared docs and native media implementation.
+
+
+## Integrated acceptance
+
+The reviewed worker branch is merged. Fresh generation reproduces all committed bytes and hashes;
+scoped lint/format and strict typing pass after integration. An independent browser decoder accepts
+all three valid images at exactly 16×16, 8×48 and 48×8 with four distinct expected corner colors.
+It rejects the truncated input with `EncodingError`. The owned blank browser tab is closed and
+machine-specific decoding evidence stays ignored. These are original test assets, not evidence
+of Bot API media handling or Android media rendering.

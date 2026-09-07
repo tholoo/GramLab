@@ -181,7 +181,9 @@ pass desktop/mobile loading, overflow and external-resource checks. Ticket 21 is
 Native/build/preview handles are terminal; actual fingerprints and paths remain ignored. Two
 independent media preparation tasks are underway: [deterministic original PNG fixtures](../../.scratch/rich-messages/issues/22-deterministic-photo-fixtures.md)
 and [pinned photo source-contract research](../../.scratch/rich-messages/issues/23-rich-photo-source-contract.md).
-The fixture worker is frozen for coordinator review and independent decoding. The research worker
+The fixture worker is merged: all three valid images decode independently at their specified sizes,
+with expected distinct corner colors, and the truncated image is rejected. Reproduction and scoped
+static checks pass. Ticket 22 is resolved. The research worker
 will supply primary-source evidence for a concrete user-reviewed asset identity/delivery proposal.
 There is currently no asset registry, file API or native media delivery seam. Do not invent those
 interfaces or stage a fake renderer result while waiting for design review.

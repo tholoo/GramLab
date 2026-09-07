@@ -127,5 +127,7 @@ jobs:
         run: uv run --locked mypy examples/rich_inline tests/test_runner_rich_buttons.py
       - name: Type check the independent rich-list consumer example
         run: uv run --locked mypy examples/rich_lists tests/test_runner_rich_lists.py
+      - name: Type check deterministic media fixture tooling
+        run: uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
       - name: Type check the retained timing command
         run: uv run --locked mypy tools/test-timings tests/test_test_timings.py
