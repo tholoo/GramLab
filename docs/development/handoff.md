@@ -114,7 +114,7 @@ offline safety, licensing and completion requirements before the corresponding a
   mention codec cases plus the 28 photo codec cases. Normal23 passes the contained real-bot
   original UI scenario: initial A, two inline taps, first live B disclosure, removal and COLD
   restart in 102.02 seconds. Four original images and desktop/mobile reports are inspected;
-  ticket 54 is resolved. The latest combined core gate passes 498 tests at 81.98% in 69.17 seconds.
+  ticket 54 is resolved. That checkpoint's combined core gate passed 498 tests at 81.98% in 69.17 seconds.
   Wider native regression remains required; automatic detection and navigation are separate.
 - Public rich-button targeting now has a [concrete proposal](rich-button-targeting-proposal.md):
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain

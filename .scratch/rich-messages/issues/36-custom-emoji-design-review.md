@@ -6,7 +6,7 @@ the recommended direction; freeze shared implementation contracts before paralle
 
 Type: feature
 Status: ready-for-agent
-Work state: design approved; implementation pending
+Work state: claimed
 Blocked by: none; user approved all four designs on 2026-09-07
 
 Review [the concrete proposal](../../../docs/development/custom-emoji-proposal.md) before
@@ -18,7 +18,7 @@ sticker administration.
 The proposed World-wide trusted fixture catalog separates synthetic admission from production
 entitlement, bot-scoped file identities from logical IDs, and recipient document/media access
 from bot lookup. It reuses the pending photo storage/delivery direction and coordinates versioned
-dependencies with mentions. These are proposals, not approved runtime behavior. Whole-batch
+dependencies with mentions. These are approved designs, not verified runtime behavior. Whole-batch
 native lookup errors avoid the source's partial-Vector recursion, but visible failure/callback
 cleanup and recovery still require evidence before their contract is frozen.
 
@@ -26,6 +26,12 @@ Original fixture preparation is independent under ticket 35. After consultation,
 must freeze the shared descriptors and error rules, assign separate implementation worktrees,
 and own public/native acceptance. No catalog, API method, emoji entity, original animation or
 media download is claimed implemented by this design review.
+
+The coordinator has frozen the document, media and resolver interfaces in
+[the implementation contract](../../../docs/development/custom-emoji-implementation-contract.md).
+Tickets 57/58 split decoder and GPL adapter work; registration/API/entity integration follows the
+same neutral schema. The approval is already recorded; further implementation work requires no
+repeat design approval. This ticket remains claimed until the full catalog acceptance is proven.
 
 ## Resolver failure findings for implementation freeze
 
