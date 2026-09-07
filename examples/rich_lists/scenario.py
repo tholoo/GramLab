@@ -24,8 +24,9 @@ lab.capture_chat(
     label="before-tap",
     contains=[
         "سلام hello",
-        "راهنمای کوتاه English wraps",
+        "راهنمای کوتاه English wraps onto a second line",
         "تو در تو nested",
+        "Pending",
         "More",
         "سه roman",
     ],

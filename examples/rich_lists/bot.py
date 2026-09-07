@@ -40,16 +40,25 @@ initial: dict[str, Any] = {
                     "blocks": [{"type": "paragraph", "text": "سلام hello"}],
                     "type": "a",
                     "value": 1,
-                    "has_checkbox": True,
-                    "is_checked": True,
                 },
                 {
                     "blocks": [
-                        {"type": "paragraph", "text": "راهنمای کوتاه English wraps"},
+                        {
+                            "type": "paragraph",
+                            "text": "راهنمای کوتاه English wraps onto a second line",
+                        },
                         {
                             "type": "list",
                             "items": [
-                                {"blocks": [{"type": "paragraph", "text": "تو در تو nested"}]}
+                                {
+                                    "blocks": [{"type": "paragraph", "text": "تو در تو nested"}],
+                                    "has_checkbox": True,
+                                    "is_checked": True,
+                                },
+                                {
+                                    "blocks": [{"type": "paragraph", "text": "Pending"}],
+                                    "has_checkbox": True,
+                                },
                             ],
                         },
                         {
@@ -60,7 +69,6 @@ initial: dict[str, Any] = {
                     ],
                     "type": "A",
                     "value": 2,
-                    "has_checkbox": True,
                 },
                 {
                     "blocks": [{"type": "paragraph", "text": "سه roman"}],
@@ -112,12 +120,13 @@ edited: dict[str, Any] = {
 duplicate = copy.deepcopy(initial)
 duplicate_items = duplicate["blocks"][0]["items"]
 duplicate_items[0]["type"] = "A"
-del duplicate_items[0]["is_checked"]
 duplicate_items[1]["type"] = "a"
-duplicate_items[1]["is_checked"] = True
+duplicate_nested_items = duplicate_items[1]["blocks"][1]["items"]
+del duplicate_nested_items[0]["is_checked"]
+duplicate_nested_items[1]["is_checked"] = True
 duplicate_items[1]["blocks"][2]["blocks"][0]["text"] = "Duplicate hidden detail"
 duplicate_items[2]["type"] = "I"
-duplicate_items[3].update({"type": "1", "value": 99, "has_checkbox": True, "is_checked": True})
+duplicate_items[3].update({"type": "1", "value": 99})
 
 keyboard: dict[str, Any] = {
     "inline_keyboard": [

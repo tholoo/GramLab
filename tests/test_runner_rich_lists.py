@@ -33,8 +33,6 @@ INITIAL_MESSAGE = {
                     {
                         "label": "a.",
                         "blocks": [{"type": "paragraph", "text": "سلام hello"}],
-                        "has_checkbox": True,
-                        "is_checked": True,
                         "type": "a",
                         "value": 1,
                     },
@@ -43,7 +41,7 @@ INITIAL_MESSAGE = {
                         "blocks": [
                             {
                                 "type": "paragraph",
-                                "text": "راهنمای کوتاه English wraps",
+                                "text": "راهنمای کوتاه English wraps onto a second line",
                             },
                             {
                                 "type": "list",
@@ -56,7 +54,14 @@ INITIAL_MESSAGE = {
                                                 "text": "تو در تو nested",
                                             }
                                         ],
-                                    }
+                                        "has_checkbox": True,
+                                        "is_checked": True,
+                                    },
+                                    {
+                                        "label": "•",
+                                        "blocks": [{"type": "paragraph", "text": "Pending"}],
+                                        "has_checkbox": True,
+                                    },
                                 ],
                             },
                             {
@@ -70,7 +75,6 @@ INITIAL_MESSAGE = {
                                 ],
                             },
                         ],
-                        "has_checkbox": True,
                         "type": "A",
                         "value": 2,
                     },
@@ -317,7 +321,7 @@ def test_rich_lists_real_bot_callback_edit_and_cold_reopen(tmp_path: Path) -> No
     verify(result, native=False)
     assert not list((tmp_path / "run").glob("captures/*.png"))
     report = (tmp_path / "run/report.html").read_text()
-    assert "راهنمای کوتاه English wraps" in report
+    assert "راهنمای کوتاه English wraps onto a second line" in report
     assert "ویرایش راست‌به‌چپ RTL" in report
 
 
@@ -369,7 +373,11 @@ while len(lab.history(chat["id"])) != 36:
     expect(time.monotonic() < deadline, "Metadata duplicate missing")
     time.sleep(0.05)
 duplicate = lab.history(chat["id"])[-1]
-lab.capture_chat(chat_id=chat["id"], label="before-ambiguous", contains=["سلام hello", "More"])
+lab.capture_chat(
+    chat_id=chat["id"],
+    label="before-ambiguous",
+    contains=["سلام hello", "Pending", "More"],
+)
 before = lab.events()
 try:
     lab.tap_inline_button(chat_id=chat["id"], message_id=duplicate["id"], row=1, column=0)
@@ -403,8 +411,16 @@ expect(lab.events() == before, "Ambiguous list input caused a world mutation")
         ("III.", "I", 3),
         ("99.", "1", 99),
     ]
-    assert competitor[0]["is_checked"] is True and "is_checked" not in duplicate[0]
-    assert "is_checked" not in competitor[1] and duplicate[1]["is_checked"] is True
+    competitor_nested = competitor[1]["blocks"][1]["items"]
+    duplicate_nested = duplicate[1]["blocks"][1]["items"]
+    assert all("has_checkbox" not in item for item in competitor)
+    assert all("has_checkbox" not in item for item in duplicate)
+    assert all(item["has_checkbox"] is True for item in competitor_nested)
+    assert all(item["has_checkbox"] is True for item in duplicate_nested)
+    assert competitor_nested[0]["is_checked"] is True
+    assert "is_checked" not in duplicate_nested[0]
+    assert "is_checked" not in competitor_nested[1]
+    assert duplicate_nested[1]["is_checked"] is True
     assert competitor[3]["blocks"] == duplicate[3]["blocks"] == []
     assert competitor[1]["blocks"][2] == {
         "type": "details",
