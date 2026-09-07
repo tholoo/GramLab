@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: resolved by custom-emoji-real-bot worker; native acceptance pending coordinator
+Work state: contained semantic implementation integrated; native acceptance pending coordinator
 Blocked by: none for contained semantic implementation; native rendering is coordinator-owned
 
 Own this ticket and new `tests/fixtures/custom_emoji_bot.py`,
@@ -102,3 +102,14 @@ core and a reviewed v4-capable APK/profile. The native hook owns opening the ini
 the one live callback edit and proving an unchanged cold restart. Simulation verifies structured
 content and exact bytes; it does not prove original rendering or playback. No build or guest was
 run, and all worker-started processes are terminal.
+
+## Coordinator integration
+
+Frozen worker commit `e0fb984c0230c28f579c58b88dbf2dd47f3a934f` is integrated. The complete
+contained semantic oracle passes against the actual merged catalog isolation fix. The combined
+core gate passes all 615 tests at 82.94% coverage in 85.45 seconds. A preceding gate retained
+one large-report timeout during concurrent guest work; the unchanged isolated case passes in
+3.09 seconds. This does not establish the cause or erase that failure. Native ticket65 remains
+open: four static glyphs are visible in the diagnostic capture, but the readiness assertion
+incorrectly requires an accessibility label absent from the original rich button. No live edit,
+animation or restart acceptance follows from that diagnostic.

@@ -32,7 +32,7 @@ offline safety, licensing and completion requirements before the corresponding a
   fixtures are prepared; fixture decoding does not establish runtime media support.
 - [Local photos](photos.md) implement PNG/JPEG upload, bot-scoped reuse/download, immutable
   assets/grants and v3 revisions/dependencies under the frozen [media contract](media-implementation-contract.md).
-  The latest combined core gate passes 510 tests at 81.98% coverage in 70.90 seconds. Native
+  The pre-emoji combined core gate passed 510 tests at 81.98% coverage in 70.90 seconds. Native
   serialization/required-field corrections pass all 28 photo codec cases on normal22; normal23
   passes all four controlled response faults and explicit cold-restart recovery, with eight
   original captures inspected. The first-photo zero-tag correction is in patch 0021.
@@ -95,10 +95,16 @@ offline safety, licensing and completion requirements before the corresponding a
   pass 30 media, 31 catalog/API, 31 native request-proxy and four initial scenario cases. The
   original source predicate has pinned BSL provenance. Seven catalog isolation regressions and eight dropped-response/
   contained-runner tests are integrated and pass focused checks. The observed integer-ID document-route
-  admission mismatch is corrected under ticket64, with its original red preserved. The latest combined core gate above predates this
-  batch. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
+  admission mismatch is corrected under ticket64, with its original red preserved. The combined
+  gate now passes all 615 core tests at 82.94% coverage in 85.45 seconds. A prior overlapping
+  core/Android run passed 614 and timed out during the existing large-report scenario; that
+  unchanged case passes alone in 3.09 seconds. Preserve the red; contention is not yet proven
+  causal. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
   a probe-only FileLoader-thread exit correction; original red and diagnostic evidence are retained.
-  Actual static rendering, transparent animation, cache reuse and fault recovery remain open.
+  The same APK passes the two existing photo/mention codec tests (28 and 75 vectors) in
+  254.284 seconds. A diagnostic screenshot visibly renders four static emoji, but a false
+  accessibility readiness check stops the run before edit/restart. Static lifecycle acceptance,
+  transparent animation, cache reuse and fault recovery remain open.
   Ticket63 supplies the compact real-bot fixture and ticket65 owns original UI acceptance.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
@@ -144,7 +150,7 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 510 passed at 81.98% coverage in 70.90 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
+| Latest core | 615 passed at 82.94% coverage in 85.45 seconds using four isolated workers and verified primary imports, with Android excluded and no simultaneous guest. The earlier overlapping run had one large-report timeout; the unchanged focused case passes. No production performance or causal contention conclusion follows. |
 | Latest static/workflow | Full Ruff lint/format pass across 378 files; production mypy passes all 20 source files, with strict checks for affected media/proxy modules. CI and contributor scopes cover new probes/tests. Configuration and local Markdown links are checked at each integration. Earlier complete workflow evidence remains in the linked historical checkpoint. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 

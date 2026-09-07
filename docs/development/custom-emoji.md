@@ -2,7 +2,9 @@
 
 GramLab now has an immutable World catalog for original local WebP and VP9 WebM custom emoji,
 with Bot API lookup/download and version-4 client delivery. Focused catalog, media and HTTP checks
-pass. The adapter also passes 99 independent native codec cases in one guest run. Original
+pass, and the combined core gate passes 615 tests at 82.94% coverage. The adapter also passes
+99 independent native codec cases and the existing photo/mention codec regressions. A diagnostic
+screenshot shows four static emoji, but its readiness check fails before edit/restart. Full original
 Android rendering, animation, failure recovery and unchanged-cache reuse remain
 acceptance work; a compiled adapter or native serialization case does not establish those results.
 See the [implementation contract](custom-emoji-implementation-contract.md) for exact shapes and

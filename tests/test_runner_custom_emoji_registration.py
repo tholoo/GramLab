@@ -43,7 +43,7 @@ def test_contained_runner_registers_static_and_animated_custom_emoji(tmp_path: P
     project.mkdir()
     manifest = project / "run.toml"
     manifest.write_text(
-        'schema = 1\nseed = 7\nnow = 1700000000\ntimeout = 10\n'
+        "schema = 1\nseed = 7\nnow = 1700000000\ntimeout = 10\n"
         '[scenario]\nentry = "scenario.py"\n'
         'files = ["scenario.py", "emoji-static.webp", "emoji-animated.webm", '
         '"emoji-thumbnail.webp"]\n'
