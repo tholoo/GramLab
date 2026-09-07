@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by rich-buttons-core on task/rich-buttons-core
 Blocked by: none
 
 Implement the frozen [button contract](../../../docs/development/rich-buttons-contract.md) in the
@@ -24,3 +24,13 @@ TESTING.md and parallel-work.md. Run the new focused World/API tests and source 
 Ruff/format in this checkout's provisioned offline environment under the outer network guard.
 Coordinator owns full gates and integration. Commit only owned files, return frozen clean branch
 and exact red/green evidence, and keep the ticket claimed until integrated acceptance.
+
+## Worker evidence
+
+The tracked World and real JSON/form HTTP suite failed four public-boundary cases on the base;
+the 26 malformed cases rejected through the old unsupported-type path. After implementing the
+frozen contract, all 30 focused cases pass. The catalog covers row and inline placement, recursive
+containers and labels, three actions, every admitted style, fill and explicit alignment, cleaned
+labels/copy values, byte-preserved callback data, multibyte limits, atomic rejection/no-op edits,
+ownership, aggregate limits and durable reopen state. Scoped Ruff format/check and source mypy
+pass. No guest, build, full gate or network run was performed.

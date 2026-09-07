@@ -17,6 +17,7 @@ _BLOCK_FIELDS = {
     "table": ({"cells"}, {"caption", "is_bordered", "is_striped", "is_compact"}),
     "details": ({"summary", "blocks"}, {"is_open"}),
     "list": ({"items"}, set()),
+    "buttons": ({"buttons"}, {"align"}),
 }
 
 _LIST_TYPES = frozenset(("a", "A", "i", "I", "1"))
@@ -36,6 +37,8 @@ _REMOVED_CHARACTERS = frozenset(
 )
 _DIRECTION_MARKERS = frozenset(("\u200e", "\u200f"))
 _STRING_STOP_BYTES = 34_996
+_BUTTON_ACTIONS = frozenset(("callback_data", "copy_text", "disabled"))
+_BUTTON_STYLES = frozenset(("default", "primary", "danger", "success", "link"))
 
 
 def _object(value: Any, required: set[str], optional: set[str]) -> dict[str, Any]:
@@ -101,6 +104,62 @@ def _clean_string(value: str) -> str:
     return "".join(cleaned)
 
 
+def _button_label(value: Any) -> Any:
+    if isinstance(value, str):
+        return _clean_string(value)
+    if not isinstance(value, list) or not value:
+        raise ValueError("Rich button text must be a string or non-empty array")
+    return [_button_label(child) for child in value]
+
+
+def _button(value: Any) -> dict[str, Any]:
+    obj = _object(value, {"text"}, {"style"} | _BUTTON_ACTIONS)
+    actions = obj.keys() & _BUTTON_ACTIONS
+    if len(actions) != 1:
+        raise ValueError("Rich button must contain exactly one action")
+
+    result: dict[str, Any] = {"text": _button_label(obj["text"])}
+    style = obj.get("style", "")
+    if not isinstance(style, str):
+        raise ValueError("Rich button style must be a string")
+    style = style.lower()
+    if style not in _BUTTON_STYLES and style:
+        raise ValueError("Invalid rich button style")
+    if style not in ("", "default"):
+        result["style"] = style
+
+    action = next(iter(actions))
+    if action == "callback_data":
+        data = obj[action]
+        if not isinstance(data, str) or not 1 <= len(data.encode("utf-8")) <= 64:
+            raise ValueError("Rich button callback data must contain 1 to 64 UTF-8 bytes")
+        result[action] = data
+    elif action == "copy_text":
+        copy = _object(obj[action], {"text"}, set())
+        text = copy["text"]
+        if not isinstance(text, str) or not 1 <= len(text) <= 256:
+            raise ValueError("Rich button copied text must contain 1 to 256 characters")
+        text = _clean_string(text)
+        if not 1 <= len(text) <= 256:
+            raise ValueError("Cleaned rich button copied text must contain 1 to 256 characters")
+        result[action] = {"text": text}
+    else:
+        disabled = obj[action]
+        if not isinstance(disabled, dict) or disabled:
+            raise ValueError("Rich button disabled action must be an empty object")
+        result[action] = {}
+
+    if style == "link" and action != "callback_data":
+        raise ValueError("Link rich button style requires a callback action")
+    return result
+
+
+def _buttons(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not 1 <= len(value) <= 8:
+        raise ValueError("Rich button rows must contain 1 to 8 buttons")
+    return [_button(button) for button in value]
+
+
 def _text(value: Any) -> Any:
     if isinstance(value, str):
         return _clean_string(value)
@@ -108,6 +167,9 @@ def _text(value: Any) -> Any:
         if not value:
             raise ValueError("GRAMLAB_UNSUPPORTED: empty rich text arrays")
         return [_text(child) for child in value]
+    if isinstance(value, dict) and value.get("type") == "button":
+        obj = _object(value, {"type", "button"}, set())
+        return {"type": "button", "button": _button(obj["button"])}
     obj = _object(value, {"type", "text"}, set())
     if not isinstance(obj["type"], str) or obj["type"] not in _WRAPPERS:
         raise ValueError("GRAMLAB_UNSUPPORTED: rich text type")
@@ -249,6 +311,13 @@ def _block(value: Any) -> dict[str, Any]:
         result["blocks"] = _blocks(obj["blocks"])
     if kind == "list":
         result["items"] = _list_items(obj["items"])
+    if kind == "buttons":
+        result["buttons"] = _buttons(obj["buttons"])
+        align = obj.get("align", "")
+        if not isinstance(align, str) or align not in ("", "left", "center", "right"):
+            raise ValueError("Invalid rich button row alignment")
+        if align:
+            result["align"] = align
     if kind == "heading":
         if type(obj["size"]) is not int or not 1 <= obj["size"] <= 6:
             raise ValueError("Rich heading size must be between 1 and 6")
