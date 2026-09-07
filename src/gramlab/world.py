@@ -378,6 +378,21 @@ class World:
         )
         return [self.get_user(identifier) for identifier in sorted(identifiers)]
 
+    def _resolve_mention(self, bot_id: int, value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict) or "id" not in value:
+            raise ValueError("Rich text mention user must contain an ID")
+        user_id = value["id"]
+        if type(user_id) is not int or not 1 <= user_id < 2**63:
+            raise ValueError("Rich text mention user ID must be a positive signed 64-bit integer")
+        self.get_user(user_id)
+        if user_id != bot_id:
+            known = self._connection.execute(
+                "SELECT 1 FROM chats WHERE user_id=? AND bot_id=?", (user_id, bot_id)
+            ).fetchone()
+            if known is None:
+                raise ValueError("Rich text mention user is unavailable to this bot")
+        return {"user_id": user_id}
+
     def issue_client_token(self, user_id: int) -> str:
         if self.get_user(user_id)["is_bot"]:
             raise ValueError("Client personas must be virtual users")
@@ -504,7 +519,9 @@ class World:
                         used.add(name)
                 return self._resolve_photo(sender_id, value, uploads)
 
-            content = validate_rich_message(rich_message, resolve)
+            content = validate_rich_message(
+                rich_message, resolve, lambda value: self._resolve_mention(sender_id, value)
+            )
             if set(uploads or {}) != used:
                 raise ValueError("Uploaded photo attachment is unused")
             return self._insert_message(
@@ -671,7 +688,9 @@ class World:
                             used.add(name)
                     return self._resolve_photo(bot_id, value, uploads)
 
-                content = validate_rich_message(rich_message, resolve)
+                content = validate_rich_message(
+                    rich_message, resolve, lambda value: self._resolve_mention(bot_id, value)
+                )
                 if set(uploads or {}) != used:
                     raise ValueError("Uploaded photo attachment is unused")
             elif uploads:
@@ -728,6 +747,27 @@ class World:
             elif isinstance(value, list):
                 pending.extend(value)
         return assets
+
+    def _message_users(self, message: dict[str, Any]) -> set[int]:
+        users: set[int] = set()
+        pending: list[Any] = [message.get("rich_message")]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, dict):
+                if value.get("type") == "text_mention" and "user_id" in value:
+                    users.add(int(value["user_id"]))
+                pending.extend(value.values())
+            elif isinstance(value, list):
+                pending.extend(value)
+        return users
+
+    def _identity_dependencies(
+        self, user_id: int, messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
+        for message in messages:
+            identifiers.update(self._message_users(message))
+        return [self.get_user(identifier) for identifier in sorted(identifiers)]
 
     def _store_asset(self, image: ImageAsset) -> int:
         row = self._connection.execute(
@@ -932,8 +972,6 @@ class World:
             if chat["user_id"] != user_id:
                 raise ValueError("Callback chat is not available to this persona")
             message = self.get_message(chat_id, message_id)
-            if version < 3 and self._message_assets(message):
-                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if message["sender_id"] != chat["bot_id"]:
                 raise ValueError("Callbacks require a message sent by the chat bot")
             command = json.dumps(
@@ -946,7 +984,16 @@ class World:
             if previous is not None:
                 if previous[1] != command:
                     raise ValueError("Request ID already identifies another callback")
-                return self.get_callback(user_id=user_id, callback_id=previous[0])
+                stored = self.get_callback(user_id=user_id, callback_id=previous[0])
+                if version < 3 and self._message_assets(stored["message"]):
+                    raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+                if version < 3 and self._message_users(stored["message"]):
+                    raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+                return stored
+            if version < 3 and self._message_assets(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+            if version < 3 and self._message_users(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
             world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
             callback = {
                 "id": str(uuid.uuid4()),
@@ -1145,6 +1192,8 @@ class World:
             }
             if version < 3 and any(self._message_assets(message) for message in result["messages"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+            if version < 3 and any(self._message_users(message) for message in result["messages"]):
+                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
             if version == 2:
                 result["message_position"] = self._message_position(user_id)
                 result["sends"] = [
@@ -1155,6 +1204,7 @@ class World:
                     )
                 ]
             if version == 3:
+                result["users"] = self._identity_dependencies(user_id, result["messages"])
                 result["message_position"] = self._message_position(user_id)
                 result["sends"] = [
                     json.loads(row[0])
@@ -1212,12 +1262,17 @@ class World:
             ).fetchall()
             changes = []
             asset_ids: set[int] = set()
+            mentioned_ids: set[int] = set()
             for position, kind, body, request_id in rows:
                 change = {"position": position, "type": kind, "data": json.loads(body)}
                 media = self._message_assets(change["data"])
                 if version < 3 and media:
                     raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+                mentions = self._message_users(change["data"])
+                if version < 3 and mentions:
+                    raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
                 asset_ids.update(media)
+                mentioned_ids.update(mentions)
                 if version == 3:
                     change["revision"] = self._connection.execute(
                         "SELECT event_sequence FROM client_changes WHERE user_id=? AND position=?",
@@ -1236,7 +1291,9 @@ class World:
                 "changes": changes,
             }
             if version == 3:
-                result["users"] = self.client_visible_users(user_id)
+                identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
+                identifiers.update(mentioned_ids)
+                result["users"] = [self.get_user(identifier) for identifier in sorted(identifiers)]
                 result["assets"] = [
                     self.asset_descriptor(asset_id) for asset_id in sorted(asset_ids)
                 ]
@@ -1254,7 +1311,7 @@ class World:
         if row is None:
             raise ValueError("Callback message revision is unavailable")
         return {
-            "users": self.client_visible_users(user_id),
+            "users": self._identity_dependencies(user_id, [message]),
             "assets": assets,
             "message_revision": int(row[0]),
         }
@@ -1292,6 +1349,10 @@ class World:
                     visible = data["chat_id"] in chats
                     if visible and self._message_assets(data):
                         raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+                    if visible and self._message_users(data):
+                        raise ValueError(
+                            "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
+                        )
                 elif kind == "chat.created":
                     visible = data["user_id"] == user_id
                 elif kind == "user.created":

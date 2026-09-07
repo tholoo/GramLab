@@ -81,3 +81,12 @@ Source anchors in the pinned tree: ChatMessageCell didPressButton/onSuccessDownl
 ImageReceiver cancelLoadImage and ImageLoader CacheImage removeImageReceiver/setImageAndClear.
 This corrects the test oracle to original behavior; no renderer or loading implementation changed.
 A fresh native run must verify the updated case and its three framed captures.
+
+
+Fresh normal21 run04 confirms both corrected cancel/retry and shared-consumer assertions,
+including all activation guards. All six primary PNGs are inspected: loading controls are visible
+before input, canceled cells show the expected download control, retry displays exact image, and
+shared completion displays only the remaining receiver's image. The sole combined failure is
+still ordinary late-edit cleanup. `artifacts/media-interaction-native-04/` keeps unique inputs,
+JUnit, log, both per-case HTML reports and completion receipt: zero changed sources, four exact
+staged probe fingerprints and unchanged APK. No former failed JUnit or screenshot was replaced.

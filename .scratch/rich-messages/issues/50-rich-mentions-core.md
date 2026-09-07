@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: resolved
 Blocked by: none
 
 Own this ticket, `src/gramlab/rich_messages.py`, `src/gramlab/world.py`, `src/gramlab/bot_api.py`,
@@ -28,3 +28,49 @@ Run focused tests under the outer loopback-only guard, Ruff/format and strict my
 scope. Use this worktree's pinned environment with verified imports. No guest/APK build. Send
 frozen clean commit, exact evidence, remaining native requirements and shared-doc updates;
 coordinator reviews/merges and runs combined core/native acceptance. Follow parallel-work.md.
+
+## Worker evidence
+
+Implemented recursive `text_mention` validation with transactional bot-knowledge admission,
+ID-only World/client persistence, authoritative Bot API User projection and exact message-derived
+v3 identity dependencies for snapshots, selected historical changes and frozen callbacks. Legacy
+versions reject selected mention content, including an idempotent callback retry after the current
+message removed its mention. No schema, navigation, automatic detection or persistent grant was
+added.
+
+The pre-change public rich validator rejected a valid mention with
+`GRAMLAB_UNSUPPORTED: rich content fields`. The final guarded focused World, JSON/form API and
+real HTTP bridge suites pass 20 tests with `ResourceWarning` promoted to an error. They cover
+missing, malformed, unknown and other-bot-only identities; rejected-edit state and identifier
+invariance; duplicate nested mentions and existing depth/byte budgets; JSON/form send and edit;
+`getUpdates`; v1/v2 rejection; and exact v3 snapshot, truncated changes and frozen callback
+envelopes. The earlier guarded selected mention, rich, media, World, Bot API and bridge regression
+run passed 111 tests before the follow-up added test coverage without changing production. Scoped
+Ruff format/check and strict mypy pass for all three owned test modules; scoped production static
+checks passed before the test-only follow-up.
+
+Remaining acceptance is the coordinator's combined core gate and native rendering/round-trip
+work. The focused suite does not claim an exhaustive combinatorial pass over every rich block
+carrier or mutable-profile behavior (profiles are immutable), and automatic `@mention` detection
+is outside this ticket. No guest, APK build or full core gate was run here.
+
+A follow-up fixes legacy callback idempotence to evaluate the frozen stored callback before
+applying current-message-only compatibility checks: a frozen plain callback still retries through
+v1 after its current message gains a mention, while the inverse frozen-mention case still rejects
+after removal. The final focused suite passes 24 tests; 10 selected legacy/media callback and
+bridge regressions also pass. Expected HTTP replay bodies are spelled independently rather than
+copied from World return values. Additional public tests cover recipient mentions, World-local ID
+resolution and rollback of a photo allocation preceding a rejected mention. `create_user` assigns
+sequential IDs and exposes no requested-ID parameter, so admitting the maximum signed 64-bit ID
+cannot be exercised through the public API without an infeasible number of allocations; its
+validator boundary remains covered as a rejection immediately above the maximum. Ruff and strict
+mypy pass for the touched production and owned test files.
+
+
+Coordinator integration passes all 496 non-Android tests at 81.98% coverage in 64.12 seconds,
+with four isolated workers and verified primary imports. Full Ruff check/format, production mypy
+and strict typing for the three mention test modules pass. Cross-World coverage now uses different
+authoritative names for the same numeric ID, so it detects accidental foreign profile reuse.
+The callback retry fix is integrated: compatibility follows a stored callback's frozen message
+before considering current content for new publication. Native codec/rendering/live bot acceptance
+remains in tickets 52 and 54; this resolution covers the assigned core/API/bridge contract only.

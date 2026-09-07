@@ -29,7 +29,7 @@ API `text` and `entities` are absent from rich-only responses. Internally the wo
 ## Supported content
 
 RichText values are UTF-8 strings, non-empty arrays of RichText, or objects with exactly `type`
-and nested `text`, or the link and inline button shapes below. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
+and nested `text`, or the link, mention and inline button shapes below. Supported wrappers are `bold`, `italic`, `underline`, `strikethrough`,
 `spoiler`, `subscript`, `superscript`, `marked` and `code`. Arrays and nested wrappers retain
 structure and multilingual content.
 
@@ -38,6 +38,14 @@ and a required string metadata field with the same name as the type. Metadata us
 cleaner; empty and non-address strings are preserved. Captures match visible labels and exclude
 destinations. [Core, real-bot, capture and focused original Android checks pass](rich-links-contract.md);
 combined native acceptance remains in progress. This support does not enable navigation or automatic detection.
+
+Explicit mentions accept `{type: "text_mention", text: RichText, user: User}`. The bot must know
+the referenced synthetic identity through a private conversation, or mention itself. Only the ID
+is consumed from supplied User claims; HTTP results contain the authoritative World User, while
+World/client records retain `user_id`. Bridge v3 carries identities from exactly the selected
+message versions. Core/API/replay tests pass; native rendering/live edits are still unverified.
+See the [approved frozen contract](mentions-implementation-contract.md). This does not add automatic
+mention detection or profile navigation.
 
 | Block type | Required fields besides `type` | Optional fields |
 | --- | --- | --- |

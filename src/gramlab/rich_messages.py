@@ -167,13 +167,13 @@ def _buttons(value: Any) -> list[dict[str, Any]]:
     return [_button(button) for button in value]
 
 
-def _text(value: Any) -> Any:
+def _text(value: Any, mention_resolver: Callable[[Any], dict[str, Any]] | None = None) -> Any:
     if isinstance(value, str):
         return _clean_string(value)
     if isinstance(value, list):
         if not value:
             raise ValueError("GRAMLAB_UNSUPPORTED: empty rich text arrays")
-        return [_text(child) for child in value]
+        return [_text(child, mention_resolver) for child in value]
     if isinstance(value, dict) and value.get("type") == "button":
         obj = _object(value, {"type", "button"}, set())
         return {"type": "button", "button": _button(obj["button"])}
@@ -187,18 +187,34 @@ def _text(value: Any) -> Any:
         obj = _object(value, {"type", "text", metadata}, set())
         if not isinstance(obj[metadata], str):
             raise ValueError(f"Rich {kind} metadata must be a string")
-        return {"type": kind, "text": _text(obj["text"]), metadata: _clean_string(obj[metadata])}
+        return {
+            "type": kind,
+            "text": _text(obj["text"], mention_resolver),
+            metadata: _clean_string(obj[metadata]),
+        }
+    if isinstance(value, dict) and value.get("type") == "text_mention":
+        obj = _object(value, {"type", "text", "user"}, set())
+        if mention_resolver is None:
+            raise ValueError("GRAMLAB_UNSUPPORTED: rich text mention requires World admission")
+        resolved = mention_resolver(obj["user"])
+        return {
+            "type": "text_mention",
+            "text": _text(obj["text"], mention_resolver),
+            "user_id": resolved["user_id"],
+        }
     obj = _object(value, {"type", "text"}, set())
     if not isinstance(obj["type"], str) or obj["type"] not in _WRAPPERS:
         raise ValueError("GRAMLAB_UNSUPPORTED: rich text type")
-    return {"type": obj["type"], "text": _text(obj["text"])}
+    return {"type": obj["type"], "text": _text(obj["text"], mention_resolver)}
 
 
-def _cell(value: Any) -> dict[str, Any]:
+def _cell(
+    value: Any, mention_resolver: Callable[[Any], dict[str, Any]] | None = None
+) -> dict[str, Any]:
     obj = _object(value, set(), {"text", "is_header", "colspan", "rowspan", "align", "valign"})
     result: dict[str, Any] = {}
     if "text" in obj:
-        text = _text(obj["text"])
+        text = _text(obj["text"], mention_resolver)
         if text != "":
             result["text"] = text
     _flag(obj, result, "is_header")
@@ -227,10 +243,11 @@ def _blocks(
     *,
     allow_empty: bool = False,
     photo_resolver: Callable[[Any], dict[str, Any]] | None = None,
+    mention_resolver: Callable[[Any], dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     if not isinstance(value, list) or (not value and not allow_empty):
         raise ValueError("GRAMLAB_UNSUPPORTED: rich blocks must be a non-empty array")
-    return [_block(block, photo_resolver) for block in value]
+    return [_block(block, photo_resolver, mention_resolver) for block in value]
 
 
 def _alphabetic_label(value: int, *, uppercase: bool) -> str:
@@ -277,7 +294,9 @@ def _ordered_label(kind: str, value: int) -> str:
 
 
 def _list_item(
-    value: Any, photo_resolver: Callable[[Any], dict[str, Any]] | None = None
+    value: Any,
+    photo_resolver: Callable[[Any], dict[str, Any]] | None = None,
+    mention_resolver: Callable[[Any], dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     obj = _object(
         value,
@@ -294,7 +313,12 @@ def _list_item(
     ordered = bool(kind)
     result: dict[str, Any] = {
         "label": _ordered_label(kind, number) if ordered else "•",
-        "blocks": _blocks(obj["blocks"], allow_empty=True, photo_resolver=photo_resolver),
+        "blocks": _blocks(
+            obj["blocks"],
+            allow_empty=True,
+            photo_resolver=photo_resolver,
+            mention_resolver=mention_resolver,
+        ),
     }
     flags: dict[str, Any] = {}
     _flag(obj, flags, "has_checkbox")
@@ -310,18 +334,22 @@ def _list_item(
 
 
 def _list_items(
-    value: Any, photo_resolver: Callable[[Any], dict[str, Any]] | None = None
+    value: Any,
+    photo_resolver: Callable[[Any], dict[str, Any]] | None = None,
+    mention_resolver: Callable[[Any], dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     if not isinstance(value, list) or not value:
         raise ValueError("GRAMLAB_UNSUPPORTED: rich list items must be a non-empty array")
-    converted = [_list_item(item, photo_resolver) for item in value]
+    converted = [_list_item(item, photo_resolver, mention_resolver) for item in value]
     if any(ordered != converted[0][1] for _, ordered in converted[1:]):
         raise ValueError("Rich list items must agree on orderedness")
     return [item for item, _ in converted]
 
 
 def _block(
-    value: Any, photo_resolver: Callable[[Any], dict[str, Any]] | None = None
+    value: Any,
+    photo_resolver: Callable[[Any], dict[str, Any]] | None = None,
+    mention_resolver: Callable[[Any], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(value, dict) or not isinstance(value.get("type"), str):
         raise ValueError("Rich block must be an object with a string type")
@@ -336,20 +364,22 @@ def _block(
             raise ValueError("GRAMLAB_UNSUPPORTED: rich photo requires upload resolution")
         result["asset_id"] = photo_resolver(obj["photo"])["asset_id"]
         if "caption" in obj and obj["caption"] is not None:
-            caption = rich_caption(obj["caption"])
+            caption = rich_caption(obj["caption"], mention_resolver)
             if caption:
                 result["caption"] = caption
     for name in ("text", "summary", "credit", "caption"):
         if name == "caption" and kind == "photo":
             continue
         if name in obj:
-            text = _text(obj[name])
+            text = _text(obj[name], mention_resolver)
             if name not in {"credit", "caption"} or text != "":
                 result[name] = text
     if "blocks" in obj:
-        result["blocks"] = _blocks(obj["blocks"], photo_resolver=photo_resolver)
+        result["blocks"] = _blocks(
+            obj["blocks"], photo_resolver=photo_resolver, mention_resolver=mention_resolver
+        )
     if kind == "list":
-        result["items"] = _list_items(obj["items"], photo_resolver)
+        result["items"] = _list_items(obj["items"], photo_resolver, mention_resolver)
     if kind == "buttons":
         result["buttons"] = _buttons(obj["buttons"])
         align = obj.get("align", "")
@@ -375,7 +405,7 @@ def _block(
             or any(not isinstance(row, list) or not row for row in rows)
         ):
             raise ValueError("GRAMLAB_UNSUPPORTED: table cells must contain non-empty rows")
-        cells = [[_cell(cell) for cell in row] for row in rows]
+        cells = [[_cell(cell, mention_resolver) for cell in row] for row in rows]
         widths = [sum(cell.get("colspan", 1) for cell in row) for row in cells]
         area = sum(cell.get("colspan", 1) * cell.get("rowspan", 1) for row in cells for cell in row)
         if any(width > widths[0] for width in widths[1:]) or area > 10_000:
@@ -386,11 +416,13 @@ def _block(
     return result
 
 
-def rich_caption(value: Any) -> dict[str, Any]:
+def rich_caption(
+    value: Any, mention_resolver: Callable[[Any], dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Normalize the official RichBlockCaption text/credit carrier."""
     obj = _object(value, set(), {"text", "credit"})
-    text = "" if obj.get("text") is None else _text(obj["text"])
-    credit = "" if obj.get("credit") is None else _text(obj["credit"])
+    text = "" if obj.get("text") is None else _text(obj["text"], mention_resolver)
+    credit = "" if obj.get("credit") is None else _text(obj["credit"], mention_resolver)
     if text == "" and credit == "":
         return {}
     result: dict[str, Any] = {"text": text}
@@ -400,7 +432,9 @@ def rich_caption(value: Any) -> dict[str, Any]:
 
 
 def rich_message(
-    value: Any, photo_resolver: Callable[[Any], dict[str, Any]] | None = None
+    value: Any,
+    photo_resolver: Callable[[Any], dict[str, Any]] | None = None,
+    mention_resolver: Callable[[Any], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Validate block input and return a detached official-output-shaped RichMessage.
 
@@ -413,7 +447,9 @@ def rich_message(
         raise ValueError("GRAMLAB_UNSUPPORTED: rich messages require skip_entity_detection=true")
     if not isinstance(obj["blocks"], list) or not obj["blocks"]:
         raise ValueError("GRAMLAB_UNSUPPORTED: rich blocks must be a non-empty array")
-    result: dict[str, Any] = {"blocks": [_block(block, photo_resolver) for block in obj["blocks"]]}
+    result: dict[str, Any] = {
+        "blocks": [_block(block, photo_resolver, mention_resolver) for block in obj["blocks"]]
+    }
     _flag(obj, result, "is_rtl")
     _bounded(result)
     return result

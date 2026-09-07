@@ -24,6 +24,12 @@ def _public_rich(world: World, bot_id: int, value: Any) -> Any:
     if isinstance(value, list):
         return [_public_rich(world, bot_id, item) for item in value]
     if isinstance(value, dict):
+        if value.get("type") == "text_mention" and "user_id" in value:
+            return {
+                "type": "text_mention",
+                "text": _public_rich(world, bot_id, value["text"]),
+                "user": world.get_user(int(value["user_id"])),
+            }
         if value.get("type") == "photo" and "asset_id" in value:
             result: dict[str, Any] = {
                 "type": "photo",
