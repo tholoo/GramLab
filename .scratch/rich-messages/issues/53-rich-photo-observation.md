@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: none for source work; coordinator owns native verification
 
 Own this ticket and new `clients/android/patches/0023-rich-photo-observation.patch` only.
@@ -78,3 +78,12 @@ The controlled server's empty update batches now preserve snapshot identities, w
 HTTP red and nine passing fixture checks. The new original 4:1 PNG decodes independently with
 exact dimensions/corner pixels; all prior PNG bytes are unchanged. These inputs support ticket55
 but do not replace original Android late-completion evidence.
+
+## Answer
+
+Normal23 passes all 18 schema-2 activation/lookup guards and original rich B/C geometry/binding
+acceptance in the dedicated late-completion case. The unchanged schema-1 ordinary cancel/retry,
+shared-consumer and global-edit cleanup case passes on the same APK, and the unchanged-photo
+restart control validates fresh identity-bound schema-1 receiver observations. Original captures
+are inspected. The private seam remains distinct from a public revision-bound input API.
+Wider current native regression remains an integration requirement, not a claim made by this ticket.

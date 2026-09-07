@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: 53 for native execution only
 
 Own this ticket and new `tests/probes/android_rich_media_late.py` and
@@ -128,3 +128,16 @@ partial files. B and C still require exactly one request/success each and all pr
 post-release receiver invariants. `artifacts/rich-photo-late-native-02/` preserves the unmodified
 failed run, complete guard results, captures and source/APK receipt. Fresh full acceptance remains
 pending; this corrects auxiliary fixture availability without changing original media behavior.
+
+## Answer
+
+The complete normal23 case passes in 105.85 seconds with the held response released after
+3.29 seconds, inside the unchanged read deadline. A uses both allowed original destinations;
+B and C each have one successful request. Exact native transfer/cache/receiver assertions and all
+18 guard cases pass. Four original captures and desktop/mobile HTML report are inspected, with
+all images embedded, no horizontal overflow and no external subresource requests.
+
+Evidence is `artifacts/media-lifecycle-and-rich-late-native-03/`, whose complete receipt verifies
+unchanged APK/source and 16 staged probe fingerprints. Its combined JUnit remains failed solely
+for the independent unchanged-photo framing case subsequently corrected in ticket 56. The rich
+case's own JUnit entry and generated report pass; no failed historical result is rewritten.

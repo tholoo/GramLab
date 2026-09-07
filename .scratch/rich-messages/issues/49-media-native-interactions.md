@@ -105,3 +105,10 @@ that response's termination, and verify two fresh unchanged receiver samples, th
 cache and no old/partial bytes. Server termination does not count as native success. The test
 continues to require real cancel/retry and shared-consumer input plus schema-1 activation guards.
 Native verification on the combined normal23 build remains pending.
+
+Fresh normal23 acceptance now passes the complete ordinary interaction test in 99.43 seconds,
+including all three original cases, schema-1 activation guards and stale-input rejection.
+All nine original PNGs are inspected. The independent rich late-completion requirement also
+passes in ticket 55. `artifacts/rich-and-ordinary-photo-interactions-01/` retains the passing
+ordinary JUnit entry and unchanged source/APK receipt; the combined run still records its rich
+oracle failure. Full current native regression remains required before closing this integration ticket.

@@ -30,44 +30,36 @@ offline safety, licensing and completion requirements before the corresponding a
   Shared immutable media/API/delivery is the first dependency. Coordinate the successor bridge
   schema before splitting core, GPL and real-bot acceptance work. Existing PNG/JPEG/WebP/WebM
   fixtures are prepared; fixture decoding does not establish runtime media support.
-- [Local photo API](photos.md) and frozen [media contract](media-implementation-contract.md) are
-  integrated: PNG/JPEG upload, bot-scoped file reuse/download, ordinary and rich captions,
-  immutable assets/grants and v3 revisions/dependencies pass 17 focused World/HTTP/bridge/real-bot/
-  public-capture checks. All 471 core tests pass at 81.71% coverage. The schema-3/4 fixture
-  correction restores historically emitted callback events; no fabricated migration fallback was
-  introduced. The original Android adapter compiles and renders both photo formats in inspected
-  initial screenshots. Native serialization initially changed cache IDs; patch 0018 preserves
-  explicit locations using an existing upstream PhotoSize constructor. All four valid codec
-  outputs then match. Eight missing-field rejection failures motivate patch 0019; it compiles,
-  and the complete 28-case native codec now passes. The real-bot photo/edit/restart run completes;
-  retained observations pass corrected host cache/trace assertions with all original bytes
-  unchanged, preserving the original failed JUnit. The report explicitly labels this retained
-  acceptance. That earlier viewport sequence covers every matching app-owned internal/external copy and
-  observes no new transfer after restart. Better framing later exposes original destination
-  cleanup and reload; ticket 56 owns corrected phase/cache/request acceptance. Four original images and desktop/mobile reports were inspected.
-  Four controlled response faults (truncated, corrupt, redirected and missing) now pass original
-  Android failure/cleanup and explicit cold-restart recovery in 103.02 seconds. All eight failure
-  and recovery screenshots were inspected; each failed attempt leaves no final or partial photo,
-  and recovery downloads the exact original JPEG. Normal23 repeats all four faults/recoveries
-  in 137.27 seconds with all eight captures inspected. Nine real HTTP fixture checks now pass.
-  Ticket [46](../../.scratch/rich-messages/issues/46-media-native-faults.md) is integrated and resolved.
-  A framed top-photo capture is inspected. Patch 0021 corrects the first synthetic receiver's
-  reserved-zero tag, and retained normal21 cancel/retry transfer/cache/binding plus activation
-  guards pass. A fresh normal21 run now passes cancel/retry and shared-consumer host assertions
-  with all six original loading/cancel/completion images inspected. Source review explains why
-  the canceled shared cell loses its control but receives no bitmap; the test now matches that
-  original behavior. Ordinary edit still globally cancels the old transfer through upstream cleanup.
-  Preserve the failed late-completion case and original combined JUnit
-  and use original rich receivers to prove a stronger late-completion case. Complete visual and
-  combined native regression remain required. The ordinary-edit test now explicitly checks
-  original global cancellation and the unchanged shared cell's empty receiver; retained run04
-  supports that oracle, while fresh normal23 acceptance remains pending. The independent rich
-  late-completion test and 18 reset-isolated activation/lookup guards are integrated for execution.
-  Normal23 now compiles the reviewed private rich
-  observer; ticket 55 owns its pending native geometry/guard/late-completion scenario. See ticket
-  [40](../../.scratch/rich-messages/issues/40-media-native.md),
-  [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
-  [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).
+- [Local photos](photos.md) implement PNG/JPEG upload, bot-scoped reuse/download, immutable
+  assets/grants and v3 revisions/dependencies under the frozen [media contract](media-implementation-contract.md).
+  The latest combined core gate passes 510 tests at 81.98% coverage in 70.90 seconds. Native
+  serialization/required-field corrections pass all 28 photo codec cases on normal22; normal23
+  passes all four controlled response faults and explicit cold-restart recovery, with eight
+  original captures inspected. The first-photo zero-tag correction is in patch 0021.
+- Normal23 now passes original cancel/retry, shared-consumer loading and ordinary-edit global
+  cleanup in 99.43 seconds, with nine inspected captures. A canceled shared cell receives the
+  file completion notification without a bitmap; replacing an ordinary photo globally cancels
+  the old transfer and leaves the unchanged shared cell's loading control. Preserve both
+  original behaviors. [Ticket 49](../../.scratch/rich-messages/issues/49-media-native-interactions.md)
+  records the original failed assumptions and corrected acceptance.
+- The stronger rich-photo scenario passes in 105.85 seconds: an unchanged leading photo avoids
+  whole-message cleanup while a second photo is edited; the new JPEG binds before the old shared
+  PNG completes in its ordinary receiver, and the edited receiver stays on the JPEG. All 18
+  schema-2 activation/lookup guards pass. Four original captures and desktop/mobile reports are
+  inspected. [Tickets 53](../../.scratch/rich-messages/issues/53-rich-photo-observation.md) and
+  [55](../../.scratch/rich-messages/issues/55-rich-photo-late-completion.md) retain the private
+  observer contract and native evidence. Rich full-image keys have no size filter; an auxiliary
+  leading photo may use one coalesced or two destination-specific original loads.
+- The real-bot lifecycle passes fresh phase-local native GET/transfer/cache assertions in 81.59
+  seconds, including original rich-photo destination cleanup and a real JPEG reload on restart.
+  Four original captures and desktop/mobile reports are inspected. The separate unchanged-photo
+  control passes in 66.42 seconds: both COLD launches render the full photo/caption, original
+  destination bytes survive, and restart makes no new asset GET. Its two captures and desktop/mobile
+  report are inspected. [Ticket 56](../../.scratch/rich-messages/issues/56-photo-lifecycle-cache-oracle.md)
+  preserves the corrected non-scrollable-list framing red and fresh acceptance.
+  Earlier retained lifecycle acceptance and failed JUnits remain preserved. Wider regression on
+  the current APK is still required: 53 normal tests now collect (510 core tests deselected).
+  The old normal16 inventory cannot certify later patches.
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
   still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
@@ -142,9 +134,9 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 498 passed at 81.98% coverage in 69.17 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 187 Markdown files. All 19 changed Python files since the mention/media batch baseline have matching CI/contributor typing scopes; current full Ruff checks and affected mypy commands pass. Contributor guidance/CI include the new strict typing scope. |
-| Media preparation | Three original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
+| Latest core | 510 passed at 81.98% coverage in 70.90 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
+| Latest static/workflow | Full Ruff lint/format pass across 378 files; production mypy passes all 20 source files, with strict checks for affected media/proxy modules. CI and contributor scopes cover new probes/tests. Configuration and local Markdown links are checked at each integration. Earlier complete workflow evidence remains in the linked historical checkpoint. |
+| Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
 fingerprints; experimental geometry is absent from the normal patch series. Current experimental

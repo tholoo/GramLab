@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by photo-lifecycle-cache worker
+Work state: resolved by photo-lifecycle-cache worker
 Blocked by: none for host/probe corrections; coordinator owns native execution
 
 Own this ticket, existing `tests/probes/android_media.py`, `tests/test_android_media.py`, and
@@ -141,3 +141,18 @@ Scoped Ruff/strict mypy pass. Native verification of the corrected helper and un
 restart remains required. Evidence: `artifacts/media-lifecycle-and-rich-late-native-03/` preserves
 all three original cases, failed JUnit, unchanged APK/source receipt and 16 staged probe checks;
 `artifacts/unchanged-photo-framing-retained-01.log` retains the exact geometry/rejection check.
+
+## Answer
+
+Fresh normal23 acceptance passes both native cases in `artifacts/photo-lifecycle-native-04/`:
+real-bot original destination cleanup/reload in 81.59 seconds, unchanged-photo COLD restart with
+no new asset GET in 66.42 seconds. The receipt verifies unchanged APK/source and 12 staged probe
+fingerprints; JUnit has two passes and no failures/skips. All six primary original PNGs are
+inspected. Desktop/mobile lifecycle and unchanged-control reports load their embedded images
+without overflow or external subresources. Earlier failed evidence stays intact.
+
+Integrated proxy HTTP checks pass all 12 cases. Combined core passes 510 tests at 81.98% coverage
+in 70.90 seconds; full Ruff checks and affected strict mypy scopes pass. The subsequent framing-only
+helper change has its retained red/green geometry check, unrelated-list rejection, scoped static
+checks and these two native passes. Wider native regression remains separate from this focused
+photo lifecycle acceptance.

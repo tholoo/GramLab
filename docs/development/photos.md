@@ -1,20 +1,29 @@
 # Local photos
 
-The first photo profile accepts PNG and JPEG through `sendPhoto` and rich photo blocks.
-Seventeen focused World, HTTP, bridge, contained real-bot and public capture checks pass.
-All 471 non-Android tests pass at 81.71% coverage after restoring missing historical callback
-journal events in migration fixtures. The original Android codec passes four complete valid cases
-and 24 rejection cases. A contained real-bot photo/edit/restart scenario completes and its retained
-observations pass corrected host assertions with original bytes unchanged. That earlier viewport sequence did not need a transfer after restart; the later framed scenario
-exposes original destination cleanup/reload, tracked in ticket 56. The original failed
-JUnit is preserved; this is retained acceptance, not a relabeled green run. Original images and
-reports have been inspected. Four controlled response faults (truncated, corrupt, redirected and
-missing) also pass original Android failure/cleanup and explicit cold-restart recovery, with eight
-inspected captures and exact recovered JPEG bytes. A fresh normal APK run passes original UI cancel/retry and shared-consumer host assertions,
-with six inspected loading/cancel/completion captures. A canceled shared cell receives file-level
-completion but no bitmap, matching original behavior. Completion after a live edit and wider
-native regressions remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
-the precise limits and bridge fields.
+The first photo profile accepts PNG and JPEG through `sendPhoto` and rich photo blocks, with
+bot-scoped reuse/download and authenticated recipient delivery. The latest combined core gate
+passes 510 tests at 81.98% coverage. The original Android codec passes four complete valid cases
+and 24 rejection cases. Four controlled faults pass original failure/cleanup and explicit cold
+restart recovery, with eight inspected captures and exact recovered JPEG bytes.
+
+Normal23 passes original UI cancel/retry, shared-consumer loading and ordinary-edit global cleanup.
+All nine captures are inspected. A canceled shared cell receives file-level completion without a
+bitmap; ordinary replacement globally cancels the old shared transfer. A separate rich-photo
+scenario keeps its leading photo unchanged while editing its second photo: the new JPEG binds
+before the old shared PNG completes, and no old bitmap replaces the edited receiver. All 18 private
+observer guards pass; four original captures and desktop/mobile reports are inspected. See
+[ticket 49](../../.scratch/rich-messages/issues/49-media-native-interactions.md) and
+[ticket 55](../../.scratch/rich-messages/issues/55-rich-photo-late-completion.md).
+
+Fresh real-bot edit/restart acceptance also verifies exact phase-local native requests and bytes,
+including original destination cleanup followed by JPEG reload. Four original captures and
+reports are inspected. The separate unchanged-photo control also passes: the same original
+image-directory bytes render after COLD restart with no new asset GET. Both captures and its
+desktop/mobile report are inspected; see
+[ticket 56](../../.scratch/rich-messages/issues/56-photo-lifecycle-cache-oracle.md). Preserve the
+older failed JUnits and retained acceptance qualifications. Wider native regression, general
+files/albums and custom emoji remain required; this is not complete media support. The
+[shared contract](media-implementation-contract.md) defines the exact profile and bridge fields.
 
 ## Sending and reusing a photo
 
