@@ -60,6 +60,8 @@ uv run --locked mypy examples/rich_inline tests/test_runner_rich_buttons.py
 uv run --locked mypy examples/rich_lists tests/test_runner_rich_lists.py
 uv run --locked mypy tests/test_rich_cleaning_round_trip.py tests/test_android_rich_cleaning.py \
   tests/probes/android_rich_cleaning.py
+uv run --locked mypy tests/probes/android_rich_button_codec.py tests/test_android_rich_button_codec.py
+uv run --locked mypy tests/test_runner_rich_action_captures.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
