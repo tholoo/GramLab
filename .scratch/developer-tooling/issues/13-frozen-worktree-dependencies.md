@@ -2,7 +2,7 @@
 
 Type: tooling
 Status: ready-for-agent
-Work state: open
+Work state: resolved by frozen-worktree-dependencies worker
 Blocked by: none
 
 Own this ticket and new executable `tools/worktree-dependency`, new
@@ -39,3 +39,35 @@ in the development shell; add no runtime dependency. Run focused tests, Ruff/for
 and executable syntax as appropriate, retaining JUnit/logs. Do not install a dependency into live
 workers as part of tests; coordinator owns real uses after review. Return frozen clean tip and
 all test processes terminal.
+
+## Worker handoff
+
+Task `frozen-worktree-dependencies`, branch `task/frozen-worktree-dependencies`, assigned base
+`27fcc12b979a02614dc7c7d3535e1f3534706c99`. Only this ticket, the new executable, its focused
+test and the portable guide change.
+
+The CLI has explicit `install` and `restore` commands. Install requires a complete immutable
+commit ID, another linked worktree of the same repository, a unique bounded receipt name and 1-64
+canonical repository-relative paths. It accepts only source blobs with Git mode 100644/100755,
+caps each file at 64 MiB and the batch at 256 MiB, and prevalidates every target against both
+`HEAD` and the index. Tracked files must have exact committed bytes/mode; untracked files must be
+absent. Unrelated worker edits remain untouched.
+
+Ignored schema-1 receipt storage retains exact installed bytes, replaced originals, source/base
+commits, target, paths, modes and SHA-256 values. Restore validates every receipt blob, installed
+target, current `HEAD` and index before mutation. It refuses modified, staged or committed loans
+as one batch. Only an exact tool-created file that remains untracked is removed. A successful
+receipt remains as `restored`, so repeated restoration is explicit rather than destructive.
+Filesystem write failures use retained values for best-effort batch rollback. The CLI never resets,
+cleans, integrates branches, removes worktrees or accesses remotes.
+
+The test suite creates only temporary repositories and real linked worktrees. Its meaningful red
+was 13 cases failing because the executable did not yet exist. Final focused verification through
+this checkout's pinned default shell passes **13 tests in 2.17 seconds**, covering tracked and
+absent restore, executable mode, unrelated edits, full-batch dirty/modified/committed refusals,
+symlink and traversal rejection, wrong repositories, unsupported Git modes, immutable source IDs,
+receipt collision and repeated restore. Retained evidence is ignored at
+`artifacts/worktree-dependency.{xml,log}`. Scoped Ruff check/format and strict mypy pass for the
+tool and test; Python bytecode compilation, executable-bit verification, `git diff --check` and
+the assigned-worktree check pass. No live worker dependency, full gate, native test or guest ran;
+all test processes are terminal.
