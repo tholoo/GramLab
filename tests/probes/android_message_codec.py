@@ -67,7 +67,18 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         if token in result.stdout or token in result.stderr:
             raise RuntimeError("Snapshot codec diagnostics contained a capability")
         Path(f"{name}-codec.json").write_text(result.stdout)
-        return {"returncode": result.returncode, "result": json.loads(result.stdout)}
+        Path(f"{name}-codec-process.json").write_text(
+            json.dumps(
+                {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
+            )
+        )
+        try:
+            decoded = json.loads(result.stdout)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(
+                f"Native codec produced invalid JSON for {name} (exit {result.returncode})"
+            ) from error
+        return {"returncode": result.returncode, "result": decoded}
 
     adb("push", "/work/client.apk", "/data/local/tmp/gramlab-codec.apk", timeout=30)
     try:

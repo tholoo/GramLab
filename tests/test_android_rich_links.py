@@ -95,6 +95,7 @@ def codec_cases() -> list[dict[str, Any]]:
         base: dict[str, Any] = {"type": kind, "text": "Visible label", kind: metadata}
         malformed = {
             "missing": {key: value for key, value in base.items() if key != kind},
+            "missing-text": {key: value for key, value in base.items() if key != "text"},
             "null": base | {kind: None},
             "number": base | {kind: 123},
             "boolean": base | {kind: True},
