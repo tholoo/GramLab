@@ -28,3 +28,15 @@ Run focused fixture/static checks first; coordinator prepares and builds the rev
 GPL source under android-build, then runs dedicated guests serially under android-gate. Retain
 behavioral reds and all original evidence. Combined native regression remains required after this
 batch stabilizes, followed by the remaining approved operational milestone features.
+
+## Native red evidence
+
+The observer APK through patch 0020 compiles offline in 2m23s. In the first original interaction
+run, the observed loading control is tapped 1.3 seconds after the controlled first bytes, but no
+transfer cancellation appears before the 4.8-second scheduling deadline. The trace has one start
+and one coalesced load. Preserve this red and repeat with immediate post-tap state before changing
+loader behavior. The same APK's real-bot lifecycle obtains a fully framed ordinary photo/caption,
+but exposes a missing external JPEG copy after edit and a real new download after restart; the
+cache/restart assertions correctly remain red. These are incomplete acceptance, not passed cases.
+Ignored first-run evidence is `artifacts/media-interaction-native-01.xml` and its matching log,
+source provenance and per-test directories. Guest/build processes for that first run are terminal.

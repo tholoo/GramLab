@@ -486,6 +486,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 else:
                     result["taps"].append(observe.tap(loading, 1))
                     result["cancel_elapsed"] = require_window(transfer)
+                    result["after_tap"] = observe.sample(lambda rows: True)
+                    observe.screenshot("after-tap")
                     if case == "cancel-retry":
                         result["cancel_trace"] = observe.terminal("media_load_cancel", 1)
                     canceled = observe.sample(
@@ -531,6 +533,11 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 results[case] = result
             finally:
                 observe.window_end = None
+                raw = observe.guest(
+                    "shell", "run-as", PACKAGE, "cat", DIRECTORY + "photo-observation-result.json"
+                )
+                if raw.returncode == 0:
+                    Path(f"{case}-last-observation.json").write_text(raw.stdout)
                 result["requests"] = server.requests()
                 Path(f"{case}-partial-result.json").write_text(json.dumps(result, indent=2))
                 transfer.release.set()
