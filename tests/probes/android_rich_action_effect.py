@@ -6,7 +6,6 @@ receives exactly one ordinary guest tap; missing or stale observations fail with
 
 import json
 import math
-import re
 import subprocess
 import time
 import uuid
@@ -137,10 +136,10 @@ def effect_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
         adb("shell", "uiautomator", "dump", "/data/local/tmp/rich-action.xml", timeout=15)
         ui = adb("shell", "cat", "/data/local/tmp/rich-action.xml")
         Path(name + ".xml").write_text(ui)
-        if "Choose:" not in ui:
-            raise RuntimeError("Initial original scene disappeared before input")
         adb("shell", "screencap", "-p", "/data/local/tmp/rich-action.png")
         adb("pull", "/data/local/tmp/rich-action.png", "/work/" + name + ".png")
+        if "Choose:" not in ui:
+            raise RuntimeError("Initial original scene disappeared before input")
         return ui
 
     def target_for(sample: dict[str, Any], index: int) -> dict[str, Any]:
@@ -331,13 +330,10 @@ def effect_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict
         node = composer(ui)
         if node.get("text") != "Message":
             raise RuntimeError("Original composer was not empty before paste")
-        bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
-        if bounds is None:
-            raise RuntimeError("Missing original composer bounds")
-        left, top, right, bottom = map(int, bounds.groups())
-        if not (0 <= left < right <= 320 and 0 <= top < bottom <= 640):
-            raise RuntimeError("Original composer is outside viewport")
-        adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+        # This fixture's original composer retains focus while rich buttons are tapped.
+        # A redundant screen tap can hit Android's transient clipboard overlay instead.
+        if node.get("focused") != "true":
+            raise RuntimeError("Original composer lost focus before ordinary paste")
         adb("shell", "input", "keyevent", "279")
         pasted = composer(capture(phase + "-pasted"))
         if pasted.get("text") != "GramLab-copy-73Q9":

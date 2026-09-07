@@ -75,3 +75,46 @@ cached AndroidX jars produced `RichActionGeometryProbe.class`. It completed with
 dependency-annotation/serial warnings and no errors. The first narrower classpath attempt failed
 before compilation could complete because `LaunchActivity`'s AndroidX superclass was absent; the
 corrected cached classpath resolved it. No APK, guest, bot, network or shared resource lock ran.
+
+## Integrated preparation
+
+The reviewed geometry worker is merged after the separate offline APK builds in 2 minutes
+32 seconds (78 tasks, 9 executed and 69 up to date). The normal source/APK are unchanged. The
+real-bot effect fixture passes simulation (final scoped run: one case in 1.09 seconds), with four
+Python files passing lint/format/strict typing. Its first simulation attempt exposed an incorrect
+fixture snapshot expectation: the documented version-2 snapshot uses `schema` and includes
+`message_position`/`sends`; the corrected complete expectation passes. No production behavior changed.
+The updated manual workflow passes its pinned offline check.
+
+The preceding callback-only experimental APK rejects the same copy/disabled fixture in 102.51
+seconds. Absent opt-in and wrong-message phases pass; correct identity produces explicit
+`initial_experiment_requires_callback` observations, and input is never attempted. Zero taps and
+unchanged authoritative state are retained. The original initial PNG was inspected and shows the
+native copy icon and dimmed disabled inline control. This is valid observation-refusal evidence,
+not a clipboard or disabled-effect pass. The new APK's native effect acceptance and callback
+regression remain pending; ticket stays claimed.
+
+Explicit simulation reproduction:
+
+```sh
+tools/dev default --offline --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest tests/rich_action_effect_experiment.py::test_simulation_real_bot_copy_disabled_content_without_ui_effects'
+```
+
+With `GRAMLAB_RICH_ACTION_EXPERIMENT_APK` pointing to the separately built experimental APK,
+run the native fixture explicitly under the shared lock and offline guard:
+
+```sh
+tools/worktree lock android-gate tools/dev android --offline --command \
+  unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest tests/rich_action_effect_experiment.py::test_experimental_original_copy_and_disabled_effects'
+```
+
+
+The first new-APK native trial fails in 79.95 seconds after one real copy tap. Its original PNG
+shows Android's clipboard overlay displaying the copied payload over the composer. The harness's
+redundant composer-center tap hits that overlay's Share control; the next XML is the original
+system share sheet. Both preceding XML captures show the original composer already focused.
+This is a harness focus error, not clipboard-paste acceptance. Require that existing original
+focus and issue the ordinary paste key directly; retain exact text/deletion checks and no input
+retry. Move the capture's scene predicate after saving PNG so a failed scene retains both PNG/XML.

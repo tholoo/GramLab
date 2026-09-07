@@ -39,3 +39,11 @@ with a bounded age before each tap. Failed writes can leave the last successful 
 is not evidence of a usable target. Verify expected native action bytes and current world content
 again before input. These checks narrow a race window; they do not make observation and touch
 atomic. Retain mismatches and never retry input automatically.
+
+
+The [copy/disabled extension](../../../../.scratch/rich-messages/issues/21-rich-copy-disabled-native-experiment.md)
+preserves callback target fields and admits exactly one of `callback_data`, `copy_text` or
+`disabled: true` from the corresponding original native action. This extends observations only;
+it never invokes actions or reads the clipboard. The separate APK build passes, and the preceding
+callback-only APK refuses the new fixture before input. Actual copy/paste and disabled effects
+remain pending native acceptance; do not infer them from compilation or rendered styling.
