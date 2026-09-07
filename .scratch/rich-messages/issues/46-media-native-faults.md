@@ -2,8 +2,8 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: claimed
-Blocked by: reviewed APK for coordinator execution
+Work state: resolved
+Blocked by: none
 
 Own new `tests/probes/android_media_faults.py`, `tests/test_android_media_faults.py`, this ticket,
 and bounded extensions to `tests/probes/media_transfer_server.py` with its existing fixture tests.
@@ -54,4 +54,22 @@ or Android guest was run, so native failure, cleanup, rendering and retry remain
 
 Coordinator source review removes an incorrectly nested remote `sh -c` invocation from cache
 inventory. Size and digest are read as separate quoted toybox commands, matching the verified
-original external-cache probe. Native execution remains pending.
+original external-cache probe. The request boundary is sampled after force-stop, preventing late pre-stop fault requests from being
+misclassified as recovery requests.
+
+
+## Answer
+
+Coordinator integration and original Android acceptance pass on the reviewed normal patch series
+through 0019. The one native test exercises all four faults in 103.02 seconds with zero failures
+or skips. Each failed case has a native failure and no final/partial photo; explicitly enabled
+cold restart makes exactly one complete asset request and produces the exact 287-byte JPEG.
+All eight original PNGs were inspected. APK, profile and staged source fingerprints are retained
+with the run. Scoped Ruff/format/mypy and all eight real HTTP fixture checks pass on integration.
+
+Reproduce with the reviewed media APK and Android runtime profile under the documented
+`android-gate` lock and outer network guard, selecting `tests/test_android_media_faults.py`.
+Ignored evidence: `artifacts/media-fault-native-01.xml`, the matching log and artifact directory,
+`artifacts/media-fault-native-sources-01.json`, and `artifacts/media-fault-integration-checks-01.log`.
+The native and fixture processes are terminal. Original UI cancel/retry without restart, shared
+consumers and completion after a live edit remain separate acceptance work.

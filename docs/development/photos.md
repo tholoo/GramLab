@@ -7,8 +7,10 @@ journal events in migration fixtures. The original Android codec passes four com
 and 24 rejection cases. A contained real-bot photo/edit/restart scenario completes and its retained
 observations pass corrected host assertions with original bytes unchanged. The original failed
 JUnit is preserved; this is retained acceptance, not a relabeled green run. Original images and
-reports have been inspected. Download faults, wider native regressions and better capture framing
-remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
+reports have been inspected. Four controlled response faults (truncated, corrupt, redirected and
+missing) also pass original Android failure/cleanup and explicit cold-restart recovery, with eight
+inspected captures and exact recovered JPEG bytes. Original UI cancel/retry, shared consumers,
+completion after a live edit, wider native regressions and better capture framing remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
 the precise limits and bridge fields.
 
 ## Sending and reusing a photo

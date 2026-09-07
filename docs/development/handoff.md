@@ -44,10 +44,14 @@ offline safety, licensing and completion requirements before the corresponding a
   unchanged, preserving the original failed JUnit. The report explicitly labels this retained
   acceptance. Cache evidence covers every matching app-owned internal/external copy and proves
   no new transfer after restart. Four original images and desktop/mobile reports were inspected.
-  Better top-capture framing, transfer fault/cancel/retry and combined native regression acceptance
-  remain required. Ticket [46](../../.scratch/rich-messages/issues/46-media-native-faults.md) has a
-  frozen worker branch with four native fault/restart scenarios and eight passing HTTP fixture
-  tests; coordinator review, integration and guest execution are next. See tickets [40](../../.scratch/rich-messages/issues/40-media-native.md),
+  Four controlled response faults (truncated, corrupt, redirected and missing) now pass original
+  Android failure/cleanup and explicit cold-restart recovery in 103.02 seconds. All eight failure
+  and recovery screenshots were inspected; each failed attempt leaves no final or partial photo,
+  and recovery downloads the exact original JPEG. Eight real HTTP fixture checks also pass.
+  Ticket [46](../../.scratch/rich-messages/issues/46-media-native-faults.md) is integrated and resolved.
+  Better top-capture framing, original UI cancel/retry, shared consumers, completion after live
+  edit and combined native regression remain required. See ticket
+  [40](../../.scratch/rich-messages/issues/40-media-native.md),
   [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
   [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and
