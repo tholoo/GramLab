@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none for authoring/red; green requires ticket 39 integration
 
 Follow [the media contract](../../../docs/development/media-implementation-contract.md).
@@ -27,3 +27,22 @@ report that green is unavailable; do not substitute stubs/fake APIs. Run scoped 
 Coordinator owns combining branches, green suite, native guests and original image/report review.
 Commit owned files and return a frozen clean branch with exact failed boundary and terminal
 resources. Keep claimed until combined acceptance. No build/guest/full suite assigned.
+
+## Worker evidence
+
+The independent scenario is authored on `task/media-real-bot`. It stages the original committed
+16x16 PNG and 64x48 JPEG into the bot's private filesystem, sends ordinary and rich uploads plus
+file-ID reuses, verifies Bot API downloads against the original bytes, edits the rich photo,
+answers a v3 callback and reopens both local services. The three native observation phases are
+`initial`, `edited` and `restart`, each with `bridge_version: 3`.
+
+The required public red was reproduced under the outer loopback-only namespace. The contained bot
+receives the current core's real HTTP rejection for its first multipart `sendPhoto`; it exits before
+the `published` stage, and the boundary test fails on that nonzero exit. This is the expected ticket
+39 integration boundary, not media support. Scoped Ruff format/check and mypy pass for all three
+Python files. No Android, build or full-suite gate was run by this worker.
+
+The integration review corrections preserve that exact first-request red boundary. They use the
+neutral stored photo block, assert every retained v2 snapshot field and complete v3 change object,
+verify admitted callback identities and the full bot update, treat `file_path` as an opaque relative
+generated path, repeat `getFile`, and release callback polling only after initial native observation.

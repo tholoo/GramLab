@@ -1,0 +1,15 @@
+{
+  "ordinary_caption": "PNG ordinary / تصویر معمولی",
+  "ordinary_entities": [
+    {"type": "bold", "offset": 0, "length": 3}
+  ],
+  "rich_initial_caption": {
+    "text": ["Original JPEG ", {"type": "bold", "text": "photo"}, " — عکس اصلی"],
+    "credit": "JPEG / تصویر"
+  },
+  "rich_edited_caption": {
+    "text": ["تصویر ", {"type": "italic", "text": "PNG"}, " — new photo"],
+    "credit": "ویرایش / Edited"
+  },
+  "callback_data": "media:inspect"
+}
