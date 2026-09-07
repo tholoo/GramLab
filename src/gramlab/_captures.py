@@ -17,6 +17,8 @@ def _rich_text(value: Any) -> str:
         return value
     if isinstance(value, list):
         return "".join(_rich_text(child) for child in value)
+    if value["type"] == "button":
+        return _rich_text(value["button"]["text"])
     return _rich_text(value["text"])
 
 
@@ -38,6 +40,8 @@ def _rich_fragments(rich_message: dict[str, Any]) -> list[str]:
                 for cell in row:
                     if "text" in cell:
                         fragments.append(_rich_text(cell["text"]))
+        if block["type"] == "buttons":
+            fragments.extend(_rich_text(button["text"]) for button in block["buttons"])
     return fragments
 
 
