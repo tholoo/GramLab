@@ -1,6 +1,6 @@
 # Quoted code correction
 
-Status: reproduced; implementation and native acceptance pending.
+Status: core and native corrections integrated; combined/native acceptance in progress.
 
 Pinned [TDLib nesting validation](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageEntity.cpp#L1560-L1607)
 admits code/pre entities whose enclosing entities are blockquotes. GramLab currently rejects
@@ -42,3 +42,18 @@ cold restart. Retain complete native/World/API semantics and inspect original PN
 evidence. The old normal APK must reject a valid quoted-code fixture at the native boundary;
 the new APK must accept it and preserve the independent malformed rejections. Fresh preparation
 and source comparison must show that only the adapter changes, with original rendering preserved.
+
+## Current verification
+
+The independent real-bot send fails on the old core with HTTP 400 in 0.99 seconds. After the
+core merge, 37 focused World/HTTP/real-bot tests pass, including the unchanged rich harness
+defaults. The old normal APK passes its baseline codec, then rejects valid quoted code with
+`GRAMLAB_BRIDGE_INVALID_DATA`; the original native failure is retained (119.72 seconds).
+The next codec includes 16 positive combinations and 14 independent rejections, including two
+additional equal-extent emphasis/code ancestor permutations added after that red run.
+
+Fresh preparation and the integrated build-cache comparison examine 43,268 exported files and
+find only `GramLabBridge.java` different before applying patch 0014 with zero fuzz. All 6,666
+checked original UI/resource files and dependency metadata remain unchanged. The normal APK
+build and actual native/rendering acceptance remain in progress; none is claimed from source
+inspection or core tests alone.

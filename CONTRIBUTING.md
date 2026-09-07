@@ -73,6 +73,10 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
+uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
+  tests/test_android_quoted_code.py tests/probes/quoted_code_round_trip.py \
+  tests/probes/android_quoted_code.py tests/probes/android_quoted_code_codec.py \
+  tests/probes/rich_round_trip.py tests/fixtures/quoted_code_bot.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

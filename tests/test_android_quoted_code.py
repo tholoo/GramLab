@@ -139,6 +139,16 @@ def codec_cases() -> list[dict[str, Any]]:
                         }
                     )
     invalid = {
+        "equal-quote-style-code": [
+            {"type": "blockquote", "offset": 0, "length": 8},
+            {"type": "bold", "offset": 0, "length": 8},
+            {"type": "code", "offset": 0, "length": 8},
+        ],
+        "equal-code-style-quote": [
+            {"type": "code", "offset": 0, "length": 8},
+            {"type": "bold", "offset": 0, "length": 8},
+            {"type": "blockquote", "offset": 0, "length": 8},
+        ],
         "style-parent-code": [
             {"type": "bold", "offset": 0, "length": 8},
             {"type": "code", "offset": 2, "length": 4},

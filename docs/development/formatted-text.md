@@ -5,7 +5,8 @@ messages: `bold`, `italic`, `underline`, `strikethrough`, `spoiler`, `code`, `pr
 and `expandable_blockquote`. A real bot can change only the formatting while keeping the text
 unchanged. The actual Telegram Android message cell renders that edit and retains it after a
 cold restart. This extends the [callback/edit adapter](android-callbacks.md); the separate
-RichMessage block API, media and custom-emoji documents remain planned.
+[RichMessage block API](rich-messages.md) has its own contract; media and custom-emoji documents
+remain planned.
 
 ## Contract and sources
 
@@ -14,15 +15,18 @@ The independent Python implementation follows the official
 [formatting nesting rules](https://core.telegram.org/bots/api#formatting-options), consulted on
 2026-09-06. Offsets and lengths use UTF-16 code units. Valid ranges must fit the message and must
 not split a surrogate pair. Ranges may be disjoint or wholly nested; code/pre cannot overlap
-other formatting, and quotes cannot nest even with intervening emphasis. `pre` accepts an
+other formatting except a containing quote after the [quoted-code correction](quoted-code-formatting.md),
+and quotes cannot nest even with intervening emphasis. `pre` accepts an
 optional language string. Unknown types/fields and invalid ranges fail before state changes.
 
 `World.send_message` and `World.edit_message` accept `entities`; `sendMessage`, `editMessageText`
 and delivered `getUpdates` messages expose the same semantic records. Persistence, authenticated
 client snapshots and ordered events retain them. Entity lists are sorted by offset, descending
-length and type, with exact duplicates removed and empty lists omitted. A canonical duplicate
+length, quotes before other types at equal extents, then type. Exact duplicates are removed and
+empty lists omitted. A canonical duplicate
 edit fails with `MESSAGE_NOT_MODIFIED`. Omitting entities from a text edit removes prior formatting.
-The existing JSON message storage needs no schema migration.
+The existing JSON message storage needs no schema migration. The quoted-code correction's native
+evidence is tracked separately from the earlier formatting checkpoint below.
 
 Python owns the semantic format without importing client schemas. The sixth
 [GPL patch](../../clients/android/patches/README.md) maps it to pinned Java TL classes, preserving
@@ -75,7 +79,7 @@ offline verification. APK v1/v2 signatures verify; the restricted manifest and x
 libraries were inspected. Artifact hashes, screenshots, logs and process details remain ignored.
 
 Parse modes, link/mention/date-time entities, automatic entity recognition, custom emoji,
-captions/media, rich-message blocks and broader cache recovery remain unsupported. This is local
+captions/media and broader cache recovery remain unsupported by this formatting contract. This is local
 model and renderer evidence, not a complete Telegram conformance claim. Runtime quotas,
 per-component control-port restrictions and remaining media/WebView network surfaces are still
 tracked separately.

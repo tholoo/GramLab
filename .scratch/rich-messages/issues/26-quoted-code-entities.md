@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open for assigned core worker
+Work state: claimed by quoted-code-core worker
 Blocked by: none; frozen contract and coordinator reproduction available
 
 Pinned TDLib `MessageEntity.cpp` at `bc9c263e2bfee06aaab41e82db51a103376030bc`,
@@ -49,3 +49,25 @@ and unchanged state/IDs after invalid requests. Run the new file and existing `t
 inside the assigned pinned shell and outer network guard; run scoped Ruff and source mypy.
 Coordinator owns full combined checks and native acceptance. Keep the branch frozen/clean after
 handoff and ticket claimed until integration acceptance. No bot/guest/build run is assigned.
+
+## Core worker evidence
+
+The new public-boundary regression initially produced 19 failures: all sixteen quote-kind,
+code-kind, extent and input-order combinations failed at the blanket overlap rejection, both HTTP
+encodings rejected the valid send, and the atomic-state control could not create its valid first
+message. After the correction, the new tests and existing entity suite pass all 34 cases inside
+the documented network namespace. JSON/form sends and edits, durable history/snapshots/events,
+duplicate no-op behavior, equal-range quote/style ordering, UTF-16 supplementary text and invalid
+ancestor/range atomicity are covered.
+
+Scoped Ruff lint/format and mypy pass for the two owned Python files. The worktree's independent
+environment was provisioned with `uv sync --locked --offline` after seeding its ignored uv cache
+from the idle primary cache; the installed editable package resolves to this checkout. No guest,
+APK, bot fixture, full core gate or external network ran. Native correction and combined
+acceptance remain coordinator-owned, so this ticket stays claimed.
+
+Follow-up review moved the sixteen-case contract matrix from the normalization helper to
+`World.send_message` and verifies complete returned messages plus reopened history and client
+snapshots. The rejected-send loop now compares complete history, events and client snapshot after
+each HTTP 400 before admitting the valid message with ID 1. The same focused 34 cases and scoped
+static checks pass after this strengthening.

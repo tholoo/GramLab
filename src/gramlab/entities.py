@@ -58,9 +58,16 @@ def formatting_entities(
             if language:
                 record["language"] = language
             normalized.append(record)
-    normalized.sort(key=lambda entity: (entity["offset"], -entity["length"], entity["type"]))
-    active: list[dict[str, Any]] = []
     quotations = {"blockquote", "expandable_blockquote"}
+    normalized.sort(
+        key=lambda entity: (
+            entity["offset"],
+            -entity["length"],
+            entity["type"] not in quotations,
+            entity["type"],
+        )
+    )
+    active: list[dict[str, Any]] = []
     quote_depth = 0
     for entity in normalized:
         start, end = entity["offset"], entity["offset"] + entity["length"]
@@ -71,8 +78,12 @@ def formatting_entities(
             parent = active[-1]
             if end > parent["offset"] + parent["length"]:
                 raise ValueError("Entity ranges must be disjoint or fully nested")
-            if entity["type"] in {"code", "pre"} or parent["type"] in {"code", "pre"}:
+            if parent["type"] in {"code", "pre"}:
                 raise ValueError("Code entities cannot overlap other formatting")
+        if entity["type"] in {"code", "pre"} and any(
+            ancestor["type"] not in quotations for ancestor in active
+        ):
+            raise ValueError("Code entities may only be contained by blockquotes")
         if entity["type"] in quotations:
             if quote_depth:
                 raise ValueError("Blockquote entities cannot be nested")
