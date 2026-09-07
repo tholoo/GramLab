@@ -70,9 +70,12 @@ The normal APK rebuild passes in 2 minutes 50 seconds. Its codec case then passe
 seconds, including the complete catalog, four positive boundaries and all 57 exact rejections.
 The real-bot original rendering case passes in 67.08 seconds with complete native content,
 live RTL edit, cold restart and guest isolation; all three original PNGs were inspected. The
-full serial Android regression gate is running separately. The opt-in
+serial Android regression gate stopped after 19 passes on a stale preformatted tab expectation
+in the older comprehensive catalog. [The fixture correction](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md)
+has fast World-boundary red/green evidence; failed and unexecuted native cases remain pending. The opt-in
 [geometry experiment](../../clients/android/experiments/rich-actions/README.md) is outside the normal
-series and has compilation evidence only; no rich-button input is claimed yet.
+series and now has a separately built APK; no experimental observation or rich-button input
+is claimed yet.
 
 The preceding twelve-patch queue applies to a fresh pinned export, preserving all 6,666 original
 UI/resource files. The list integration changes two Java inputs; its incremental offline APK

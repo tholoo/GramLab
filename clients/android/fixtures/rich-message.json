@@ -18,7 +18,7 @@
       {"type": "marked", "text": "marked"},
       {"type": "code", "text": "fixed"}
     ]},
-    {"type": "pre", "text": "print('Hello')\n\tpass", "language": "python"},
+    {"type": "pre", "text": "print('Hello')\n pass", "language": "python"},
     {"type": "pre", "text": "without language"},
     {"type": "footer", "text": "Fixture footer"},
     {"type": "paragraph", "text": ""},

@@ -118,14 +118,31 @@ show the original button styles and inline pill in the initial and edited scenes
 is claimed from those captures. Tickets 15 and 18 await combined native acceptance; core/capture
 tickets 14 and 16 are resolved.
 
-The full serial Android gate is running on an immutable normal APK copy. Keep main runtime/test
-sources frozen during that gate and inspect its current handle in ignored notes before another
-run. A separate worker on ticket 19 builds the real row/inline callback experiment in its own
-worktree. Its shared-probe hooks must not enter the main checkout until this gate finishes.
-The coordinator's ticket 17 GPL geometry helper compiles and its explicit install patch applies
-with zero fuzz; it remains outside the normal series and has no native observation/input evidence.
-Review the frozen input worker, then build and run a separately identified experimental APK.
-Retain normal and experimental fingerprints and do not infer permanent targeting support from it.
+The normal serial Android gate stopped with 19 passes and one failure in 1,423.98 seconds.
+The older comprehensive catalog still expected a preformatted tab, which the accepted cleaner
+correctly converts to one ASCII space. A new real World-boundary check reproduces that fixture
+mismatch in 0.22 seconds without a guest. The corrected canonical fixture passes alongside the
+real-bot case (two tests in 1.96 seconds), and the complete retained native catalog matches it.
+Production code and the normal APK are unchanged. [Ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md)
+tracks the correction. Retain the 19 unaffected passing cases, then run the failed and unexecuted
+cases on the same immutable normal APK. Do not call the stopped gate a complete pass.
+
+The ticket 19 input harness is frozen and independently reviewed without a blocking source
+finding; its real-bot simulation and scoped static checks pass. Its shared-probe hooks remain on
+the worker branch until the normal gate's remaining scope is terminal. The coordinator's separate
+experimental source matches all 43,250 files in the fresh normal export before the two-file GPL
+overlay. That overlay applies with zero fuzz, and its isolated offline build passes in 2 minutes
+8 seconds. Normal and experimental APKs have separate immutable copies and fingerprints. No
+experimental geometry or input has run yet. Check current handles and paths in ignored notes;
+review and merge frozen workers before the native experiment, and do not infer permanent targeting
+support from preparation evidence.
+
+The [startup diagnostics worker](../../.scratch/developer-tooling/issues/07-guest-startup-diagnostics.md)
+has initial passing real-process collector checks and is addressing coordinator review follow-ups:
+retain elapsed probe time on failures, prove draining beyond pipe capacity after the output cap,
+and handle child exit during cleanup. This work stays on its worker branch until the normal gate
+finishes. Its actual guest applicability remains unverified; no startup cause or parallel Android
+scheduling fix is claimed.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays

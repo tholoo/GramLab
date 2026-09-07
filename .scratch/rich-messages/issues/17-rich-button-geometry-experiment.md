@@ -37,3 +37,14 @@ private copy and changes only the expected call. An independent source review co
 cell top-padding translation, identified the need to reject blockquote transitions, and retained
 explicit stale-output/freshness caveats. Compilation and source review are preparation evidence;
 no experimental APK, geometry observation or rich-button input has run yet. Ticket remains claimed.
+
+The coordinator has since prepared an independent copy of the normal source and build caches.
+All 43,250 files in the worker's fresh pinned 13-patch export compare byte-for-byte before the
+experimental overlay. The helper is added and the one-call installation patch applies with zero
+fuzz; the normal source remains unchanged. The separately isolated offline experimental build passes in 2 minutes 8 seconds; its APK
+is retained separately from the normal APK. These checks establish source preparation, not geometry or input behavior.
+
+The frozen ticket 19 Python harness passes its real-bot simulation and scoped static checks. A
+separate read-only review found no blocking source defect in callback/event correlation, wrong
+message identity, bounded freshness, single ordinary taps or failure retention. Native execution
+and original rectangle-to-PNG inspection remain coordinator acceptance work after the normal gate.
