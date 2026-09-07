@@ -1,7 +1,7 @@
 # Structured rich link text
 
-Status: core implementation and independent bot/capture acceptance pass; native integration and
-rendering acceptance remain pending.
+Status: core, independent bot/capture and focused original Android acceptance pass; combined
+native inventory remains in progress.
 
 Structured URL text is required by the first operational workflow. Add URL, email-address and
 phone-number RichText values through the existing World/HTTP and original Android projection.
@@ -64,5 +64,21 @@ now rejects this condition before collection. The stale unknown-type test now us
 which remains unsupported, instead of the newly supported structured `url` type.
 
 The full core gate passes 447 tests at 81.18% coverage in 104.55 seconds with Android excluded.
-All 24 maintained static commands pass. Original Android acceptance remains pending. No automatic detection,
+All 24 maintained static commands pass. No automatic detection,
 navigation, media or custom-emoji support follows from the current core checks.
+
+## Original Android evidence
+
+Normal15 exposes a missing-field rejection defect after valid codec observations. A separate
+append-only patch requires label and metadata before reading each link. Both failed runs remain
+recorded; the corrected normal16 build passes offline in 1 minute 59 seconds and preserves the
+original renderer/resources. Its two focused native tests pass in 135.98 seconds: complete
+baseline plus 11 valid shapes and 29 exact malformed-shape rejections, then real-bot canonical
+serialization, bilingual/RTL labels, live metadata/text edit and both cold-launch statuses.
+Account-free component/network isolation assertions pass; no link is opened.
+
+All three original PNGs were inspected. Desktop and mobile reports load three 320-by-640 images,
+use millisecond timings and have no horizontal overflow or external resources. Embedded PNG
+digests match the originals. The 43 remaining Android cases are running on the same immutable
+normal16 APK after verifying all retained source, runtime-profile and import inputs. Combined
+45-case acceptance is not yet claimed.

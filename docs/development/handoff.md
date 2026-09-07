@@ -48,8 +48,10 @@ offline safety, licensing and completion requirements before the corresponding a
   incremental offline compilation passes in 2 minutes 48 seconds. Native acceptance then finds
   missing link fields produce no JSON result. [Ticket 32](../../.scratch/rich-messages/issues/32-rich-link-required-fields.md)
   adds required-field checks in patch 0016; the reviewed fix compiles offline in 1 minute 59 seconds.
-  Actual rich-link rendering/edit/restart and the combined 45-case Android inventory remain
-  pending. No destination is opened.
+  Both focused native tests pass in 135.98 seconds: all 11 valid/29 malformed codec cases and
+  real-bot original rendering/live edit/cold restart. Three original PNGs and desktop/mobile
+  reports were inspected. The remaining 43 cases of the 45-case inventory are running on the
+  same normal16 APK with source/profile/import equivalence verified. No destination is opened.
 - [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
   rejects another worktree's editable package before test collection. Always provision through
   the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
@@ -79,7 +81,7 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands, configuration/local-link checks across 152 Markdown files and the pinned offline workflow check pass for the integration batch. |
+| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the integration batch. Later native fixture diagnostics pass focused static checks; current configuration/local links pass across 155 Markdown files. |
 | Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Deterministic generation/static checks pass. Pinned [photo source research](rich-photo-references.md) is integrated. This establishes fixtures/contracts, not media API or native photo support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
@@ -88,8 +90,9 @@ coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/ne
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
 The old native continuation, repeated old-APK red, core, static and workflow checks are terminal.
-Normal15/16 builds and required-field red runs are terminal. The focused normal16 native suite
-is next; inspect its exact handle once launched. Worker
+Normal15/16 builds, required-field reds, focused native acceptance and report preview are terminal.
+The remaining43 native suite is live; poll its exact handle and preserve source inputs while it
+runs. Worker
 branches remain frozen, with coordinator-owned integration and acceptance. Host paths, handles,
 fingerprints and artifact locations stay in ignored local notes.
 

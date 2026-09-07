@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by coordinator
+Work state: focused acceptance passed; combined native inventory running
 Blocked by: tickets 29/30 for green behavior; red fixtures are independent
 
 Coordinator owns `tests/fixtures/rich-links-scene.json`,
@@ -52,3 +52,11 @@ in 49.63 seconds. The source's missing-field `get` lies outside its classified e
 Java exception stack was captured. Ticket 32 adds narrow presence checks and the independent
 catalog adds missing visible text for each type, bringing malformed cases to 29. Normal16 and
 original rendering/combined native acceptance remain pending; no failed result is relabeled green.
+
+Normal16 passes both native tests in 135.98 seconds, including baseline, 11 valid and 29 malformed
+shapes, complete real-bot/native semantics, actual bilingual/RTL labels, metadata/text edit,
+both cold-launch statuses and independent account-free containment checks. All three original
+PNGs and desktop/mobile reports were inspected; embedded bytes match, all images load, timings
+use milliseconds, and neither viewport overflows or requests external resources. The remaining
+43 Android cases run on the same immutable APK after verifying retained source/profile/import
+inputs; full 45-case acceptance remains pending.

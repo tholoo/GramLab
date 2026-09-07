@@ -50,3 +50,7 @@ are preserved. The incremental offline normal15 build passes in 2 minutes 48 sec
 11 executed), source digests remain unchanged and the immutable APK passes signature verification.
 With verified primary imports, normal14 first passes its baseline and then rejects the valid
 rich-link scene in 60.26 seconds. Normal15 codec/rendering and combined native acceptance remain.
+
+Normal15 reveals the missing-field bug tracked in ticket 32. The corrected normal16 APK passes
+the complete 11-valid/29-invalid codec and real-bot rendering/edit/restart pair in 135.98 seconds,
+with original images and reports inspected. The remaining43 combined native gate is running.

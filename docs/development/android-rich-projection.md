@@ -58,7 +58,8 @@ bytes to 65,536, and each explicit span to 100. Table expanded cell area (sum of
 missing spans treated as one) cannot exceed 10,000; no later row may be wider than the first. Unpaired UTF-16 surrogates and control characters
 other than newline/tab are rejected. These are local resource/support limits, not production
 Telegram acceptance claims. Structured links are covered by the later
-[rich-link integration](rich-links-contract.md), whose native acceptance remains pending.
+[rich-link integration](rich-links-contract.md), whose focused native codec/rendering/edit/restart
+checks pass while the combined inventory runs.
 HTML/Markdown parsing, automatic entity detection, ordinary link entities, media,
 navigation buttons, custom emoji and draft parts remain outside this projection slice.
 

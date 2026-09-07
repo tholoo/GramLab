@@ -36,8 +36,8 @@ structure and multilingual content.
 Structured links have `type` equal to `url`, `email_address` or `phone_number`, recursive `text`,
 and a required string metadata field with the same name as the type. Metadata uses the existing
 cleaner; empty and non-address strings are preserved. Captures match visible labels and exclude
-destinations. [Core, real-bot and capture checks pass](rich-links-contract.md); original Android
-rendering acceptance is pending. This support does not enable navigation or automatic detection.
+destinations. [Core, real-bot, capture and focused original Android checks pass](rich-links-contract.md);
+combined native acceptance remains in progress. This support does not enable navigation or automatic detection.
 
 | Block type | Required fields besides `type` | Optional fields |
 | --- | --- | --- |

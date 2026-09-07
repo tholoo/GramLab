@@ -43,3 +43,10 @@ compares byte-for-byte with it. The intended postimage is
 `57224b2174e11bd81160955c7ee1aaf9e8a6f7caf693f1fecd169a9a00cf8160`.
 `patch --batch --dry-run --fuzz=0 -p1` checks the sole file cleanly with no fuzz or offset output.
 Compilation and native red/green acceptance remain coordinator-owned.
+
+Coordinator verification compares all 43,268 reference files with the verified normal15 adapter
+postimages. Only the three presence checks change; zero-fuzz application and exact postimage
+verification pass. The normal16 strict offline build passes in 1 minute 59 seconds (78 tasks,
+8 executed), and APK signature/source-digest checks pass. Native codec and real-bot rendering
+both pass in 135.98 seconds, including all 29 invalid records and 11 valid shapes. The original
+failure reports remain unchanged. The remaining43 combined gate is running on this APK.
