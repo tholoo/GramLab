@@ -12,11 +12,13 @@ import re
 import secrets
 import sqlite3
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
 from gramlab.entities import formatting_entities
+from gramlab.media import ImageAsset, validate_image
 from gramlab.rich_messages import rich_message as validate_rich_message
 
 # Names are the subscription vocabulary, not a claim that each type can be generated.
@@ -142,7 +144,30 @@ class World:
                 {_CALLBACK_TABLE};
                 {_CLIENT_CHANGES_TABLE};
                 {_CLIENT_SENDS_TABLE};
-                PRAGMA user_version=5;
+                CREATE TABLE assets (
+                    id INTEGER PRIMARY KEY, sha256 TEXT NOT NULL UNIQUE, mime_type TEXT NOT NULL,
+                    extension TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
+                    body BLOB NOT NULL
+                );
+                CREATE TABLE bot_files (
+                    bot_id INTEGER NOT NULL REFERENCES bots(id), file_id TEXT NOT NULL UNIQUE,
+                    asset_id INTEGER NOT NULL REFERENCES assets(id), PRIMARY KEY(bot_id, asset_id)
+                );
+                CREATE TABLE asset_grants (
+                    user_id INTEGER NOT NULL REFERENCES users(id), asset_id INTEGER NOT NULL
+                    REFERENCES assets(id), PRIMARY KEY(user_id, asset_id)
+                );
+                CREATE TABLE message_revisions (
+                    chat_id INTEGER NOT NULL, message_id INTEGER NOT NULL,
+                    revision INTEGER NOT NULL,
+                    PRIMARY KEY(chat_id, message_id), FOREIGN KEY(chat_id, message_id)
+                    REFERENCES messages(chat_id, id)
+                );
+                CREATE TABLE callback_revisions (
+                    callback_id TEXT PRIMARY KEY REFERENCES callbacks(id),
+                    message_revision INTEGER NOT NULL
+                );
+                PRAGMA user_version=6;
             """)
             with connection:
                 connection.execute(
@@ -201,7 +226,44 @@ class World:
                             "WHERE events.type IN ('message.created', 'message.edited')"
                         )
                         connection.execute("PRAGMA user_version=5")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 5:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 5:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 5:
+                        statements = (
+                            "CREATE TABLE assets (id INTEGER PRIMARY KEY, sha256 TEXT NOT NULL "
+                            "UNIQUE, mime_type TEXT NOT NULL, extension TEXT NOT NULL, "
+                            "width INTEGER NOT NULL, height INTEGER NOT NULL, body BLOB NOT NULL)",
+                            "CREATE TABLE bot_files (bot_id INTEGER NOT NULL REFERENCES bots(id), "
+                            "file_id TEXT NOT NULL UNIQUE, asset_id INTEGER NOT NULL "
+                            "REFERENCES assets(id), PRIMARY KEY(bot_id, asset_id))",
+                            "CREATE TABLE asset_grants (user_id INTEGER NOT NULL "
+                            "REFERENCES users(id), "
+                            "asset_id INTEGER NOT NULL REFERENCES assets(id), "
+                            "PRIMARY KEY(user_id, asset_id))",
+                            "CREATE TABLE message_revisions (chat_id INTEGER NOT NULL, "
+                            "message_id INTEGER NOT NULL, revision INTEGER NOT NULL, "
+                            "PRIMARY KEY(chat_id, message_id), FOREIGN KEY(chat_id, message_id) "
+                            "REFERENCES messages(chat_id, id))",
+                            "INSERT INTO message_revisions SELECT json_extract(body, '$.chat_id'), "
+                            "json_extract(body, '$.id'), MAX(sequence) FROM events WHERE type IN "
+                            "('message.created', 'message.edited') GROUP BY "
+                            "json_extract(body, '$.chat_id'), json_extract(body, '$.id')",
+                            "CREATE TABLE callback_revisions (callback_id TEXT PRIMARY KEY "
+                            "REFERENCES callbacks(id), message_revision INTEGER NOT NULL)",
+                            "INSERT INTO callback_revisions SELECT c.id, (SELECT MAX(e.sequence) "
+                            "FROM events e WHERE e.type IN ('message.created','message.edited') "
+                            "AND json_extract(e.body,'$.chat_id')="
+                            "json_extract(c.body,'$.message.chat_id') AND "
+                            "json_extract(e.body,'$.id')=json_extract(c.body,'$.message.id') AND "
+                            "e.sequence < (SELECT MIN(ce.sequence) FROM events ce WHERE "
+                            "ce.type='callback.created' AND json_extract(ce.body,'$.id')=c.id)) "
+                            "FROM callbacks c",
+                        )
+                        for statement in statements:
+                            connection.execute(statement)
+                        connection.execute("PRAGMA user_version=6")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 6:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -306,6 +368,16 @@ class World:
             raise ValueError("Private chat is not available to this bot")
         return self.get_chat(row[0])
 
+    def client_visible_users(self, user_id: int) -> list[dict[str, Any]]:
+        identifiers = {user_id}
+        identifiers.update(
+            row[0]
+            for row in self._connection.execute(
+                "SELECT bot_id FROM chats WHERE user_id=?", (user_id,)
+            )
+        )
+        return [self.get_user(identifier) for identifier in sorted(identifiers)]
+
     def issue_client_token(self, user_id: int) -> str:
         if self.get_user(user_id)["is_bot"]:
             raise ValueError("Client personas must be virtual users")
@@ -340,7 +412,7 @@ class World:
                 self._emit("clock.advanced", {"now": row[0]})
         return int(row[0])
 
-    def _emit(self, kind: str, data: dict[str, Any]) -> None:
+    def _emit(self, kind: str, data: dict[str, Any]) -> int:
         event = self._connection.execute(
             "INSERT INTO events(type, body) VALUES (?, ?)", (kind, json.dumps(data))
         )
@@ -350,6 +422,9 @@ class World:
                 "INSERT INTO client_changes VALUES (?, ?, ?)",
                 (user_id, self._message_position(user_id) + 1, event.lastrowid),
             )
+        if event.lastrowid is None:
+            raise RuntimeError("SQLite did not allocate an event sequence")
+        return event.lastrowid
 
     def _message_position(self, user_id: int) -> int:
         return int(
@@ -410,13 +485,28 @@ class World:
         sender_id: int,
         rich_message: dict[str, Any],
         reply_markup: dict[str, Any] | None = None,
+        uploads: Mapping[str, bytes] | None = None,
     ) -> dict[str, Any]:
-        content = validate_rich_message(rich_message)
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             if sender_id != self.get_chat(chat_id)["bot_id"]:
                 raise ValueError("Only bots can send rich messages")
+            used: set[str] = set()
+
+            def resolve(value: Any) -> dict[str, Any]:
+                if isinstance(value, dict) and isinstance(value.get("media"), str):
+                    media = value["media"]
+                    if media.startswith("attach://"):
+                        name = media.removeprefix("attach://")
+                        if name in used:
+                            raise ValueError("Photo attachment is referenced more than once")
+                        used.add(name)
+                return self._resolve_photo(sender_id, value, uploads)
+
+            content = validate_rich_message(rich_message, resolve)
+            if set(uploads or {}) != used:
+                raise ValueError("Uploaded photo attachment is unused")
             return self._insert_message(
                 chat_id=chat_id,
                 sender_id=sender_id,
@@ -461,7 +551,14 @@ class World:
         self._connection.execute(
             "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
         )
-        self._emit("message.created", message)
+        revision = self._emit("message.created", message)
+        self._connection.execute(
+            "INSERT INTO message_revisions VALUES (?, ?, ?)", (chat_id, message_id, revision)
+        )
+        for asset_id in self._message_assets(message):
+            self._connection.execute(
+                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)", (chat["user_id"], asset_id)
+            )
         if sender_id == chat["user_id"]:
             self._enqueue_update(chat["bot_id"], "message", message)
         return message
@@ -539,12 +636,12 @@ class World:
         reply_markup: dict[str, Any] | None = None,
         entities: list[dict[str, Any]] | None = None,
         rich_message: dict[str, Any] | None = None,
+        uploads: Mapping[str, bytes] | None = None,
     ) -> dict[str, Any]:
         content = None
         if rich_message is not None:
             if text is not None or entities is not None:
                 raise ValueError("GRAMLAB_UNSUPPORTED: combined text and rich content")
-            content = validate_rich_message(rich_message)
             text = ""
             formatting = None
         else:
@@ -559,6 +656,26 @@ class World:
             if bot_id != chat["bot_id"]:
                 raise ValueError("Private chat is not available to this bot")
             message = self.get_message(chat_id, message_id)
+            if "photo" in message:
+                raise ValueError("GRAMLAB_UNSUPPORTED: editing ordinary photo messages")
+            if rich_message is not None:
+                used: set[str] = set()
+
+                def resolve(value: Any) -> dict[str, Any]:
+                    if isinstance(value, dict) and isinstance(value.get("media"), str):
+                        media = value["media"]
+                        if media.startswith("attach://"):
+                            name = media.removeprefix("attach://")
+                            if name in used:
+                                raise ValueError("Photo attachment is referenced more than once")
+                            used.add(name)
+                    return self._resolve_photo(bot_id, value, uploads)
+
+                content = validate_rich_message(rich_message, resolve)
+                if set(uploads or {}) != used:
+                    raise ValueError("Uploaded photo attachment is unused")
+            elif uploads:
+                raise ValueError("Uploaded photo attachment is unused")
             if message["sender_id"] != bot_id:
                 raise ValueError("Only the sending bot can edit this message")
             if (
@@ -585,8 +702,209 @@ class World:
                 "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
                 (json.dumps(message), chat_id, message_id),
             )
-            self._emit("message.edited", message)
+            revision = self._emit("message.edited", message)
+            self._connection.execute(
+                "INSERT OR REPLACE INTO message_revisions VALUES (?, ?, ?)",
+                (chat_id, message_id, revision),
+            )
+            for asset_id in self._message_assets(message):
+                self._connection.execute(
+                    "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
+                    (chat["user_id"], asset_id),
+                )
         return message
+
+    def _message_assets(self, message: dict[str, Any]) -> set[int]:
+        assets: set[int] = set()
+        if "photo" in message:
+            assets.add(int(message["photo"]["asset_id"]))
+        pending: list[Any] = [message.get("rich_message")]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, dict):
+                if value.get("type") == "photo" and "asset_id" in value:
+                    assets.add(int(value["asset_id"]))
+                pending.extend(value.values())
+            elif isinstance(value, list):
+                pending.extend(value)
+        return assets
+
+    def _store_asset(self, image: ImageAsset) -> int:
+        row = self._connection.execute(
+            "SELECT id FROM assets WHERE sha256=?", (image.sha256,)
+        ).fetchone()
+        if row is not None:
+            return int(row[0])
+        asset_id = int(
+            self._connection.execute("SELECT COALESCE(MAX(id), 0)+1 FROM assets").fetchone()[0]
+        )
+        self._connection.execute(
+            "INSERT INTO assets VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                asset_id,
+                image.sha256,
+                image.mime_type,
+                image.extension,
+                image.width,
+                image.height,
+                image.data,
+            ),
+        )
+        return asset_id
+
+    def _file_identity(self, bot_id: int, asset_id: int) -> str:
+        row = self._connection.execute(
+            "SELECT file_id FROM bot_files WHERE bot_id=? AND asset_id=?", (bot_id, asset_id)
+        ).fetchone()
+        if row is None:
+            file_id = "gramlab_" + secrets.token_urlsafe(24)
+            self._connection.execute(
+                "INSERT INTO bot_files VALUES (?, ?, ?)", (bot_id, file_id, asset_id)
+            )
+            return file_id
+        return str(row[0])
+
+    def _resolve_photo(
+        self, bot_id: int, value: Any, uploads: Mapping[str, bytes] | None
+    ) -> dict[str, Any]:
+        if (
+            not isinstance(value, dict)
+            or value.keys() != {"type", "media"}
+            or value["type"] != "photo"
+        ):
+            raise ValueError("Photo input requires type and media")
+        media = value["media"]
+        if not isinstance(media, str):
+            raise ValueError("Photo media must be a string")
+        if media.startswith("attach://"):
+            name = media.removeprefix("attach://")
+            if not name or uploads is None or name not in uploads:
+                raise ValueError("Photo attachment is unavailable")
+            asset_id = self._store_asset(validate_image(uploads[name]))
+        else:
+            row = self._connection.execute(
+                "SELECT asset_id FROM bot_files WHERE bot_id=? AND file_id=?", (bot_id, media)
+            ).fetchone()
+            if row is None:
+                raise ValueError("Photo file identifier is unavailable")
+            asset_id = int(row[0])
+        self._file_identity(bot_id, asset_id)
+        return {"asset_id": asset_id}
+
+    def send_photo(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        photo: Any,
+        uploads: Mapping[str, bytes] | None = None,
+        caption: str | None = None,
+        caption_entities: list[dict[str, Any]] | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if caption is not None:
+            if not isinstance(caption, str) or len(caption) > 1024:
+                raise ValueError("Caption must contain 0 to 1024 characters")
+            caption.encode("utf-8", errors="strict")
+        formatting = formatting_entities(caption or "", caption_entities)
+        keyboard = _inline_keyboard(reply_markup)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat = self.get_chat(chat_id)
+            if sender_id != chat["bot_id"]:
+                raise ValueError("Only chat bots can send photos")
+            media = photo.get("media") if isinstance(photo, dict) else None
+            expected = (
+                {media.removeprefix("attach://")}
+                if isinstance(media, str) and media.startswith("attach://")
+                else set()
+            )
+            if set(uploads or {}) != expected:
+                raise ValueError("Photo uploads must exactly match the attachment")
+            resolved = self._resolve_photo(sender_id, photo, uploads)
+            message = self._insert_message(
+                chat_id=chat_id, sender_id=sender_id, text="", keyboard=keyboard, formatting=None
+            )
+            message["photo"] = resolved
+            if caption is not None:
+                message["caption"] = caption
+            if formatting:
+                message["caption_entities"] = formatting
+            self._connection.execute(
+                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
+                (json.dumps(message), chat_id, message["id"]),
+            )
+            revision = self._connection.execute(
+                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+                (chat_id, message["id"]),
+            ).fetchone()[0]
+            self._connection.execute(
+                "UPDATE events SET body=? WHERE sequence=?", (json.dumps(message), revision)
+            )
+            self._connection.execute(
+                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
+                (chat["user_id"], resolved["asset_id"]),
+            )
+            return message
+
+    def asset_descriptor(self, asset_id: int) -> dict[str, Any]:
+        row = self._connection.execute(
+            "SELECT mime_type, length(body), sha256, width, height FROM assets WHERE id=?",
+            (asset_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Asset is unavailable")
+        return {
+            "asset_id": asset_id,
+            "mime_type": row[0],
+            "file_size": row[1],
+            "sha256": row[2],
+            "width": row[3],
+            "height": row[4],
+        }
+
+    def photo_size(self, bot_id: int, asset_id: int) -> dict[str, Any]:
+        descriptor = self.asset_descriptor(asset_id)
+        row = self._connection.execute(
+            "SELECT file_id FROM bot_files WHERE bot_id=? AND asset_id=?", (bot_id, asset_id)
+        ).fetchone()
+        if row is None:
+            raise ValueError("Photo file identifier is unavailable")
+        file_id = str(row[0])
+        return {
+            "file_id": file_id,
+            "file_unique_id": descriptor["sha256"],
+            "width": descriptor["width"],
+            "height": descriptor["height"],
+            "file_size": descriptor["file_size"],
+        }
+
+    def bot_file(self, bot_id: int, file_id: str) -> tuple[dict[str, Any], bytes]:
+        row = self._connection.execute(
+            "SELECT a.id, a.sha256, a.extension, a.mime_type, a.body FROM bot_files f "
+            "JOIN assets a ON a.id=f.asset_id WHERE f.bot_id=? AND f.file_id=?",
+            (bot_id, file_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("File is unavailable")
+        info = {
+            "file_id": file_id,
+            "file_unique_id": row[1],
+            "file_size": len(row[4]),
+            "file_path": f"photos/{file_id}.{row[2]}",
+            "mime_type": row[3],
+        }
+        return info, bytes(row[4])
+
+    def granted_asset(self, user_id: int, asset_id: int) -> tuple[dict[str, Any], bytes]:
+        row = self._connection.execute(
+            "SELECT a.body FROM asset_grants g JOIN assets a ON a.id=g.asset_id "
+            "WHERE g.user_id=? AND g.asset_id=?",
+            (user_id, asset_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Asset is unavailable")
+        return self.asset_descriptor(asset_id), bytes(row[0])
 
     def create_callback(
         self,
@@ -596,7 +914,10 @@ class World:
         message_id: int,
         data: str,
         request_id: str,
+        version: int = 1,
     ) -> dict[str, Any]:
+        if type(version) is not int or version not in (1, 3):
+            raise ValueError("Unsupported client callback version")
         if (
             not isinstance(request_id, str)
             or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
@@ -611,6 +932,8 @@ class World:
             if chat["user_id"] != user_id:
                 raise ValueError("Callback chat is not available to this persona")
             message = self.get_message(chat_id, message_id)
+            if version < 3 and self._message_assets(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if message["sender_id"] != chat["bot_id"]:
                 raise ValueError("Callbacks require a message sent by the chat bot")
             command = json.dumps(
@@ -643,6 +966,13 @@ class World:
                     command,
                     json.dumps(callback),
                 ),
+            )
+            revision = self._connection.execute(
+                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+                (chat_id, message_id),
+            ).fetchone()[0]
+            self._connection.execute(
+                "INSERT INTO callback_revisions VALUES (?, ?)", (callback["id"], revision)
             )
             self._enqueue_update(chat["bot_id"], "callback_query", callback)
             self._emit("callback.created", callback)
@@ -782,7 +1112,7 @@ class World:
         }
 
     def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 2):
+        if type(version) is not int or version not in (1, 2, 3):
             raise ValueError("Unsupported client snapshot version")
         with self._connection:
             # Pin one SQLite read snapshot before reading either data or its journal cursor.
@@ -813,6 +1143,8 @@ class World:
                 "chats": chats,
                 "messages": [message for chat in chats for message in self.history(chat["id"])],
             }
+            if version < 3 and any(self._message_assets(message) for message in result["messages"]):
+                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if version == 2:
                 result["message_position"] = self._message_position(user_id)
                 result["sends"] = [
@@ -822,9 +1154,39 @@ class World:
                         (user_id,),
                     )
                 ]
+            if version == 3:
+                result["message_position"] = self._message_position(user_id)
+                result["sends"] = [
+                    json.loads(row[0])
+                    for row in self._connection.execute(
+                        "SELECT body FROM client_sends WHERE user_id=? ORDER BY position",
+                        (user_id,),
+                    )
+                ]
+                result["assets"] = [
+                    self.asset_descriptor(row[0])
+                    for row in self._connection.execute(
+                        "SELECT asset_id FROM asset_grants WHERE user_id=? ORDER BY asset_id",
+                        (user_id,),
+                    )
+                ]
+                result["message_revisions"] = [
+                    {
+                        "chat_id": message["chat_id"],
+                        "message_id": message["id"],
+                        "revision": self._connection.execute(
+                            "SELECT revision FROM message_revisions "
+                            "WHERE chat_id=? AND message_id=?",
+                            (message["chat_id"], message["id"]),
+                        ).fetchone()[0],
+                    }
+                    for message in result["messages"]
+                ]
             return result
 
-    def client_changes(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
+    def client_changes(
+        self, user_id: int, *, after: int, limit: int = 100, version: int = 2
+    ) -> dict[str, Any]:
         if type(after) is not int or not 0 <= after < 2**63:
             raise ValueError("Invalid client message position")
         if type(limit) is not int or not 1 <= limit <= 1000:
@@ -849,13 +1211,23 @@ class World:
                 (user_id, after, limit),
             ).fetchall()
             changes = []
+            asset_ids: set[int] = set()
             for position, kind, body, request_id in rows:
                 change = {"position": position, "type": kind, "data": json.loads(body)}
+                media = self._message_assets(change["data"])
+                if version < 3 and media:
+                    raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+                asset_ids.update(media)
+                if version == 3:
+                    change["revision"] = self._connection.execute(
+                        "SELECT event_sequence FROM client_changes WHERE user_id=? AND position=?",
+                        (user_id, position),
+                    ).fetchone()[0]
                 if request_id is not None:
                     change["request_id"] = request_id
                 changes.append(change)
-            return {
-                "schema": 2,
+            result = {
+                "schema": version,
                 "world_id": world_id,
                 "user_id": user_id,
                 "cursor": rows[-1][0] if rows else after,
@@ -863,6 +1235,29 @@ class World:
                 "now": now,
                 "changes": changes,
             }
+            if version == 3:
+                result["users"] = self.client_visible_users(user_id)
+                result["assets"] = [
+                    self.asset_descriptor(asset_id) for asset_id in sorted(asset_ids)
+                ]
+            return result
+
+    def callback_dependencies(self, user_id: int, callback: dict[str, Any]) -> dict[str, Any]:
+        message = callback["message"]
+        assets = [
+            self.asset_descriptor(asset_id) for asset_id in sorted(self._message_assets(message))
+        ]
+        row = self._connection.execute(
+            "SELECT message_revision FROM callback_revisions WHERE callback_id=?",
+            (callback["id"],),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Callback message revision is unavailable")
+        return {
+            "users": self.client_visible_users(user_id),
+            "assets": assets,
+            "message_revision": int(row[0]),
+        }
 
     def client_events(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
         if type(after) is not int or not 0 <= after < 2**63:
@@ -895,6 +1290,8 @@ class World:
                 data = json.loads(body)
                 if kind in ("message.created", "message.edited"):
                     visible = data["chat_id"] in chats
+                    if visible and self._message_assets(data):
+                        raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
                 elif kind == "chat.created":
                     visible = data["user_id"] == user_id
                 elif kind == "user.created":

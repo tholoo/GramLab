@@ -126,11 +126,11 @@ ordinary = request(
     "sendPhoto",
     {
         "chat_id": chat,
-        "photo": "attach://photo",
+        "photo": "attach://uploaded_photo",
         "caption": scene["ordinary_caption"],
         "caption_entities": scene["ordinary_entities"],
     },
-    files={"photo": ("../نام تصویر.png", png, "application/octet-stream")},
+    files={"uploaded_photo": ("../نام تصویر.png", png, "application/octet-stream")},
 )["body"]["result"]
 png_id = ordinary["photo"][0]["file_id"]
 ordinary_reuse = request("sendPhoto", {"chat_id": chat, "photo": png_id})["body"]["result"]
@@ -170,7 +170,7 @@ malformed = request(
     expect_ok=False,
 )
 foreign = request(
-    "sendPhoto", {"chat_id": 2, "photo": png_id}, use_token=foreign_token, expect_ok=False
+    "sendPhoto", {"chat_id": chat, "photo": png_id}, use_token=foreign_token, expect_ok=False
 )
 published = {
     "ordinary": ordinary,

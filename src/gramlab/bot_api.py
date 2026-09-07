@@ -20,6 +20,22 @@ from urllib.parse import parse_qs, urlsplit
 from gramlab.world import World, update_selection
 
 
+def _public_rich(world: World, bot_id: int, value: Any) -> Any:
+    if isinstance(value, list):
+        return [_public_rich(world, bot_id, item) for item in value]
+    if isinstance(value, dict):
+        if value.get("type") == "photo" and "asset_id" in value:
+            result: dict[str, Any] = {
+                "type": "photo",
+                "photo": [world.photo_size(bot_id, int(value["asset_id"]))],
+            }
+            if "caption" in value:
+                result["caption"] = _public_rich(world, bot_id, value["caption"])
+            return result
+        return {key: _public_rich(world, bot_id, item) for key, item in value.items()}
+    return value
+
+
 def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
     chat = world.get_chat(message["chat_id"])
     user = world.get_user(chat["user_id"])
@@ -33,7 +49,12 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
         "date": message["date"],
     }
     if "rich_message" in message:
-        result["rich_message"] = message["rich_message"]
+        result["rich_message"] = _public_rich(world, int(chat["bot_id"]), message["rich_message"])
+    elif "photo" in message:
+        result["photo"] = [world.photo_size(int(chat["bot_id"]), message["photo"]["asset_id"])]
+        for field in ("caption", "caption_entities"):
+            if field in message:
+                result[field] = message[field]
     else:
         result["text"] = message["text"]
     for field in ("reply_markup", "edit_date", "entities"):
@@ -165,7 +186,12 @@ class _Polling:
 
 
 def _dispatch(
-    world: World, bot_id: int, method: str, parameters: dict[str, Any], polling: _Polling
+    world: World,
+    bot_id: int,
+    method: str,
+    parameters: dict[str, Any],
+    polling: _Polling,
+    uploads: dict[str, bytes] | None = None,
 ) -> Any:
     supported = {
         "getme": set(),
@@ -173,6 +199,8 @@ def _dispatch(
         "deletewebhook": {"drop_pending_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
         "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
+        "sendphoto": {"chat_id", "photo", "caption", "caption_entities", "reply_markup"},
+        "getfile": {"file_id"},
         "editmessagetext": {
             "chat_id",
             "message_id",
@@ -187,11 +215,17 @@ def _dispatch(
         raise LookupError("GRAMLAB_UNSUPPORTED: Bot API method")
     if parameters.keys() - supported[method]:
         raise ValueError("GRAMLAB_UNSUPPORTED: Bot API parameters")
-    for name in ("reply_markup", "entities", "rich_message"):
+    for name in ("reply_markup", "entities", "caption_entities", "rich_message"):
         if isinstance(parameters.get(name), str):
             parameters[name] = _json_value(parameters[name])
     if method == "getme":
         return world.get_user(bot_id)
+    if method == "getfile":
+        if set(parameters) != {"file_id"} or not isinstance(parameters["file_id"], str):
+            raise ValueError("file_id is required")
+        info, _ = world.bot_file(bot_id, parameters["file_id"])
+        info.pop("mime_type")
+        return info
     if method == "deletewebhook":
         if "drop_pending_updates" in parameters and _boolean(
             parameters["drop_pending_updates"], "drop_pending_updates"
@@ -229,6 +263,22 @@ def _dispatch(
         return True
     if "chat_id" not in parameters:
         raise ValueError("chat_id is required")
+    if method == "sendphoto":
+        if "chat_id" not in parameters or "photo" not in parameters:
+            raise ValueError("chat_id and photo are required")
+        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        return _message(
+            world,
+            world.send_photo(
+                chat_id=chat["id"],
+                sender_id=bot_id,
+                photo={"type": "photo", "media": parameters["photo"]},
+                uploads=uploads,
+                caption=parameters.get("caption"),
+                caption_entities=parameters.get("caption_entities"),
+                reply_markup=parameters.get("reply_markup"),
+            ),
+        )
     if "rich_message" in parameters:
         if parameters["rich_message"] is None:
             raise ValueError("rich_message must be an object")
@@ -249,6 +299,7 @@ def _dispatch(
                 text=parameters.get("text"),
                 rich_message=parameters.get("rich_message"),
                 reply_markup=parameters.get("reply_markup"),
+                uploads=uploads,
                 entities=parameters.get("entities"),
             ),
         )
@@ -260,6 +311,7 @@ def _dispatch(
                 sender_id=bot_id,
                 rich_message=parameters["rich_message"],
                 reply_markup=parameters.get("reply_markup"),
+                uploads=uploads,
             ),
         )
     return _message(
@@ -272,6 +324,62 @@ def _dispatch(
             entities=parameters.get("entities"),
         ),
     )
+
+
+def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str, bytes]]:
+    match = re.fullmatch(
+        r'multipart/form-data;\s*boundary=(?:"([^"\r\n]+)"|([^;\s]+))', content_type
+    )
+    if match is None:
+        raise ValueError("Malformed multipart Content-Type")
+    boundary = (match.group(1) or match.group(2)).encode("ascii", errors="strict")
+    if not 1 <= len(boundary) <= 70:
+        raise ValueError("Malformed multipart boundary")
+    delimiter = b"--" + boundary
+    if not raw.startswith(delimiter + b"\r\n") or not raw.endswith(b"\r\n" + delimiter + b"--\r\n"):
+        raise ValueError("Malformed multipart body")
+    middle = raw[len(delimiter) + 2 : -(len(delimiter) + 6)]
+    chunks = middle.split(b"\r\n" + delimiter + b"\r\n")
+    if len(chunks) > 64:
+        raise ValueError("Multipart request exceeds 64 parts")
+    fields: dict[str, Any] = {}
+    uploads: dict[str, bytes] = {}
+    text_size = upload_size = 0
+    for chunk in chunks:
+        if b"\r\n\r\n" not in chunk:
+            raise ValueError("Malformed multipart part")
+        header_bytes, payload = chunk.split(b"\r\n\r\n", 1)
+        if b"\r\n " in header_bytes or b"\r\n\t" in header_bytes:
+            raise ValueError("Malformed multipart headers")
+        headers: dict[str, str] = {}
+        for line in header_bytes.split(b"\r\n"):
+            header_name, separator, value = line.partition(b":")
+            key = header_name.decode("ascii", errors="strict").lower()
+            if not separator or key in headers:
+                raise ValueError("Malformed multipart headers")
+            headers[key] = value.decode("utf-8", errors="strict").strip()
+        disposition = headers.get("content-disposition", "")
+        if headers.get("content-type", "").lower().startswith("multipart/"):
+            raise ValueError("Nested multipart content is unsupported")
+        named = re.fullmatch(
+            r'form-data;\s*name="([^"\r\n]+)"(?:;\s*filename="([^"\r\n]*)")?', disposition
+        )
+        if named is None or set(headers) - {"content-disposition", "content-type"}:
+            raise ValueError("Malformed multipart part headers")
+        field_name, filename = named.groups()
+        if field_name in fields or field_name in uploads:
+            raise ValueError("Repeated request parameters are unsupported")
+        if filename is not None:
+            upload_size += len(payload)
+            if upload_size > 20_000_000:
+                raise ValueError("Uploaded file data exceeds the request limit")
+            uploads[field_name] = payload
+        else:
+            text_size += len(payload)
+            if text_size > 65_536:
+                raise ValueError("Multipart text fields exceed the request limit")
+            fields[field_name] = payload.decode("utf-8", errors="strict")
+    return fields, uploads
 
 
 class BotAPIServer:
@@ -334,6 +442,30 @@ class BotAPIServer:
                 try:
                     url = urlsplit(self.path)
                     parts = url.path.split("/")
+                    if len(parts) == 5 and parts[1] == "file" and parts[2].startswith("bot"):
+                        if self.command != "GET" or url.query or parts[3] != "photos":
+                            raise LookupError("Not Found")
+                        with World.open(directory) as world:
+                            bot_id = world.authenticate_bot(parts[2][3:])
+                            if bot_id is None:
+                                self._reply(
+                                    401,
+                                    {"ok": False, "error_code": 401, "description": "Unauthorized"},
+                                )
+                                return
+                            file_id, dot, _extension = parts[4].rpartition(".")
+                            if not dot:
+                                raise LookupError("Not Found")
+                            info, data = world.bot_file(bot_id, file_id)
+                            if info["file_path"] != f"photos/{parts[4]}":
+                                raise LookupError("Not Found")
+                            self.send_response(200)
+                            self.send_header("Content-Type", info["mime_type"])
+                            self.send_header("Content-Length", str(len(data)))
+                            self.send_header("Cache-Control", "no-store")
+                            self.end_headers()
+                            self.wfile.write(data)
+                        return
                     if len(parts) != 3 or not parts[1].startswith("bot"):
                         raise LookupError("Not Found")
                     with World.open(directory) as world:
@@ -344,11 +476,18 @@ class BotAPIServer:
                             )
                             return
                         parameters = _form_parameters(url.query)
+                        uploads: dict[str, bytes] = {}
                         if self.command == "POST":
-                            if "Transfer-Encoding" in self.headers:
-                                raise ValueError("Transfer-Encoding is unsupported")
-                            length = int(self.headers.get("Content-Length", "0"))
-                            if not 0 <= length <= 65536:
+                            lengths = self.headers.get_all("Content-Length", [])
+                            if len(lengths) != 1 or "Transfer-Encoding" in self.headers:
+                                raise ValueError("Request requires one bounded Content-Length")
+                            length = int(lengths[0])
+                            content_type_header = self.headers.get("Content-Type", "")
+                            multipart = content_type_header.lower().startswith(
+                                "multipart/form-data"
+                            )
+                            maximum = 20_200_000 if multipart else 65_536
+                            if not 0 <= length <= maximum:
                                 raise ValueError("Request body exceeds the prototype limit")
                             raw = self.rfile.read(length)
                             if len(raw) != length:
@@ -362,18 +501,26 @@ class BotAPIServer:
                                     raise ValueError("Request body must be a JSON object")
                             elif content_type == "application/x-www-form-urlencoded":
                                 body = _form_parameters(raw.decode("utf-8", errors="strict"))
+                            elif content_type == "multipart/form-data":
+                                body, uploads = _multipart(raw, content_type_header)
                             else:
                                 raise ValueError("GRAMLAB_UNSUPPORTED: request content type")
                             if parameters.keys() & body.keys():
                                 raise ValueError("Repeated request parameters are unsupported")
+                            if parameters.keys() & uploads.keys() or body.keys() & uploads.keys():
+                                raise ValueError("Repeated request parameters are unsupported")
                             parameters.update(body)
+                        if parts[2].lower() == "sendphoto" and "photo" in uploads:
+                            parameters["photo"] = "attach://photo"
                         with reading_lock:
                             reading.discard(self.connection)
                             if closing.is_set():
                                 raise _PollInterrupted(
                                     503, "GRAMLAB_SHUTDOWN: Bot API server is stopping"
                                 )
-                        result = _dispatch(world, bot_id, parts[2].lower(), parameters, polling)
+                        result = _dispatch(
+                            world, bot_id, parts[2].lower(), parameters, polling, uploads
+                        )
                         self._reply(200, {"ok": True, "result": result})
                 except _PollInterrupted as error:
                     self._reply(

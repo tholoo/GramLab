@@ -60,7 +60,9 @@ class ClientBridge:
                 self.reply(
                     status,
                     {
-                        "schema": 2 if self.path.startswith("/v2/") else 1,
+                        "schema": 3
+                        if self.path.startswith("/v3/")
+                        else (2 if self.path.startswith("/v2/") else 1),
                         "error": {"code": code, "message": message},
                     },
                 )
@@ -119,7 +121,7 @@ class ClientBridge:
                         if any(len(values) != 1 for values in fields.values()):
                             raise ValueError("Repeated client parameters are unsupported")
                         if self.command == "POST":
-                            if url.path not in ("/v1/callbacks", "/v2/messages"):
+                            if url.path not in ("/v1/callbacks", "/v2/messages", "/v3/callbacks"):
                                 self.error(404, "unsupported", "Unknown client bridge operation")
                                 return
                             if fields:
@@ -138,8 +140,10 @@ class ClientBridge:
                                     "send": sent,
                                 }
                             else:
+                                version = 3 if url.path == "/v3/callbacks" else 1
                                 callback = world.create_callback(
                                     user_id=persona,
+                                    version=version,
                                     **self.command_parameters(
                                         {"request_id", "chat_id", "message_id", "data"},
                                         set(),
@@ -147,30 +151,37 @@ class ClientBridge:
                                     ),
                                 )
                                 result = {
-                                    "schema": 1,
+                                    "schema": version,
                                     "world_id": world.world_id,
                                     "user_id": persona,
                                     "callback": callback,
                                 }
-                        elif url.path.startswith("/v1/callbacks/"):
+                                if version == 3:
+                                    result.update(world.callback_dependencies(persona, callback))
+                        elif url.path.startswith(("/v1/callbacks/", "/v3/callbacks/")):
                             if fields:
                                 raise ValueError("Callback does not accept query parameters")
                             callback = world.get_callback(
-                                user_id=persona, callback_id=url.path.removeprefix("/v1/callbacks/")
+                                user_id=persona, callback_id=url.path.rsplit("/", 1)[1]
                             )
+                            version = 3 if url.path.startswith("/v3/") else 1
+                            if version < 3 and world._message_assets(callback["message"]):
+                                raise ValueError(
+                                    "GRAMLAB_UNSUPPORTED: media requires client bridge v3"
+                                )
                             result = {
-                                "schema": 1,
+                                "schema": version,
                                 "world_id": world.world_id,
                                 "user_id": persona,
                                 "callback": callback,
                             }
-                        elif url.path in ("/v1/snapshot", "/v2/snapshot"):
+                            if version == 3:
+                                result.update(world.callback_dependencies(persona, callback))
+                        elif url.path in ("/v1/snapshot", "/v2/snapshot", "/v3/snapshot"):
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
-                            result = world.client_snapshot(
-                                persona, version=2 if url.path.startswith("/v2/") else 1
-                            )
-                        elif url.path in ("/v1/events", "/v2/changes"):
+                            result = world.client_snapshot(persona, version=int(url.path[2]))
+                        elif url.path in ("/v1/events", "/v2/changes", "/v3/changes"):
                             if "after" not in fields or fields.keys() - {"after", "limit"}:
                                 raise ValueError("Events require after and optionally limit")
                             try:
@@ -180,10 +191,40 @@ class ClientBridge:
                                 raise ValueError(
                                     "Client cursor and limit must be integers"
                                 ) from None
-                            if url.path == "/v2/changes":
-                                result = world.client_changes(persona, after=after, limit=limit)
+                            if url.path.endswith("/changes"):
+                                result = world.client_changes(
+                                    persona,
+                                    after=after,
+                                    limit=limit,
+                                    version=3 if url.path.startswith("/v3/") else 2,
+                                )
                             else:
                                 result = world.client_events(persona, after=after, limit=limit)
+                        elif url.path.startswith("/v3/assets/"):
+                            if (
+                                fields
+                                or "Range" in self.headers
+                                or "Transfer-Encoding" in self.headers
+                            ):
+                                raise ValueError("Asset download parameters are unsupported")
+                            try:
+                                asset_id = int(url.path.removeprefix("/v3/assets/"))
+                            except ValueError:
+                                self.error(404, "asset_unavailable", "Asset is unavailable")
+                                return
+                            try:
+                                descriptor, data = world.granted_asset(persona, asset_id)
+                            except ValueError:
+                                self.error(404, "asset_unavailable", "Asset is unavailable")
+                                return
+                            self.send_response(200)
+                            self.send_header("Content-Type", descriptor["mime_type"])
+                            self.send_header("Content-Length", str(len(data)))
+                            self.send_header("Cache-Control", "no-store")
+                            self.send_header("Connection", "close")
+                            self.end_headers()
+                            self.wfile.write(data)
+                            return
                         else:
                             self.error(404, "unsupported", "Unknown client bridge operation")
                             return

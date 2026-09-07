@@ -151,6 +151,14 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         assert rejection["status"] == 400
         assert rejection["body"]["ok"] is False
         assert set(rejection["body"]) == {"ok", "error_code", "description"}
+    assert published["foreign"] == {
+        "status": 400,
+        "body": {
+            "ok": False,
+            "error_code": 400,
+            "description": "Photo file identifier is unavailable",
+        },
+    }
 
     world_request = {
         "id": 1,
