@@ -1,8 +1,8 @@
 # Prepare an original JPEG input for the required photo workflow
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: resolved
+Work state: resolved after coordinator integration
 Blocked by: none for fixtures; runtime media design remains under consultation
 
 The operational milestone requires JPEG as well as PNG. Existing photo fixtures cover PNG only.
@@ -44,3 +44,25 @@ consult the coordinator before moving shared code or changing unrelated fixture 
   required for this asset task. Use the media shell and existing Linux network namespace guard.
 - Record exact checks and original failures in ignored evidence, commit owned files and return
   a clean frozen branch with all task-owned processes terminal for coordinator integration.
+
+## Worker verification
+
+Implementation is complete on `task/original-jpeg-fixtures` pending coordinator review and
+integration. The pinned offline verifier confirms byte-identical regeneration, a single opaque
+64 by 48 full-range 4:4:4 MJPEG image, quadrant samples within the required tolerance and FFmpeg
+rejection of the 32-byte truncation. Temporary-directory checks cover identical existing files and
+rejection of missing/symlink output directories plus differing, symlink and nonregular destination
+files. Exact commands, outcomes and the corrected initial verifier failures are retained in ignored
+local evidence.
+
+
+## Integrated acceptance
+
+Independent Chromium decoding of the exact worker-commit blobs confirms 64 by 48 dimensions,
+3,072 opaque pixels and all 512 specified interior pixels with maximum channel error 1. The
+32-byte truncation rejects, and the browser loads no external resources. Its owned tab is closed.
+The coordinator verifies the same hashes in the merged checkout and all seven existing PNG
+assets/scripts/manifest unchanged. Pinned guarded JPEG regeneration/decoding, scoped Ruff and
+strict typing pass. Shared CI/contributor checks include the JPEG scripts; configuration and local
+links validate across 165 Markdown files. The affected workflow check passes after verifying its
+cached dependency plan. No Android runtime or media admission is claimed by this fixture work.

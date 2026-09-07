@@ -7,9 +7,9 @@ or a static PNG demonstration does not complete this milestone.
 
 Use representative consumer workflows to evaluate readiness through real Bot API requests,
 matching simulation/Android semantics, original rendering/input and restart/recovery. Keep public
-tests and fixtures independent of consumer application names, code and configuration. Exact
-required methods/media formats and custom-emoji behaviors still need a concrete workflow inventory;
-do not convert that missing inventory into an assumption that every unsupported feature is optional.
+tests and fixtures independent of consumer application names, code and configuration. The
+read-only inventory below identifies immediate method/media and custom-emoji requirements; broader
+consumer acceptance still needs executable scenarios. Do not treat unsupported features as optional.
 
 Current [compatibility evidence](../compatibility/matrix.md) establishes bounded text/callback,
 formatting and rich-block loops. Media storage/delivery and custom-emoji document support remain
@@ -41,3 +41,8 @@ catalog-fallback-equality restriction from sticker administration prerequisites.
 catalog/admission design still needs consultation and must distinguish logical emoji IDs from
 bot-scoped file identities and recipient media access. Static/animated fixtures can be prepared
 independently while that design is reviewed.
+
+
+Original PNG, JPEG, WebP and transparent VP9 WebM fixture inputs now have independent decoding
+evidence. JPEG/WebP/WebM reproduce under the pinned media shell. These inputs unblock later media
+acceptance tests; they do not establish storage, file reuse, albums or original Android playback.

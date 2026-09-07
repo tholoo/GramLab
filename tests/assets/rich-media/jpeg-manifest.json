@@ -1,0 +1,77 @@
+{
+  "fixtures": [
+    {
+      "alpha": false,
+      "filename": "photo-quadrants-64x48.jpg",
+      "format": "mjpeg",
+      "height": 48,
+      "mime": "image/jpeg",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "60df62b7b4032816fba73c77e9553aff52d1a2f8ca3667d2a3b5b488bae3cfaa",
+      "valid": true,
+      "width": 64
+    },
+    {
+      "filename": "photo-quadrants-truncated-invalid.jpg",
+      "mime": "image/jpeg",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "ff5662d22663702ca4b69b5418cc9445e312b2821ad04a57fb0e91830a4b8522",
+      "valid": false
+    }
+  ],
+  "generator_profile": {
+    "encoder_arguments": [
+      "ffmpeg",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgb24",
+      "-s",
+      "64x48",
+      "-r",
+      "1",
+      "-i",
+      "pipe:0",
+      "-frames:v",
+      "1",
+      "-an",
+      "-c:v",
+      "mjpeg",
+      "-pix_fmt",
+      "yuvj444p",
+      "-color_range",
+      "pc",
+      "-q:v",
+      "2",
+      "-threads",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:v",
+      "+bitexact",
+      "-f",
+      "image2pipe",
+      "pipe:1"
+    ],
+    "reproducibility": "byte-identical under this recorded encoder profile; other versions may differ",
+    "toolchain": {
+      "nixpkgs_revision": "9387b3fcc0c23c86661636da63faabad4235a0a6",
+      "package": "ffmpeg_6",
+      "schema": 1,
+      "versions": {
+        "ffmpeg": "6.1.6",
+        "libvpx": "1.16.0",
+        "libwebp": "1.6.0"
+      }
+    }
+  }
+}

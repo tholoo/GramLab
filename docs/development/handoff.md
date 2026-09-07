@@ -25,7 +25,7 @@ offline safety, licensing and completion requirements before the corresponding a
 - Photo delivery awaits user consultation in [ticket 24](../../.scratch/rich-messages/issues/24-rich-photo-design-review.md).
   The [concrete proposal](rich-photo-proposal.md) recommends multipart uploads/reuse, World-owned
   immutable bytes and authenticated delivery through original Android FileLoader. Source research
-  and independently decoded original PNG fixtures are merged. Asset storage, file APIs and native
+  and independently decoded original PNG/JPEG fixtures are merged. Asset storage, file APIs and native
   media delivery are absent. A goal continuation alone is not approval of these decisions.
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
@@ -95,8 +95,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 162 Markdown files. Contributor guidance/CI include the new strict typing scope. |
-| Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
+| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 165 Markdown files. Contributor guidance/CI include the new strict typing scope. |
+| Media preparation | Three original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
 fingerprints; experimental geometry is absent from the normal patch series. Current experimental
@@ -109,7 +109,8 @@ The remaining43 native suite and independent combined-coverage verification are 
 passing. Original custom-emoji fixture checks and browser review are terminal; the worker branch
 is frozen and integrated, with coordinator-owned acceptance. The optional media shell is integrated
 with guarded reproduction, provenance checks and unchanged runtime/APK fingerprints. Host paths,
-handles, fingerprints and artifact locations stay in ignored local notes.
+handles, fingerprints and artifact locations stay in ignored local notes. Original JPEG worker
+checks and independent browser review are terminal and integrated; the PNG files remain unchanged.
 
 ## Development throughput
 

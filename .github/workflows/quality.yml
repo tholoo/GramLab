@@ -128,7 +128,7 @@ jobs:
       - name: Type check the independent rich-list consumer example
         run: uv run --locked mypy examples/rich_lists tests/test_runner_rich_lists.py
       - name: Type check deterministic media fixture tooling
-        run: uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
+        run: uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py tests/assets/rich-media/jpeg_generate.py tests/assets/rich-media/jpeg_verify.py
       - name: Type check custom emoji fixture tooling
         run: uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py tests/assets/custom-emoji/toolchain.py
       - name: Type check quoted-code acceptance
