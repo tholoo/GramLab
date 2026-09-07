@@ -1,0 +1,63 @@
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -205,9 +205,32 @@
+             result.style = button.style;
+             return result;
+         }
++        String type = string(record, "type");
++        if (type.equals("url")) {
++            fields(record, "type", "text", "url");
++            TL_iv.textUrl result = new TL_iv.textUrl();
++            result.text = text(record.get("text"));
++            result.url = string(record, "url");
++            result.webpage_id = 0;
++            return result;
++        }
++        if (type.equals("email_address")) {
++            fields(record, "type", "text", "email_address");
++            TL_iv.textEmail result = new TL_iv.textEmail();
++            result.text = text(record.get("text"));
++            result.email = string(record, "email_address");
++            return result;
++        }
++        if (type.equals("phone_number")) {
++            fields(record, "type", "text", "phone_number");
++            TL_iv.textPhone result = new TL_iv.textPhone();
++            result.text = text(record.get("text"));
++            result.phone = string(record, "phone_number");
++            return result;
++        }
+         fields(record, "type", "text");
+         TL_iv.RichText result;
+-        switch (string(record, "type")) {
++        switch (type) {
+             case "bold": result = new TL_iv.textBold(); break;
+             case "italic": result = new TL_iv.textItalic(); break;
+             case "underline": result = new TL_iv.textUnderline(); break;
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -36,6 +36,24 @@
+             return new JSONObject().put("type", "button")
+                     .put("button", richButton(button.flags, button.text, button.type, button.style));
+         }
++        if (value instanceof TL_iv.textUrl) {
++            TL_iv.textUrl link = (TL_iv.textUrl) value;
++            if (link.webpage_id != 0) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_URL_WEBPAGE");
++            }
++            return new JSONObject().put("type", "url").put("text", richText(link.text))
++                    .put("url", link.url);
++        }
++        if (value instanceof TL_iv.textEmail) {
++            TL_iv.textEmail link = (TL_iv.textEmail) value;
++            return new JSONObject().put("type", "email_address").put("text", richText(link.text))
++                    .put("email_address", link.email);
++        }
++        if (value instanceof TL_iv.textPhone) {
++            TL_iv.textPhone link = (TL_iv.textPhone) value;
++            return new JSONObject().put("type", "phone_number").put("text", richText(link.text))
++                    .put("phone_number", link.phone);
++        }
+         String type;
+         if (value instanceof TL_iv.textBold) type = "bold";
+         else if (value instanceof TL_iv.textItalic) type = "italic";

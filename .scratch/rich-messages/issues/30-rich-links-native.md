@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed by native worker
 Blocked by: none; canonical shared contract frozen
 
 Follow [the contract](../../../docs/development/rich-links-contract.md). Native worker owns only
@@ -25,3 +25,20 @@ than fresh full preparation, compilation or runtime proof. Do not mutate the sha
 Use the assigned worktree/branch; commit only owned files and return the exact preimage proof,
 patch check and frozen clean branch with terminal resources. Leave ticket claimed until combined
 acceptance. Report an unexpected required UI/network change before expanding ownership.
+
+## Worker evidence
+
+The append-only patch projects `url`, `email_address`, and `phone_number` nodes recursively into
+the pinned client's original `textUrl`, `textEmail`, and `textPhone` classes. Each decoder branch
+admits only its canonical fields, requires string metadata, and gives URL values a zero cached
+webpage ID. The independent probe reconstructs those exact metadata keys and rejects a nonzero URL
+webpage ID.
+
+The verified fourteen-patch preimages have SHA-256
+`1b8e5ec6c6a97fdbbcc6fdca2a3f493f43f8a6f64d91ae40e705b5bd731511fd` for
+`GramLabRichMessage.java` and
+`5ce379226b7a319131f9845b8de711be7e786d3931fc4e24a1b28b8195af961f` for
+`BridgeProbe.java`. Private ignored copies compare byte-for-byte with those shared read-only files.
+`patch --dry-run --fuzz=0 -p1` applies both patch sections cleanly to that exact source. This is
+source-only validation; full prepared-source comparison, compilation, adversarial codec checks,
+and native rendering remain coordinator-owned.
