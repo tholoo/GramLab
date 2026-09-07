@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by rich-buttons-rendering on task/rich-buttons-rendering
 Blocked by: ticket 15 rebuilt APK for native execution
 
 Use the integrated [button contract](../../../docs/development/rich-buttons-contract.md) and existing
@@ -31,3 +31,25 @@ guard. Existing codec red already establishes old APK rejection; do not repeat a
 Positive native execution and visual inspection are coordinator-owned after APK integration.
 Commit only owned files; send frozen clean tip and exact checks, remaining acceptance and terminal
 resource state. Ticket stays claimed until coordinator integration and acceptance.
+
+## Worker evidence
+
+The independently authored compact scene covers callback, copy and disabled buttons in rows of no
+more than two, an inline callback, primary/danger/success/link styles, absent fill alignment and
+explicit left/right/center alignment. Dirty mixed-case styles, tabs in labels and copied text are
+separate from the canonical expectations. The edited scene is RTL and retains short Persian/English
+labels. Ordinary headings and paragraphs provide XML readiness anchors without claiming that rich
+row labels are accessible.
+
+The existing real standard-library HTTP fixture bot sends and edits this scene through the Bot API.
+The focused loopback-only simulation passes, comparing complete API replies, durable edited history
+and the empty pending update queue against the independent canonical scene. The prepared Android
+host test reuses the native `probe(scene_checks=...)` seam and requires complete initial/edited
+native serialization, applied live edit, cold restart, three original PNG/XML captures, successful
+launches, zero accounts, network and emulator-filesystem isolation, APK fingerprint and an HTML
+report. It performs no native input and makes no callback, clipboard or disabled-button effect
+claim.
+
+Scoped Ruff lint/format and strict mypy pass for all three new Python files. Native execution,
+visual inspection and report inspection remain coordinator-owned against the integrated rebuilt
+APK. No guest, build, full gate or external network access was used by this worker.
