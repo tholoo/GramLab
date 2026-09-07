@@ -454,6 +454,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                         },
                     )
                     result["new_trace"] = observe.terminal("media_load_success", 2, timeout=3)
+                    # Original MessagesStorage deletes/cancels the replaced photo globally,
+                    # including the ordinary cell that still refers to it. Ticket 55 separately
+                    # proves actual late completion through a rich message's second photo.
+                    result["cancel_trace"] = observe.terminal("media_load_cancel", 1, timeout=2)
                     result["new_binding"] = observe.sample(
                         lambda rows: rows[0]["has_image"] and not rows[1]["has_image"], timeout=2
                     )
@@ -463,10 +467,17 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     observe.window_end = None
                     transfer.release.set()
                     result["post_release_bindings"] = []
-                    deadline = time.monotonic() + 5
-                    while time.monotonic() < deadline:
+                    if not transfer.finished.wait(timeout=5):
+                        raise RuntimeError("Released canceled response did not terminate")
+                    result["response_finished"] = True
+                    for _ in range(2):
                         binding = observe.sample(
-                            lambda rows: True, timeout=max(0.01, deadline - time.monotonic())
+                            lambda rows: (
+                                rows[0]["has_image"]
+                                and not rows[1]["has_image"]
+                                and rows[0]["progress_icon"] == NONE
+                                and rows[1]["progress_icon"] == CANCEL
+                            )
                         )
                         result["post_release_bindings"].append(binding)
                         first = binding["messages"][0]
@@ -477,19 +488,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                             raise RuntimeError(
                                 "Old transfer changed the observed edited image binding"
                             )
-                        rows = observe.trace()
-                        if all(row["has_image"] for row in binding["messages"]) and any(
-                            row["event"] == "media_load_success" and row["asset_id"] == 1
-                            for row in rows
-                        ):
-                            result["final_binding"] = binding
-                            result["final_trace"] = rows
-                            break
-                    else:
-                        raise RuntimeError(
-                            "Late old completion did not produce both original images"
-                        )
-                    result["captures"].append(observe.screenshot("old-completed"))
+                    result["final_binding"] = binding
+                    result["final_trace"] = observe.trace()
+                    result["captures"].append(observe.screenshot("old-canceled"))
                 else:
                     result["taps"].append(observe.tap(loading, 1))
                     result["cancel_elapsed"] = require_window(transfer)

@@ -90,3 +90,18 @@ shared completion displays only the remaining receiver's image. The sole combine
 still ordinary late-edit cleanup. `artifacts/media-interaction-native-04/` keeps unique inputs,
 JUnit, log, both per-case HTML reports and completion receipt: zero changed sources, four exact
 staged probe fingerprints and unchanged APK. No former failed JUnit or screenshot was replaced.
+
+## Ordinary-edit cleanup acceptance
+
+The coordinator is correcting the ordinary `late-edit` case to the original global-cleanup
+contract; the stronger old-transfer completion requirement remains assigned to ticket 55.
+Retained run04 records one successful new JPEG and one canceled old PNG, one coalesced old load,
+and repeated original receiver states: the edited cell displays the JPEG without a control;
+the unchanged shared cell has no bitmap and retains its cancel/progress control. The original
+failure expected both images and remains preserved. No renderer/loader behavior is changed.
+
+Fresh acceptance must observe native cancellation before releasing the old HTTP response, await
+that response's termination, and verify two fresh unchanged receiver samples, the exact new JPEG
+cache and no old/partial bytes. Server termination does not count as native success. The test
+continues to require real cancel/retry and shared-consumer input plus schema-1 activation guards.
+Native verification on the combined normal23 build remains pending.

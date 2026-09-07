@@ -1,9 +1,10 @@
-"""Original UI cancellation and stable photo bindings across out-of-order transfers."""
+"""Original UI cancellation, shared receivers and ordinary-edit global cleanup."""
 
 import hashlib
 import json
 import os
 import shutil
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -186,19 +187,26 @@ def assert_interaction_case(
         assert any(row["event"] == "media_load_coalesced" for row in trace)
         assert before[1]["image_key"].startswith("1_1@")
     else:
-        assert [row["event"] for row in terminals] == [
-            "media_load_success",
-            "media_load_success",
-        ]
-        assert success_ids == [2, 1]
+        assert Counter((row["event"], row["asset_id"]) for row in terminals) == Counter(
+            {("media_load_success", 2): 1, ("media_load_cancel", 1): 1}
+        )
+        assert success_ids == [2]
+        assert any(row["event"] == "media_load_coalesced" for row in trace)
+        assert case["response_finished"] is True
         assert asset_requests(case["requests"]) == [gated, complete | {"asset_id": 2}]
         before = case["new_binding"]["messages"]
         assert [row["has_image"] for row in before] == [True, False]
         assert before[0]["image_key"].startswith("2_1@")
-        assert case["post_release_bindings"]
+        assert len(case["post_release_bindings"]) == 2
         for binding in case["post_release_bindings"]:
             assert binding["messages"][0]["image_key"] == before[0]["image_key"]
             assert binding["messages"][0]["has_image"] is True
+            assert binding["messages"][1]["image_key"].startswith("1_1@")
+            assert binding["messages"][1]["has_image"] is False
+        assert (
+            case["post_release_bindings"][1]["generation"]
+            > case["post_release_bindings"][0]["generation"]
+        )
         assert case["taps"] == []
     if name != "late-edit":
         assert success_ids == [1]
@@ -216,16 +224,23 @@ def assert_interaction_case(
     bindings = case["final_binding"]["messages"]
     assert [row["message_id"] for row in bindings] == ([1] if name == "cancel-retry" else [1, 2])
     assert [row["has_image"] for row in bindings] == (
-        [False, True] if name == "shared-consumer" else [True] * len(bindings)
+        [False, True]
+        if name == "shared-consumer"
+        else [True, False]
+        if name == "late-edit"
+        else [True]
     )
-    assert all(row["progress_icon"] == 4 for row in bindings)
+    assert [row["progress_icon"] for row in bindings] == (
+        [4, 3] if name == "late-edit" else [4] * len(bindings)
+    )
     expected_ids = [2, 1] if name == "late-edit" else [1] * len(bindings)
     for row, asset_id in zip(bindings, expected_ids, strict=True):
         assert row["image_key"].startswith(f"{asset_id}_1@")
+    cached_ids = {2} if name == "late-edit" else set(expected_ids)
     assert {Path(row["path"]).name for row in case["files"]} == {
-        f"{asset}_1.jpg" for asset in expected_ids
+        f"{asset}_1.jpg" for asset in cached_ids
     }
-    assert len(case["files"]) == len(set(expected_ids))
+    assert len(case["files"]) == len(cached_ids)
     for row in case["files"]:
         asset = expected[int(Path(row["path"]).name.split("_")[0]) - 1]
         assert row["size"] == asset["file_size"]
@@ -269,7 +284,10 @@ def assert_interaction_case(
             screenshots=screenshots,
             limitations=(
                 "Shared UI loading does not by itself prove the FileLoader coalescing branch. "
-                "Observation and ordinary input are not an atomic public targeting API.",
+                "Observation and ordinary input are not an atomic public targeting API. "
+                "Ordinary photo replacement invokes original global cleanup: the unchanged "
+                "shared cell retains its loading control without a bitmap after cancellation. "
+                "Actual old-transfer completion after edit requires the separate rich-photo case.",
             ),
         ),
     )
