@@ -114,6 +114,11 @@ reconstructed merely by knowing an asset ID in another World.
 
 ## Original Android loader
 
+The app configuration accepts optional `bridge_version` 2 or 3, with absent values selecting 2
+for existing legacy fixtures. The production runner and new media probes explicitly select 3.
+Version 3 uses only v3 snapshot/change/callback routes, with no automatic downgrade; the composer
+remains on v2. Orchestration stage labels are not native configuration fields.
+
 Map asset IDs to original Photo IDs and locations in the GPL adapter. Set synthetic DC ID 0,
 positive photo/volume ID equal to asset ID, and stable size local ID 1. Register the World-bound
 mapping when applying dependencies. Empty access hash/file reference are synthetic metadata, not
