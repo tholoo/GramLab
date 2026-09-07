@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: researched; coordinator review pending
+Work state: claimed by coordinator; shared button profile frozen, native input proof pending
 Blocked by: none
 
 The read-only worker's [source findings](../../../docs/development/rich-actions-references.md)
@@ -22,3 +22,14 @@ inline text buttons, but no per-button accessibility nodes. The reference note n
 draw-time geometry, nested padding risks and a test-only input experiment. Permanent geometry
 exposure and public rich-target identity remain unchosen. Exact input/output action fixtures must
 be reviewed before parallel normalization/projection work is assigned.
+
+
+## Coordinator split
+
+The [button contract](../../../docs/development/rich-buttons-contract.md) freezes callback/copy/
+disabled normalization and canonical native projection. Tickets [14](14-rich-buttons-core.md),
+[15](15-rich-buttons-native-codec.md) and [16](16-rich-button-captures.md) own disjoint core, GPL
+codec and capture work. Existing public inline input remains reply-markup-only. The next geometry
+experiment must use actual world rich messages; no marker/native-content substitution is allowed.
+An opt-in app-private post-draw GPL observer outside the normal patch series is a feasible
+experiment candidate. It is not implemented and does not select a permanent public targeting API.

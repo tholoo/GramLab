@@ -92,9 +92,12 @@ for timestamped startup observations during a future planned guest; keep profile
 Offline worker package caches can be seeded independently as described in
 [environment guidance](environment.md), avoiding repeated dependency acquisition.
 
-The next rich-action work has [exact source shapes and native seams](rich-actions-references.md).
-Callbacks fit the existing bridge, but per-button accessibility is absent and native geometry/input
-still needs proof. Permanent geometry exposure and public target identity remain unchosen. Prepare
+The next rich-action batch has a frozen [callback/copy/disabled contract](rich-buttons-contract.md)
+and disjoint tickets 14–16 for core validation, GPL projection/codec and capture fragments. Use the
+[exact source shapes and native seams](rich-actions-references.md) as references. Callbacks fit the
+existing bridge, but per-button accessibility is absent and native geometry/input still needs proof.
+A test-only app-private post-draw observer can explore actual geometry after the real world/native
+representation is integrated. Permanent geometry exposure and public target identity remain unchosen. Prepare
 concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays
 active. No external runtime egress or remote publication is authorized.
