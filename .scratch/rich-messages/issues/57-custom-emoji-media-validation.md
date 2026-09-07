@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Own this ticket, new `src/gramlab/_emoji_media.py` and new `tests/test_custom_emoji_media.py`.
@@ -30,3 +30,13 @@ the pinned media toolchain's executable paths into the two trusted variables for
 Read AGENTS.md, TESTING.md and parallel-work.md; claim this ticket before changes, verify checkout
 imports and tools/worktree check, commit only owned files and hand back a frozen clean tip with
 exact red/green evidence. Coordinator owns integration, provisioning and World/native acceptance.
+
+## Coordinator baseline integration
+
+The reviewed baseline passes 17 focused cases using actual pinned tools in the primary checkout
+in 0.71 seconds, with scoped Ruff/format and strict mypy passing. Review corrected the initial
+per-process rather than shared deadline, rejection of valid opaque/30fps video, Matroska DocType
+ambiguity and permissive decode-error handling. Actual opaque/alpha 30fps originals now pass and
+an appended truncated container rejects. Additional codec/audio/duration/frame limits and process
+timeout/output/reaping evidence remain required; the ticket stays claimed. This baseline does not
+claim completed World/API delivery or original Android animation.
