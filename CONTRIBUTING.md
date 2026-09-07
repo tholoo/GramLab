@@ -94,6 +94,7 @@ uv run --locked mypy tests/test_rich_links_round_trip.py tests/test_android_rich
 uv run --locked mypy tests/test_runner_media_captures.py
 uv run --locked mypy tests/fixtures/media_bot.py tests/probes/media_round_trip.py tests/test_media_round_trip.py
 uv run --locked mypy tests/probes/android_media.py tests/test_android_media.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/native_asset_proxy.py tests/test_native_asset_proxy.py
 uv run --locked mypy tests/probes/android_media_codec.py tests/test_android_media_codec.py
 uv run --locked mypy tests/probes/android_media_faults.py tests/test_android_media_faults.py
 uv run --locked mypy tests/probes/android_media_interactions.py tests/test_android_media_interactions.py

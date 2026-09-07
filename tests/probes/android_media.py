@@ -1,5 +1,6 @@
 """Observe local photos in the original Android renderer and its private cache."""
 
+import hashlib
 import json
 import re
 import shlex
@@ -13,6 +14,10 @@ from typing import Any
 
 from android_guest import main
 from media_round_trip import run
+from native_asset_proxy import NativeAssetProxy
+
+from gramlab.client_bridge import ClientBridge
+from gramlab.world import World
 
 PACKAGE = "org.gramlab.android"
 CONFIG = "files/gramlab/config.json"
@@ -107,12 +112,26 @@ def ordinary_frame(xml: str) -> dict[str, int] | None:
 
 
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
+    control = Path("unchanged-photo-control.json").exists()
+    assets = {1} if control else {1, 2}
     capability = ""
+    proxy: NativeAssetProxy | None = None
+    phases: dict[str, dict[str, Any]] = {}
+    active_phase = "initial"
+    partials: dict[str, list[str]] = {}
+    bindings: dict[str, dict[str, Any]] = {}
+    control_frames: dict[str, dict[str, int]] = {}
+    identity: dict[str, Any] | None = None
+    expected_counts = (
+        {"initial": {1: 1}, "restart": {1: 0}}
+        if control
+        else {"initial": {1: 1, 2: 2}, "edited": {1: 1, 2: 0}, "restart": {1: 0, 2: 1}}
+    )
     installed = False
     launches: dict[str, str] = {}
     timings: dict[str, float] = {}
     captures: dict[str, str] = {}
-    cache: dict[str, dict[str, object]] = {}
+    cache: dict[str, dict[str, Any]] = {}
     framing: list[dict[str, int]] = []
 
     def adb(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -206,7 +225,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 ):
                     shutil.copy2(f"{name}.xml", f"{name}-before-media.xml")
                     shutil.copy2(f"{name}.png", f"{name}-before-media.png")
-                    wait_for_media("initial-framing", {1, 2})
+                    wait_for_media("initial-framing", assets)
                     ui = capture(name)
                     captures.pop(name)
                     frame = ordinary_frame(ui)
@@ -258,7 +277,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 raise RuntimeError("Media diagnostic identifies an unexpected asset")
         return rows
 
-    def cache_files(name: str) -> dict[str, object]:
+    def cache_files(name: str) -> dict[str, Any]:
         listing = adb(
             "shell",
             "run-as",
@@ -274,11 +293,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         listing += adb(
             "shell", "find", external, "-type", "f", "-name", "'*_1.jpg'"
         ).stdout.splitlines()
-        selected: dict[str, object] = {}
-        for filename in ("1_1.jpg", "2_1.jpg"):
+        selected: dict[str, Any] = {}
+        for filename in (f"{asset}_1.jpg" for asset in sorted(assets)):
             matches = [path for path in listing if Path(path).name == filename]
-            if not matches:
-                raise RuntimeError(f"No discovered app-owned cache file for {filename}")
             copies = []
             for path in sorted(matches):
                 quoted = shlex.quote(path)
@@ -289,30 +306,173 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 size = int(adb(*command, "toybox", "wc", "-c", quoted).stdout.split()[0])
                 copies.append({"path": path, "sha256": digest, "size": size})
             selected[filename] = {"copies": copies}
+        unfinished = adb(
+            "shell", "run-as", PACKAGE, "find", ".", "-type", "f", "-name", "'*.gramlab-*.part'"
+        ).stdout.splitlines()
+        unfinished += adb(
+            "shell", "find", external, "-type", "f", "-name", "'*.gramlab-*.part'"
+        ).stdout.splitlines()
+        partials[name] = sorted(unfinished)
+        Path(f"{name}-partials.json").write_text(json.dumps(partials[name]) + "\n")
         Path(f"{name}-cache.json").write_text(json.dumps(selected, indent=2) + "\n")
         cache[name] = selected
         return selected
 
-    def wait_for_media(name: str, required_assets: set[int], *, edited: bool = False) -> None:
+    def wait_for_media(name: str, required_assets: set[int]) -> None:
         deadline = time.monotonic() + 45
         while time.monotonic() < deadline:
-            rows = media_rows(name)
+            rows = media_rows(name)[phases[active_phase]["media_start"] :]
             successful = {
                 int(row["asset_id"])
                 for row in rows
                 if row["event"] in ("media_load_success", "media_cache_hit")
                 and row["digest_ok"] is True
             }
-            applied = not edited or any(row.get("event") == "events_applied" for row in trace(name))
-            if required_assets <= successful and applied:
+            if required_assets <= successful:
                 return
             time.sleep(0.25)
         raise RuntimeError(f"Original Android did not finish media loading during {name}")
 
-    def show(configuration: dict[str, Any]) -> str:
-        nonlocal installed
+    def begin_phase(name: str) -> None:
+        nonlocal active_phase
+        rows = trace(name + "-boundary") if installed and phases else []
+        if phases:
+            phases[active_phase]["trace_end"] = len(rows)
+        active_phase = name
+        phases[name] = {
+            "trace_start": len(rows),
+            "media_start": sum(row.get("event") in MEDIA_EVENTS for row in rows),
+        }
+        assert proxy is not None
+        proxy.phase(name)
+
+    def expected_paths(stage: str, asset: int) -> set[str]:
+        root = f"/storage/emulated/0/Android/data/{PACKAGE}/"
+        image = root + f"files/Telegram/Telegram Images/{asset}_1.jpg"
+        cached = root + f"cache/{asset}_1.jpg"
+        if control or (stage == "initial" and asset == 1):
+            return {image}
+        if stage == "edited" and asset == 2:
+            return {cached}
+        return {image, cached}
+
+    def settle(stage: str) -> None:
+        assert proxy is not None
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            rows = trace(stage)[phases[stage]["trace_start"] :]
+            requests = [row for row in proxy.requests() if row["phase"] == stage]
+            valid = True
+            for asset, expected in expected_counts[stage].items():
+                starts = [
+                    r
+                    for r in rows
+                    if r.get("event") == "media_load_start" and r["asset_id"] == asset
+                ]
+                successes = [
+                    r
+                    for r in rows
+                    if r.get("event") == "media_load_success"
+                    and r["asset_id"] == asset
+                    and r["digest_ok"] is True
+                ]
+                reads = [r for r in requests if r["asset_id"] == asset]
+                if len(starts) > expected or len(reads) > expected:
+                    raise RuntimeError(f"Unexpected new asset {asset} transfer in {stage}")
+                source = Path(
+                    "photo-square-16x16.png" if asset == 1 else "photo-quadrants-64x48.jpg"
+                ).read_bytes()
+                valid &= len(starts) == len(successes) == len(reads) == expected
+                valid &= all(
+                    r["status"] == 200
+                    and r["bytes"] == len(source)
+                    and r["error"] is None
+                    and r["finished_ns"] is not None
+                    for r in reads
+                )
+            if any(r.get("event") in ("media_load_failure", "media_load_cancel") for r in rows):
+                raise RuntimeError(f"Original media failed or cancelled during {stage}")
+            valid &= any(
+                r.get("event") == ("events_applied" if stage == "edited" else "initialized")
+                for r in rows
+            )
+            if not valid:
+                time.sleep(0.25)
+                continue
+            # Inspect destinations after this phase's transfers finish, so hashing cannot
+            # race the expected in-progress publication/deletion work.
+            files = cache_files(stage)
+            valid = not partials[stage]
+            for asset in expected_counts[stage]:
+                source = Path(
+                    "photo-square-16x16.png" if asset == 1 else "photo-quadrants-64x48.jpg"
+                ).read_bytes()
+                copies = files[f"{asset}_1.jpg"]["copies"]
+                valid &= {copy["path"] for copy in copies} == expected_paths(stage, asset)
+                valid &= all(
+                    copy["size"] == len(source)
+                    and copy["sha256"] == hashlib.sha256(source).hexdigest()
+                    for copy in copies
+                )
+            if valid:
+                phases[stage]["trace_end"] = phases[stage]["trace_start"] + len(rows)
+                return
+            time.sleep(0.25)
+        raise RuntimeError(
+            f"Original media did not reach exact phase/cache/request state in {stage}"
+        )
+
+    def control_binding(configuration: dict[str, Any]) -> None:
         stage = configuration["stage"]
-        if stage not in ("initial", "edited", "restart"):
+        deadline = time.monotonic() + 20
+        pid = int(adb("shell", "pidof", PACKAGE).stdout.strip())
+        while time.monotonic() < deadline:
+            result = guest(
+                "shell", "run-as", PACKAGE, "cat", "files/gramlab/photo-observation-result.json"
+            )
+            if result.returncode == 0:
+                value = json.loads(result.stdout)
+                uptime = float(adb("shell", "cat", "/proc/uptime").stdout.split()[0]) * 1000
+                identity = {
+                    "schema": 1,
+                    "nonce": "unchanged-" + stage,
+                    "world_id": configuration["world_id"],
+                    "user_id": 1,
+                    "peer_id": 2,
+                    "pid": pid,
+                }
+                if any(value.get(key) != expected for key, expected in identity.items()):
+                    raise RuntimeError("Unchanged-photo observer identity mismatch")
+                if (
+                    value["available"]
+                    and value["generation"] > 0
+                    and 0 <= uptime - value["uptime_ms"] <= 1000
+                ):
+                    messages = value["messages"]
+                    if (
+                        len(messages) == 1
+                        and messages[0]["message_id"] == 1
+                        and messages[0]["has_image"]
+                        and str(messages[0]["image_key"]).startswith("1_1@")
+                    ):
+                        bindings[stage] = value | {"observed_uptime_ms": uptime}
+                        retain(stage + "-binding.json", json.dumps(bindings[stage]))
+                        return
+            time.sleep(0.1)
+        raise RuntimeError("Unchanged original photo did not decode into its current receiver")
+
+    def show(configuration: dict[str, Any]) -> str:
+        nonlocal installed, proxy, identity
+        current_identity = {
+            key: configuration[key]
+            for key in ("capability", "world_id", "user_id", "bridge_version")
+        }
+        if identity is None:
+            identity = current_identity
+        elif current_identity != identity:
+            raise RuntimeError("Native photo scenario changed its World/persona binding")
+        stage = configuration["stage"]
+        if stage not in expected_counts:
             raise RuntimeError("Unknown media observation stage")
         if not installed:
             started = time.monotonic()
@@ -321,38 +481,116 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             installed = True
         if stage == "restart":
             adb("shell", "am", "force-stop", PACKAGE)
-        write_config(configuration)
+        if proxy is None:
+            proxy = NativeAssetProxy(configuration["endpoint"], configuration["capability"])
+            proxy.__enter__()
+            begin_phase(stage)
+        else:
+            proxy.retarget(configuration["endpoint"])
+            if stage == "restart":
+                begin_phase(stage)
+        write_config(configuration | {"endpoint": proxy.base_url})
+        if control:
+            adb(
+                "shell",
+                "run-as",
+                PACKAGE,
+                "rm",
+                "-f",
+                "files/gramlab/photo-observation-result.json",
+            )
+            activation = {
+                "schema": 1,
+                "nonce": "unchanged-" + stage,
+                "world_id": configuration["world_id"],
+                "user_id": 1,
+                "peer_id": 2,
+                "message_ids": [1],
+            }
+            adb(
+                "shell",
+                "-T",
+                "run-as",
+                PACKAGE,
+                "sh",
+                "-c",
+                "'cat > files/gramlab/photo-observation.json'",
+                input=json.dumps(activation),
+            )
         if stage in ("initial", "restart"):
             launch(stage)
+        if control:
+            if stage == "initial":
+                wait_for_media(stage, {1})
+                frame_ordinary()
+            control_binding(configuration)
+            settle(stage)
+            capture(stage)
+            frame = ordinary_frame(captures[stage])
+            if frame is None or not (
+                frame["viewport_left"]
+                <= frame["target_left"]
+                < frame["target_right"]
+                <= frame["viewport_right"]
+                and frame["viewport_top"]
+                <= frame["target_top"]
+                < frame["target_bottom"]
+                <= frame["viewport_bottom"]
+            ):
+                raise RuntimeError("Unchanged ordinary photo/caption is not fully framed")
+            control_frames[stage] = frame
+            control_binding(configuration)
+            settle(stage)
+            if stage == "initial":
+                captures.pop("initial-top")
+            return captures[stage]
         if stage == "initial":
             wait_for_media(stage, {2})
             bottom = capture("initial-bottom")
             top = frame_ordinary()
-            wait_for_media(stage, {1, 2})
-            cache_files(stage)
+            settle(stage)
+            # The bot may edit before show(edited); its native work belongs to this next phase.
+            begin_phase("edited")
             return bottom + "\n" + top
-        wait_for_media(stage, {1, 2}, edited=stage == "edited")
         if stage == "edited":
+            deadline = time.monotonic() + 45
+            while not any(
+                r.get("event") == "events_applied"
+                for r in trace(stage)[phases[stage]["trace_start"] :]
+            ):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Native edit did not apply")
+                time.sleep(0.25)
             adb("shell", "input", "swipe", "160", "520", "160", "180", "500")
             time.sleep(0.5)
+        settle(stage)
         capture(stage)
-        cache_files(stage)
+        settle(stage)
         return captures[stage]
 
     def observe() -> dict[str, Any]:
         final_trace = trace("final")
+        phases[active_phase]["trace_end"] = len(final_trace)
+        assert proxy is not None
+        requests = proxy.requests()
+        retain("native-asset-requests.json", json.dumps(requests, indent=2))
         return {
+            "phases": phases,
+            "native_requests": requests,
+            "partials": {stage: partials[stage] for stage in expected_counts},
+            "bindings": bindings,
+            "control_frames": control_frames,
             "captures": captures,
             "launches": launches,
             "timings": timings,
             "media_trace": [row for row in final_trace if row.get("event") in MEDIA_EVENTS],
-            "cache": cache,
+            "cache": {stage: cache[stage] for stage in expected_counts},
             "framing": framing,
             "accounts": adb("shell", "dumpsys", "account").stdout,
         }
 
     try:
-        return run(show, observe)
+        return run_unchanged(show, observe) if control else run(show, observe)
     except BaseException:
         raw_trace = guest("shell", "run-as", PACKAGE, "cat", TRACE)
         if raw_trace.returncode == 0:
@@ -372,6 +610,49 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         raise
     finally:
         guest("shell", "am", "force-stop", PACKAGE)
+        if proxy is not None:
+            retain("native-asset-requests.json", json.dumps(proxy.requests(), indent=2))
+            proxy.__exit__(None, None, None)
+
+
+def run_unchanged(
+    show: Callable[[dict[str, Any]], str], observe: Callable[[], dict[str, Any]]
+) -> dict[str, Any]:
+    directory = Path("unchanged-world")
+    with World.create(directory, seed=23, now=1700000000) as world:
+        world.create_user(first_name="Sara", language_code="fa")
+        world.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
+        world.open_private_chat(user_id=1, bot_id=2)
+        world.send_photo(
+            chat_id=1,
+            sender_id=2,
+            photo={"type": "photo", "media": "attach://photo"},
+            uploads={"photo": Path("photo-square-16x16.png").read_bytes()},
+            caption="PNG ordinary / تصویر معمولی",
+        )
+        capability = world.issue_client_token(1)
+        world_id = world.world_id
+        snapshot = world.client_snapshot(1, version=3)
+    for stage in ("initial", "restart"):
+        with ClientBridge(directory) as bridge:
+            show(
+                {
+                    "stage": stage,
+                    "endpoint": bridge.base_url,
+                    "capability": capability,
+                    "world_id": world_id,
+                    "user_id": 1,
+                    "bridge_version": 3,
+                }
+            )
+            if stage == "restart":
+                result = observe()
+    with World.open(directory) as world:
+        restarted = world.client_snapshot(1, version=3)
+    value = {"snapshot": snapshot, "restarted_snapshot": restarted, "client": result}
+    if capability in json.dumps(value):
+        raise RuntimeError("Unchanged-photo evidence contains a capability")
+    return value
 
 
 if __name__ == "__main__":
