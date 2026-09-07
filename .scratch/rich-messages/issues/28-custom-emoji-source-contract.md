@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: answered
 Blocked by: none for research; asset/API architecture remains subject to consultation
 
 Research worker owns only this ticket and `docs/development/custom-emoji-references.md`, on
@@ -32,3 +32,10 @@ the agreed fidelity target and original renderer. Send decisive findings early.
 Validate links/privacy/diff and commit only owned files, returning a clean frozen branch with
 source-evidence limits and terminal resources. No compilation or runtime tests are needed for
 a research-only document.
+
+## Answer
+
+Pinned findings are recorded in
+[`docs/development/custom-emoji-references.md`](../../../docs/development/custom-emoji-references.md).
+The boundary requires both entity support and a resolvable Android `Document`/media projection;
+synthetic admission must remain explicitly separate from production Telegram entitlement.
