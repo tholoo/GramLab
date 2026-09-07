@@ -121,3 +121,13 @@ a separately reviewed explicit app-private observation request may be needed fro
 This experiment does not establish atomic observation/touch, duplicate/nested/RTL/general targets,
 copy/disabled input or a public API. No guest, build, full gate or network acquisition ran in this
 worker. All worker check processes are terminal. Keep this ticket claimed until native acceptance.
+
+## First integrated native trial
+
+The normal-APK missing-observer trial stops before reaching the intended observer rejection.
+Original PNG inspection shows both rich buttons rendered, but their labels are absent from the
+original accessibility XML. Waiting for `Inline action` is therefore an invalid scene predicate.
+This is a harness failure, not missing rendering or valid missing-observer red. Retained taps and
+world callbacks remain empty. Add an ordinary plain-text anchor beside the inline button and use
+that anchor for readiness/capture checks; retain the two native button identities and all actual
+geometry/action assertions. Rerun the intended negative trial before experimental input.
