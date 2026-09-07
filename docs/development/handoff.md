@@ -124,8 +124,9 @@ correctly converts to one ASCII space. A new real World-boundary check reproduce
 mismatch in 0.22 seconds without a guest. The corrected canonical fixture passes alongside the
 real-bot case (two tests in 1.96 seconds), and the complete retained native catalog matches it.
 Production code and the normal APK are unchanged. [Ticket 20](../../.scratch/rich-messages/issues/20-canonical-catalog-regression.md)
-tracks the correction. Retain the 19 unaffected passing cases, then run the failed and unexecuted
-cases on the same immutable normal APK. Do not call the stopped gate a complete pass.
+tracks the correction. The 19 unaffected passing cases are retained, and the failed plus 21
+unexecuted cases are now running on the same immutable normal APK. Exact collected node IDs and
+the retained JUnit define that partition. Do not call the stopped gate a complete pass.
 
 The ticket 19 input harness is frozen and independently reviewed without a blocking source
 finding; its real-bot simulation and scoped static checks pass. Its shared-probe hooks remain on
@@ -138,11 +139,12 @@ review and merge frozen workers before the native experiment, and do not infer p
 support from preparation evidence.
 
 The [startup diagnostics worker](../../.scratch/developer-tooling/issues/07-guest-startup-diagnostics.md)
-has initial passing real-process collector checks and is addressing coordinator review follow-ups:
-retain elapsed probe time on failures, prove draining beyond pipe capacity after the output cap,
-and handle child exit during cleanup. This work stays on its worker branch until the normal gate
-finishes. Its actual guest applicability remains unverified; no startup cause or parallel Android
-scheduling fix is claimed.
+is frozen and reviewed after passing five real-process tests and scoped static checks. Failed
+extra probes retain elapsed time, an 8 MiB controlled emitter proves draining beyond pipe capacity
+after the output cap, and cleanup handles child exit during termination while checking reader
+shutdown. The finite system-tag list includes UWB tags observed in retained logs. This work stays
+on its worker branch until the normal gate's remaining scope finishes. Actual guest applicability
+remains unverified; no startup cause or parallel Android scheduling fix is claimed.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays
