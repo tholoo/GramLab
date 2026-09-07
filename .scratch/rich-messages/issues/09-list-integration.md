@@ -10,6 +10,9 @@ public capture/button tests, a reusable real HTTP list example, native rendering
 shared documentation and combined verification. Integrate the frozen core/native branches
 under the parallel-work workflow before using their behavior.
 
+The coordinator delegates examples/rich_lists/ and tests/test_runner_rich_lists.py to the
+worker on ticket 10. This keeps example/simulation work independent of native build and probe work.
+
 Follow the pinned rich-list contract. Visit items[].blocks recursively in item order;
 labels, values, checkbox metadata and empty items cannot identify readable message text.
 Preserve closed-details visibility rules for native inline targeting. Establish a public

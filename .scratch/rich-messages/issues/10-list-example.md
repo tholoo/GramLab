@@ -1,0 +1,34 @@
+# Reusable list bot and shared capture/callback scenario
+
+Type: task
+Status: ready-for-agent
+Work state: open
+Blocked by: none
+
+Worker owns examples/rich_lists/ (new), tests/test_runner_rich_lists.py (new), and this ticket.
+Coordinator delegates these paths from the integration ticket and retains production walkers,
+native probes, builds, shared docs and combined verification. Follow the pinned list contract.
+
+Provide a portable standard-library HTTP bot and a public Scenario consumer that run in both
+simulation-only and headless Android modes. Keep input fixtures independent of canonical expected
+output: output-only labels must never be resubmitted. Use concise content that fits the existing
+320 x 640 profile, with list-only readable identity so missing native item traversal is observable.
+Exercise nested unordered/ordered content, all five ordered label types across send/edit, both
+checkbox states, an empty item, mixed Persian/English text, wrapping and RTL edit. Use an actual
+inline callback to perform the edit; verify complete callback message content and answer. Capture
+before input, live edit and a cold reopen through the public capture API. No production toggle or
+new API is assigned. The coordinator separately verifies bot-owned checkbox input cannot mutate.
+
+Host tests must assert full expected canonical histories/captures/events, real Bot API send/edit,
+callback correctness, unchanged semantic results across modes, and native evidence/isolation/report
+metadata where applicable. Include a native ambiguity rejection case for identical readable list
+content with differences only in label/value/checkbox/empty-item metadata, including an offscreen
+duplicate. A collapsed-details descendant must not supply native identity. Preserve order of
+readable fragments. Expected values must be independently authored, not computed by the validator.
+
+Use existing example/test conventions. Run focused simulation tests and scoped lint/format/mypy
+under the documented outer network guard. Do not run guests or build an APK: the coordinator owns
+native red/green on the integrated build. Retain meaningful missing-feature red if available;
+existing integrated core/list capture support is already implemented, so do not invent a red for
+an example-only change. Commit a frozen clean branch; leave ticket claimed until integrated native
+acceptance. Report pending native checks explicitly.
