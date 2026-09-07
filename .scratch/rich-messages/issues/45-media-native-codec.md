@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: normal17 APK for coordinator execution
 
 Own new `tests/probes/android_media_codec.py`, `tests/test_android_media_codec.py`, and this ticket.
@@ -23,3 +23,19 @@ Read AGENTS.md, handoff, TESTING.md, offline safety and parallel workflow. Run o
 Ruff/format/mypy and collection with checkout import preflight, no guest or build. Return frozen
 clean committed handoff and exact terminal-resource/static-only evidence. Runtime checks and
 source/fidelity conclusions remain coordinator-owned.
+
+## Worker evidence
+
+The bounded app-process probe and 28-case oracle are authored on `task/media-native-codec`:
+four accepted snapshots cover non-media baseline, ordinary PNG with caption entity, repeated rich
+JPEG with text/credit caption and mixed ordinary/rich messages; 24 rejected snapshots cover every
+missing descriptor field, extra fields, unsupported MIME, size/dimension/digest bounds, ordering,
+duplicates, missing/unknown message asset IDs and version-2 media. Expected native photo descriptors
+retain positive asset/volume IDs and local ID 1 through serialization as required by the frozen
+contract. Each subprocess record is preserved. Invalid JSON/crashes are represented separately by
+the probe and cannot satisfy the structured exit-2 rejection oracle.
+
+Scoped Ruff format/check, mypy and pytest collection pass with the assigned checkout import. This
+is static authoring evidence only. The worker did not build an APK or start a guest. Coordinator
+execution against normal17 is expected to expose the already observed upstream PhotoSize
+serialization mismatch; the oracle deliberately does not accept negative reconstructed locations.
