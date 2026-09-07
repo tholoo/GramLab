@@ -27,3 +27,13 @@ live edit/cold restart, source preservation, account-free guest isolation and re
 The coordinator owns shared docs, APK/guest work, combined checks and integration; worker files
 and the native follow-up ticket are to be assigned after reproduction. No renderer rewrite,
 new entity type, schema version or photo storage/delivery change is authorized by this ticket.
+
+## Reproduction
+
+The coordinator's pinned, network-isolated public World check fails as expected on the current
+implementation with `ValueError: Code entities cannot overlap other formatting`. Its independent
+input is `Q\ncode\nZ`, an ordinary blockquote at UTF-16 offset 0/length 8, and code at offset
+2/length 4. It expects a complete message and persisted history; the exception occurs at entity
+validation before insertion. The process is terminal with exit status 1 and its original log is
+retained in ignored artifacts. No production code has changed yet. The pinned source contract is
+linked from [the HTML findings](../../../docs/development/html-formatting-references.md#gramlab-boundary-and-next-evidence).

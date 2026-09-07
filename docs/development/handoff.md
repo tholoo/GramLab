@@ -23,12 +23,16 @@ offline safety, licensing and completion requirements before the corresponding a
   immutable bytes and authenticated delivery through original Android FileLoader. Source research
   and independently decoded original PNG fixtures are merged. Asset storage, file APIs and native
   media delivery are absent. A goal continuation alone is not approval of these decisions.
-- Independent ordinary HTML formatting research is assigned in
-  [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md). The existing Bot API
-  rejects parse modes. Inspect parser output and later normalization against pinned sources before
-  implementing; feeding overlapping parsed entities directly into the current strict nine-type
-  validator may not match Telegram. Current integration points are `bot_api.py`, `entities.py` and
-  World send/edit. Existing [explicit formatting](formatted-text.md) already reaches Android.
+- Pinned [HTML formatting research](html-formatting-references.md) is integrated and
+  [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
+  still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
+  are distinct stages; feeding raw HTML entities into the existing validator is insufficient.
+- Next correct [quoted code/pre entities](../../.scratch/rich-messages/issues/26-quoted-code-entities.md):
+  pinned TDLib admits code/pre inside quotes, while a real public World reproduction rejects it.
+  The GPL bridge repeats that rejection. Freeze core/native ownership, retain equal-range ordering
+  and malformed/ancestor rejection checks, then prove original rendering/edit/restart. This fixes
+  existing formatting independently of HTML and the pending photo design; it does not complete
+  either feature. Current integration points are `entities.py`, World send/edit and GPL validation.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
   before consequential targeting/navigation changes.
