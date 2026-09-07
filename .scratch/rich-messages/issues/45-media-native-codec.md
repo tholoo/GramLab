@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: normal17 APK for coordinator execution
 
 Own new `tests/probes/android_media_codec.py`, `tests/test_android_media_codec.py`, and this ticket.
@@ -23,3 +23,33 @@ Read AGENTS.md, handoff, TESTING.md, offline safety and parallel workflow. Run o
 Ruff/format/mypy and collection with checkout import preflight, no guest or build. Return frozen
 clean committed handoff and exact terminal-resource/static-only evidence. Runtime checks and
 source/fidelity conclusions remain coordinator-owned.
+
+## Worker evidence
+
+The bounded app-process probe and 28-case oracle are authored on `task/media-native-codec`:
+four accepted snapshots cover non-media baseline, ordinary PNG with caption entity, repeated rich
+JPEG with text/credit caption and mixed ordinary/rich messages; 24 rejected snapshots cover every
+missing descriptor field, extra fields, unsupported MIME, size/dimension/digest bounds, ordering,
+duplicates, missing/unknown message asset IDs and version-2 media. Expected native photo descriptors
+retain positive asset/volume IDs and local ID 1 through serialization as required by the frozen
+contract. Each subprocess record is preserved. Invalid JSON/crashes are represented separately by
+the probe and cannot satisfy the structured exit-2 rejection oracle.
+
+Scoped Ruff format/check, mypy and pytest collection pass with the assigned checkout import. This
+is static authoring evidence only. The worker did not build an APK or start a guest. Coordinator
+execution against normal17 is expected to expose the already observed upstream PhotoSize
+serialization mismatch; the oracle deliberately does not accept negative reconstructed locations.
+Snapshot construction deep-copies messages and assets so malformed-case mutations cannot alter the
+valid rich inputs or expected output. Two independent inventory constructions retain rich asset IDs
+`[2, 2]` and compare identically.
+
+Coordinator integration corrected test-data aliasing, retained the existing rich-data error code
+for unknown rich fields, and fixed the synthetic capability to the established 43-character
+suffix grammar. The first codec run rejected configuration before content decoding; its 28
+attempts are retained as a fixture failure, not evidence about media serialization or rejection.
+A corrected run remains required.
+
+Corrected native run on normal18 completes all 28 attempts: all four valid full-output
+comparisons and 16 malformed rejections match. Eight missing-field cases terminate app_process
+with exit 137 and no JSON. This is a native rejection defect, not a passing suite. Positive
+photo/volume IDs and local ID 1 survive ordinary/rich serialization after patch 0018.

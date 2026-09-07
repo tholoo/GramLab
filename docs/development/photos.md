@@ -2,8 +2,9 @@
 
 The first photo profile accepts PNG and JPEG through `sendPhoto` and rich photo blocks.
 Seventeen focused World, HTTP, bridge, contained real-bot and public capture checks pass.
-The legacy migration fixtures required a correction to restore historical callback journal events;
-combined core verification is pending. The original Android media adapter compiles offline; native
+All 471 non-Android tests pass at 81.71% coverage after restoring missing historical callback
+events in the migration fixtures. The original Android media adapter compiles offline; its first
+native run exposed a serialized-location defect. The corrected adapter also compiles, and native
 runtime acceptance remains pending. This page does not claim completed Android photo support. The [shared contract](media-implementation-contract.md) defines
 the precise limits and bridge fields.
 

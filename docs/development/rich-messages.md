@@ -51,6 +51,12 @@ combined native acceptance remains in progress. This support does not enable nav
 | `details` | RichText `summary`, `blocks` | boolean `is_open` |
 | `list` | non-empty `items` array | — |
 | `buttons` | array of 1–8 buttons | `align`: left, center or right |
+| `photo` | `photo` input containing type `photo` and attachment/reusable `media` | RichBlockCaption `caption` with `text` and `credit` RichText |
+
+[Local photos](photos.md) support PNG/JPEG upload and reuse in core/API and public captures.
+Original native photo acceptance remains in progress; caption text in a simulation is not image
+rendering evidence. Photo block input, public API output and stored asset references have distinct
+shapes, as specified in the [media contract](media-implementation-contract.md).
 
 Rich buttons use the [callback/copy/disabled contract](rich-buttons-contract.md). An inline
 RichText button has `type: "button"` and a `button` object; row and inline buttons share plain
