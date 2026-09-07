@@ -163,3 +163,19 @@ Rich progress/icon are null because original public getters do not expose them. 
 its existing ordinary-photo path. Native geometry/guard/late-completion acceptance remains in
 [ticket 53](../../../.scratch/rich-messages/issues/53-rich-photo-observation.md) and
 [ticket 55](../../../.scratch/rich-messages/issues/55-rich-photo-late-completion.md).
+
+
+`0024-local-custom-emoji.patch` adds the opt-in v4 neutral catalog and document lookup adapter.
+It projects original ID-based ordinary/caption entities and recursive rich/button emoji leaves,
+then resolves original Documents only on the original request path. Response-local dependencies
+validate before publication; retained metadata supports original cached Documents without
+preseeding the original memory/SQLite caches. Static WebP and VP9 WebM use the shared authenticated
+complete-file transfer lifecycle. Reserved document DC -1 and layer127 thumbnail local ID 2
+preserve separate logical/asset IDs and cache keys through original TL serialization. Offline
+lookup failure releases only the failed callback owner without invoking null or retrying.
+
+The eight-source patch applies to the normal23 input with zero fuzz/offsets and exact private
+output matches. Scoped Python checks and collection pass for the independently authored batched
+codec matrix; APK compilation, the actual codec results, rendering, transfer faults and original
+resolver cold-restart recovery remain coordinator-owned acceptance. See
+[ticket 58](../../../.scratch/rich-messages/issues/58-custom-emoji-native.md).
