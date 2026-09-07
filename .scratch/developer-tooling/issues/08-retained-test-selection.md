@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by retained-test-selection on task/retained-test-selection
 Blocked by: none
 
 The rich-button Android gate stopped after 19 passing cases because an older catalog expectation
@@ -39,3 +39,21 @@ offline shell. Preserve worker-local environments and caches. Coordinator owns s
 lists, global handoff, acceptance against the real retained gate and integration. No guest, build,
 network, profile, timeout or automatic retry changes are assigned. Commit only owned files and
 return a frozen clean branch with exact evidence and remaining limits.
+
+## Worker evidence
+
+`--collected-nodeids` now validates a nonempty JSON array and maps supported pytest module/function
+and single test-class node IDs to the already validated JUnit identities. Parameter text,
+including dots, brackets and `::`, is retained literally. Duplicate collections, unsupported node
+shapes, normalized identity collisions and report cases absent from the collection reject before a
+selection is emitted. The selection preserves the original order, retains only observed passing
+cases and leaves failures, errors, skips and absent cases in the complete remaining list. Its counts
+and lists are independent of the display limit. Without the option, the existing output shape and
+timing behavior remain unchanged.
+
+All 27 focused real CLI tests pass. They include class and parameter identities, a partial report,
+all nonpassing outcomes, absent and zero observed cases, input ordering, duplicate/empty/malformed
+collections, ambiguous normalized identities, sanitized mismatches and the existing XML/DTD
+rejections. Scoped Ruff lint/format and strict mypy for the command pass. No guest, build, full gate,
+pytest execution inside the tool, network access or profile change was used. Coordinator acceptance
+against the retained 41-node collection and 19-pass/22-remaining partition is still pending.
