@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by rich-list-native on task/rich-list-native
+Work state: resolved after coordinator integration
 Blocked by: none
 
 ## Ownership and interface
@@ -104,3 +104,9 @@ No APK build, compiled Java verification, positive native list run, real-bot sen
 list screenshot review or full Android gate was performed by this worker. These are explicitly
 coordinator-owned next steps under the verification split above. Update global compatibility,
 patch-queue documentation and handoff only after those integration outcomes are observed.
+
+Coordinator acceptance: the serial list-inclusive Android gate passes all 38 cases without skips
+in 2,362.99 seconds. The full core gate passes 326 tests at 80.52% coverage; scoped/full static
+checks, workflow validation, installed-wheel scenario and original report review pass. This closes
+the bounded list work; the separately tracked rich-text normalization correction and wider
+rich-action/media inventory remain open.

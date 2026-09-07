@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved after coordinator integration
 Blocked by: none
 
 Worker owns tests/probes/android_effects.py and this ticket only. Coordinator owns the host test,
@@ -57,3 +57,9 @@ account and guest-isolation evidence, the wrapping unsent draft, and the origina
 `LiquidGlassEffect.update` breakpoint. Visual review found the expected opaque baseline,
 translucent blur, glass variation and opaque restoration with complete bilingual content. No APK,
 renderer, defaults, timeout, retry or runtime-network behavior changed.
+
+The list-inclusive combined Android gate passes all 38 cases without skips. Its effects case
+passes in 132.683 seconds with the integrated list-capable APK, all four original phases, original
+shader evidence and 20 navigation captures. The coordinator reviewed all four new phase images.
+The preceding effects case took 175.800 seconds; this is an observed difference under uncontrolled
+load, not a causal benchmark. The bounded observation reduction is accepted.

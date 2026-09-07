@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved after coordinator integration
 Blocked by: none
 
 Assigned to: `task/rich-list-core`
@@ -66,3 +66,9 @@ complete two-file focused set passes 81 cases with the pre-existing Unicode prop
 that unchanged case separately exceeds its 200 ms Hypothesis deadline at about 243–248 ms while the
 coordinator's Android gate is running. Scoped Ruff lint/format and mypy for the changed source pass.
 No Android, native, full-core, guest, APK, or shared-document gate was run by this worker.
+
+Coordinator acceptance: the serial list-inclusive Android gate passes all 38 cases without skips
+in 2,362.99 seconds. The full core gate passes 326 tests at 80.52% coverage; scoped/full static
+checks, workflow validation, installed-wheel scenario and original report review pass. This closes
+the bounded list work; the separately tracked rich-text normalization correction and wider
+rich-action/media inventory remain open.

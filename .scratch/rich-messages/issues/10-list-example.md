@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved after coordinator integration
 Blocked by: none
 
 Worker owns examples/rich_lists/ (new), tests/test_runner_rich_lists.py (new), and this ticket.
@@ -75,3 +75,9 @@ acceptance. Report pending native checks explicitly.
   semantics. The separate direct checkbox case reports a cold-launch timeout in that trial, then
   passes alone with unchanged settings. Parallel scheduling remains unaccepted. The combined
   gate will run serially; final negative-fixture and combined acceptance remain pending.
+
+Coordinator acceptance: the serial list-inclusive Android gate passes all 38 cases without skips
+in 2,362.99 seconds. The full core gate passes 326 tests at 80.52% coverage; scoped/full static
+checks, workflow validation, installed-wheel scenario and original report review pass. This closes
+the bounded list work; the separately tracked rich-text normalization correction and wider
+rich-action/media inventory remain open.

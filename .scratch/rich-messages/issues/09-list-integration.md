@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by coordinator
+Work state: resolved after coordinator integration
 Blocked by: none
 
 Coordinator owns public traversal in src/gramlab/_captures.py and src/gramlab/_android.py,
@@ -71,3 +71,9 @@ the three-image public report and five-image checkbox report passes at desktop/m
 all original 320 x 640 images load, with no page overflow or external resource requests. The
 coordinator-owned preview is stopped and its browser tab closed. The 38-case serial combined
 Android gate is running; final acceptance remains pending.
+
+Coordinator acceptance: the serial list-inclusive Android gate passes all 38 cases without skips
+in 2,362.99 seconds. The full core gate passes 326 tests at 80.52% coverage; scoped/full static
+checks, workflow validation, installed-wheel scenario and original report review pass. This closes
+the bounded list work; the separately tracked rich-text normalization correction and wider
+rich-action/media inventory remain open.
