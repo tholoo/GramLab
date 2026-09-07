@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Worker owns tests/probes/android_effects.py and this ticket only. Coordinator owns the host test,
@@ -30,3 +30,30 @@ is not a measured speedup. Use the real probe, not a synthetic stopwatch test.
 Commit only owned changes and return a frozen clean branch with exact verification, timing and
 artifact evidence. Keep the ticket claimed for coordinator acceptance. This optimization does
 not change the broader product fidelity target or turn an uncontrolled run into a benchmark.
+
+## Comments
+
+- Claimed on `task/effects-probe-cost` at base
+  `c6d30587d67c400b7151585c0728ef4df361544c`. The worker owns only this ticket and
+  `tests/probes/android_effects.py`. Acceptance retains every phase and semantic assertion while
+  reusing a UI tree only until the next input invalidates it.
+
+## Answer
+
+The settings helpers now pass the current observed tree and its validated target bounds through
+lookups until an input invalidates that state. Every launch, notification dismissal, swipe and tap
+still has a following observation, and missing, ambiguous or unchanged controls still fail.
+
+The retained focused baseline recorded 174.300 seconds for the test call and 174.43 seconds for
+the suite; the integrated gate recorded 175.800 seconds for the same case. The focused guarded run
+after this change passed in 159.03 seconds (158.889-second call) with the same pinned APK digest.
+Navigation evidence fell from 39 captures (38 settings plus one shader precondition) to 20 (19
+settings plus the shader precondition). Differing host load makes the lower elapsed time an
+observation, not a controlled speedup claim.
+
+Ruff lint/format and strict mypy passed. The actual host test retained all four original PNG/XML
+phases, complete equal history, cold launches, checked-state and preference transitions, battery,
+account and guest-isolation evidence, the wrapping unsent draft, and the original main-thread
+`LiquidGlassEffect.update` breakpoint. Visual review found the expected opaque baseline,
+translucent blur, glass variation and opaque restoration with complete bilingual content. No APK,
+renderer, defaults, timeout, retry or runtime-network behavior changed.

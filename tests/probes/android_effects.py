@@ -60,9 +60,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         left, top, right, bottom = map(int, match.groups())
         return left, top, right, bottom
 
-    def find_text(text: str) -> ET.Element:
+    def find_text(text: str, tree: ET.Element) -> tuple[ET.Element, ET.Element]:
         for attempt in range(5):
-            tree = observe()
             found = []
             for node in tree.iter("node"):
                 if node.get("text") != text:
@@ -71,18 +70,20 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 if 0 <= left < right <= 320 and 80 <= top < bottom <= 600:
                     found.append(node)
             if len(found) == 1:
-                return found[0]
+                return found[0], tree
             if len(found) > 1:
                 raise RuntimeError("Native setting text is ambiguous")
             if attempt != 4:
                 adb("shell", "input", "swipe", "170", "540", "170", "280", "400")
+                tree = observe()
         raise RuntimeError("Native setting is unavailable: " + text)
 
-    def tap_text(text: str) -> None:
-        left, top, right, bottom = bounds(find_text(text))
+    def tap_text(text: str, tree: ET.Element) -> None:
+        node, _ = find_text(text, tree)
+        left, top, right, bottom = bounds(node)
         adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
-    def settings() -> None:
+    def settings() -> ET.Element:
         adb(
             "shell",
             "am",
@@ -102,13 +103,16 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             tree = observe()
             if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
                 raise RuntimeError("Original notification sheet did not dismiss")
-        tap_text("Power Saving")
-        tap_text("Animations in Chats")
-
-    def set_flag(label: str, enabled: bool) -> dict[str, str]:
-        # Locate the currently visible row before deciding whether one input is necessary.
-        find_text(label)
+        power_saving, tree = find_text("Power Saving", tree)
+        left, top, right, bottom = bounds(power_saving)
+        adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
         tree = observe()
+        tap_text("Animations in Chats", tree)
+        return observe()
+
+    def set_flag(label: str, enabled: bool, tree: ET.Element) -> tuple[dict[str, str], ET.Element]:
+        # Locate the currently visible row before deciding whether one input is necessary.
+        target, tree = find_text(label, tree)
         nodes = [
             node
             for node in tree.iter("node")
@@ -118,8 +122,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             raise RuntimeError("Native effects checkbox is ambiguous or unavailable")
         desired = str(enabled).lower()
         if nodes[0].get("checked") != desired:
-            tap_text(label)
-        tree = observe()
+            left, top, right, bottom = bounds(target)
+            adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+            tree = observe()
         checked = [
             node
             for node in tree.iter("node")
@@ -127,7 +132,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         ]
         if len(checked) != 1 or checked[0].get("checked") != desired:
             raise RuntimeError("Native effects setting did not reach requested state")
-        return dict(checked[0].attrib)
+        return dict(checked[0].attrib), tree
 
     def preferences() -> dict[str, Any]:
         result = guest("shell", "run-as", PACKAGE, "cat", "shared_prefs/mainconfig.xml")
@@ -318,10 +323,12 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 ("glass", True, True),
                 ("restored", False, False),
             ):
-                settings()
+                tree = settings()
+                selected_blur, tree = set_flag("Blur", blur, tree)
+                selected_glass, tree = set_flag("Liquid Glass", glass, tree)
                 selected[name] = {
-                    "blur": set_flag("Blur", blur),
-                    "glass": set_flag("Liquid Glass", glass),
+                    "blur": selected_blur,
+                    "glass": selected_glass,
                 }
                 capture_chat(name)
                 if name == "glass":
