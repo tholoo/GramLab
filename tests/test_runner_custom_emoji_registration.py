@@ -1,9 +1,9 @@
 """Contained scenarios register static and animated custom emoji through public control."""
 
 import json
+import subprocess
+import sys
 from pathlib import Path
-
-from test_runner import invoke, project
 
 SCENARIO = r"""import os
 from pathlib import Path
@@ -39,19 +39,28 @@ print("Custom emoji registration verified")
 
 
 def test_contained_runner_registers_static_and_animated_custom_emoji(tmp_path: Path) -> None:
-    manifest = project(tmp_path / "project", SCENARIO)
+    project = tmp_path / "project"
+    project.mkdir()
+    manifest = project / "run.toml"
     manifest.write_text(
-        manifest.read_text().replace(
-            'files = ["scenario.py"]',
-            'files = ["scenario.py", "emoji-static.webp", "emoji-animated.webm", '
-            '"emoji-thumbnail.webp"]',
-        )
+        'schema = 1\nseed = 7\nnow = 1700000000\ntimeout = 10\n'
+        '[scenario]\nentry = "scenario.py"\n'
+        'files = ["scenario.py", "emoji-static.webp", "emoji-animated.webm", '
+        '"emoji-thumbnail.webp"]\n'
+        '[bots.echo]\nentry = "bot.py"\nfiles = ["bot.py"]\n'
     )
+    (project / "scenario.py").write_text(SCENARIO)
+    (project / "bot.py").write_bytes(Path("tests/fixtures/echo_bot.py").read_bytes())
     fixture = Path("tests/assets/custom-emoji")
     for name in ("emoji-static.webp", "emoji-animated.webm", "emoji-thumbnail.webp"):
         (manifest.parent / name).write_bytes((fixture / name).read_bytes())
     output = tmp_path / "run"
-    result = invoke(manifest, output)
+    result = subprocess.run(  # noqa: S603 — actual CLI in the enclosing network guard
+        [sys.executable, "-m", "gramlab", "run", str(manifest), "--output", str(output)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert result.returncode == 0, (
         (output / "result.json").read_text() if output.exists() else result.stderr
     )
