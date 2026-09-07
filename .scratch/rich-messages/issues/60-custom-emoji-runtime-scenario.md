@@ -3,7 +3,7 @@
 Type: feature
 Status: ready-for-agent
 Work state: claimed
-Blocked by: ticket 59 for complete scenario registration acceptance
+Blocked by: ticket 62 and original Android v4 acceptance
 
 Coordinator owns Nix runtime/development provisioning, `runtime.py`, runner/CLI, `_android.py`,
 `_run.py`, `_control.py`, `scenario.py`, new runtime-selection/scenario tests and shared docs.
@@ -33,7 +33,8 @@ These local samples establish removal of added mount overhead, not a general per
 All 49 affected runner/runtime checks then pass in 12.89 seconds with four workers; the final
 enhanced nine-case selection passes in 1.26 seconds. Original failed evidence is preserved.
 
-Scenario boundary red currently has two expected failures (missing registration method and missing
-route) and two existing wrong-operation rejections. SDK/control implementation and complete
-registration acceptance remain in progress with ticket 59. Do not claim a working catalog from
-decoder provisioning or ordinary runner tests.
+Scenario boundary red had two expected failures (missing registration method and missing route)
+and two existing wrong-operation rejections. The integrated SDK/control now passes all four
+actual HTTP checks, including a registration larger than the ordinary route limit, exact descriptor,
+reopen/idempotent retry and conflict rejection. Scoped Ruff and strict typing pass. Ticket 62 owns
+stronger dropped-response/framing/contained-runner acceptance; native v4 rendering is still pending.

@@ -90,11 +90,21 @@ offline safety, licensing and completion requirements before the corresponding a
 - [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
   rejects another worktree's editable package before test collection. Always provision through
   the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
+- [Local custom emoji](custom-emoji.md) now has integrated schema-7 immutable catalog, public
+  Bot API lookup/download, atomic retained grants and v4 dependencies. Focused integrated checks
+  pass 30 media, 31 catalog/API, 31 native request-proxy and four initial scenario cases. The
+  original source predicate has pinned BSL provenance. Stronger catalog isolation and dropped-response/
+  contained-runner tests are in parallel review; the observed integer-ID document-route admission
+  mismatch is being corrected under ticket64. The latest combined core gate above predates this
+  batch. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
+  a probe-only FileLoader-thread exit correction; original red and diagnostic evidence are retained.
+  Actual static rendering, transparent animation, cache reuse and fault recovery remain open.
+  Ticket63 supplies the compact real-bot fixture and ticket65 owns original UI acceptance.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
   The synthetic catalog and shared delivery direction are approved; freeze exact schemas and
-  verify resolution/failure behavior during implementation. No runtime custom-emoji support is claimed.
+  verify resolution/failure behavior during implementation. See the newer catalog/codec checkpoint above; native rendering is still unproven.
   The [concrete catalog proposal](custom-emoji-proposal.md) preserves caller-selected IDs and
   message fallback text, separates bot file identities from recipient document/media access,
   and requires transparent VP9 WebM. Original WebP/WebM fixtures are integrated with independent

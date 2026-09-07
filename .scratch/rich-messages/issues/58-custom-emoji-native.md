@@ -83,3 +83,20 @@ unknown/mixed callback cleanup and explicit cold-restart recovery. More than 200
 original resolver request rejects at the frozen request bound; no batching/automatic retry policy
 is invented. Runtime streaming is explicitly unsupported for reserved local files. Source checks
 do not establish decoder behavior, absence of a native cache write, or UI recovery.
+
+## Coordinator native codec checkpoint
+
+The first offline compile exposed pinned MessageEntity subtype/Vector constructor mismatches;
+coordinator corrections preserve the contract. The next native run timed out after the first
+metadata case. A two-case unchanged-APK diagnostic retained the full correct document JSON before
+the timeout, and source review traced process liveness to FileLoader's original non-daemon queue.
+The one-shot BridgeProbe now flushes and exits after successful output; application rendering and
+loader lifetime are unchanged. Timeout diagnostics retain partial output for future failures.
+
+The rebuilt normal24 APK passes all 99 authored native cases (13 positive, 86 rejected) in one
+144.279-second guest test, with zero skips and unchanged source/APK/profile/probe fingerprints.
+Each case uses a fresh app_process; full document serialization, thumbnail keys, ordinary/rich
+entities and exact response dependency failures match independent literals. Original red build,
+timeout and diagnostic evidence remain retained. No UI rendering or playback follows from this
+codec result. Ticket65 owns the initial original real-bot rendering/cache lifecycle; fault and
+resolver cleanup acceptance plus wider native regression remain open here.

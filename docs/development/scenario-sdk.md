@@ -28,13 +28,14 @@ integration harness or consumer runner starts that separate process. With the ru
 `scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes seventeen operations:
+The interface exposes eighteen operations:
 
 | Method | Effect or result |
 | --- | --- |
 | `create_user` | Create a virtual participant or bot identity |
 | `open_private_chat` | Open the existing private user/bot conversation model |
 | `send_message` | Create a synthetic message, including supported entities/keyboard fields |
+| `register_custom_emoji` | Register immutable local WebP/WebM bytes with a durable request ID |
 | `advance_time` | Advance the explicit world clock by integer seconds |
 | `history` | Read one chat's complete message history |
 | `snapshot` | Read world metadata, participants and chats |
@@ -99,7 +100,10 @@ capability/world identity. It defensively requires loopback-only interfaces, ign
 proxy variables, follows no redirects and has no external fallback. The enclosing private
 runtime remains the actual isolation mechanism.
 
-Requests are UTF-8 JSON, limited to 65,536 bytes before transmission. Responses require a single
+Ordinary requests are UTF-8 JSON, limited to 65,536 bytes before transmission. Custom-emoji
+registration uses a dedicated authenticated route capped at 1 MiB including base64 media, with
+separate decoded media bounds and a default 30-second socket timeout. See [local custom emoji](custom-emoji.md)
+for formats, logical IDs, retry semantics and current verification limits. Responses require a single
 bounded length, JSON content type, exact envelope/version/world identity and the expected top-level
 result shape. Duplicate members, invalid UTF-8, non-finite numbers, excessive nesting and malformed
 or oversized bodies are rejected. The response limit is 16 MiB. This is protocol validation, not
