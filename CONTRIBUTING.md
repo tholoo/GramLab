@@ -78,6 +78,7 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
+uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py
 uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
   tests/test_android_quoted_code.py tests/probes/quoted_code_round_trip.py \
   tests/probes/android_quoted_code.py tests/probes/android_quoted_code_codec.py \

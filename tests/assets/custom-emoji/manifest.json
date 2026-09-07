@@ -1,0 +1,68 @@
+{
+  "fixtures": [
+    {
+      "alpha": true,
+      "codec": "vp9",
+      "duration_seconds": 1.0,
+      "filename": "emoji-animated.webm",
+      "frames": 4,
+      "height": 100,
+      "mime": "video/webm",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "1ecead5fa57be35ec556025eb07f3a83f561b57d6c15c2732fd646223a9721d2",
+      "valid": true,
+      "width": 100
+    },
+    {
+      "alpha": true,
+      "codec": "webp",
+      "filename": "emoji-static.webp",
+      "height": 100,
+      "mime": "image/webp",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+      "valid": true,
+      "width": 100
+    },
+    {
+      "alpha": true,
+      "codec": "webp",
+      "filename": "emoji-thumbnail.webp",
+      "height": 16,
+      "mime": "image/webp",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+      "valid": true,
+      "width": 16
+    },
+    {
+      "codec": "vp9",
+      "filename": "emoji-truncated-invalid.webm",
+      "mime": "video/webm",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "bcea6f911f6773c77b624b5558cb38b466043ac9aea7264d936e46b0c5fef513",
+      "valid": false
+    }
+  ],
+  "generator_profile": {
+    "ffmpeg": "ffmpeg version 6.1.6 Copyright (c) 2000-2026 the FFmpeg developers",
+    "libavcodec": "60.31.102",
+    "libvpx": "enabled; exact library revision unavailable from selected executable",
+    "libwebp": "enabled; exact library revision unavailable from selected executable",
+    "reproducibility": "byte-identical under this recorded encoder profile; other versions may differ",
+    "webm_flags": "fflags=+bitexact libvpx-vp9 lossless=1 yuva420p flags:v=+bitexact deadline=good cpu-used=0 row-mt=0 tile-columns=0 frame-parallel=0 threads=1",
+    "webp_flags": "libwebp bgra lossless=1 compression_level=6 threads=1"
+  }
+}

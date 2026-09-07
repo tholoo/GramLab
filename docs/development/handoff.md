@@ -64,8 +64,10 @@ offline safety, licensing and completion requirements before the corresponding a
   custom-emoji support is claimed.
   The [concrete catalog proposal](custom-emoji-proposal.md) preserves caller-selected IDs and
   message fallback text, separates bot file identities from recipient document/media access,
-  and requires transparent VP9 WebM. Original WebP/WebM fixture preparation is assigned to an
-  isolated worker; the catalog and shared media architecture remain unapproved.
+  and requires transparent VP9 WebM. Original WebP/WebM fixtures are integrated with independent
+  browser decoding, exact lossless WebP colors, four transparent video frames and a one-second
+  duration. Initial color/duration failures are preserved. The catalog and shared media
+  architecture remain unapproved; fixture decoding is not original Android playback.
 - [Default rich detection](rich-auto-detection.md) is a separate operational gap: the pinned
   open source forwards a server autolink flag and does not establish enrichment grammar or
   nesting/block rules. Do not treat ordinary-text detection as proof; a local fidelity policy
@@ -91,8 +93,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the integration batch. Later native fixture diagnostics pass focused static checks; current configuration/local links pass across 160 Markdown files. |
-| Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Deterministic generation/static checks pass. Pinned [photo source research](rich-photo-references.md) is integrated. This establishes fixtures/contracts, not media API or native photo support. |
+| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 161 Markdown files. Contributor guidance/CI include the new strict typing scope. |
+| Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. Exact linked codec library revisions remain unpinned. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
 fingerprints; experimental geometry is absent from the normal patch series. Current experimental
@@ -102,8 +104,8 @@ stale input, offscreen/long-press behavior and atomic observation/input remain o
 The old native continuation, repeated old-APK red, core, static and workflow checks are terminal.
 Normal15/16 builds, required-field reds, focused native acceptance and report preview are terminal.
 The remaining43 native suite and independent combined-coverage verification are terminal and
-passing. Original custom-emoji fixture work is active in its isolated worktree; other implementation
-branches remain frozen, with coordinator-owned integration and acceptance. Host paths, handles,
+passing. Original custom-emoji fixture checks and browser review are terminal; the worker branch
+is frozen and integrated, with coordinator-owned acceptance. Host paths, handles,
 fingerprints and artifact locations stay in ignored local notes.
 
 ## Development throughput
