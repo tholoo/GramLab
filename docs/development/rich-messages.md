@@ -94,8 +94,12 @@ checkbox input without user mutation, bot edits, cold restart, nested inline tar
 offscreen metadata-only ambiguity rejection. The list-inclusive combined Android gate passes all 38 cases without skips in 2,362.99 seconds.
 The pre-normalization full core gate passes 326 tests at 80.52% coverage in 46 seconds; the
 installed-wheel list scenario also passes complete semantic verification. The subsequent cleaning
-correction passes 91 focused World/HTTP cases and the real-bot regression; its full core and native
-acceptance remain pending. See the [reusable list example](../../examples/rich_lists/README.md).
+correction passes 91 World/HTTP cases, the real-bot regression and the full 336-test core gate
+at 80.67% coverage in 48.58 seconds. Its focused native case passes in 65.98 seconds, including
+complete serialization, live RTL editing and cold restart; all three original captures were
+inspected. That case uses the same APK and is separate from the preceding 38-case gate. The rebuilt
+installed wheel passes the list scenario and direct World normalization verification. See the
+[reusable list example](../../examples/rich_lists/README.md).
 
 The dedicated tests exercise actual HTTP sends/edits through both request encodings, full responses,
 atomic malformed/unsupported rejection, wrong bot/message ownership, normalization, plain/rich

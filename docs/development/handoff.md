@@ -63,16 +63,18 @@ semantic comparisons and desktop/mobile report inspection pass. List tickets 07�
 The twelve-patch APK preserves all 6,666 original UI/resource files. Original ordered-marker and
 checkbox overlap remains a documented upstream quirk, not a renderer fix.
 
-The next correction is [rich-text cleaning](rich-text-cleaning.md). The coordinator reproduced a
-World tab mismatch; a separate worker implemented the pinned admitted-string transformations,
-per-leaf UTF-8 stopping rule and preformatted-language normalization. Its frozen branch is merged
-with all 91 World/HTTP cases passing in 24.84 seconds, including the Unicode property. A second
-worker's independent real-bot regression fails on the old base and passes after integration in
-1.01 seconds. That branch also supplies the focused native live-edit/restart acceptance case.
-Review and commit its merge after affected static checks, then run the full core gate and focused
-native normalization acceptance with the existing APK. The preceding 38-case gate does not cover
-this correction. Tickets 12–13 remain claimed until combined acceptance; actual handles and paths
-stay in ignored local notes. Check current Git merge state and those handles before another run.
+The subsequent [rich-text cleaning correction](rich-text-cleaning.md) is accepted. Both frozen
+worker branches are merged: 91 World/HTTP cases pass in 24.84 seconds, including the Unicode
+property; the independent real-bot regression fails on the old base and passes after integration
+in 1.01 seconds. The full core gate passes 336 tests in 48.58 seconds at 80.67% coverage. The new
+focused Android case passes in 65.98 seconds with the same APK: complete native serialization,
+live RTL edit, cold restart, zero accounts and guest isolation all pass. All three original PNGs
+were visually inspected. Repository-wide lint, formatting, all strict typing scopes, the workflow
+check, offline package build, installed-wheel list scenario and installed World normalization
+verification pass. Tickets 12–13 are resolved. All these run/check handles are terminal; actual
+paths remain in ignored local notes. The earlier 38-case Android gate predates normalization;
+this focused acceptance is separate evidence, not a new full 39-case gate. Continue the rich-action
+experiment below without repeating passed checks unless a change or failure warrants it.
 
 The effects optimization is accepted in the 38-case gate: 20 navigation captures replace 39,
 while all four original states, complete history and original shader evidence remain. Its case

@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by rich-text-cleaning on task/rich-text-cleaning
+Work state: resolved after coordinator integration and acceptance
 Blocked by: none
 
 The direct World boundary preserves a tab in a rich paragraph where the pinned TDLib
@@ -49,3 +49,25 @@ encodings. With the correction applied, all eight selected cases pass. The combi
 selection passes 30 cases, including the existing C0 rejection and raw/canonical resource-budget
 checks. Scoped Ruff format/check and source mypy pass. The unrestricted property/full rich suite
 remains deferred while the coordinator-owned Android gate runs, as assigned.
+
+## Coordinator acceptance
+
+Both frozen worker branches are merged. All 91 World/HTTP tests pass in 24.84 seconds, including
+the previously deferred Unicode property. The independent real-bot regression passes in 1.01
+seconds after its recorded failure on the old base. The full core gate passes 336 tests in 48.58
+seconds with 80.67% coverage and no skips. Repository-wide lint/format, every documented strict
+mypy scope, the Nix workflow check, offline package build, installed-wheel list scenario with
+complete semantic verification, and installed World normalization verification pass.
+
+The focused original-Android normalization test passes in 65.98 seconds using the existing APK.
+It verifies complete native initial/edited serialization, live RTL editing, cold restart, applied
+edit trace, successful launches, zero accounts and network/filesystem isolation. All three original
+PNG captures were visually reviewed. Raw input, independent expected content, complete actual
+observations, PNG/XML and HTML report remain in ignored artifacts. No Java, APK, renderer or
+profile change was needed. The preceding full 38-case Android gate predates this correction;
+focused native acceptance does not claim a full 39-case rerun. All checks are terminal.
+
+Reproduce the native acceptance in the provisioned Android environment and documented outer
+network guard, holding the shared `android-gate` lock, with
+`pytest -m android tests/test_android_rich_cleaning.py`. The full core gate selects `-m 'not android' -n 4` with source coverage and its 80% floor in
+the guarded pinned environment. Rich actions and the wider product inventory remain open.

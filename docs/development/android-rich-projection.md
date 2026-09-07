@@ -73,9 +73,13 @@ overlap checkboxes in the pinned renderer; this observed quirk is preserved. The
 [list scene](../../examples/rich_lists/README.md) uses nested unordered checkboxes so its ordered
 labels remain visible. Public list inline input has focused callback/edit and offscreen
 metadata-only ambiguity-rejection evidence. The list-inclusive combined Android gate passes all 38 cases without skips in 2,362.99 seconds.
-The subsequent world-side string-cleaning correction has separate native acceptance pending;
-it requires no APK change. A prior concurrent startup timeout remains an unresolved scheduling
-issue, recorded in the handoff.
+The subsequent world-side string-cleaning correction passes a separate focused native case in
+65.98 seconds with no APK change. It compares complete serialized messages, verifies live RTL
+editing and cold restart, and retains successful launch status, zero accounts and guest isolation.
+All three original PNGs were inspected: cleaned heading/paragraph/pre/table content appears, and
+the RTL edit survives restart. This is focused acceptance after the preceding 38-case gate, not a
+rerun of that full gate. A prior concurrent startup timeout remains an unresolved scheduling issue,
+recorded in the handoff.
 
 The following eleven-patch evidence is the earlier pre-list checkpoint.
 The full eleven-patch queue applies to a fresh export of the pinned source. The three changed

@@ -174,6 +174,12 @@ were observation-harness failures, not demonstrated renderer defects. No APK reb
 
 ## Development cost
 
+The later list-inclusive 38-case Android gate accepts the streamlined effects probe with 20
+navigation captures instead of 39. All four original states, complete history and shader-entry
+evidence remain; the four retained images were inspected. The case takes 132.683 seconds versus
+175.800 seconds in the preceding gate. Different run load prevents attributing the whole duration
+change to the reduced navigation. No APK, renderer, timeouts or fidelity profile changed.
+
 The rich-message checkpoint's complete Android gate contains 29 tests and takes about 27 minutes,
 while the
 focused application probe has one guest boot and already retains launch, hierarchy and screenshot

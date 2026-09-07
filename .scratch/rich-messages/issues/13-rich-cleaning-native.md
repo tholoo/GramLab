@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by rich-cleaning-native; frozen worker handoff, integration pending
-Blocked by: coordinator integration of ticket 12 for positive execution
+Work state: resolved after coordinator integration and acceptance
+Blocked by: none
 
 Worker owns new tests/test_rich_cleaning_round_trip.py, tests/test_android_rich_cleaning.py,
 tests/probes/android_rich_cleaning.py and this ticket. The coordinator owns integration, shared
@@ -78,3 +78,25 @@ worker artifact directory identified in the coordinator handoff. All worker comm
 Coordinator follow-up: add the new files to shared static-check coverage where explicit file lists
 are used, integrate ticket 12 before this ticket's positive checks, run the focused native test
 with the existing APK, inspect all three original captures and reconcile shared evidence docs.
+
+## Coordinator acceptance
+
+Both frozen worker branches are merged. All 91 World/HTTP tests pass in 24.84 seconds, including
+the previously deferred Unicode property. The independent real-bot regression passes in 1.01
+seconds after its recorded failure on the old base. The full core gate passes 336 tests in 48.58
+seconds with 80.67% coverage and no skips. Repository-wide lint/format, every documented strict
+mypy scope, the Nix workflow check, offline package build, installed-wheel list scenario with
+complete semantic verification, and installed World normalization verification pass.
+
+The focused original-Android normalization test passes in 65.98 seconds using the existing APK.
+It verifies complete native initial/edited serialization, live RTL editing, cold restart, applied
+edit trace, successful launches, zero accounts and network/filesystem isolation. All three original
+PNG captures were visually reviewed. Raw input, independent expected content, complete actual
+observations, PNG/XML and HTML report remain in ignored artifacts. No Java, APK, renderer or
+profile change was needed. The preceding full 38-case Android gate predates this correction;
+focused native acceptance does not claim a full 39-case rerun. All checks are terminal.
+
+Reproduce the native acceptance in the provisioned Android environment and documented outer
+network guard, holding the shared `android-gate` lock, with
+`pytest -m android tests/test_android_rich_cleaning.py`. The full core gate selects `-m 'not android' -n 4` with source coverage and its 80% floor in
+the guarded pinned environment. Rich actions and the wider product inventory remain open.
