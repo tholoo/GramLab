@@ -169,6 +169,10 @@ class ClientBridge:
                                 raise ValueError(
                                     "GRAMLAB_UNSUPPORTED: media requires client bridge v3"
                                 )
+                            if version < 3 and world._message_users(callback["message"]):
+                                raise ValueError(
+                                    "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
+                                )
                             result = {
                                 "schema": version,
                                 "world_id": world.world_id,

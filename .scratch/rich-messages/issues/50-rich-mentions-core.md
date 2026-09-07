@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Own this ticket, `src/gramlab/rich_messages.py`, `src/gramlab/world.py`, `src/gramlab/bot_api.py`,
@@ -28,3 +28,18 @@ Run focused tests under the outer loopback-only guard, Ruff/format and strict my
 scope. Use this worktree's pinned environment with verified imports. No guest/APK build. Send
 frozen clean commit, exact evidence, remaining native requirements and shared-doc updates;
 coordinator reviews/merges and runs combined core/native acceptance. Follow parallel-work.md.
+
+## Worker evidence
+
+Implemented recursive `text_mention` validation with transactional bot-knowledge admission,
+ID-only World/client persistence, authoritative Bot API User projection and exact message-derived
+v3 identity dependencies for snapshots, selected historical changes and frozen callbacks. Legacy
+versions reject selected mention content, including an idempotent callback retry after the current
+message removed its mention. No schema, navigation, automatic detection or persistent grant was
+added.
+
+The pre-change public rich validator rejected a valid mention with
+`GRAMLAB_UNSUPPORTED: rich content fields`. The guarded focused World, JSON/form API and bridge
+suites pass 12 tests. The guarded selected mention, rich, media, World, Bot API and bridge
+regressions pass 111 tests. Scoped Ruff format/check and strict mypy pass. Native rendering remains
+coordinator/worker acceptance; no guest, APK build or full core gate was run.
