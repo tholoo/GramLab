@@ -9,7 +9,6 @@ from urllib.parse import urlencode, urlsplit
 import pytest
 
 from gramlab.bot_api import BotAPIServer
-from gramlab.entities import formatting_entities
 from gramlab.world import World
 
 TEXT = "😀Q\ncode\nZ"
@@ -61,7 +60,7 @@ def world(directory: Path) -> str:
 @pytest.mark.parametrize("equal", [False, True])
 @pytest.mark.parametrize("reverse", [False, True])
 def test_quotes_are_canonical_ancestors_of_code_and_pre(
-    quote: str, code: str, equal: bool, reverse: bool
+    tmp_path: Path, quote: str, code: str, equal: bool, reverse: bool
 ) -> None:
     quote_entity: dict[str, Any] = {"type": quote, "offset": 0, "length": 10}
     code_entity: dict[str, Any] = {
@@ -74,10 +73,29 @@ def test_quotes_are_canonical_ancestors_of_code_and_pre(
     supplied: list[dict[str, Any]] = [quote_entity, code_entity]
     if reverse:
         supplied.reverse()
-    assert formatting_entities(TEXT, [*supplied, dict(code_entity)]) == [
-        quote_entity,
-        code_entity,
-    ]
+    directory = tmp_path / "world"
+    world(directory)
+    expected = {
+        "id": 1,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 100,
+        "text": TEXT,
+        "entities": [quote_entity, code_entity],
+    }
+    with World.open(directory) as current:
+        assert (
+            current.send_message(
+                chat_id=1,
+                sender_id=2,
+                text=TEXT,
+                entities=[*supplied, dict(code_entity)],
+            )
+            == expected
+        )
+    with World.open(directory) as current:
+        assert current.history(1) == [expected]
+        assert current.client_snapshot(1)["messages"] == [expected]
 
 
 @pytest.mark.parametrize("form", [False, True])
@@ -212,6 +230,8 @@ INVALID = [
 def test_invalid_ancestors_and_ranges_leave_state_and_ids_unchanged(tmp_path: Path) -> None:
     directory = tmp_path / "world"
     token = world(directory)
+    with World.open(directory) as current:
+        initial = (current.history(1), current.events(), current.client_snapshot(1))
     with BotAPIServer(directory) as server:
         for entities in INVALID:
             status, body = request(
@@ -223,6 +243,8 @@ def test_invalid_ancestors_and_ranges_leave_state_and_ids_unchanged(tmp_path: Pa
             )
             assert status == 400
             assert body["ok"] is False
+            with World.open(directory) as current:
+                assert (current.history(1), current.events(), current.client_snapshot(1)) == initial
         valid = [
             {"type": "blockquote", "offset": 0, "length": 10},
             {"type": "code", "offset": 4, "length": 4},

@@ -65,3 +65,9 @@ environment was provisioned with `uv sync --locked --offline` after seeding its 
 from the idle primary cache; the installed editable package resolves to this checkout. No guest,
 APK, bot fixture, full core gate or external network ran. Native correction and combined
 acceptance remain coordinator-owned, so this ticket stays claimed.
+
+Follow-up review moved the sixteen-case contract matrix from the normalization helper to
+`World.send_message` and verifies complete returned messages plus reopened history and client
+snapshots. The rejected-send loop now compares complete history, events and client snapshot after
+each HTTP 400 before admitting the valid message with ID 1. The same focused 34 cases and scoped
+static checks pass after this strengthening.
