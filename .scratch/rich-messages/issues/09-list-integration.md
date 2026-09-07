@@ -63,3 +63,11 @@ workflow check pass. Screenshot review identified an unwrapped advertised wrappi
 the original ordered-marker/checkbox overlap; the example worker is refining the visual catalog
 without changing supported input or rendering code. Native checkbox input now targets the
 inspected single-line row midpoint; the combined gate will verify that final coordinate choice.
+
+The final midpoint passes in the first concurrent trial and again alone in 74.91 seconds.
+The final reusable example passes its corrected native trial. The concurrent startup failure and
+test-assertion correction are retained in tickets 06 (developer tooling) and 10. Browser review of
+the three-image public report and five-image checkbox report passes at desktop/mobile widths:
+all original 320 x 640 images load, with no page overflow or external resource requests. The
+coordinator-owned preview is stopped and its browser tab closed. The 38-case serial combined
+Android gate is running; final acceptance remains pending.

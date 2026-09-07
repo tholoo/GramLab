@@ -85,3 +85,35 @@ and input before choosing a targeting seam; consult before changing the renderer
 The next split can separate independent core normalization, GPL native projection/codec,
 scenario targeting, and coordinator-owned navigation/visual acceptance. Commit the exact supported
 profile first. This research does not authorize network access or establish implemented support.
+
+## Targeting feasibility from the pinned source
+
+Both rich rows and inline text buttons already use `KeyboardButtonProto` and reach the original
+`SendMessagesHelper.sendCallback` path. The existing GramLab callback adapter admits that request
+without requiring an inline keyboard. This establishes transport compatibility by inspection,
+not a successful tap or a public targeting contract. The request carries message ID and payload,
+but no rich-content path or revision; it cannot prove duplicate-button identity or freshness.
+
+The original [row layout and input](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java#L4836)
+retain button positions and sizes after layout. Inline `RichButtonSpan` is a replacement span,
+with private bounds populated during drawing; it is not an ordinary clickable span. Actual
+observation must follow drawing and account for message-cell text origin, block position/padding,
+RTL offsets and any container transforms. Reimplementing layout in the Python controller would
+not establish original input geometry.
+
+Source inspection suggests a possible nested-row discrepancy: the row overrides padded drawing,
+while inherited touch handling subtracts block padding. A top-level row has zero padding; nested
+rows may differ. This is an unverified source inference, requiring original captures and actual
+input before claiming a defect. Preserve any observed upstream behavior.
+
+The first native experiment should observe a top-level row and a paragraph containing an inline
+button, then tap their drawn centers through ordinary guest input. Require one correct callback,
+real bot answer/edit, complete state, original captures and guest isolation. Extend observations
+to RTL, alignment, nested padding, duplicate labels, disabled actions and stale edits. Keep any
+client-derived fixture or inspection code within the GPL boundary. The existing external JDWP
+helper does not support field writes, method invocation or class loading, so it is not an existing
+fixture-injection mechanism.
+
+A permanent geometry endpoint or new public identity/staleness contract remains a design choice
+for review after that experiment. Adding accessibility nodes or changing original drawing/input
+would require separate fidelity consultation. No navigation is needed for the initial experiment.

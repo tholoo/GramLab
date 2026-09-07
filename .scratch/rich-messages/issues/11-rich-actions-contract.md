@@ -16,3 +16,9 @@ user before consequential design/fidelity/network changes. Then commit shared in
 disjoint core/GPL/scenario tickets. Callback, copy and disabled actions have existing native paths;
 that alone does not establish their world effects, identity/stale-target rules or public API.
 Do not claim links/buttons supported from this research or silently enable external navigation.
+
+The follow-up pinned native audit finds an existing callback transport path for both rows and
+inline text buttons, but no per-button accessibility nodes. The reference note now records
+draw-time geometry, nested padding risks and a test-only input experiment. Permanent geometry
+exposure and public rich-target identity remain unchosen. Exact input/output action fixtures must
+be reviewed before parallel normalization/projection work is assigned.
