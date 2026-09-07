@@ -1,0 +1,346 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+index 1238618..96fe525 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -94,6 +94,7 @@ public final class GramLabRuntime {
+                 Files.move(temporary.toPath(), binding.toPath(),
+                         java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+             }
++            GramLabPhotoObserver.install(context, loaded);
+             snapshot = loaded;
+             worldTime = loaded.now;
+             eventCursor = loaded.messagePosition;
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java
+new file mode 100644
+index 0000000..738c85d
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabPhotoObserver.java
+@@ -0,0 +1,328 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import android.app.Activity;
++import android.app.Application;
++import android.content.Context;
++import android.graphics.Rect;
++import android.graphics.RectF;
++import android.os.Bundle;
++import android.os.SystemClock;
++import android.view.View;
++import android.view.ViewGroup;
++import android.view.ViewParent;
++import android.view.ViewTreeObserver;
++import org.json.JSONArray;
++import org.json.JSONObject;
++import org.json.JSONTokener;
++import org.telegram.messenger.ImageReceiver;
++import org.telegram.messenger.MessageObject;
++import org.telegram.tgnet.TLRPC;
++import org.telegram.ui.Cells.ChatMessageCell;
++import org.telegram.ui.Components.RadialProgress2;
++import org.telegram.ui.LaunchActivity;
++
++import java.io.ByteArrayOutputStream;
++import java.io.File;
++import java.io.FileInputStream;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.StandardCopyOption;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.Set;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++
++/** Private opt-in diagnostics of original post-draw photo views. Never performs input. */
++public final class GramLabPhotoObserver implements Application.ActivityLifecycleCallbacks {
++    private static final long INTERVAL_MS = 50;
++    private final File directory;
++    private final String nonce;
++    private final String worldId;
++    private final long persona;
++    private final long peerId;
++    private final ArrayList<Integer> messageIds = new ArrayList<>();
++    private final ExecutorService writer = Executors.newSingleThreadExecutor(
++            action -> new Thread(action, "GramLabPhotoObservation"));
++    private final Object writerLock = new Object();
++    private byte[] pendingWrite;
++    private boolean writerRunning;
++    private View decor;
++    private ViewTreeObserver.OnDrawListener listener;
++    private Runnable sampleTask;
++    private Runnable redrawTask;
++    private long generation;
++    private long lastSample;
++    private int visited;
++
++    private GramLabPhotoObserver(File directory, JSONObject config, GramLabBridge.Snapshot snapshot) throws Exception {
++        this.directory = directory;
++        GramLabBridge.fields(config, "schema", "nonce", "world_id", "user_id", "peer_id", "message_ids");
++        if (config.length() != 6 || integer(config.get("schema")) != 1
++                || !(config.get("nonce") instanceof String) || !(config.get("world_id") instanceof String)
++                || !(config.get("message_ids") instanceof JSONArray)) throw invalid();
++        nonce = (String) config.get("nonce");
++        worldId = (String) config.get("world_id");
++        persona = integer(config.get("user_id"));
++        peerId = integer(config.get("peer_id"));
++        if (!nonce.matches("[A-Za-z0-9_-]{1,64}") || !worldId.equals(snapshot.worldId)
++                || persona != snapshot.persona || persona <= 0 || peerId <= 0
++                || !snapshot.chatIdsByPeer.containsKey(peerId)) throw invalid();
++        JSONArray ids = config.getJSONArray("message_ids");
++        if (ids.length() < 1 || ids.length() > 8) throw invalid();
++        Set<Integer> unique = new HashSet<>();
++        for (int i = 0; i < ids.length(); i++) {
++            long id = integer(ids.get(i));
++            if (id <= 0 || id > Integer.MAX_VALUE || !unique.add((int) id)) throw invalid();
++            messageIds.add((int) id);
++        }
++    }
++
++    private static IllegalArgumentException invalid() {
++        return new IllegalArgumentException("invalid_photo_observation_configuration");
++    }
++
++    private static long integer(Object value) {
++        if (!(value instanceof Integer) && !(value instanceof Long)) throw invalid();
++        return ((Number) value).longValue();
++    }
++
++    public static void install(Context context, GramLabBridge.Snapshot snapshot) throws Exception {
++        File directory = new File(context.getFilesDir(), "gramlab");
++        File activation = new File(directory, "photo-observation.json");
++        if (!activation.exists()) return;
++        // Invalidate the previous process's result even when this activation is rejected.
++        Files.deleteIfExists(new File(directory, "photo-observation-result.json").toPath());
++        Files.deleteIfExists(new File(directory, "photo-observation-result.tmp").toPath());
++        if (!activation.isFile()) throw invalid();
++        byte[] bytes;
++        try (FileInputStream input = new FileInputStream(activation);
++                ByteArrayOutputStream output = new ByteArrayOutputStream()) {
++            byte[] buffer = new byte[1024];
++            int count;
++            while ((count = input.read(buffer)) != -1) {
++                if (output.size() + count > 4096) throw invalid();
++                output.write(buffer, 0, count);
++            }
++            bytes = output.toByteArray();
++        }
++        JSONTokener parser = new JSONTokener(new String(bytes, StandardCharsets.UTF_8));
++        Object parsed = parser.nextValue();
++        if (!(parsed instanceof JSONObject) || parser.nextClean() != 0) throw invalid();
++        GramLabPhotoObserver observer = new GramLabPhotoObserver(directory, (JSONObject) parsed, snapshot);
++        observer.publish("awaiting_activity", new JSONArray());
++        ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(observer);
++    }
++
++    private static final class Unavailable extends RuntimeException {
++        Unavailable(String reason) { super(reason); }
++    }
++
++    private static void require(boolean value, String reason) {
++        if (!value) throw new Unavailable(reason);
++    }
++
++    private static JSONArray bounds(RectF value) throws Exception {
++        require(Float.isFinite(value.left) && Float.isFinite(value.top)
++                && Float.isFinite(value.right) && Float.isFinite(value.bottom)
++                && value.width() > 0 && value.height() > 0, "invalid_bounds");
++        return new JSONArray().put(value.left).put(value.top).put(value.right).put(value.bottom);
++    }
++
++    private void publish(String reason, JSONArray messages) throws Exception {
++        JSONObject result = new JSONObject().put("schema", 1).put("nonce", nonce)
++                .put("world_id", worldId).put("user_id", persona).put("peer_id", peerId)
++                .put("pid", android.os.Process.myPid()).put("generation", ++generation)
++                .put("uptime_ms", SystemClock.uptimeMillis()).put("available", reason == null)
++                .put("reason", reason == null ? JSONObject.NULL : reason).put("messages", messages);
++        byte[] bytes = result.toString().getBytes(StandardCharsets.UTF_8);
++        synchronized (writerLock) {
++            // At most one active write and one latest pending observation, never a FIFO backlog.
++            pendingWrite = bytes;
++            if (!writerRunning) {
++                writerRunning = true;
++                writer.execute(this::drainWrites);
++            }
++        }
++    }
++
++    private void drainWrites() {
++        while (true) {
++            byte[] bytes;
++            synchronized (writerLock) {
++                bytes = pendingWrite;
++                pendingWrite = null;
++                if (bytes == null) {
++                    writerRunning = false;
++                    return;
++                }
++            }
++            File temporary = new File(directory, "photo-observation-result.tmp");
++            try {
++                Files.write(temporary.toPath(), bytes);
++                Files.move(temporary.toPath(), new File(directory, "photo-observation-result.json").toPath(),
++                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
++            } catch (Exception ignored) {
++                // Missing or stale diagnostics are failure, never permission to use an old target.
++            } finally {
++                temporary.delete();
++            }
++        }
++    }
++
++    private void find(View view, ArrayList<ChatMessageCell> cells, int depth) {
++        require(++visited <= 4096 && depth <= 64, "hierarchy_limit");
++        if (!view.isShown()) return;
++        if (view instanceof ChatMessageCell) {
++            ChatMessageCell cell = (ChatMessageCell) view;
++            MessageObject message = cell.getMessageObject();
++            Rect visible = new Rect();
++            if (message != null && message.getDialogId() == peerId && messageIds.contains(message.getId())
++                    && cell.getGlobalVisibleRect(visible) && !visible.isEmpty()) cells.add(cell);
++        }
++        if (view instanceof ViewGroup) {
++            ViewGroup group = (ViewGroup) view;
++            for (int i = 0; i < group.getChildCount(); i++) find(group.getChildAt(i), cells, depth + 1);
++        }
++    }
++
++    private JSONObject observeCell(ChatMessageCell cell, int id) throws Exception {
++        require(cell.getClass() == ChatMessageCell.class, "unsupported_cell_subclass");
++        MessageObject message = cell.getMessageObject();
++        require(message.type == MessageObject.TYPE_PHOTO && message.messageOwner.media instanceof TLRPC.TL_messageMediaPhoto
++                && cell.getCurrentMessagesGroup() == null && !message.hasMediaSpoilers()
++                && cell.drawPhotoImage, "unsupported_photo");
++        for (View view = cell; view != null;) {
++            require(view.getMatrix().isIdentity() && view.getAlpha() == 1
++                    && view.getScrollX() == 0 && view.getScrollY() == 0, "unsupported_transform");
++            ViewParent parent = view.getParent();
++            view = parent instanceof View ? (View) parent : null;
++        }
++        require(!cell.getTransitionParams().animateChange && !cell.getTransitionParams().messageEntering
++                && cell.getDeltaTop() == 0 && cell.getDeltaLeft() == 0
++                && cell.getDeltaRight() == 0 && cell.getDeltaBottom() == 0
++                && cell.getPaddingTopAnimated() == cell.getPaddingTop(), "unsupported_transform");
++        int[] origin = new int[2];
++        cell.getLocationOnScreen(origin);
++        RectF cellBounds = new RectF(origin[0], origin[1], origin[0] + cell.getWidth(), origin[1] + cell.getHeight());
++        Rect visible = new Rect();
++        require(cell.getGlobalVisibleRect(visible), "message_not_unique_or_visible");
++        // getGlobalVisibleRect is relative to the root; account for a window's screen origin.
++        int[] rootOrigin = new int[2];
++        cell.getRootView().getLocationOnScreen(rootOrigin);
++        visible.offset(rootOrigin[0], rootOrigin[1]);
++        RectF visibleBounds = new RectF(visible);
++        ImageReceiver image = cell.getPhotoImage();
++        RadialProgress2 radial = cell.getRadialProgress();
++        float contentY = origin[1] + cell.getPaddingTopAnimated();
++        RectF imageBounds = new RectF(image.getImageX(), image.getImageY(), image.getImageX2(), image.getImageY2());
++        imageBounds.offset(origin[0], contentY);
++        RectF progressBounds = new RectF(radial.getProgressRect());
++        progressBounds.offset(origin[0], contentY);
++        require(image.getAlpha() == 1, "unsupported_transform");
++        require(visibleBounds.contains(progressBounds) && cellBounds.contains(progressBounds), "clipped_control");
++        float progress = radial.getProgress();
++        require(Float.isFinite(progress) && progress >= 0 && progress <= 1, "invalid_progress");
++        return new JSONObject().put("message_id", id).put("cell_bounds", bounds(cellBounds))
++                .put("visible_bounds", bounds(visibleBounds)).put("image_bounds", bounds(imageBounds))
++                .put("progress_bounds", bounds(progressBounds))
++                .put("image_key", image.getImageKey() == null ? JSONObject.NULL : image.getImageKey())
++                .put("has_image", image.hasImageLoaded()).put("progress_icon", radial.getIcon())
++                .put("progress", progress);
++    }
++
++    private JSONArray observe(View root) throws Exception {
++        require(root.isAttachedToWindow() && root.hasWindowFocus(), "inactive_window");
++        ArrayList<ChatMessageCell> cells = new ArrayList<>();
++        visited = 0;
++        find(root, cells, 0);
++        JSONArray messages = new JSONArray();
++        for (int id : messageIds) {
++            ChatMessageCell match = null;
++            for (ChatMessageCell cell : cells) {
++                if (cell.getMessageObject().getId() == id) {
++                    require(match == null, "message_not_unique_or_visible");
++                    match = cell;
++                }
++            }
++            require(match != null, "message_not_unique_or_visible");
++            messages.put(observeCell(match, id));
++        }
++        return messages;
++    }
++
++    private void unavailable(String reason) {
++        try { publish(reason, new JSONArray()); }
++        catch (Exception ignored) {}
++    }
++
++    private void requestDraw(View observed, long delay) {
++        if (redrawTask != null) return;
++        redrawTask = () -> {
++            redrawTask = null;
++            if (decor == observed) observed.invalidate();
++        };
++        observed.postDelayed(redrawTask, Math.max(1, delay));
++    }
++
++    private void afterDraw(View observed) {
++        if (sampleTask != null) return;
++        long remaining = INTERVAL_MS - (SystemClock.uptimeMillis() - lastSample);
++        if (remaining > 0) {
++            requestDraw(observed, remaining);
++            return;
++        }
++        sampleTask = () -> {
++            sampleTask = null;
++            if (decor != observed) return;
++            lastSample = SystemClock.uptimeMillis();
++            try { publish(null, observe(observed)); }
++            catch (Exception failure) {
++                unavailable(failure instanceof Unavailable ? failure.getMessage() : "observation_unavailable");
++            }
++            // Keep diagnostic age meaningful even after the original UI becomes quiet.
++            requestDraw(observed, INTERVAL_MS);
++        };
++        observed.post(sampleTask);
++    }
++
++    private void detach() {
++        if (decor != null) {
++            if (listener != null && decor.getViewTreeObserver().isAlive())
++                decor.getViewTreeObserver().removeOnDrawListener(listener);
++            if (sampleTask != null) decor.removeCallbacks(sampleTask);
++            if (redrawTask != null) decor.removeCallbacks(redrawTask);
++        }
++        decor = null;
++        listener = null;
++        sampleTask = null;
++        redrawTask = null;
++    }
++
++    @Override public void onActivityResumed(Activity activity) {
++        if (!(activity instanceof LaunchActivity)) return;
++        detach();
++        decor = activity.getWindow().getDecorView();
++        final View observed = decor;
++        listener = () -> afterDraw(observed);
++        decor.getViewTreeObserver().addOnDrawListener(listener);
++        decor.invalidate();
++    }
++    @Override public void onActivityPaused(Activity activity) {
++        if (decor == activity.getWindow().getDecorView()) {
++            detach();
++            unavailable("activity_paused");
++        }
++    }
++    @Override public void onActivityDestroyed(Activity activity) {
++        if (decor == activity.getWindow().getDecorView()) {
++            detach();
++            unavailable("activity_destroyed");
++        }
++    }
++    @Override public void onActivityCreated(Activity activity, Bundle state) {}
++    @Override public void onActivityStarted(Activity activity) {}
++    @Override public void onActivityStopped(Activity activity) {}
++    @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) {}
++}

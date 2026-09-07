@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed by media-view-observer worker
 Blocked by: none
 
 Own this ticket and new `clients/android/patches/0020-photo-view-observation.patch` only.
@@ -39,3 +39,44 @@ Verify patch applicability and review exact scope, but do not build or run a gue
 field/getter mappings and known limitations for coordinator's independent acceptance. Keep branch
 frozen on handoff. Native tests must verify observed original cancellation/retry and stable image
 bindings after out-of-order completion; source review alone does not establish those outcomes.
+
+
+## Worker handoff
+
+Patch 0020 adds `GramLabPhotoObserver` and one initialization call in `GramLabRuntime`.
+The call runs after loading and validating the snapshot/binding, before publishing Runtime's
+snapshot reference. Absent activation creates no observer, executor thread or view listener.
+Present activation first removes old result/temporary files, then checks the six exact field
+names, JSON types, nonce, World/persona, visible snapshot peer, and one to eight distinct
+positive native message IDs. Invalid input rejects startup through the existing runtime boundary.
+
+Available results use the frozen fields and message ordering. `cell_bounds` uses the original
+cell's screen origin/width/height; `visible_bounds` converts the original global visible rectangle
+from root to screen coordinates. ImageReceiver coordinates and a copied radial progress rectangle
+use the cell's screen origin plus `getPaddingTopAnimated()` for Y, matching the original canvas
+translation. `image_key` is `getImageKey()`, `has_image` is `hasImageLoaded()` (full image/media
+Drawable, excluding thumb/key-only state), and icon/progress use the original radial getters.
+Only exact original, ungrouped, non-spoiler ordinary-photo cells qualify. Active cell transitions,
+nonidentity view matrices, scroll transforms, partial alpha and clipped progress controls reject.
+View-tree traversal is bounded to 4,096 views and depth 64. No reflection, rendering replacement,
+input dispatch, exported component, manifest change or endpoint is introduced.
+
+Unavailable results have empty messages and explicit reasons: `awaiting_activity`,
+`activity_paused`, `activity_destroyed`, `inactive_window`, `message_not_unique_or_visible`,
+`unsupported_cell_subclass`, `unsupported_photo`, `unsupported_transform`, `clipped_control`,
+`invalid_bounds`, `invalid_progress`, `hierarchy_limit`, or `observation_unavailable`.
+Sampling occurs after drawing with at least 50 ms between samples. An opt-in delayed invalidation
+requests fresh original frames even when quiet. The writer has at most one active and one latest
+pending result; skipped generations are expected. It publishes by same-directory atomic move
+outside the UI thread. Lifecycle detach removes draw listeners and pending UI callbacks.
+
+The immutable normal19 `GramLabRuntime.java` preimage SHA-256 is
+`3f9c1bc8e001a15766f58b70c0ca23e320e5b2cc7753c1ec7b64062d4acbb744`.
+Apply the patch to a fresh copy with `patch --batch --fuzz=0 -p1`; both reconstructed sources
+match the private modified sources exactly, without offsets or fuzz. `git diff --check` passes.
+Public getter signatures and original canvas/input coordinate handling were checked against the
+pinned source. No APK, compilation or guest was assigned or run: these are source checks only.
+Coordinator must integrate the patch series/manifest and prove absent/wrong activation, current
+identity/generation/age, original control tapping, shared consumers and late completion natively.
+Visibility rectangles do not establish absence of overlaid windows; screenshots and current
+native state remain required. This diagnostic result never authorizes stale input.
