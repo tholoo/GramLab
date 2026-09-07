@@ -70,15 +70,14 @@ def ordinary_frame(xml: str) -> dict[str, int] | None:
     )
     if not header_controls or editor is None:
         raise ValueError("Chat chrome is unavailable in UI structure")
-    message_list = next(
-        (
-            node
-            for node in root.iter("node")
-            if node.get("class") == "androidx.recyclerview.widget.RecyclerView"
-            and node.get("scrollable") == "true"
-        ),
-        None,
-    )
+    # A short conversation fits without scrolling. Bind the viewport to this caption's
+    # actual containing list, rather than requiring a scrollable or unrelated list.
+    message_list = parents.get(target)
+    while (
+        message_list is not None
+        and message_list.get("class") != "androidx.recyclerview.widget.RecyclerView"
+    ):
+        message_list = parents.get(message_list)
     if message_list is None:
         raise ValueError("Chat message list is unavailable in UI structure")
     viewport_left, _, viewport_right, message_list_bottom = bounds(message_list)

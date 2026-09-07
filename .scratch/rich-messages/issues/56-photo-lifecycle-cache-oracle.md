@@ -123,3 +123,21 @@ Exact scheduling/directory disagreement must fail visibly and be diagnosed, not 
 or relax bytes, framing, semantics, no-DC or isolation requirements. Keep this ticket claimed until
 both fresh native cases pass. Shared handoff/compatibility/contributor check documentation remains
 coordinator-owned. No worker server, bot, build or guest process remains active at handoff.
+
+## Coordinator native checkpoint
+
+The integrated normal23 run passes the real-bot lifecycle in 81.52 seconds: exact phase-local
+native requests, original destination cleanup/reload, bytes, no parts, semantic comparisons and
+cold restart all pass. All four original captures are inspected, including the fully framed
+ordinary photo/caption. The combined JUnit stays failed because the new unchanged control's
+framing helper rejects its non-scrollable RecyclerView despite the original photo/caption fitting
+on screen. Retained `initial-framing-0.png` and XML prove that condition; no native loader defect
+is inferred from a host hierarchy assumption.
+
+The helper now selects the caption's actual containing RecyclerView without requiring scrolling.
+Untouched native XML first reproduces the old rejection, then yields the independently specified
+frame [0,231,320,532] inside viewport [0,80,320,532]. A decoy unrelated scrollable list is rejected.
+Scoped Ruff/strict mypy pass. Native verification of the corrected helper and unchanged COLD
+restart remains required. Evidence: `artifacts/media-lifecycle-and-rich-late-native-03/` preserves
+all three original cases, failed JUnit, unchanged APK/source receipt and 16 staged probe checks;
+`artifacts/unchanged-photo-framing-retained-01.log` retains the exact geometry/rejection check.
