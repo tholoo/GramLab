@@ -68,3 +68,16 @@ as run03 and copied to a distinct name. Earlier APK/staged-source fingerprints r
 but their overwritten pre-run manifests are unavailable. The explicit recovery receipt preserves
 this limitation; do not infer full earlier host/profile equivalence. Historical wrappers now
 refuse reuse before writing anything.
+
+
+Independent original-source review resolves the shared-cancel oracle: ChatMessageCell's ordinary
+cancel removes the first ImageReceiver from ImageLoader's CacheImage; the remaining receiver
+keeps its HTTP load alive. Bitmap completion iterates only remaining receivers, while the separate
+fileLoaded notification reaches the canceled cell, sets progress to one and selects ICON_NONE
+because the file now exists. There is no original post-completion download button. The corrected
+case therefore asserts one request, coalescing, only the second bitmap, both controls absent and
+exact cache bytes. It retains cancel/retry as a separate original first-photo interaction.
+Source anchors in the pinned tree: ChatMessageCell didPressButton/onSuccessDownload/updateButtonState,
+ImageReceiver cancelLoadImage and ImageLoader CacheImage removeImageReceiver/setImageAndClear.
+This corrects the test oracle to original behavior; no renderer or loading implementation changed.
+A fresh native run must verify the updated case and its three framed captures.

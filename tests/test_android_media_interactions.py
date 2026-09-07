@@ -178,11 +178,12 @@ def assert_interaction_case(
         assert case["files_before_retry"] == []
     elif name == "shared-consumer":
         assert [row["event"] for row in terminals] == ["media_load_success"]
-        assert asset_requests(case["requests_before_retry"]) == [gated]
         assert asset_requests(case["requests"]) == [gated]
         before = case["shared_binding"]["messages"]
         assert [row["has_image"] for row in before] == [False, True]
-        assert before[0]["progress_icon"] == 2
+        assert before[0]["progress_icon"] == 4
+        assert before[0]["progress"] == 1
+        assert any(row["event"] == "media_load_coalesced" for row in trace)
         assert before[1]["image_key"].startswith("1_1@")
     else:
         assert [row["event"] for row in terminals] == [
@@ -201,13 +202,23 @@ def assert_interaction_case(
         assert case["taps"] == []
     if name != "late-edit":
         assert success_ids == [1]
-        assert len(case["taps"]) == 2
-        assert [tap["message_id"] for tap in case["taps"]] == [1, 1]
-        assert [tap["sample"]["messages"][0]["progress_icon"] for tap in case["taps"]] == [3, 2]
+        count = 2 if name == "cancel-retry" else 1
+        assert len(case["taps"]) == count
+        assert [tap["message_id"] for tap in case["taps"]] == [1] * count
+        assert [tap["sample"]["messages"][0]["progress_icon"] for tap in case["taps"]] == [3, 2][
+            :count
+        ]
+        assert all(not row["has_image"] for row in case["loading"]["messages"])
+        assert [row["progress_icon"] for row in case["canceled"]["messages"]] == (
+            [2] if name == "cancel-retry" else [2, 3]
+        )
         assert 0 <= case["cancel_elapsed"] < 4.8
     bindings = case["final_binding"]["messages"]
     assert [row["message_id"] for row in bindings] == ([1] if name == "cancel-retry" else [1, 2])
-    assert all(row["has_image"] and row["progress_icon"] == 4 for row in bindings)
+    assert [row["has_image"] for row in bindings] == (
+        [False, True] if name == "shared-consumer" else [True] * len(bindings)
+    )
+    assert all(row["progress_icon"] == 4 for row in bindings)
     expected_ids = [2, 1] if name == "late-edit" else [1] * len(bindings)
     for row, asset_id in zip(bindings, expected_ids, strict=True):
         assert row["image_key"].startswith(f"{asset_id}_1@")

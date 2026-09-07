@@ -494,7 +494,6 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     result["taps"].append(observe.tap(loading, 1))
                     result["cancel_elapsed"] = require_window(transfer)
                     result["after_tap"] = observe.sample(lambda rows: True)
-                    observe.screenshot("after-tap")
                     if case == "cancel-retry":
                         result["cancel_trace"] = observe.terminal("media_load_cancel", 1)
                     canceled = observe.sample(
@@ -508,31 +507,39 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                         )
                     )
                     result["canceled"] = canceled
+                    result["captures"].append(observe.screenshot("canceled"))
                     result["release_elapsed"] = require_window(transfer)
                     result["released_at"] = time.monotonic()
                     observe.window_end = None
                     transfer.release.set()
                     if case == "shared-consumer":
                         result["shared_trace"] = observe.terminal("media_load_success", 1)
+                        # Original file-level completion removes the canceled cell's control,
+                        # but ImageLoader delivers the bitmap only to the remaining receiver.
                         result["shared_binding"] = observe.sample(
-                            lambda rows: not rows[0]["has_image"] and rows[1]["has_image"]
+                            lambda rows: (
+                                not rows[0]["has_image"]
+                                and rows[1]["has_image"]
+                                and all(row["progress_icon"] == NONE for row in rows)
+                            )
                         )
-                    result["captures"].append(observe.screenshot("canceled"))
-                    result["files_before_retry"] = observe.inventory("before-retry")
-                    result["requests_before_retry"] = server.requests()
-                    if case == "cancel-retry":
+                        result["final_binding"] = result["shared_binding"]
+                        result["captures"].append(observe.screenshot("shared-completed"))
+                    else:
+                        result["files_before_retry"] = observe.inventory("before-retry")
+                        result["requests_before_retry"] = server.requests()
                         server.plan(1, "complete")
-                    retry = observe.sample(
-                        lambda rows: (
-                            rows[0]["progress_icon"] == DOWNLOAD and not rows[0]["has_image"]
+                        retry = observe.sample(
+                            lambda rows: (
+                                rows[0]["progress_icon"] == DOWNLOAD and not rows[0]["has_image"]
+                            )
                         )
-                    )
-                    result["taps"].append(observe.tap(retry, 1))
-                    result["final_trace"] = observe.terminal("media_load_success", 1)
-                    result["final_binding"] = observe.sample(
-                        lambda rows: all(row["has_image"] for row in rows)
-                    )
-                    result["captures"].append(observe.screenshot("retried"))
+                        result["taps"].append(observe.tap(retry, 1))
+                        result["final_trace"] = observe.terminal("media_load_success", 1)
+                        result["final_binding"] = observe.sample(
+                            lambda rows: all(row["has_image"] for row in rows)
+                        )
+                        result["captures"].append(observe.screenshot("retried"))
                 result["files"] = observe.inventory("final")
                 result["requests"] = server.requests()
                 result["final_trace"] = observe.trace()
