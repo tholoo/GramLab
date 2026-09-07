@@ -113,5 +113,7 @@ jobs:
         run: uv run --locked mypy tests/probes/android_effects.py tests/test_android_effects.py
       - name: Type check the independent rich inline consumer example
         run: uv run --locked mypy examples/rich_inline tests/test_runner_rich_buttons.py
+      - name: Type check the independent rich-list consumer example
+        run: uv run --locked mypy examples/rich_lists tests/test_runner_rich_lists.py
       - name: Type check the retained timing command
         run: uv run --locked mypy tools/test-timings tests/test_test_timings.py

@@ -50,8 +50,9 @@ def list_probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[s
             raise RuntimeError("Checkbox has no bounded original row")
         left, top, right, bottom = map(int, bounds.groups())
         # Original RichBlock exposes the text row's bounds. Its LTR checkbox is drawn
-        # 26dp before that row, with a 20dp square. This fixture pins 160dpi / LTR.
-        x, y = left - 16, top + 10
+        # 26dp before that row, with a 20dp square. The midpoint of this single-line
+        # row is inside the inspected original square. This fixture pins 160dpi / LTR.
+        x, y = left - 16, (top + bottom) // 2
         if not (0 <= x < right <= 320 and 0 <= top < y < bottom <= 640):
             raise RuntimeError("Original checkbox target is outside the pinned viewport")
         checkbox["target"] = {"node": target, "x": x, "y": y}

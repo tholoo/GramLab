@@ -39,6 +39,9 @@ def _inline_fragments(message: dict[str, Any]) -> list[str]:
                             fragments.append(_rich_text(cell["text"]))
             if "blocks" in block and (block["type"] != "details" or block.get("is_open", False)):
                 visit(block["blocks"])
+            if "items" in block:
+                for item in block["items"]:
+                    visit(item["blocks"])
             if "credit" in block:
                 fragments.append(_rich_text(block["credit"]))
 

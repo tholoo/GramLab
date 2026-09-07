@@ -54,3 +54,12 @@ All phase/menu images were reviewed. Initial diagnostic runs missed an over-spec
 breakpoint, then reached the original rich touch handler but left its menu covering the chat.
 The passing probe removes the debugger and handles only the observed menu. No renderer or input
 retry change was made. Public native list inline targeting and the combined gates remain pending.
+
+Native list inline red observed the fully rendered message, then rejected it with no callback
+because the matcher found no readable identity. Three lines of traversal now visit item blocks
+in order and preserve hidden-details exclusion. The positive callback/RTL-edit and offscreen
+metadata-only ambiguity cases pass together in 178.46 seconds. All static scopes and the Nix
+workflow check pass. Screenshot review identified an unwrapped advertised wrapping line and
+the original ordered-marker/checkbox overlap; the example worker is refining the visual catalog
+without changing supported input or rendering code. Native checkbox input now targets the
+inspected single-line row midpoint; the combined gate will verify that final coordinate choice.
