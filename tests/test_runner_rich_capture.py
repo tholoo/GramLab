@@ -40,6 +40,26 @@ RICH_MESSAGE = {
             ],
         },
         {"type": "pre", "text": "literal payload", "language": "python"},
+        {
+            "type": "list",
+            "items": [
+                {"blocks": [], "type": "A", "value": 26, "has_checkbox": True},
+                {
+                    "type": "A",
+                    "value": 27,
+                    "blocks": [
+                        {"type": "paragraph", "text": ["List ", {"type": "bold", "text": "first"}]},
+                        {
+                            "type": "list",
+                            "items": [
+                                {"blocks": [{"type": "paragraph", "text": "تو در تو nested"}]}
+                            ],
+                        },
+                    ],
+                },
+                {"blocks": [{"type": "paragraph", "text": "List last"}], "type": "i", "value": 4},
+            ],
+        },
     ]
 }
 
@@ -121,6 +141,7 @@ captured = lab.capture_chat(
     contains=[
         "سلام hello", "خلاصه summary", "Nested body", "نویسنده Author",
         "نتیجه Scores", "ردیف one", "Cell two", "literal payload",
+        "List first", "تو در تو nested", "List last",
     ],
 )
 assert captured["history"] == lab.history(primary["id"])
@@ -135,6 +156,37 @@ assert captured["history"] == lab.history(primary["id"])
     rich = recorded["captures"][0]["history"][1]["rich_message"]
     assert rich["blocks"][2]["blocks"][0]["credit"][1]["text"] == "Author"
     assert rich["blocks"][3]["cells"][0][1]["align"] == "right"
+    assert rich["blocks"][5] == {
+        "type": "list",
+        "items": [
+            {"label": "Z.", "blocks": [], "type": "A", "value": 26, "has_checkbox": True},
+            {
+                "label": "AA.",
+                "type": "A",
+                "value": 27,
+                "blocks": [
+                    {"type": "paragraph", "text": ["List ", {"type": "bold", "text": "first"}]},
+                    {
+                        "type": "list",
+                        "items": [
+                            {
+                                "label": "•",
+                                "blocks": [
+                                    {"type": "paragraph", "text": "تو در تو nested"},
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            },
+            {
+                "label": "iv.",
+                "blocks": [{"type": "paragraph", "text": "List last"}],
+                "type": "i",
+                "value": 4,
+            },
+        ],
+    }
 
 
 def test_rich_capture_rejects_non_text_and_cross_fragment_matches_without_new_evidence(
@@ -158,6 +210,7 @@ first = lab.capture_chat(chat_id=primary["id"], label="kept", contains=["سلا�
 for index, absent in enumerate((
     "absent", "python", "right", "paragraph", "سلام helloSecond block",
     "ردیف oneCell two", "Other chat secret",
+    "AA.", "Z.", "iv.", "27", "has_checkbox", "List firstتو در تو nested",
 )):
     try:
         lab.capture_chat(chat_id=primary["id"], label=f"rejected-{index}", contains=[absent])

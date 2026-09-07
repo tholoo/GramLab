@@ -30,6 +30,9 @@ def _rich_fragments(rich_message: dict[str, Any]) -> list[str]:
                 fragments.append(_rich_text(block[name]))
         if "blocks" in block:
             pending.extend(reversed(block["blocks"]))
+        if "items" in block:
+            for item in reversed(block["items"]):
+                pending.extend(reversed(item["blocks"]))
         if "cells" in block:
             for row in block["cells"]:
                 for cell in row:
