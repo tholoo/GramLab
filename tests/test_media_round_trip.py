@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import uuid
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -142,8 +143,10 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
             "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
             "size": source.stat().st_size,
         }
-        assert download["get_file"]["file_path"].startswith("photos/")
-        assert ".." not in download["get_file"]["file_path"]
+        file_path = download["get_file"]["file_path"]
+        assert file_path and not file_path.startswith("/")
+        assert all(part not in ("", ".", "..") for part in file_path.split("/"))
+        assert ":" not in file_path and "\\" not in file_path
     for rejection in (published["malformed"], published["foreign"]):
         assert rejection["status"] == 400
         assert rejection["body"]["ok"] is False
@@ -184,7 +187,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
             "blocks": [
                 {
                     "type": "photo",
-                    "photo": {"asset_id": 2},
+                    "asset_id": 2,
                     "caption": scene["rich_initial_caption"],
                 }
             ]
@@ -202,7 +205,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
             "blocks": [
                 {
                     "type": "photo",
-                    "photo": {"asset_id": 1},
+                    "asset_id": 1,
                     "caption": scene["rich_edited_caption"],
                 }
             ],
@@ -215,7 +218,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "sender_id": 2,
         "date": 1700000000,
         "text": "",
-        "rich_message": {"blocks": [{"type": "photo", "photo": {"asset_id": 2}}]},
+        "rich_message": {"blocks": [{"type": "photo", "asset_id": 2}]},
     }
     assert observed["history"] == [
         world_request,
@@ -269,6 +272,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
             {"id": 2, "type": "private", "user_id": 1, "bot_id": 3},
         ],
         "assets": assets,
+        "sends": [],
     }
     assert initial_snapshot["messages"] == [
         world_request,
@@ -286,6 +290,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "now": 1700000000,
         "messages": initial_snapshot["messages"],
         "message_revisions": initial_snapshot["message_revisions"],
+        "message_position": 5,
     }
     assert edited_snapshot["messages"] == observed["history"]
     assert edited_snapshot["message_revisions"] == [
@@ -297,6 +302,7 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "now": 1700000005,
         "messages": edited_snapshot["messages"],
         "message_revisions": edited_snapshot["message_revisions"],
+        "message_position": 6,
     }
     assert restarted_snapshot == edited_snapshot
     assert observed["v3"]["restarted_changes"] == observed["v3"]["edited_changes"]
@@ -325,8 +331,14 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "chat_instance",
         "answer",
     }
+    assert str(uuid.UUID(callback["id"])) == callback["id"]
+    assert callback["user_id"] == 1
+    assert callback["chat_id"] == 1
     assert callback["message"] == world_rich_initial
     assert callback["data"] == scene["callback_data"]
+    assert callback["chat_instance"] == hashlib.sha256(f"{world_id}:1".encode()).hexdigest()
+    assert callback["answer"] is None
+    assert callback_created["users"] == snapshot_base["users"]
     assert callback_created == {
         "schema": 3,
         "world_id": world_id,
@@ -341,27 +353,44 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
     }
     assert callback_after == callback_created | {"callback": answered_callback}
     assert observed["v3"]["restarted_callback"] == callback_after
+    user_api = {
+        "id": 1,
+        "is_bot": False,
+        "first_name": "Sara",
+        "language_code": "fa",
+    }
+    callback_update = {
+        "update_id": 2,
+        "callback_query": {
+            "id": callback["id"],
+            "from": user_api,
+            "message": rich_expected,
+            "chat_instance": callback["chat_instance"],
+            "data": scene["callback_data"],
+        },
+    }
+    assert observed["bot"]["callback"] == {
+        "event": "callback",
+        "update": callback_update,
+        "answer": True,
+    }
 
     initial_changes = observed["v3"]["initial_changes"]
     changes = observed["v3"]["edited_changes"]
     assert changes["schema"] == 3
     assert changes["assets"] == assets
-    assert [(item["type"], item["revision"]) for item in changes["changes"]] == [
-        ("message.created", 6),
-        ("message.created", 7),
-        ("message.created", 8),
-        ("message.created", 9),
-        ("message.created", 10),
-        ("message.edited", 14),
+    expected_changes = [
+        {"position": position, "type": kind, "data": message, "revision": revision}
+        for position, kind, message, revision in (
+            (1, "message.created", world_request, 6),
+            (2, "message.created", world_ordinary, 7),
+            (3, "message.created", world_ordinary_reuse, 8),
+            (4, "message.created", world_rich_initial, 9),
+            (5, "message.created", world_rich_reuse, 10),
+            (6, "message.edited", world_rich_edited, 14),
+        )
     ]
-    assert [item["data"] for item in changes["changes"]] == [
-        world_request,
-        world_ordinary,
-        world_ordinary_reuse,
-        world_rich_initial,
-        world_rich_reuse,
-        world_rich_edited,
-    ]
+    assert changes["changes"] == expected_changes
     changes_base = {
         "schema": 3,
         "world_id": world_id,
@@ -373,13 +402,13 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "cursor": 5,
         "head": 5,
         "now": 1700000000,
-        "changes": changes["changes"][:5],
+        "changes": expected_changes[:5],
     }
     assert changes == changes_base | {
         "cursor": 6,
         "head": 6,
         "now": 1700000005,
-        "changes": changes["changes"],
+        "changes": expected_changes,
     }
 
     message_events = [event for event in observed["events"] if event["type"].startswith("message.")]
@@ -441,6 +470,8 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
         "sendPhoto:4",
         "getFile:1",
         "getFile:2",
+        "getFile:3",
+        "getFile:4",
         "getUpdates:2",
         "answerCallbackQuery:1",
         "editMessageText:1",
@@ -458,17 +489,43 @@ def assert_media_scenario(observed: dict[str, Any]) -> None:
     assert api_responses[3] == {"status": 200, "body": {"ok": True, "result": rich}}
     assert api_responses[4] == {"status": 200, "body": {"ok": True, "result": rich_reuse}}
     assert api_responses[5:7] == [published["malformed"], published["foreign"]]
+    initial_update = {
+        "update_id": 1,
+        "message": {
+            "message_id": 1,
+            "from": user_api,
+            "chat": chat,
+            "date": 1700000000,
+            "text": "Show local photos",
+        },
+    }
+    assert api_responses[0] == {
+        "status": 200,
+        "body": {"ok": True, "result": [initial_update]},
+    }
     assert api_responses[7]["body"] == {
         "ok": True,
         "result": published["png_download"]["get_file"],
     }
     assert api_responses[8]["body"] == {
         "ok": True,
+        "result": published["png_download"]["get_file"],
+    }
+    assert api_responses[9]["body"] == {
+        "ok": True,
         "result": published["jpeg_download"]["get_file"],
     }
-    assert api_responses[10] == {"status": 200, "body": {"ok": True, "result": True}}
-    assert api_responses[11] == {"status": 200, "body": {"ok": True, "result": edited}}
-    assert api_responses[12] == {"status": 200, "body": {"ok": True, "result": []}}
+    assert api_responses[10]["body"] == {
+        "ok": True,
+        "result": published["jpeg_download"]["get_file"],
+    }
+    assert api_responses[11] == {
+        "status": 200,
+        "body": {"ok": True, "result": [callback_update]},
+    }
+    assert api_responses[12] == {"status": 200, "body": {"ok": True, "result": True}}
+    assert api_responses[13] == {"status": 200, "body": {"ok": True, "result": edited}}
+    assert api_responses[14] == {"status": 200, "body": {"ok": True, "result": []}}
 
 
 def test_real_bot_uploads_reuses_downloads_edits_and_restarts_photos(tmp_path: Path) -> None:

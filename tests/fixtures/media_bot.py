@@ -94,6 +94,8 @@ def request(
 
 def download(file_id: str, expected: bytes) -> dict[str, Any]:
     file_result = request("getFile", {"file_id": file_id})["body"]["result"]
+    if request("getFile", {"file_id": file_id})["body"]["result"] != file_result:
+        raise RuntimeError("Repeated getFile did not preserve the generated path")
     connection = http.client.HTTPConnection("127.0.0.1", endpoint.port, timeout=15)
     try:
         connection.request("GET", f"/file/bot{token}/{file_result['file_path']}")
@@ -182,10 +184,12 @@ published = {
 }
 print(json.dumps({"event": "published", "value": published}, ensure_ascii=False), flush=True)
 
+if sys.stdin.readline() != "callback\n":
+    raise RuntimeError("Missing media callback signal")
 offset = updates[0]["update_id"] + 1
-deadline = time.monotonic() + 30
+deadline = time.monotonic() + 20
 while time.monotonic() < deadline:
-    incoming = request("getUpdates", {"offset": offset, "timeout": 3})["body"]["result"]
+    incoming = request("getUpdates", {"offset": offset, "timeout": 10})["body"]["result"]
     if not incoming:
         continue
     if (

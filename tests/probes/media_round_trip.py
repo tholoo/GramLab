@@ -125,6 +125,9 @@ def run(
             rich_message_id = records["published"]["rich"]["message_id"]
             with World.open(directory) as world:
                 world.advance_time(5)
+            assert bot.stdin is not None
+            bot.stdin.write("callback\n")
+            bot.stdin.flush()
             callback_status, callback_created = bridge_json(
                 bridge,
                 "/v3/callbacks",
@@ -141,7 +144,6 @@ def run(
             callback_id = callback_created["callback"]["id"]
             callback_after = bridge_json(bridge, f"/v3/callbacks/{callback_id}")[1]
 
-            assert bot.stdin is not None
             bot.stdin.write("edit\n")
             bot.stdin.flush()
             records["edited"] = read_record(bot, "edited")["value"]

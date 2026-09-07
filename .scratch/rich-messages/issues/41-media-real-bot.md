@@ -41,3 +41,8 @@ receives the current core's real HTTP rejection for its first multipart `sendPho
 the `published` stage, and the boundary test fails on that nonzero exit. This is the expected ticket
 39 integration boundary, not media support. Scoped Ruff format/check and mypy pass for all three
 Python files. No Android, build or full-suite gate was run by this worker.
+
+The integration review corrections preserve that exact first-request red boundary. They use the
+neutral stored photo block, assert every retained v2 snapshot field and complete v3 change object,
+verify admitted callback identities and the full bot update, treat `file_path` as an opaque relative
+generated path, repeat `getFile`, and release callback polling only after initial native observation.
