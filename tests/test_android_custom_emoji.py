@@ -82,7 +82,7 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     for phase in client["captures"]:
         assert (tmp_path / f"{phase}.xml").read_text() == client["captures"][phase]
         assert (tmp_path / f"{phase}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
-    assert set(client["launches"]) == {"initial", "restarted"}
+    assert set(client["launches"]) == {"initial", "animation-enabled", "restarted"}
     assert all(
         "Status: ok" in value and "LaunchState: COLD" in value
         for value in client["launches"].values()
@@ -94,6 +94,10 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
         }
     }
     assert "Accounts: 0" in client["accounts"]
+    profile = client["animation_profile"]
+    assert profile["checked"] == {"Autoplay in keyboard": "true", "Autoplay in chat": "true"}
+    assert int(profile["after"]["lite_mode6"]["value"]) & (16384 | 4096) == 16384 | 4096
+    assert "level:" in profile["battery"]
     requests = client["native_requests"]
     assert all(row["status"] == 200 and row["error"] is None for row in requests)
     assert not any(row["asset_id"] == 1 for row in requests)

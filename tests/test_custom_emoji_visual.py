@@ -69,3 +69,14 @@ def test_static_oracle_requires_diamond_geometry_not_one_blue_pixel() -> None:
     assert locate_static(image, (20, 5, 180, 80))
     image.putpixel((150, 50), (88, 104, 240))
     assert not locate_static(image, (140, 40, 160, 60))
+    checker = Image.new("RGB", (40, 40), BACKGROUND)
+    checker_draw = ImageDraw.Draw(checker)
+    for y in range(10, 22):
+        for x in range(10, 22):
+            if (x + y) % 2 == 0:
+                checker_draw.point((x, y), fill=(88, 104, 240))
+    assert not locate_static(checker, (0, 0, 40, 40))
+
+
+def test_animation_locator_rejects_inferred_canvas_clipped_by_carrier() -> None:
+    assert locate_animation(_frame(0), (100, 20, 200, 110)) is None

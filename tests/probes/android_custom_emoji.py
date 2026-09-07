@@ -29,6 +29,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     cache: dict[str, Any] = {}
     carrier_bounds: dict[str, dict[str, list[int]]] = {}
     burst_timestamps_ns: list[int] = []
+    animation_profile: dict[str, Any] = {}
+    navigation_frame = 0
     phase = "initial"
 
     def retain(name: str, value: str) -> str:
@@ -53,7 +55,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         adb("shell", "screencap", "-p", "/data/local/tmp/custom-emoji.png")
         adb("pull", "/data/local/tmp/custom-emoji.png", f"/work/{name}.png")
 
-    def screen(name: str) -> str:
+    def screen(name: str, *, readiness_phase: str | None = None) -> str:
+        expected_phase = readiness_phase or name
         deadline = time.monotonic() + 35
         ui = ""
         while time.monotonic() < deadline:
@@ -61,10 +64,11 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             ui = adb("shell", "cat", "/data/local/tmp/custom-emoji.xml").stdout
             rows = trace(name)
             readiness_labels = ("سلام", "Ordinary", "Rich") + (
-                ("Animate / متحرک",) if name == "initial" else ()
+                ("Animate / متحرک",) if expected_phase == "initial" else ()
             )
             if all(label in ui for label in readiness_labels) and (
-                name == "initial" or any(row.get("event") == "events_applied" for row in rows)
+                expected_phase == "initial"
+                or any(row.get("event") == "events_applied" for row in rows)
             ):
                 break
             time.sleep(0.2)
@@ -139,6 +143,102 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         )
         launches[name] = retain(name + "-launch.log", result.stdout + result.stderr)
 
+    def settings_tree(name: str) -> ET.Element:
+        adb("shell", "uiautomator", "dump", "/data/local/tmp/custom-emoji-settings.xml", timeout=15)
+        xml = adb("shell", "cat", "/data/local/tmp/custom-emoji-settings.xml").stdout
+        retain(name + ".xml", xml)
+        screenshot(name)
+        return ET.fromstring(xml)  # noqa: S314
+
+    def find_setting(text: str, tree: ET.Element) -> tuple[ET.Element, ET.Element]:
+        nonlocal navigation_frame
+        for _ in range(6):
+            found = [node for node in tree.iter("node") if node.get("text") == text]
+            if len(found) == 1:
+                return found[0], tree
+            if len(found) > 1:
+                raise RuntimeError("Original animation setting is ambiguous: " + text)
+            adb("shell", "input", "swipe", "170", "540", "170", "280", "400")
+            navigation_frame += 1
+            tree = settings_tree(f"settings-{navigation_frame:02d}")
+        raise RuntimeError("Original animation setting is unavailable: " + text)
+
+    def tap_node(node: ET.Element) -> None:
+        match = BOUNDS.fullmatch(node.get("bounds", ""))
+        if match is None:
+            raise RuntimeError("Original animation setting has no bounds")
+        left, top, right, bottom = map(int, match.groups())
+        adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+
+    def preferences() -> dict[str, Any]:
+        value = adb("shell", "run-as", PACKAGE, "cat", "shared_prefs/mainconfig.xml").stdout
+        tree = ET.fromstring(value)  # noqa: S314
+        keys = {"overrideDevicePerformanceClass", "lite_mode6", "lite_mode_battery_level"}
+        return {
+            node.attrib["name"]: {"type": node.tag, "value": node.get("value")}
+            for node in tree
+            if node.get("name") in keys
+        }
+
+    def enable_animations() -> None:
+        nonlocal navigation_frame
+        animation_profile["before"] = preferences()
+        animation_profile["battery"] = adb("shell", "dumpsys", "battery").stdout
+        adb(
+            "shell",
+            "am",
+            "start",
+            "-W",
+            "-n",
+            f"{PACKAGE}/org.telegram.ui.LaunchActivity",
+            "-a",
+            "org.telegram.messenger.OPEN_ACCOUNT",
+            timeout=40,
+        )
+        navigation_frame += 1
+        tree = settings_tree(f"settings-{navigation_frame:02d}")
+        if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
+            adb("shell", "input", "keyevent", "4")
+            navigation_frame += 1
+            tree = settings_tree(f"settings-{navigation_frame:02d}")
+        power, tree = find_setting("Power Saving", tree)
+        tap_node(power)
+        navigation_frame += 1
+        tree = settings_tree(f"settings-{navigation_frame:02d}")
+        emoji, tree = find_setting("Animated Emoji", tree)
+        tap_node(emoji)  # Text-side tap expands the original category without toggling all flags.
+        navigation_frame += 1
+        tree = settings_tree(f"settings-{navigation_frame:02d}")
+        checked: dict[str, str] = {}
+        for label in ("Autoplay in keyboard", "Autoplay in chat"):
+            target, tree = find_setting(label, tree)
+            controls = [
+                node
+                for node in tree.iter("node")
+                if node.get("content-desc") == label
+                and node.get("class") == "android.widget.CheckBox"
+            ]
+            if len(controls) != 1:
+                raise RuntimeError("Original animation checkbox is ambiguous: " + label)
+            if controls[0].get("checked") != "true":
+                tap_node(target)
+                navigation_frame += 1
+                tree = settings_tree(f"settings-{navigation_frame:02d}")
+                controls = [
+                    node
+                    for node in tree.iter("node")
+                    if node.get("content-desc") == label
+                    and node.get("class") == "android.widget.CheckBox"
+                ]
+            if len(controls) != 1 or controls[0].get("checked") != "true":
+                raise RuntimeError("Original animation checkbox did not enable: " + label)
+            checked[label] = controls[0].get("checked", "")
+        animation_profile["checked"] = checked
+        animation_profile["after"] = preferences()
+        retain("animation-profile.json", json.dumps(animation_profile, indent=2))
+        adb("shell", "am", "force-stop", PACKAGE)
+        launch("animation-enabled")
+
     def cache_files(name: str) -> None:
         external = f"/storage/emulated/0/Android/data/{PACKAGE}"
         paths = [
@@ -209,9 +309,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     def tap(name: str, label: str) -> None:
         nonlocal phase
         assert proxy is not None
-        phase = "edited"
-        proxy.phase("edited")
-        ui = screen(name)
+        enable_animations()
+        ui = screen("pre-tap", readiness_phase=name)
+        captures.pop("pre-tap")
+        carrier_bounds.pop("pre-tap")
         candidates = []
         for node in ET.fromstring(ui).iter("node"):  # noqa: S314
             if label not in node.get("text", "") + node.get("content-desc", ""):
@@ -225,6 +326,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             raise RuntimeError("Original custom emoji callback has no semantic bounds")
         _, left, top, right, bottom = min(candidates)
         taps[name] = {"label": label, "bounds": [left, top, right, bottom]}
+        phase = "edited"
+        proxy.phase("edited")
         adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
     def observe() -> dict[str, Any]:
@@ -238,6 +341,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 "cache": cache,
                 "carrier_bounds": carrier_bounds,
                 "burst_timestamps_ns": burst_timestamps_ns,
+                "animation_profile": animation_profile,
                 "native_requests": proxy.requests(),
                 "document_requests": proxy.document_requests(),
                 "trace": rows,

@@ -62,7 +62,19 @@ def locate_static(frame: Image.Image, box: tuple[int, int, int, int]) -> bool:
     left, top, right, bottom = _bounds(points)
     width, height = right - left, bottom - top
     occupancy = len(points) / (width * height)
-    return abs(width - height) <= max(2, width // 3) and 0.28 <= occupancy <= 0.78
+    rows = [sorted(x for x, y_value in points if y_value == y) for y in range(top, bottom)]
+    widths = [len(row) for row in rows]
+    contiguous = all(not row or row[-1] - row[0] + 1 <= len(row) + 2 for row in rows)
+    center = (left + width // 2, top + height // 2) in set(points)
+    corners = {(left, top), (right - 1, top), (left, bottom - 1), (right - 1, bottom - 1)}
+    return (
+        abs(width - height) <= max(2, width // 3)
+        and 0.28 <= occupancy <= 0.78
+        and center
+        and not corners.intersection(points)
+        and max(widths) >= 2 * max(widths[0], widths[-1], 1)
+        and contiguous
+    )
 
 
 def require_distinct_carriers(
@@ -94,6 +106,15 @@ def locate_animation(
     if not 0.12 <= scale <= 1.5 or abs(marker_scale - moving_scale) > max(0.15, scale * 0.35):
         return None
     origin_x, origin_y = marker_box[0] - 8 * scale, marker_box[1] - 8 * scale
+    if not (
+        left <= origin_x
+        and top <= origin_y
+        and origin_x + 100 * scale < right
+        and origin_y + 100 * scale < bottom
+        and origin_x + 100 * scale < frame.width
+        and origin_y + 100 * scale < frame.height
+    ):
+        return None
     (moving_x, moving_y), _ = STATES[matches[0][1]]
     tolerance = max(2.5, scale * 4)
     if (
@@ -127,7 +148,9 @@ def locate_animation(
     ):
         return None
     background = next(
-        background for background in backgrounds if _close(sample(4, 4), background, 30)
+        background
+        for background in backgrounds
+        if _close(sample(4, 4), background, 30) and _close(sample(94, 94), background, 30)
     )
     for i, ((x, y), _) in enumerate(STATES):
         if i != matches[0][1] and not _close(sample(x + 12, y + 12), background, 30):
