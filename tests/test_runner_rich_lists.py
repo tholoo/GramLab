@@ -290,12 +290,17 @@ def verify(result: dict[str, Any], *, native: bool) -> None:
     assert interaction["native"] is native
     callback = interaction["callback"]
     assert callback["message"] == INITIAL_MESSAGE
-    assert {key: callback[key] for key in ("user_id", "chat_id", "data", "answer")} == {
+    assert {key: callback[key] for key in ("user_id", "chat_id", "data")} == {
         "user_id": 2,
         "chat_id": 1,
         "data": "rtl-edit",
-        "answer": None,
     }
+    # Native observation may follow the real bot's answer; the scenario and complete
+    # event comparison above independently require the final answer in either mode.
+    assert callback["answer"] in (
+        None,
+        {"text": "Lists updated", "show_alert": False, "cache_time": 0},
+    )
     assert re.fullmatch(r"[0-9a-f-]{36}", callback["id"])
     assert re.fullmatch(r"[0-9a-f]{64}", callback["chat_instance"])
     assert result["processes"]["bot:lists"] == {

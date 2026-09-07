@@ -61,3 +61,12 @@ acceptance. Report pending native checks explicitly.
   equal readable identity. The coordinator records the renderer quirk; this example does not
   normalize or fix it. The final focused offline rerun passes with `1 passed, 2 deselected`; Ruff
   lint/format and mypy also pass. No native test, guest or build was run.
+- Coordinator's two-worker trial completed both native scenarios, but the public host assertion
+  incorrectly required the callback to remain unanswered at observation. The documented input
+  contract permits the real bot to answer before return. Replaying the retained result reproduced
+  that assertion in under a second. Accepting either pending or the exact expected answer makes
+  both retained mode results pass; a deliberately incorrect answer remains rejected. Complete
+  final events and scenario assertions still require the exact eventual answer. No runtime code
+  changed. The final original screenshots show real wrapping, clear a/A/i and I/decimal labels,
+  nested checked/unchecked items, and equal RTL content through both cold captures. A corrected
+  fresh native pair and the combined gate remain pending.
