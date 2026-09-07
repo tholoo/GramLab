@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by fixture worker
 Blocked by: none for original fixtures; runtime media architecture remains unapproved
 
 Implementation worker owns only `tests/assets/custom-emoji/` and this ticket on
@@ -36,3 +36,25 @@ checkout's environment, and direct artifact generation/validation checks. No APK
 guest, bot, API, premium/ownership model or media delivery work is assigned. Commit only owned
 files, leave the branch frozen/clean and return exact provenance, checks and terminal resources.
 These fixtures cannot establish original Android animation or Bot API custom-emoji support.
+
+## Worker evidence
+
+The original fixture set contains a 100×100 transparent static WebP, a 100×100 four-frame
+transparent VP9 WebM at 4 fps, a 16×16 transparent WebP thumbnail, and a deliberately truncated
+WebM. Geometry has a fixed opaque marker, transparent background, and an opaque square that moves
+and changes color in every animation frame. The locally retained contract sources do not establish
+an upload dimension limit; choosing 100×100 is conservative and is not an API-admission claim.
+
+Generation used FFmpeg 6.1.6 with locally available `libwebp` and `libvpx-vp9`, one encoder thread,
+local raw RGBA input, and no input URL. The exact flags and full fixture hashes are portable in the
+manifest. WebP bytes repeat under this profile. Two WebM generations differed at mux metadata while
+decoding to identical pixels, so the documented WebM reproducibility boundary is decoded content,
+not cross-run container identity.
+
+Direct verification decodes both committed WebPs, all four committed WebM frames through the
+explicit `libvpx-vp9` decoder, and a separately generated WebM. It checks dimensions, VP9 codec,
+four 250ms packets, the WebM alpha-mode tag, actual decoded transparent and opaque alpha pixels,
+four distinct frames, expected fixed/moving geometry, manifest hashes, and decoder rejection of the
+truncated fixture. Static, thumbnail, first-frame, and last-frame images were also inspected. This
+does not establish browser decoding, original Android rendering/playback, custom-emoji ownership,
+or Bot API admission.

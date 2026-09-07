@@ -1,0 +1,65 @@
+{
+  "fixtures": [
+    {
+      "alpha": true,
+      "codec": "vp9",
+      "duration_seconds": 1.0,
+      "filename": "emoji-animated.webm",
+      "frames": 4,
+      "height": 100,
+      "mime": "video/webm",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "78f0612e278c05a6744b7f62f97818db92e3598e322509c01c35d7c4d95a65b6",
+      "valid": true,
+      "width": 100
+    },
+    {
+      "alpha": true,
+      "codec": "webp",
+      "filename": "emoji-static.webp",
+      "height": 100,
+      "mime": "image/webp",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "e7d28de83023dc2a1013bd7c7d8a07bfcaf9cb7e511af0739b53361f5c69c009",
+      "valid": true,
+      "width": 100
+    },
+    {
+      "alpha": true,
+      "codec": "webp",
+      "filename": "emoji-thumbnail.webp",
+      "height": 16,
+      "mime": "image/webp",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "09fa34d8b55ab654fc80b8b339dda88a0bd656622d1cf99454a3f831d31e50dc",
+      "valid": true,
+      "width": 16
+    },
+    {
+      "codec": "vp9",
+      "filename": "emoji-truncated-invalid.webm",
+      "mime": "video/webm",
+      "provenance": {
+        "license": "MIT",
+        "source": "original GramLab generator"
+      },
+      "sha256": "1542b8dc954ccaa453def80254fe8d226824a820f2f017b4cec7c01a39662472",
+      "valid": false
+    }
+  ],
+  "generator_profile": {
+    "ffmpeg": "ffmpeg version 6.1.6 Copyright (c) 2000-2026 the FFmpeg developers",
+    "reproducibility": "WebP bytes repeat under this profile; WebM mux metadata varies, so verify decoded semantics",
+    "webm_flags": "fflags=+bitexact libvpx-vp9 lossless=1 yuva420p flags:v=+bitexact deadline=good cpu-used=0 row-mt=0 tile-columns=0 frame-parallel=0 threads=1",
+    "webp_flags": "libwebp bgra lossless=1 compression_level=6 preset=icon threads=1"
+  }
+}
