@@ -55,6 +55,10 @@ offline safety, licensing and completion requirements before the corresponding a
   identities and requires a resolvable original Document plus local static/animated bytes.
   Admission, document resolution and missing-asset policy remain design decisions; no runtime
   custom-emoji support is claimed.
+- [Default rich detection](rich-auto-detection.md) is a separate operational gap: the pinned
+  open source forwards a server autolink flag and does not establish enrichment grammar or
+  nesting/block rules. Do not treat ordinary-text detection as proof; a local fidelity policy
+  needs consultation. No account/DC observation is authorized.
 - Public rich-button targeting remains open. The callback and copy/disabled experiments below
   establish bounded original input, not a stable public geometry API. Prepare a concrete proposal
   before consequential targeting/navigation changes.
