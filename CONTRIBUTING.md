@@ -73,12 +73,20 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
-uv run --locked pytest --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
+uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
 The 80% floor is an initial backstop; review the behavioral assertions and blind spots regardless.
 Use pytest-xdist only for appropriately isolated tests. Mark Android-dependent tests separately;
 report missing Android infrastructure as unavailable coverage, not success.
+
+The current isolated core inventory has passing parallel evidence; the four-worker recipe above
+is the established development workflow. Run it inside the outer network guard linked above.
+Keep Android verification separate and serial under the `android-gate` lock described in
+[parallel development](docs/development/parallel-work.md#shared-resource-locks). Excluding Android
+here avoids reporting unavailable guest tests as core skips. Review isolation when adding tests.
+Use [retained timings](docs/development/test-timings.md) to compare runs before repeating a gate;
+parallel wall time and summed case time measure different things.
 
 ## Task workflow
 
