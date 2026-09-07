@@ -406,7 +406,6 @@ def run_guards(observe: Observation, assets: dict[int, tuple[str, bytes]]) -> di
                     "shell",
                     "am",
                     "start",
-                    "-W",
                     "-n",
                     f"{PACKAGE}/org.telegram.ui.LaunchActivity",
                     "-a",
@@ -417,6 +416,8 @@ def run_guards(observe: Observation, assets: dict[int, tuple[str, bytes]]) -> di
                     timeout=45,
                     required=False,
                 )
+                # Rejected startup has no drawn activity to await with am start -W.
+                # The trace or lookup result below is the required terminal evidence.
                 deadline = time.monotonic() + 10
                 while time.monotonic() < deadline:
                     sample = observe.raw_sample()

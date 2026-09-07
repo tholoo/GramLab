@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: 53 for native execution only
 
 Own this ticket and new `tests/probes/android_rich_media_late.py` and
@@ -96,3 +96,20 @@ for a rich allowed set with no matching root and `asset_mismatch` when a rich me
 as ordinary. Loading and final samples also require the exact B receiver key. The main observation
 poll performs one result read per iteration; there is no repeated consecutive read around the
 loading capture. Focused Ruff, mypy and collection checks pass after these corrections.
+
+## First native checkpoint
+
+Normal23 reaches the complete live interaction: original rich C binds before B is released,
+then ordinary B loads while rich C remains bound in fresh observations. All four original PNGs
+are inspected. The combined run remains failed: the host expected a sized rich image key, and
+one of 18 guards times out waiting for activity launch before reading its rejection trace.
+The original rich full-image call supplies a null filter (RichMessageLayout applyImage); the
+ImageReceiver appends `@filter` only for a non-null filter. Rich keys therefore equal `2_1` and
+`3_1`; ordinary B retains its independent sized key. The corrected host oracle preserves both.
+Guard intent dispatch now proceeds directly to the existing bounded native trace/result wait;
+rejected startup need not produce a drawn activity. No client timeout or renderer is changed.
+
+Retained `artifacts/rich-and-ordinary-photo-interactions-01/` contains the original failed JUnit,
+147.14-second rich case, all 18 independently attempted guard results, screenshots and unchanged
+source/APK receipt. The same run passes the separate ordinary interactions in 99.43 seconds.
+Fresh rich guard and complete host acceptance remain required; do not relabel this JUnit green.

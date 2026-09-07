@@ -110,7 +110,8 @@ def assert_late_completion(
     assert [row["asset_id"] for row in case["loading"]["messages"]] == [2, 2]
     assert not any(row["has_image"] for row in case["loading"]["messages"])
     rich_loading, ordinary_loading = case["loading"]["messages"]
-    assert rich_loading["image_key"].startswith("2_1@")
+    # Original rich full images pass a null filter; only ordinary receivers append @size.
+    assert rich_loading["image_key"] == "2_1"
     assert ordinary_loading["image_key"].startswith("2_1@")
     assert rich_loading["progress"] is None and rich_loading["progress_icon"] is None
     assert ordinary_loading["progress_icon"] == 3
@@ -145,12 +146,12 @@ def assert_late_completion(
         ("rich", 3, True),
         ("ordinary", 2, False),
     ]
-    assert before[0]["image_key"].startswith("3_1@")
+    assert before[0]["image_key"] == "3_1"
     assert case["post_release"]
     for sample in case["post_release"] + [case["completed"], case["stable"]]:
         rich, ordinary = sample["messages"]
         assert rich["asset_id"] == 3 and rich["has_image"] is True
-        assert rich["image_key"].startswith("3_1@")
+        assert rich["image_key"] == "3_1"
         assert ordinary["asset_id"] == 2
         assert ordinary["image_key"].startswith("2_1@")
     assert case["completed"]["messages"][1]["has_image"] is True
