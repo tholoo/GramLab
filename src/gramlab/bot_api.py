@@ -207,6 +207,7 @@ def _dispatch(
         "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
         "sendphoto": {"chat_id", "photo", "caption", "caption_entities", "reply_markup"},
         "getfile": {"file_id"},
+        "getcustomemojistickers": {"custom_emoji_ids"},
         "editmessagetext": {
             "chat_id",
             "message_id",
@@ -226,6 +227,13 @@ def _dispatch(
             parameters[name] = _json_value(parameters[name])
     if method == "getme":
         return world.get_user(bot_id)
+    if method == "getcustomemojistickers":
+        if set(parameters) != {"custom_emoji_ids"}:
+            raise ValueError("custom_emoji_ids is required")
+        values = parameters["custom_emoji_ids"]
+        if isinstance(values, str):
+            values = _json_value(values)
+        return world.custom_emoji_stickers(bot_id, values)
     if method == "getfile":
         if set(parameters) != {"file_id"} or not isinstance(parameters["file_id"], str):
             raise ValueError("file_id is required")
@@ -449,7 +457,11 @@ class BotAPIServer:
                     url = urlsplit(self.path)
                     parts = url.path.split("/")
                     if len(parts) == 5 and parts[1] == "file" and parts[2].startswith("bot"):
-                        if self.command != "GET" or url.query or parts[3] != "photos":
+                        if (
+                            self.command != "GET"
+                            or url.query
+                            or parts[3] not in ("photos", "stickers")
+                        ):
                             raise LookupError("Not Found")
                         with World.open(directory) as world:
                             bot_id = world.authenticate_bot(parts[2][3:])
@@ -463,7 +475,7 @@ class BotAPIServer:
                             if not dot:
                                 raise LookupError("Not Found")
                             info, data = world.bot_file(bot_id, file_id)
-                            if info["file_path"] != f"photos/{parts[4]}":
+                            if info["file_path"] != f"{parts[3]}/{parts[4]}":
                                 raise LookupError("Not Found")
                             self.send_response(200)
                             self.send_header("Content-Type", info["mime_type"])

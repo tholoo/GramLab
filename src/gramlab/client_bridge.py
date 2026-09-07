@@ -60,9 +60,13 @@ class ClientBridge:
                 self.reply(
                     status,
                     {
-                        "schema": 3
-                        if self.path.startswith("/v3/")
-                        else (2 if self.path.startswith("/v2/") else 1),
+                        "schema": 4
+                        if self.path.startswith("/v4/")
+                        else (
+                            3
+                            if self.path.startswith("/v3/")
+                            else (2 if self.path.startswith("/v2/") else 1)
+                        ),
                         "error": {"code": code, "message": message},
                     },
                 )
@@ -121,26 +125,84 @@ class ClientBridge:
                         if any(len(values) != 1 for values in fields.values()):
                             raise ValueError("Repeated client parameters are unsupported")
                         if self.command == "POST":
-                            if url.path not in ("/v1/callbacks", "/v2/messages", "/v3/callbacks"):
+                            if url.path not in (
+                                "/v1/callbacks",
+                                "/v2/messages",
+                                "/v3/callbacks",
+                                "/v4/callbacks",
+                                "/v4/messages",
+                                "/v4/custom-emoji-documents",
+                            ):
                                 self.error(404, "unsupported", "Unknown client bridge operation")
                                 return
                             if fields:
                                 raise ValueError("Client command does not accept query parameters")
-                            if url.path == "/v2/messages":
+                            if url.path == "/v4/custom-emoji-documents":
+                                parameters = self.command_parameters(
+                                    {"custom_emoji_ids"}, set(), 16384
+                                )
+                                try:
+                                    custom_emoji, assets = world.granted_custom_emoji(
+                                        persona, parameters["custom_emoji_ids"]
+                                    )
+                                except LookupError:
+                                    self.error(
+                                        404, "document_unavailable", "Document is unavailable"
+                                    )
+                                    return
+                                result = {
+                                    "schema": 4,
+                                    "world_id": world.world_id,
+                                    "user_id": persona,
+                                    "custom_emoji": custom_emoji,
+                                    "assets": assets,
+                                }
+                            elif url.path in ("/v2/messages", "/v4/messages"):
+                                version = 4 if url.path.startswith("/v4/") else 2
                                 sent = world.send_client_message(
                                     user_id=persona,
                                     **self.command_parameters(
                                         {"request_id", "chat_id", "text"}, {"entities"}, 65536
                                     ),
+                                    version=version,
                                 )
                                 result = {
-                                    "schema": 2,
+                                    "schema": version,
                                     "world_id": world.world_id,
                                     "user_id": persona,
                                     "send": sent,
                                 }
+                                if version == 4:
+                                    message = sent["message"]
+                                    result["users"] = world._identity_dependencies(
+                                        persona, [message]
+                                    )
+                                    emoji_ids = world._message_custom_emoji(message)
+                                    descriptors = [
+                                        world.custom_emoji_descriptor(i) for i in sorted(emoji_ids)
+                                    ]
+                                    result["custom_emoji"] = descriptors
+                                    asset_ids = set(world._message_assets(message))
+                                    for descriptor in descriptors:
+                                        asset_ids.update(
+                                            (
+                                                descriptor["main_asset_id"],
+                                                descriptor["thumbnail_asset_id"],
+                                            )
+                                        )
+                                    result["assets"] = [
+                                        world.asset_descriptor(i) for i in sorted(asset_ids)
+                                    ]
+                                    result["message_revision"] = world._connection.execute(
+                                        "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",  # noqa: E501
+                                        (message["chat_id"], message["id"]),
+                                    ).fetchone()[0]
                             else:
-                                version = 3 if url.path == "/v3/callbacks" else 1
+                                version = (
+                                    4
+                                    if url.path == "/v4/callbacks"
+                                    else (3 if url.path == "/v3/callbacks" else 1)
+                                )
                                 callback = world.create_callback(
                                     user_id=persona,
                                     version=version,
@@ -156,15 +218,25 @@ class ClientBridge:
                                     "user_id": persona,
                                     "callback": callback,
                                 }
-                                if version == 3:
-                                    result.update(world.callback_dependencies(persona, callback))
-                        elif url.path.startswith(("/v1/callbacks/", "/v3/callbacks/")):
+                                if version >= 3:
+                                    result.update(
+                                        world.callback_dependencies(
+                                            persona, callback, version=version
+                                        )
+                                    )
+                        elif url.path.startswith(
+                            ("/v1/callbacks/", "/v3/callbacks/", "/v4/callbacks/")
+                        ):
                             if fields:
                                 raise ValueError("Callback does not accept query parameters")
                             callback = world.get_callback(
                                 user_id=persona, callback_id=url.path.rsplit("/", 1)[1]
                             )
-                            version = 3 if url.path.startswith("/v3/") else 1
+                            version = (
+                                4
+                                if url.path.startswith("/v4/")
+                                else (3 if url.path.startswith("/v3/") else 1)
+                            )
                             if version < 3 and world._message_assets(callback["message"]):
                                 raise ValueError(
                                     "GRAMLAB_UNSUPPORTED: media requires client bridge v3"
@@ -179,13 +251,25 @@ class ClientBridge:
                                 "user_id": persona,
                                 "callback": callback,
                             }
-                            if version == 3:
-                                result.update(world.callback_dependencies(persona, callback))
-                        elif url.path in ("/v1/snapshot", "/v2/snapshot", "/v3/snapshot"):
+                            if version >= 3:
+                                result.update(
+                                    world.callback_dependencies(persona, callback, version=version)
+                                )
+                        elif url.path in (
+                            "/v1/snapshot",
+                            "/v2/snapshot",
+                            "/v3/snapshot",
+                            "/v4/snapshot",
+                        ):
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
                             result = world.client_snapshot(persona, version=int(url.path[2]))
-                        elif url.path in ("/v1/events", "/v2/changes", "/v3/changes"):
+                        elif url.path in (
+                            "/v1/events",
+                            "/v2/changes",
+                            "/v3/changes",
+                            "/v4/changes",
+                        ):
                             if "after" not in fields or fields.keys() - {"after", "limit"}:
                                 raise ValueError("Events require after and optionally limit")
                             try:
@@ -200,11 +284,13 @@ class ClientBridge:
                                     persona,
                                     after=after,
                                     limit=limit,
-                                    version=3 if url.path.startswith("/v3/") else 2,
+                                    version=4
+                                    if url.path.startswith("/v4/")
+                                    else (3 if url.path.startswith("/v3/") else 2),
                                 )
                             else:
                                 result = world.client_events(persona, after=after, limit=limit)
-                        elif url.path.startswith("/v3/assets/"):
+                        elif url.path.startswith(("/v3/assets/", "/v4/assets/")):
                             if (
                                 fields
                                 or "Range" in self.headers
@@ -212,7 +298,7 @@ class ClientBridge:
                             ):
                                 raise ValueError("Asset download parameters are unsupported")
                             try:
-                                asset_id = int(url.path.removeprefix("/v3/assets/"))
+                                asset_id = int(url.path.rsplit("/", 1)[1])
                             except ValueError:
                                 self.error(404, "asset_unavailable", "Asset is unavailable")
                                 return
@@ -221,6 +307,13 @@ class ClientBridge:
                             except ValueError:
                                 self.error(404, "asset_unavailable", "Asset is unavailable")
                                 return
+                            if url.path.startswith("/v3/") and descriptor["mime_type"] in (
+                                "image/webp",
+                                "video/webm",
+                            ):
+                                raise ValueError(
+                                    "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
+                                )
                             self.send_response(200)
                             self.send_header("Content-Type", descriptor["mime_type"])
                             self.send_header("Content-Length", str(len(data)))

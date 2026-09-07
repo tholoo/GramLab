@@ -17,7 +17,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
-from gramlab.entities import formatting_entities
+from gramlab.entities import canonical_custom_emoji_id, formatting_entities
 from gramlab.media import ImageAsset, validate_image
 from gramlab.rich_messages import rich_message as validate_rich_message
 
@@ -107,7 +107,8 @@ class World:
         directory.mkdir(mode=0o700)
         connection = sqlite3.connect(directory / "world.sqlite3")
         try:
-            connection.executescript(f"""
+            connection.executescript(
+                f"""
                 PRAGMA journal_mode=WAL;
                 CREATE TABLE configuration (
                     seed INTEGER NOT NULL, now INTEGER NOT NULL, world_id TEXT NOT NULL
@@ -167,8 +168,28 @@ class World:
                     callback_id TEXT PRIMARY KEY REFERENCES callbacks(id),
                     message_revision INTEGER NOT NULL
                 );
-                PRAGMA user_version=6;
-            """)
+                CREATE TABLE IF NOT EXISTS custom_emoji (
+                    id INTEGER PRIMARY KEY, fallback TEXT NOT NULL, free INTEGER NOT NULL,
+                    needs_repainting INTEGER NOT NULL, main_asset_id INTEGER NOT NULL
+                    REFERENCES assets(id),
+                    thumbnail_asset_id INTEGER NOT NULL REFERENCES assets(id),
+                    duration_ms INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS custom_emoji_registrations (
+                    request_id TEXT PRIMARY KEY, request_body TEXT NOT NULL,
+                    custom_emoji_id INTEGER NOT NULL REFERENCES custom_emoji(id)
+                );
+                CREATE TABLE IF NOT EXISTS custom_emoji_counter (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1), next_id INTEGER NOT NULL
+                );
+                INSERT INTO custom_emoji_counter VALUES (1, 1);
+                CREATE TABLE IF NOT EXISTS custom_emoji_grants (
+                    user_id INTEGER NOT NULL REFERENCES users(id), custom_emoji_id INTEGER NOT NULL
+                    REFERENCES custom_emoji(id), PRIMARY KEY(user_id, custom_emoji_id)
+                );
+                PRAGMA user_version=7;
+            """  # noqa: S608
+            )
             with connection:
                 connection.execute(
                     "INSERT INTO configuration VALUES (?, ?, ?)", (seed, now, str(uuid.uuid4()))
@@ -263,7 +284,25 @@ class World:
                         for statement in statements:
                             connection.execute(statement)
                         connection.execute("PRAGMA user_version=6")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 6:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 6:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 6:
+                        connection.execute(
+                            "CREATE TABLE IF NOT EXISTS custom_emoji (id INTEGER PRIMARY KEY, fallback TEXT NOT NULL, free INTEGER NOT NULL, needs_repainting INTEGER NOT NULL, main_asset_id INTEGER NOT NULL REFERENCES assets(id), thumbnail_asset_id INTEGER NOT NULL REFERENCES assets(id), duration_ms INTEGER NOT NULL)"  # noqa: E501
+                        )
+                        connection.execute(
+                            "CREATE TABLE IF NOT EXISTS custom_emoji_registrations (request_id TEXT PRIMARY KEY, request_body TEXT NOT NULL, custom_emoji_id INTEGER NOT NULL REFERENCES custom_emoji(id))"  # noqa: E501
+                        )
+                        connection.execute(
+                            "CREATE TABLE IF NOT EXISTS custom_emoji_counter (singleton INTEGER PRIMARY KEY CHECK(singleton=1), next_id INTEGER NOT NULL)"  # noqa: E501
+                        )
+                        connection.execute("INSERT INTO custom_emoji_counter VALUES (1, 1)")
+                        connection.execute(
+                            "CREATE TABLE IF NOT EXISTS custom_emoji_grants (user_id INTEGER NOT NULL REFERENCES users(id), custom_emoji_id INTEGER NOT NULL REFERENCES custom_emoji(id), PRIMARY KEY(user_id, custom_emoji_id))"  # noqa: E501
+                        )
+                        connection.execute("PRAGMA user_version=7")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 7:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -467,6 +506,200 @@ class World:
             raise ValueError("Unknown chat")
         return {"id": chat_id, "type": "private", "user_id": row[0], "bot_id": row[1]}
 
+    def register_custom_emoji(
+        self,
+        *,
+        request_id: str,
+        main: bytes,
+        thumbnail: bytes,
+        fallback: str,
+        custom_emoji_id: int | str | None = None,
+        free: bool = True,
+        needs_repainting: bool = False,
+    ) -> dict[str, Any]:
+        if (
+            not isinstance(request_id, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
+        ):
+            raise ValueError("Custom emoji request_id must be 1 to 128 ASCII identifier characters")
+        if (
+            not isinstance(fallback, str)
+            or not fallback
+            or sum(2 if ord(c) > 0xFFFF else 1 for c in fallback) > 64
+        ):
+            raise ValueError("Custom emoji fallback must contain 1 to 64 UTF-16 units")
+        fallback.encode("utf-8", errors="strict")
+        if type(free) is not bool or type(needs_repainting) is not bool:
+            raise ValueError("Custom emoji flags must be booleans")
+        chosen = None if custom_emoji_id is None else canonical_custom_emoji_id(custom_emoji_id)
+        from gramlab._emoji_media import validate_custom_emoji
+
+        media = validate_custom_emoji(main, thumbnail)
+        request = json.dumps(
+            {
+                "main": media.main.sha256,
+                "thumbnail": media.thumbnail.sha256,
+                "fallback": fallback,
+                "custom_emoji_id": chosen,
+                "free": free,
+                "needs_repainting": needs_repainting,
+                "duration_ms": media.duration_ms,
+            },
+            sort_keys=True,
+        )
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            previous = self._connection.execute(
+                "SELECT request_body, custom_emoji_id FROM custom_emoji_registrations WHERE request_id=?",  # noqa: E501
+                (request_id,),
+            ).fetchone()
+            if previous is not None:
+                if previous[0] != request:
+                    raise ValueError(
+                        "Request ID already identifies another custom emoji registration"
+                    )
+                return self.custom_emoji_descriptor(previous[1])
+            main_id = self._store_asset(media.main)
+            thumbnail_id = self._store_asset(media.thumbnail)
+            if chosen is None:
+                candidate = self._connection.execute(
+                    "SELECT next_id FROM custom_emoji_counter WHERE singleton=1"
+                ).fetchone()[0]
+                while self._connection.execute(
+                    "SELECT 1 FROM custom_emoji WHERE id=?", (candidate,)
+                ).fetchone():
+                    candidate += 1
+                    if candidate >= 2**63:
+                        raise ValueError("Custom emoji identifier space is exhausted")
+                identifier = candidate
+                self._connection.execute(
+                    "UPDATE custom_emoji_counter SET next_id=? WHERE singleton=1", (candidate + 1,)
+                )
+            else:
+                identifier = int(chosen)
+            existing = self._connection.execute(
+                "SELECT fallback, free, needs_repainting, main_asset_id, thumbnail_asset_id, duration_ms FROM custom_emoji WHERE id=?",  # noqa: E501
+                (identifier,),
+            ).fetchone()
+            values = (
+                fallback,
+                int(free),
+                int(needs_repainting),
+                main_id,
+                thumbnail_id,
+                media.duration_ms,
+            )
+            if existing is not None and tuple(existing) != values:
+                raise ValueError("Custom emoji ID already identifies another registration")
+            if existing is None:
+                self._connection.execute(
+                    "INSERT INTO custom_emoji VALUES (?, ?, ?, ?, ?, ?, ?)", (identifier, *values)
+                )
+            self._connection.execute(
+                "INSERT INTO custom_emoji_registrations VALUES (?, ?, ?)",
+                (request_id, request, identifier),
+            )
+            return self.custom_emoji_descriptor(identifier)
+
+    def custom_emoji_descriptor(self, custom_emoji_id: int | str) -> dict[str, Any]:
+        identifier = int(canonical_custom_emoji_id(custom_emoji_id))
+        row = self._connection.execute(
+            "SELECT fallback, free, needs_repainting, main_asset_id, thumbnail_asset_id, duration_ms FROM custom_emoji WHERE id=?",  # noqa: E501
+            (identifier,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Custom emoji is unavailable")
+        return {
+            "custom_emoji_id": str(identifier),
+            "fallback": row[0],
+            "free": bool(row[1]),
+            "needs_repainting": bool(row[2]),
+            "main_asset_id": row[3],
+            "thumbnail_asset_id": row[4],
+            "duration_ms": row[5],
+        }
+
+    def _message_custom_emoji(self, message: dict[str, Any]) -> set[int]:
+        result: set[int] = set()
+        pending: list[Any] = [
+            message.get("entities"),
+            message.get("caption_entities"),
+            message.get("rich_message"),
+        ]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, dict):
+                if value.get("type") == "custom_emoji" and "custom_emoji_id" in value:
+                    result.add(int(canonical_custom_emoji_id(value["custom_emoji_id"])))
+                pending.extend(value.values())
+            elif isinstance(value, list):
+                pending.extend(value)
+        return result
+
+    def _grant_custom_emoji(self, user_id: int, message: dict[str, Any]) -> None:
+        for identifier in self._message_custom_emoji(message):
+            row = self._connection.execute(
+                "SELECT main_asset_id, thumbnail_asset_id FROM custom_emoji WHERE id=?",
+                (identifier,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Custom emoji is unavailable")
+            self._connection.execute(
+                "INSERT OR IGNORE INTO custom_emoji_grants VALUES (?, ?)", (user_id, identifier)
+            )
+            for asset_id in row:
+                self._connection.execute(
+                    "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)", (user_id, asset_id)
+                )
+
+    def custom_emoji_stickers(
+        self, bot_id: int, custom_emoji_ids: list[Any]
+    ) -> list[dict[str, Any]]:
+        if not isinstance(custom_emoji_ids, list) or len(custom_emoji_ids) > 200:
+            raise ValueError("custom_emoji_ids must contain 0 to 200 identifiers")
+        if any(not isinstance(value, str) for value in custom_emoji_ids):
+            raise ValueError("custom_emoji_ids must contain decimal strings")
+        identifiers = sorted({int(canonical_custom_emoji_id(value)) for value in custom_emoji_ids})
+        if not self.get_user(bot_id)["is_bot"]:
+            raise ValueError("Only bots can obtain sticker file identities")
+        result = []
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            for identifier in identifiers:
+                try:
+                    descriptor = self.custom_emoji_descriptor(identifier)
+                except ValueError:
+                    continue
+                main = self.asset_descriptor(descriptor["main_asset_id"])
+                thumb = (
+                    self.photo_size(bot_id, descriptor["thumbnail_asset_id"])
+                    if self._connection.execute(
+                        "SELECT 1 FROM bot_files WHERE bot_id=? AND asset_id=?",
+                        (bot_id, descriptor["thumbnail_asset_id"]),
+                    ).fetchone()
+                    else None
+                )
+                self._file_identity(bot_id, descriptor["main_asset_id"])
+                self._file_identity(bot_id, descriptor["thumbnail_asset_id"])
+                thumb = self.photo_size(bot_id, descriptor["thumbnail_asset_id"])
+                sticker = {
+                    "file_id": self._file_identity(bot_id, descriptor["main_asset_id"]),
+                    "file_unique_id": main["sha256"],
+                    "file_size": main["file_size"],
+                    "type": "custom_emoji",
+                    "width": main["width"],
+                    "height": main["height"],
+                    "is_animated": False,
+                    "is_video": main["mime_type"] == "video/webm",
+                    "custom_emoji_id": str(identifier),
+                    "emoji": descriptor["fallback"],
+                    "thumbnail": thumb,
+                }
+                if descriptor["needs_repainting"]:
+                    sticker["needs_repainting"] = True
+                result.append(sticker)
+        return result
+
     def send_message(
         self,
         *,
@@ -565,6 +798,7 @@ class World:
             message["reply_markup"] = keyboard
         if formatting is not None:
             message["entities"] = formatting
+        self._grant_custom_emoji(chat["user_id"], message)
         self._connection.execute(
             "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
         )
@@ -588,7 +822,10 @@ class World:
         request_id: str,
         text: str,
         entities: list[dict[str, Any]] | None = None,
+        version: int = 2,
     ) -> dict[str, Any]:
+        if type(version) is not int or version not in (2, 4):
+            raise ValueError("Unsupported client message version")
         if (
             not isinstance(request_id, str)
             or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
@@ -598,6 +835,9 @@ class World:
             raise ValueError("Text must contain 1 to 4096 characters")
         text.encode("utf-8", errors="strict")
         formatting = formatting_entities(text, entities)
+        probe = {"entities": formatting}
+        if version < 4 and self._message_custom_emoji(probe):
+            raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
         command = json.dumps({"text": text, "entities": formatting}, sort_keys=True)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -717,6 +957,7 @@ class World:
                 message["entities"] = formatting
             if keyboard is not None:
                 message["reply_markup"] = keyboard
+            self._grant_custom_emoji(chat["user_id"], message)
             self._connection.execute(
                 "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
                 (json.dumps(message), chat_id, message_id),
@@ -870,6 +1111,7 @@ class World:
                 message["caption"] = caption
             if formatting:
                 message["caption_entities"] = formatting
+            self._grant_custom_emoji(chat["user_id"], message)
             self._connection.execute(
                 "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
                 (json.dumps(message), chat_id, message["id"]),
@@ -931,7 +1173,7 @@ class World:
             "file_id": file_id,
             "file_unique_id": row[1],
             "file_size": len(row[4]),
-            "file_path": f"photos/{file_id}.{row[2]}",
+            "file_path": f"{'stickers' if row[3] in ('image/webp', 'video/webm') else 'photos'}/{file_id}.{row[2]}",  # noqa: E501
             "mime_type": row[3],
         }
         return info, bytes(row[4])
@@ -946,6 +1188,28 @@ class World:
             raise ValueError("Asset is unavailable")
         return self.asset_descriptor(asset_id), bytes(row[0])
 
+    def granted_custom_emoji(
+        self, user_id: int, custom_emoji_ids: list[Any]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        if not isinstance(custom_emoji_ids, list) or not 1 <= len(custom_emoji_ids) <= 200:
+            raise ValueError("custom_emoji_ids must contain 1 to 200 identifiers")
+        identifiers = sorted({int(canonical_custom_emoji_id(value)) for value in custom_emoji_ids})
+        descriptors = []
+        assets: set[int] = set()
+        for identifier in identifiers:
+            if (
+                self._connection.execute(
+                    "SELECT 1 FROM custom_emoji_grants WHERE user_id=? AND custom_emoji_id=?",
+                    (user_id, identifier),
+                ).fetchone()
+                is None
+            ):
+                raise LookupError("Document is unavailable")
+            descriptor = self.custom_emoji_descriptor(identifier)
+            descriptors.append(descriptor)
+            assets.update((descriptor["main_asset_id"], descriptor["thumbnail_asset_id"]))
+        return descriptors, [self.asset_descriptor(asset_id) for asset_id in sorted(assets)]
+
     def create_callback(
         self,
         *,
@@ -956,7 +1220,7 @@ class World:
         request_id: str,
         version: int = 1,
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 3):
+        if type(version) is not int or version not in (1, 3, 4):
             raise ValueError("Unsupported client callback version")
         if (
             not isinstance(request_id, str)
@@ -989,11 +1253,15 @@ class World:
                     raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
                 if version < 3 and self._message_users(stored["message"]):
                     raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+                if version < 4 and self._message_custom_emoji(stored["message"]):
+                    raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
                 return stored
             if version < 3 and self._message_assets(message):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if version < 3 and self._message_users(message):
                 raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+            if version < 4 and self._message_custom_emoji(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
             world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
             callback = {
                 "id": str(uuid.uuid4()),
@@ -1159,7 +1427,7 @@ class World:
         }
 
     def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 2, 3):
+        if type(version) is not int or version not in (1, 2, 3, 4):
             raise ValueError("Unsupported client snapshot version")
         with self._connection:
             # Pin one SQLite read snapshot before reading either data or its journal cursor.
@@ -1194,6 +1462,10 @@ class World:
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if version < 3 and any(self._message_users(message) for message in result["messages"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+            if version < 4 and any(
+                self._message_custom_emoji(message) for message in result["messages"]
+            ):
+                raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
             if version == 2:
                 result["message_position"] = self._message_position(user_id)
                 result["sends"] = [
@@ -1203,7 +1475,7 @@ class World:
                         (user_id,),
                     )
                 ]
-            if version == 3:
+            if version >= 3:
                 result["users"] = self._identity_dependencies(user_id, result["messages"])
                 result["message_position"] = self._message_position(user_id)
                 result["sends"] = [
@@ -1213,12 +1485,17 @@ class World:
                         (user_id,),
                     )
                 ]
-                result["assets"] = [
+                granted_assets = [
                     self.asset_descriptor(row[0])
                     for row in self._connection.execute(
                         "SELECT asset_id FROM asset_grants WHERE user_id=? ORDER BY asset_id",
                         (user_id,),
                     )
+                ]
+                result["assets"] = [
+                    descriptor
+                    for descriptor in granted_assets
+                    if version == 4 or descriptor["mime_type"] in ("image/png", "image/jpeg")
                 ]
                 result["message_revisions"] = [
                     {
@@ -1232,11 +1509,21 @@ class World:
                     }
                     for message in result["messages"]
                 ]
+            if version == 4:
+                result["custom_emoji"] = [
+                    self.custom_emoji_descriptor(row[0])
+                    for row in self._connection.execute(
+                        "SELECT custom_emoji_id FROM custom_emoji_grants WHERE user_id=? ORDER BY custom_emoji_id",  # noqa: E501
+                        (user_id,),
+                    )
+                ]
             return result
 
     def client_changes(
         self, user_id: int, *, after: int, limit: int = 100, version: int = 2
     ) -> dict[str, Any]:
+        if type(version) is not int or version not in (2, 3, 4):
+            raise ValueError("Unsupported client changes version")
         if type(after) is not int or not 0 <= after < 2**63:
             raise ValueError("Invalid client message position")
         if type(limit) is not int or not 1 <= limit <= 1000:
@@ -1263,6 +1550,7 @@ class World:
             changes = []
             asset_ids: set[int] = set()
             mentioned_ids: set[int] = set()
+            emoji_ids: set[int] = set()
             for position, kind, body, request_id in rows:
                 change = {"position": position, "type": kind, "data": json.loads(body)}
                 media = self._message_assets(change["data"])
@@ -1271,6 +1559,10 @@ class World:
                 mentions = self._message_users(change["data"])
                 if version < 3 and mentions:
                     raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+                emojis = self._message_custom_emoji(change["data"])
+                if version < 4 and emojis:
+                    raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
+                emoji_ids.update(emojis)
                 asset_ids.update(media)
                 mentioned_ids.update(mentions)
                 if version == 3:
@@ -1290,16 +1582,28 @@ class World:
                 "now": now,
                 "changes": changes,
             }
-            if version == 3:
+            if version >= 3:
                 identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
                 identifiers.update(mentioned_ids)
                 result["users"] = [self.get_user(identifier) for identifier in sorted(identifiers)]
+                if version == 4:
+                    for identifier in emoji_ids:
+                        descriptor = self.custom_emoji_descriptor(identifier)
+                        asset_ids.update(
+                            (descriptor["main_asset_id"], descriptor["thumbnail_asset_id"])
+                        )
                 result["assets"] = [
                     self.asset_descriptor(asset_id) for asset_id in sorted(asset_ids)
                 ]
+            if version == 4:
+                result["custom_emoji"] = [
+                    self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
+                ]
             return result
 
-    def callback_dependencies(self, user_id: int, callback: dict[str, Any]) -> dict[str, Any]:
+    def callback_dependencies(
+        self, user_id: int, callback: dict[str, Any], *, version: int = 3
+    ) -> dict[str, Any]:
         message = callback["message"]
         assets = [
             self.asset_descriptor(asset_id) for asset_id in sorted(self._message_assets(message))
@@ -1310,11 +1614,26 @@ class World:
         ).fetchone()
         if row is None:
             raise ValueError("Callback message revision is unavailable")
-        return {
+        emoji_ids = self._message_custom_emoji(message)
+        if version < 4 and emoji_ids:
+            raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
+        if version == 4:
+            for identifier in emoji_ids:
+                descriptor = self.custom_emoji_descriptor(identifier)
+                for asset_id in (descriptor["main_asset_id"], descriptor["thumbnail_asset_id"]):
+                    if asset_id not in {entry["asset_id"] for entry in assets}:
+                        assets.append(self.asset_descriptor(asset_id))
+            assets.sort(key=lambda item: item["asset_id"])
+        result = {
             "users": self._identity_dependencies(user_id, [message]),
             "assets": assets,
             "message_revision": int(row[0]),
         }
+        if version == 4:
+            result["custom_emoji"] = [
+                self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
+            ]
+        return result
 
     def client_events(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
         if type(after) is not int or not 0 <= after < 2**63:

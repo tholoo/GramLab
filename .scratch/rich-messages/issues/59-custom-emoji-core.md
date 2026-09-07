@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: media validator ticket 57 for integrated codec acceptance
 
 Own this ticket, `src/gramlab/world.py`, `src/gramlab/entities.py`,
@@ -33,3 +33,23 @@ assigned worktree and verify imports through its tools/dev. Run focused tests in
 loopback-only guard and scoped Ruff/format/strict mypy. No full gate, APK build or guest.
 Commit only owned files; send frozen clean tip/base, red/green evidence and missing dependency or
 native acceptance honestly. Coordinator owns notice integration, merges and combined verification.
+
+## Worker evidence
+
+Implemented on `task/custom-emoji-core` from the assigned base. The pinned TDLib predicate,
+schema-7 catalog, ordinary/rich admission, Bot API lookup/download, transactional publication
+and v4 snapshot/change/callback/incoming/document/asset projections are covered by focused public
+checks.
+
+- Custom-emoji tests: 27 passed under the loopback-only namespace.
+- Focused custom-emoji plus existing entity/rich/media/mention regressions: 141 passed in 35.413s;
+  retained locally as `.scratch/custom-emoji-core-focused.xml` during review.
+- Scoped Ruff and strict mypy: passed for all six owned production modules and four new tests.
+- The focused regression selection excludes
+  `test_schema_five_migration_is_atomic_across_concurrent_openers`; its expected schema `[6, 6]`
+  is coordinator-confirmed stale after the required schema-7 migration.
+- Registration checks used the coordinator-owned provisional copy of the corrected decoder at
+  frozen decoder commit `6002108544f2fbb0bd772acf279078c9cf482059`. The decoder remains untracked
+  and is not part of this worker commit.
+
+Work state: ready for review

@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from typing import Any
 
+from gramlab.entities import canonical_custom_emoji_id
+
 _WRAPPERS = frozenset(
     "bold italic underline strikethrough spoiler subscript superscript marked code".split()
 )
@@ -114,6 +116,15 @@ def _clean_string(value: str) -> str:
 def _button_label(value: Any) -> Any:
     if isinstance(value, str):
         return _clean_string(value)
+    if isinstance(value, dict) and value.get("type") == "custom_emoji":
+        obj = _object(value, {"type", "custom_emoji_id", "alternative_text"}, set())
+        if not isinstance(obj["alternative_text"], str):
+            raise ValueError("Custom emoji alternative text must be a string")
+        return {
+            "type": "custom_emoji",
+            "custom_emoji_id": canonical_custom_emoji_id(obj["custom_emoji_id"]),
+            "alternative_text": _clean_string(obj["alternative_text"]),
+        }
     if not isinstance(value, list) or not value:
         raise ValueError("Rich button text must be a string or non-empty array")
     return [_button_label(child) for child in value]
@@ -174,6 +185,15 @@ def _text(value: Any, mention_resolver: Callable[[Any], dict[str, Any]] | None =
         if not value:
             raise ValueError("GRAMLAB_UNSUPPORTED: empty rich text arrays")
         return [_text(child, mention_resolver) for child in value]
+    if isinstance(value, dict) and value.get("type") == "custom_emoji":
+        obj = _object(value, {"type", "custom_emoji_id", "alternative_text"}, set())
+        if not isinstance(obj["alternative_text"], str):
+            raise ValueError("Custom emoji alternative text must be a string")
+        return {
+            "type": "custom_emoji",
+            "custom_emoji_id": canonical_custom_emoji_id(obj["custom_emoji_id"]),
+            "alternative_text": _clean_string(obj["alternative_text"]),
+        }
     if isinstance(value, dict) and value.get("type") == "button":
         obj = _object(value, {"type", "button"}, set())
         return {"type": "button", "button": _button(obj["button"])}
