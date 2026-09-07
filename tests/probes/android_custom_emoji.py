@@ -135,6 +135,17 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         cache[name] = {"files": selected, "partials": partials}
         retain(name + "-cache.json", json.dumps(cache[name], indent=2))
 
+    def settle(name: str) -> None:
+        expected = {"2_2.jpg"} if name == "initial" else {"2_2.jpg", "-1_1109.webm"}
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            cache_files(name)
+            record = cache[name]
+            if not record["partials"] and all(record["files"][item] for item in expected):
+                return
+            time.sleep(0.2)
+        raise RuntimeError(f"Original custom emoji cache did not settle during {name}")
+
     def capture(name: str, configuration: dict[str, Any]) -> str:
         nonlocal proxy, phase
         stage = configuration.get("stage", name)
@@ -155,11 +166,12 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             adb("shell", "am", "force-stop", PACKAGE)
             launch(name)
         ui = screen(name)
+        settle(name)
+        ui = screen(name)
         if name == "edited":
             for index in range(24):
                 screenshot(f"edited-burst-{index:02d}")
                 time.sleep(0.08)
-        cache_files(name)
         return ui
 
     def tap(name: str, label: str) -> None:
