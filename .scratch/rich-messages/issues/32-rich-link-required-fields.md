@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: ready for native worker
+Work state: claimed by native worker
 Blocked by: none; normal15 failure retained
 
 Normal15 successfully serializes the baseline, initial/edited scenes and three URL metadata
@@ -24,3 +24,22 @@ preimage digest, zero-fuzz/zero-offset dry-run and exact source difference. No f
 APK build, guest, runtime network or cache mutation is assigned. Coordinator owns independently
 authored missing-text/metadata cases, process diagnostics, source comparison/build and red/green
 native acceptance. Return the frozen branch, exact tip and terminal process state.
+
+## Worker evidence
+
+Patch 0016 adds one existing-contract `require` guard to each URL, email-address, and phone-number
+branch immediately after its exact field allowlist. Each guard requires both recursive `text` and
+the branch's same-named metadata field before either value is read. No probe, renderer, UI, or
+other validation path changes.
+
+The repeated normal15 red observes exit 137 with empty stdout and `Killed` on stderr for the
+URL-missing case after baseline, scene, and three valid URL variants passed. It retains no Java
+stack; identifying the unguarded `JSONObject.get` as the escape path is a source diagnosis.
+
+The verified normal15 `GramLabRichMessage.java` preimage has SHA-256
+`c605b502846f8cc60cfda3a4947b9354a5f9c644bf441e7a75aa9b0e3e33ffaf`; the private ignored copy
+compares byte-for-byte with it. The intended postimage is
+`7e1f63c4fa8d4020ac4c5fe50f716e434ca7d20a83995443255dc7cf63a271c2` and the patch digest is
+`57224b2174e11bd81160955c7ee1aaf9e8a6f7caf693f1fecd169a9a00cf8160`.
+`patch --batch --dry-run --fuzz=0 -p1` checks the sole file cleanly with no fuzz or offset output.
+Compilation and native red/green acceptance remain coordinator-owned.

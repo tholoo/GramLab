@@ -1,0 +1,26 @@
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -208,6 +208,7 @@
+         String type = string(record, "type");
+         if (type.equals("url")) {
+             fields(record, "type", "text", "url");
++            require(record.has("text") && record.has("url"));
+             TL_iv.textUrl result = new TL_iv.textUrl();
+             result.text = text(record.get("text"));
+             result.url = string(record, "url");
+@@ -216,6 +217,7 @@
+         }
+         if (type.equals("email_address")) {
+             fields(record, "type", "text", "email_address");
++            require(record.has("text") && record.has("email_address"));
+             TL_iv.textEmail result = new TL_iv.textEmail();
+             result.text = text(record.get("text"));
+             result.email = string(record, "email_address");
+@@ -223,6 +225,7 @@
+         }
+         if (type.equals("phone_number")) {
+             fields(record, "type", "text", "phone_number");
++            require(record.has("text") && record.has("phone_number"));
+             TL_iv.textPhone result = new TL_iv.textPhone();
+             result.text = text(record.get("text"));
+             result.phone = string(record, "phone_number");

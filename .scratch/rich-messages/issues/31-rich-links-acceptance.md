@@ -18,7 +18,7 @@ and text spanning distinct fragments. Simulation captures must remain explicitly
 
 Use one trusted canonical/adversarial snapshot codec in a dedicated offline guest, bypassing only
 Python content validation in the fixture server. Compare the full unchanged baseline and all
-eleven valid/26 malformed rich cases through the original native serializer. Missing/wrong/extra
+eleven valid/29 malformed rich cases through the original native serializer. Missing/wrong/extra
 metadata, wrong visible-text shape, unknown type and unrequested cached-page fields reject.
 The reverse URL serializer independently checks the native zero cached-page identity.
 
@@ -44,3 +44,11 @@ state/visible-label expectations. The native malformed-record oracle uses the es
 `GRAMLAB_BRIDGE_INVALID_RICH_MESSAGE` diagnostic, as specified by the independent existing
 rich-button codec contract; the initial fixture incorrectly used the ordinary-message diagnostic.
 Old-APK rejection is being repeated with the verified primary import before native integration.
+
+The corrected old-APK red reproduces valid-link rejection in 60.26 seconds. Normal15 compiles,
+but its first native acceptance run stops after valid baseline/scenes/URL variants: missing URL
+metadata yields no JSON. A diagnostic repeat retains exit 137, empty stdout and `Killed` stderr
+in 49.63 seconds. The source's missing-field `get` lies outside its classified error path; no
+Java exception stack was captured. Ticket 32 adds narrow presence checks and the independent
+catalog adds missing visible text for each type, bringing malformed cases to 29. Normal16 and
+original rendering/combined native acceptance remain pending; no failed result is relabeled green.

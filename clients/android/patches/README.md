@@ -109,3 +109,8 @@ independent probe checks that invariant. Only `GramLabRichMessage` and `BridgePr
 the 43,268-file comparison against normal14 finds exactly those two adapter differences, and
 the patch applies without fuzz or offset. Build and actual rendering/edit/restart acceptance are
 tracked in [the structured link contract](../../../docs/development/rich-links-contract.md).
+
+`0016-rich-link-required-fields.patch` checks that each URL/email/phone node contains its visible
+text and metadata before reading them. It uses the existing classified rich-message rejection,
+following the normal15 missing-field failure. Only the three adapter branches change; no renderer
+or exception-envelope change is included. See [the regression](../../../.scratch/rich-messages/issues/32-rich-link-required-fields.md).

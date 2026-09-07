@@ -54,7 +54,7 @@ case "$command" in
     mkdir -p -- "$container"
     git worktree add -b "task/$name" -- "$destination" "$commit"
     printf '\nCheckout: %s\nBase commit: %s\nTicket: %s\n' "$destination" "$commit" "$ticket"
-    printf 'Read the handoff and ticket, claim ownership, then provision this checkout with nix develop and uv sync --locked.\n'
+    printf 'Read the handoff and ticket, claim ownership, then run tools/dev default --command uv sync --locked from this checkout.\n'
     ;;
   root)
     [[ $# == 0 ]] || { usage >&2; exit 2; }

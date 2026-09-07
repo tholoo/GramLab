@@ -45,8 +45,11 @@ offline safety, licensing and completion requirements before the corresponding a
 - The native rich-link patch is integrated and compiled. Normal14 passes its baseline codec and rejects
   the valid link scene in a 60.26-second dedicated red run with the corrected import guard.
   All 43,268 reference source files compare with exactly two adapter differences; normal15
-  incremental offline compilation passes in 2 minutes 48 seconds. Actual rich-link rendering/edit/restart and the
-  combined 45-case Android inventory remain pending. No destination is opened.
+  incremental offline compilation passes in 2 minutes 48 seconds. Native acceptance then finds
+  missing link fields produce no JSON result. [Ticket 32](../../.scratch/rich-messages/issues/32-rich-link-required-fields.md)
+  adds required-field checks in patch 0016; the reviewed fix compiles offline in 1 minute 59 seconds.
+  Actual rich-link rendering/edit/restart and the combined 45-case Android inventory remain
+  pending. No destination is opened.
 - [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
   rejects another worktree's editable package before test collection. Always provision through
   the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
@@ -85,7 +88,8 @@ coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/ne
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
 The old native continuation, repeated old-APK red, core, static and workflow checks are terminal.
-Normal15 build is terminal; the focused normal15 native check is next. Worker
+Normal15/16 builds and required-field red runs are terminal. The focused normal16 native suite
+is next; inspect its exact handle once launched. Worker
 branches remain frozen, with coordinator-owned integration and acceptance. Host paths, handles,
 fingerprints and artifact locations stay in ignored local notes.
 
