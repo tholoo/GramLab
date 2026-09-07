@@ -1,7 +1,7 @@
 # Prove original rich-button taps with a real bot in the opt-in experiment
 
 Type: task
-Status: claimed
+Status: ready-for-agent
 Work state: resolved
 Assigned branch: task/rich-buttons-input
 Assigned worker: rich_button_seam

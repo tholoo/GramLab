@@ -183,8 +183,9 @@ independent media preparation tasks are underway: [deterministic original PNG fi
 and [pinned photo source-contract research](../../.scratch/rich-messages/issues/23-rich-photo-source-contract.md).
 The fixture worker is merged: all three valid images decode independently at their specified sizes,
 with expected distinct corner colors, and the truncated image is rejected. Reproduction and scoped
-static checks pass. Ticket 22 is resolved. The research worker
-will supply primary-source evidence for a concrete user-reviewed asset identity/delivery proposal.
+static checks pass. Ticket 22 is resolved. The research worker is merged and ticket 23 is resolved. The [concrete photo proposal](rich-photo-proposal.md)
+recommends multipart uploads/reuse, World-owned bytes and authenticated original file-loader delivery;
+[ticket 24](../../.scratch/rich-messages/issues/24-rich-photo-design-review.md) awaits user consultation.
 There is currently no asset registry, file API or native media delivery seam. Do not invent those
 interfaces or stage a fake renderer result while waiting for design review.
 
@@ -674,3 +675,18 @@ provisioning folders or real credentials from another project.
 Update individual [foundation tickets](../../.scratch/android-offline-foundation/spec.md), the
 [compatibility matrix](../compatibility/matrix.md), and [source pins/evidence](upstream.md).
 Keep synthetic run artifacts under ignored `artifacts/`; preserve durable conclusions in Markdown.
+
+
+## Latest combined verification
+
+After the effect and fixture merges, all 390 core cases pass at 80.99% coverage. This serial
+195.36-second run also records 41 Android skips because it used the core shell; those skips are
+not Android acceptance. The preceding dedicated 41-case resumed normal inventory and current
+explicit native experiments remain the Android evidence. The exact same 390 passing identities
+were present in the previous parallel core run (54.01 seconds). Their summed case times are
+203.113 seconds previously versus 194.06 seconds across all current cases; do not mistake serial
+versus parallel wall time for a production regression. Use the established parallel core workflow
+for the next required core gate rather than repeating this passed run to change its timing.
+All 21 documented static commands, maintained configuration/links and the final offline workflow
+check pass. Current native/build/core/check/preview processes are terminal; source/fixture workers
+are committed, frozen and integrated. Keep exact handles and fingerprints in ignored local notes.

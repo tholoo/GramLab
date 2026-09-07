@@ -1,7 +1,7 @@
 # Prove original copy and disabled effects through guest input
 
 Type: task
-Status: claimed
+Status: ready-for-agent
 Work state: resolved
 Blocked by: none
 
