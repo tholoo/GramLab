@@ -81,6 +81,10 @@ def test_original_photo_cancel_retry_shared_consumers_and_late_edit(tmp_path: Pa
     assert_isolation(full)
     observed = full["extra_probe"]
     assert "Accounts: 0" in observed["accounts"]
+    failures = {
+        name: case["failure"] for name, case in observed["cases"].items() if "failure" in case
+    }
+    assert not failures, json.dumps(failures, indent=2)
     assert observed["assets"] == expected
     assert observed["stale_rejections"] == [
         {

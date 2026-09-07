@@ -1,0 +1,15 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
+@@ -2961,6 +2961,11 @@
+         }
+         int TAG = imageReceiver.getTag(type);
+         if (TAG == 0) {
++            // Zero means unregistered to the original cancellation path. A fresh offline
++            // client can load a synthetic photo before any other image consumes that tag.
++            if (lastImageNum == 0 && org.telegram.gramlab.GramLabMedia.isReserved(imageLocation)) {
++                lastImageNum = 1;
++            }
+             imageReceiver.setTag(TAG = lastImageNum, type);
+             lastImageNum++;
+             if (lastImageNum == Integer.MAX_VALUE) {

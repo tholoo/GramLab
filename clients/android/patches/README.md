@@ -133,3 +133,12 @@ This is a private test observation seam, not the approved public rich-target API
 input guarantee. See [ticket 48](../../../.scratch/rich-messages/issues/48-media-view-observer.md)
 and [interaction acceptance](../../../.scratch/rich-messages/issues/49-media-native-interactions.md).
 Compilation and native acceptance remain pending at source integration.
+
+
+`0021-cancellable-first-photo.patch` reserves nonzero ImageLoader tags for local synthetic
+photo registration, including when the original counter wraps to zero. Two normal20 native reds
+and targeted diagnostic logs establish that the first otherwise-zero tag prevents the original
+cancel path from removing that receiver. The guard leaves non-synthetic registration behavior
+and all rendering/input handlers unchanged. See the
+[regression ticket](../../../.scratch/rich-messages/issues/51-first-photo-cancel-tag.md); corrected
+normal APK compilation and native acceptance remain required.

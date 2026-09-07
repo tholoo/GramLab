@@ -531,6 +531,23 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 result["final_trace"] = observe.trace()
                 observe.adb("shell", "am", "force-stop", PACKAGE)
                 results[case] = result
+            except Exception as failure:
+                observe.window_end = None
+                result["failure"] = {
+                    "type": type(failure).__name__,
+                    "message": str(failure).replace(CAPABILITY, "<redacted>"),
+                }
+                # Preserve independent case evidence in one guest instead of paying another boot
+                # for each later case. Host acceptance still fails if any case failed.
+                raw = observe.guest("shell", "run-as", PACKAGE, "cat", DIRECTORY + "trace.jsonl")
+                if raw.returncode == 0:
+                    Path(f"{case}-failure-trace.jsonl").write_text(raw.stdout)
+                stopped = observe.guest("shell", "am", "force-stop", PACKAGE)
+                if stopped.returncode:
+                    raise RuntimeError(
+                        "Cannot stop failed case before independent app reset"
+                    ) from failure
+                results[case] = result
             finally:
                 observe.window_end = None
                 raw = observe.guest(
