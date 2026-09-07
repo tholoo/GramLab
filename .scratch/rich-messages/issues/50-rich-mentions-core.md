@@ -53,3 +53,15 @@ Remaining acceptance is the coordinator's combined core gate and native renderin
 work. The focused suite does not claim an exhaustive combinatorial pass over every rich block
 carrier or mutable-profile behavior (profiles are immutable), and automatic `@mention` detection
 is outside this ticket. No guest, APK build or full core gate was run here.
+
+A follow-up fixes legacy callback idempotence to evaluate the frozen stored callback before
+applying current-message-only compatibility checks: a frozen plain callback still retries through
+v1 after its current message gains a mention, while the inverse frozen-mention case still rejects
+after removal. The final focused suite passes 24 tests; 10 selected legacy/media callback and
+bridge regressions also pass. Expected HTTP replay bodies are spelled independently rather than
+copied from World return values. Additional public tests cover recipient mentions, World-local ID
+resolution and rollback of a photo allocation preceding a rejected mention. `create_user` assigns
+sequential IDs and exposes no requested-ID parameter, so admitting the maximum signed 64-bit ID
+cannot be exercised through the public API without an infeasible number of allocations; its
+validator boundary remains covered as a rejection immediately above the maximum. Ruff and strict
+mypy pass for the touched production and owned test files.

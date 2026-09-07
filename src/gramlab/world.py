@@ -972,10 +972,6 @@ class World:
             if chat["user_id"] != user_id:
                 raise ValueError("Callback chat is not available to this persona")
             message = self.get_message(chat_id, message_id)
-            if version < 3 and self._message_assets(message):
-                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-            if version < 3 and self._message_users(message):
-                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
             if message["sender_id"] != chat["bot_id"]:
                 raise ValueError("Callbacks require a message sent by the chat bot")
             command = json.dumps(
@@ -994,6 +990,10 @@ class World:
                 if version < 3 and self._message_users(stored["message"]):
                     raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
                 return stored
+            if version < 3 and self._message_assets(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+            if version < 3 and self._message_users(message):
+                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
             world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
             callback = {
                 "id": str(uuid.uuid4()),

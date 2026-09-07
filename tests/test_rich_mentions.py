@@ -229,3 +229,62 @@ def test_nested_duplicate_mentions_deduplicate_dependencies_and_share_budgets(
         assert world.events() == before
     finally:
         world.__exit__(None, None, None)
+
+
+def test_recipient_is_an_admitted_authoritative_mention(tmp_path: Path) -> None:
+    world, recipient, bot, _referenced, _hidden, chat = world_with_contacts(tmp_path / "world")
+    with world:
+        sent = world.send_rich_message(
+            chat_id=chat["id"], sender_id=bot["id"], rich_message=rich(recipient)
+        )
+        assert sent["rich_message"]["blocks"][0]["text"]["user_id"] == recipient["id"]
+        assert world.client_snapshot(recipient["id"], version=3)["users"] == [recipient, bot]
+
+
+def test_user_ids_are_resolved_within_each_world(tmp_path: Path) -> None:
+    first, _recipient, _bot, first_user, _hidden, _chat = world_with_contacts(tmp_path / "one")
+    with first:
+        foreign_claim = dict(first_user)
+    second, recipient, bot, local_user, _hidden, chat = world_with_contacts(tmp_path / "two")
+    with second:
+        assert foreign_claim["id"] == local_user["id"]
+        sent = second.send_rich_message(
+            chat_id=chat["id"], sender_id=bot["id"], rich_message=rich(foreign_claim)
+        )
+        assert sent["rich_message"]["blocks"][0]["text"] == {
+            "type": "text_mention",
+            "text": {"type": "bold", "text": "برنده Winner"},
+            "user_id": local_user["id"],
+        }
+        assert second.client_snapshot(recipient["id"], version=3)["users"][-1] == local_user
+
+
+def test_invalid_mention_rolls_back_prior_photo_allocation(tmp_path: Path) -> None:
+    world, _recipient, bot, _referenced, hidden, chat = world_with_contacts(tmp_path / "world")
+    image = (Path(__file__).parent / "assets/rich-media/photo-square-16x16.png").read_bytes()
+    with world:
+        before = (world.events(), world.history(chat["id"]))
+        with pytest.raises(ValueError, match="unavailable"):
+            world.send_rich_message(
+                chat_id=chat["id"],
+                sender_id=bot["id"],
+                uploads={"photo": image},
+                rich_message={
+                    "skip_entity_detection": True,
+                    "blocks": [
+                        {
+                            "type": "photo",
+                            "photo": {"type": "photo", "media": "attach://photo"},
+                        },
+                        {"type": "paragraph", "text": rich(hidden)["blocks"][0]["text"]},
+                    ],
+                },
+            )
+        assert (world.events(), world.history(chat["id"])) == before
+        sent = world.send_photo(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            photo={"type": "photo", "media": "attach://photo"},
+            uploads={"photo": image},
+        )
+        assert (sent["id"], sent["photo"]["asset_id"]) == (1, 1)

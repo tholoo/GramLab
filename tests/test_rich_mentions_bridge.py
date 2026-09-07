@@ -125,7 +125,7 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
             request_id="http",
             version=3,
         )
-        edited = world.edit_message(
+        world.edit_message(
             chat_id=chat["id"],
             message_id=message["id"],
             bot_id=bot["id"],
@@ -134,7 +134,7 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
                 "blocks": [{"type": "paragraph", "text": "removed"}],
             },
         )
-        current = world.send_rich_message(
+        world.send_rich_message(
             chat_id=chat["id"], sender_id=bot["id"], rich_message=rich(referenced, "current")
         )
         world_id = world.world_id
@@ -146,11 +146,68 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
     finally:
         world.__exit__(None, None, None)
     users = [recipient, bot, referenced]
+    expected_original = {
+        "id": 1,
+        "chat_id": chat["id"],
+        "sender_id": bot["id"],
+        "date": 100,
+        "text": "",
+        "reply_markup": {"inline_keyboard": [[{"text": "Tap", "callback_data": "x"}]]},
+        "rich_message": {
+            "blocks": [
+                {
+                    "type": "paragraph",
+                    "text": {
+                        "type": "text_mention",
+                        "text": {"type": "bold", "text": "برنده Winner"},
+                        "user_id": referenced["id"],
+                    },
+                }
+            ]
+        },
+    }
+    expected_edited = {
+        "id": 1,
+        "chat_id": chat["id"],
+        "sender_id": bot["id"],
+        "date": 100,
+        "text": "",
+        "rich_message": {"blocks": [{"type": "paragraph", "text": "removed"}]},
+        "edit_date": 100,
+    }
+    expected_current = {
+        "id": 2,
+        "chat_id": chat["id"],
+        "sender_id": bot["id"],
+        "date": 100,
+        "text": "",
+        "rich_message": {
+            "blocks": [
+                {
+                    "type": "paragraph",
+                    "text": {
+                        "type": "text_mention",
+                        "text": {"type": "bold", "text": "current"},
+                        "user_id": referenced["id"],
+                    },
+                }
+            ]
+        },
+    }
+    expected_stored_callback = {
+        "id": callback["id"],
+        "user_id": recipient["id"],
+        "chat_id": chat["id"],
+        "message": expected_original,
+        "data": "x",
+        "chat_instance": callback["chat_instance"],
+        "answer": None,
+    }
     expected_callback = {
         "schema": 3,
         "world_id": world_id,
         "user_id": recipient["id"],
-        "callback": callback,
+        "callback": expected_stored_callback,
         "users": users,
         "assets": [],
         "message_revision": revision,
@@ -185,8 +242,8 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
                     }
                 ],
                 "messages": [
-                    edited,
-                    current,
+                    expected_edited,
+                    expected_current,
                 ],
                 "message_position": head,
                 "sends": [],
@@ -211,7 +268,7 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
                     {
                         "position": 1,
                         "type": "message.created",
-                        "data": message,
+                        "data": expected_original,
                         "revision": revision,
                     }
                 ],
@@ -249,3 +306,67 @@ def test_http_bridge_versions_exact_replay_and_frozen_callback(tmp_path: Path) -
         )
     with World.open(directory) as reopened:
         assert reopened.events() == before_legacy
+
+
+def test_http_legacy_callback_retry_uses_frozen_plain_message(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=4, now=20) as world:
+        recipient = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Echo", is_bot=True)
+        referenced = world.create_user(first_name="Mina")
+        chat = world.open_private_chat(user_id=recipient["id"], bot_id=bot["id"])
+        world.open_private_chat(user_id=referenced["id"], bot_id=bot["id"])
+        message = world.send_message(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            text="plain",
+            reply_markup={"inline_keyboard": [[{"text": "Tap", "callback_data": "x"}]]},
+        )
+        token = world.issue_client_token(recipient["id"])
+        world_id = world.world_id
+    command = {
+        "request_id": "plain-frozen",
+        "chat_id": chat["id"],
+        "message_id": message["id"],
+        "data": "x",
+    }
+    with ClientBridge(directory) as server:
+        status, first = bridge_call(server, token, "/v1/callbacks", command)
+        assert status == 200
+    with World.open(directory) as world:
+        world.edit_message(
+            chat_id=chat["id"],
+            message_id=message["id"],
+            bot_id=bot["id"],
+            rich_message=rich(referenced),
+        )
+        before_retry = world.events()
+    with ClientBridge(directory) as server:
+        assert bridge_call(server, token, "/v1/callbacks", command) == (
+            200,
+            {
+                "schema": 1,
+                "world_id": world_id,
+                "user_id": recipient["id"],
+                "callback": {
+                    "id": first["callback"]["id"],
+                    "user_id": recipient["id"],
+                    "chat_id": chat["id"],
+                    "message": {
+                        "id": 1,
+                        "chat_id": chat["id"],
+                        "sender_id": bot["id"],
+                        "date": 20,
+                        "text": "plain",
+                        "reply_markup": {
+                            "inline_keyboard": [[{"text": "Tap", "callback_data": "x"}]]
+                        },
+                    },
+                    "data": "x",
+                    "chat_instance": first["callback"]["chat_instance"],
+                    "answer": None,
+                },
+            },
+        )
+    with World.open(directory) as world:
+        assert world.events() == before_retry
