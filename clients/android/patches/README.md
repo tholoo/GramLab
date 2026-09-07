@@ -114,3 +114,22 @@ tracked in [the structured link contract](../../../docs/development/rich-links-c
 text and metadata before reading them. It uses the existing classified rich-message rejection,
 following the normal15 missing-field failure. Only the three adapter branches change; no renderer
 or exception-envelope change is included. See [the regression](../../../.scratch/rich-messages/issues/32-rich-link-required-fields.md).
+
+
+`0017-local-photo-delivery.patch` maps v3 immutable local photos into original native photo
+locations and delivers validated bytes through the original FileLoader/ImageLoader boundary.
+`0018-persistent-photo-locations.patch` preserves these locations through an existing upstream
+PhotoSize serialization constructor. `0019-required-media-fields.patch` classifies missing
+required descriptors before JSON getters can escape the bridge rejection envelope. Codec,
+real-bot rendering/edit/restart and response-fault evidence is recorded in the
+[photo profile](../../../docs/development/photos.md); this is partial media acceptance.
+
+`0020-photo-view-observation.patch` adds opt-in app-private diagnostics of visible original
+ordinary-photo cells, controls and image receiver bindings. Activation is bound to the loaded
+World/persona/peer and message IDs. The adapter reads public original getters after draw and
+publishes bounded atomic observations outside the UI thread. No original renderer or input
+handler changes. Missing activation installs nothing; invalid activation rejects startup.
+This is a private test observation seam, not the approved public rich-target API or an atomic
+input guarantee. See [ticket 48](../../../.scratch/rich-messages/issues/48-media-view-observer.md)
+and [interaction acceptance](../../../.scratch/rich-messages/issues/49-media-native-interactions.md).
+Compilation and native acceptance remain pending at source integration.

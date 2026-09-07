@@ -96,6 +96,7 @@ uv run --locked mypy tests/fixtures/media_bot.py tests/probes/media_round_trip.p
 uv run --locked mypy tests/probes/android_media.py tests/test_android_media.py
 uv run --locked mypy tests/probes/android_media_codec.py tests/test_android_media_codec.py
 uv run --locked mypy tests/probes/android_media_faults.py tests/test_android_media_faults.py
+uv run --locked mypy tests/probes/android_media_interactions.py tests/test_android_media_interactions.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

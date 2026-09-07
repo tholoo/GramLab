@@ -88,6 +88,7 @@ jobs:
           uv run --locked mypy tests/probes/android_media.py tests/test_android_media.py
           uv run --locked mypy tests/probes/android_media_codec.py tests/test_android_media_codec.py
           uv run --locked mypy tests/probes/android_media_faults.py tests/test_android_media_faults.py
+          uv run --locked mypy tests/probes/android_media_interactions.py tests/test_android_media_interactions.py
       - name: Public media capture typing
         run: uv run --locked mypy tests/test_runner_media_captures.py
       - name: Media transfer fault fixture typing
