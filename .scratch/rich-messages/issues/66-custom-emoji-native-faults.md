@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/custom-emoji-native-faults`; coordinator native run pending
 Blocked by: coordinator serial native execution and original baseline rendering acceptance
 
 Own this ticket and new `tests/probes/android_custom_emoji_faults.py`,
@@ -43,3 +43,17 @@ Follow AGENTS, TESTING, offline safety and parallel workflow. Use the assigned c
 environment; focused real HTTP/pure checks plus scoped typing/format/lint only. No guest or build
 until explicit coordinator assignment. Retain red/green JUnit/logs and return a clean frozen branch,
 all processes terminal, with original native execution and internal-race gaps clearly open.
+
+## Worker result
+
+The owned harness stages four isolated v4 Worlds. Three exercise a single 404, a naturally
+scheduled two-ID 404 and a partial 200; each retains phase-local document/asset journals, bounded
+idle evidence, original trace/UI, an optional post-eviction same-process refetch observation and
+an explicit force-stop/COLD healthy recovery. The fourth uses two distinct static document IDs
+with the same original thumbnail, holds its one actual HTTP response, removes one carrier and
+requires the surviving carrier's complete authored diamond plus exact destination bytes.
+
+The local HTTP peer and World/geometry checks pass seven focused tests. The Android case collects
+but remains unexecuted as assigned. A false `batch_observed` or `same_process_refetch` is retained
+as a narrow original-behavior limit. Journals and UI do not establish callback-owner identity or
+delivery into the removed receiver, and the assertions do not claim either internal property.
