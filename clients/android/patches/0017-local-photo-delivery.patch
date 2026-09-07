@@ -1,0 +1,600 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+index 5bd5d9e..03bed3b 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -60,7 +60,7 @@ public final class GramLabBridge {
+         }
+     }
+ 
+-    private static void fields(JSONObject value, String... allowed) {
++    static void fields(JSONObject value, String... allowed) {
+         Set<String> names = new HashSet<>(Arrays.asList(allowed));
+         Iterator<String> keys = value.keys();
+         while (keys.hasNext()) {
+@@ -68,7 +68,7 @@ public final class GramLabBridge {
+         }
+     }
+ 
+-    private static long identifier(JSONObject value, String key) throws JSONException {
++    static long identifier(JSONObject value, String key) throws JSONException {
+         Object number = value.get(key);
+         require(number instanceof Integer || number instanceof Long);
+         long result = ((Number) number).longValue();
+@@ -84,7 +84,7 @@ public final class GramLabBridge {
+         return result;
+     }
+ 
+-    private static int integer(JSONObject value, String key) throws JSONException {
++    static int integer(JSONObject value, String key) throws JSONException {
+         long result = nonnegative(value, key);
+         require(result <= Integer.MAX_VALUE);
+         return (int) result;
+@@ -97,7 +97,7 @@ public final class GramLabBridge {
+     }
+ 
+     private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
+-        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
++        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
+         long sender = identifier(record, "sender_id");
+         require(sender == persona || sender == bot);
+         TLRPC.TL_message message = new TLRPC.TL_message();
+@@ -116,9 +116,23 @@ public final class GramLabBridge {
+             require(sender == bot && message.message.isEmpty() && !record.has("entities"));
+             message.rich_message = GramLabRichMessage.decode(record.getJSONObject("rich_message"));
+             message.flags2 |= 1 << 13;
+-        } else require(!message.message.isEmpty());
+-        message.media = new TLRPC.TL_messageMediaEmpty();
++        } else require(record.has("photo") || !message.message.isEmpty());
++        if (record.has("photo")) {
++            require(sender == bot && message.message.isEmpty() && !record.has("rich_message"));
++            JSONObject photoRecord = record.getJSONObject("photo");
++            fields(photoRecord, "asset_id");
++            TLRPC.TL_messageMediaPhoto media = new TLRPC.TL_messageMediaPhoto();
++            media.photo = GramLabMedia.photo(identifier(photoRecord, "asset_id"), message.date);
++            media.flags |= 1;
++            message.media = media;
++            if (record.has("caption")) message.message = record.getString("caption");
++        } else message.media = new TLRPC.TL_messageMediaEmpty();
+         message.flags = (1 << 8) | (1 << 9);
++        if (record.has("caption_entities")) {
++            require(record.has("photo") && !record.has("entities"));
++            message.entities = entities(record.getJSONArray("caption_entities"), message.message);
++            if (!message.entities.isEmpty()) message.flags |= 1 << 7;
++        }
+         if (record.has("entities")) {
+             message.entities = entities(record.getJSONArray("entities"), message.message);
+             if (!message.entities.isEmpty()) message.flags |= 1 << 7;
+@@ -238,7 +252,7 @@ public final class GramLabBridge {
+     }
+ 
+     private static JSONObject exchange(JSONObject configuration, String path, JSONObject parameters) throws Exception {
+-        fields(configuration, "endpoint", "capability", "world_id", "user_id");
++        fields(configuration, "endpoint", "capability", "world_id", "user_id", "bridge_version");
+         URL endpoint = new URL(configuration.getString("endpoint"));
+         require("http".equals(endpoint.getProtocol())
+                 && ("10.0.2.2".equals(endpoint.getHost()) || "127.0.0.1".equals(endpoint.getHost()))
+@@ -288,19 +302,25 @@ public final class GramLabBridge {
+         } finally {
+             connection.disconnect();
+         }
+-        require(integer(body, "schema") == (path.startsWith("/v2/") ? 2 : 1) && worldId.equals(body.getString("world_id"))
++        int expectedSchema = path.startsWith("/v3/") ? 3 : path.startsWith("/v2/") ? 2 : 1;
++        require(integer(body, "schema") == expectedSchema && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+         return body;
+     }
+ 
+     public static Snapshot connect(JSONObject configuration) throws Exception {
+-        JSONObject body = exchange(configuration, "/v2/snapshot", null);
++        int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
++        require(version == 2 || version == 3);
++        JSONObject body = exchange(configuration, version == 3 ? "/v3/snapshot" : "/v2/snapshot", null);
+         String worldId = configuration.getString("world_id");
+         long persona = identifier(configuration, "user_id");
+         fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages",
+-                "message_position", "sends");
+-        require(integer(body, "schema") == 2 && worldId.equals(body.getString("world_id"))
++                "message_position", "sends", "assets", "message_revisions");
++        require(integer(body, "schema") == version && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
++        GramLabMedia.beginWorld(configuration, worldId);
++        if (version == 3) { GramLabMedia.install(body.getJSONArray("assets")); body.getJSONArray("message_revisions"); }
++        else require(!body.has("assets") && !body.has("message_revisions"));
+         long cursor = nonnegative(body, "cursor");
+         int now = integer(body, "now");
+         TLRPC.TL_messages_dialogs dialogs = new TLRPC.TL_messages_dialogs();
+@@ -363,13 +383,22 @@ public final class GramLabBridge {
+         }
+         require(users.size() == peersByChat.size() + 1);
+         records = body.getJSONArray("messages");
++        JSONArray revisions = version == 3 ? body.getJSONArray("message_revisions") : null;
++        if (revisions != null) require(revisions.length() == records.length());
+         Map<Long, Set<Integer>> seen = new LinkedHashMap<>();
+         for (Long chat : peersByChat.keySet()) {
+             seen.put(chat, new HashSet<>());
+         }
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
++            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
++            if (revisions != null) {
++                JSONObject revision = revisions.getJSONObject(index);
++                fields(revision, "chat_id", "message_id", "revision");
++                require(identifier(revision, "chat_id") == identifier(record, "chat_id")
++                        && identifier(revision, "message_id") == identifier(record, "id"));
++                identifier(revision, "revision");
++            }
+             long chat = identifier(record, "chat_id");
+             require(peersByChat.containsKey(chat));
+             long bot = peersByChat.get(chat);
+@@ -456,6 +485,21 @@ public final class GramLabBridge {
+         }
+     }
+ 
++    private static void dependencyUsers(JSONArray records, Snapshot state) throws JSONException {
++        Set<Long> seen = new HashSet<>();
++        for (int i = 0; i < records.length(); i++) {
++            JSONObject record = records.getJSONObject(i);
++            fields(record, "id", "is_bot", "first_name", "username", "language_code");
++            long id = identifier(record, "id");
++            require(seen.add(id));
++            TLRPC.User expected = null;
++            for (TLRPC.User user : state.dialogs.users) if (user.id == id) expected = user;
++            require(expected != null && record.get("is_bot") instanceof Boolean
++                    && expected.bot == record.getBoolean("is_bot")
++                    && expected.first_name.equals(record.getString("first_name")));
++        }
++    }
++
+     private static long peerForChat(Snapshot state, long chat) {
+         for (Map.Entry<Long, Long> entry : state.chatIdsByPeer.entrySet()) {
+             if (entry.getValue() == chat) return entry.getKey();
+@@ -478,8 +522,11 @@ public final class GramLabBridge {
+ 
+     public static EventBatch events(JSONObject configuration, Snapshot state, long after, int limit) throws Exception {
+         require(after >= 0 && after <= Integer.MAX_VALUE && limit > 0 && limit <= 1000);
+-        JSONObject body = exchange(configuration, "/v2/changes?after=" + after + "&limit=" + limit, null);
+-        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes");
++        int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
++        JSONObject body = exchange(configuration, (version == 3 ? "/v3/changes" : "/v2/changes") + "?after=" + after + "&limit=" + limit, null);
++        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes", "users", "assets");
++        if (version == 3) { dependencyUsers(body.getJSONArray("users"), state); GramLabMedia.install(body.getJSONArray("assets")); }
++        else require(!body.has("users") && !body.has("assets"));
+         int cursor = integer(body, "cursor");
+         int head = integer(body, "head");
+         require(cursor >= after && cursor <= head);
+@@ -489,7 +536,8 @@ public final class GramLabBridge {
+         long previous = after;
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "position", "type", "data", "request_id");
++            fields(record, "position", "type", "data", "request_id", "revision");
++            if (version == 3) identifier(record, "revision"); else require(!record.has("revision"));
+             int position = integer(record, "position");
+             require(position == previous + 1 && position <= cursor);
+             previous = position;
+@@ -637,15 +685,20 @@ public final class GramLabBridge {
+         long chat = state.chatIdsByPeer.get(query.peer.user_id);
+         JSONObject parameters = new JSONObject().put("request_id", UUID.randomUUID().toString())
+                 .put("chat_id", chat).put("message_id", query.msg_id).put("data", data);
+-        JSONObject body = exchange(configuration, "/v1/callbacks", parameters);
++        int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
++        String callbackPath = version == 3 ? "/v3/callbacks" : "/v1/callbacks";
++        JSONObject body = exchange(configuration, callbackPath, parameters);
+         long deadline = SystemClock.elapsedRealtime() + 15000;
+         String id = null;
+         while (true) {
+-            fields(body, "schema", "world_id", "user_id", "callback");
++            fields(body, "schema", "world_id", "user_id", "callback", "users", "assets", "message_revision");
++            if (version == 3) { dependencyUsers(body.getJSONArray("users"), state); GramLabMedia.install(body.getJSONArray("assets")); identifier(body, "message_revision"); }
++            else require(!body.has("users") && !body.has("assets") && !body.has("message_revision"));
+             JSONObject record = body.getJSONObject("callback");
+             fields(record, "id", "user_id", "chat_id", "message", "data", "chat_instance", "answer");
++            TLRPC.TL_message captured = message(record.getJSONObject("message"), state.persona, query.peer.user_id);
+             String receivedId = record.getString("id");
+-            require(receivedId.matches("[A-Za-z0-9_-]{1,128}") && (id == null || id.equals(receivedId)));
++            require(captured.id == query.msg_id && receivedId.matches("[A-Za-z0-9_-]{1,128}") && (id == null || id.equals(receivedId)));
+             id = receivedId;
+             require(identifier(record, "user_id") == state.persona && identifier(record, "chat_id") == chat
+                     && identifier(record.getJSONObject("message"), "id") == query.msg_id
+@@ -655,7 +708,7 @@ public final class GramLabBridge {
+                 throw new IllegalStateException("GRAMLAB_CALLBACK_ANSWER_TIMEOUT");
+             }
+             Thread.sleep(100);
+-            body = exchange(configuration, "/v1/callbacks/" + id, null);
++            body = exchange(configuration, callbackPath + "/" + id, null);
+         }
+     }
+ }
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+new file mode 100644
+index 0000000..3570686
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+@@ -0,0 +1,134 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import org.json.JSONArray;
++import org.json.JSONException;
++import org.json.JSONObject;
++import org.telegram.tgnet.TLRPC;
++
++import java.io.File;
++import java.io.FileWriter;
++import org.telegram.messenger.ApplicationLoader;
++import java.util.LinkedHashMap;
++import java.util.Map;
++
++/** World-bound synthetic media descriptors; identifiers are never capabilities. */
++public final class GramLabMedia {
++    public static final class Asset {
++        public final long id;
++        public final String mimeType;
++        public final long size;
++        public final String sha256;
++        public final int width;
++        public final int height;
++        private Asset(long id, String mimeType, long size, String sha256, int width, int height) {
++            this.id = id; this.mimeType = mimeType; this.size = size; this.sha256 = sha256;
++            this.width = width; this.height = height;
++        }
++    }
++
++    private static String worldId;
++    private static JSONObject configuration;
++    private static final Map<Long, Asset> assets = new LinkedHashMap<>();
++
++    private GramLabMedia() {}
++
++    public static synchronized void beginWorld(JSONObject config, String world) throws JSONException {
++        if (!world.equals(worldId)) {
++            assets.clear();
++            worldId = world;
++        }
++        configuration = new JSONObject(config.toString());
++    }
++
++    public static synchronized void install(JSONArray records) throws JSONException {
++        long previous = 0;
++        for (int i = 0; i < records.length(); i++) {
++            JSONObject record = records.getJSONObject(i);
++            GramLabBridge.fields(record, "asset_id", "mime_type", "file_size", "sha256", "width", "height");
++            long id = GramLabBridge.identifier(record, "asset_id");
++            long size = GramLabBridge.identifier(record, "file_size");
++            int width = GramLabBridge.integer(record, "width");
++            int height = GramLabBridge.integer(record, "height");
++            String mime = record.getString("mime_type");
++            String digest = record.getString("sha256");
++            if (id <= previous || size > 10_000_000 || width <= 0 || height <= 0
++                    || width + (long) height > 10_000 || width * (long) height > 25_000_000
++                    || Math.max(width, height) > 20L * Math.min(width, height)
++                    || !(mime.equals("image/png") || mime.equals("image/jpeg"))
++                    || !digest.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_ASSET");
++            previous = id;
++            Asset incoming = new Asset(id, mime, size, digest, width, height);
++            Asset old = assets.get(id);
++            if (old != null && (!old.mimeType.equals(mime) || old.size != size || !old.sha256.equals(digest)
++                    || old.width != width || old.height != height)) throw new IllegalArgumentException("GRAMLAB_BRIDGE_ASSET_CHANGED");
++            assets.put(id, incoming);
++        }
++    }
++
++    public static synchronized Asset asset(long id) { return assets.get(id); }
++    public static synchronized JSONObject configuration() throws JSONException {
++        if (configuration == null) throw new IllegalStateException("GRAMLAB_BRIDGE_NOT_CONNECTED");
++        return new JSONObject(configuration.toString());
++    }
++
++    public static TLRPC.TL_photo photo(long assetId, int date) {
++        Asset asset = asset(assetId);
++        if (asset == null) throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_ASSET");
++        TLRPC.TL_fileLocationToBeDeprecated location = new TLRPC.TL_fileLocationToBeDeprecated();
++        location.dc_id = 0; location.volume_id = asset.id; location.local_id = 1; location.secret = 0;
++        TLRPC.TL_photoSize size = new TLRPC.TL_photoSize();
++        size.type = "x"; size.location = location; size.w = asset.width; size.h = asset.height; size.size = (int) asset.size;
++        TLRPC.TL_photo photo = new TLRPC.TL_photo();
++        photo.id = asset.id; photo.access_hash = 0; photo.file_reference = new byte[0]; photo.date = date;
++        photo.dc_id = 0; photo.sizes.add(size);
++        return photo;
++    }
++
++    public static boolean matches(File file, Asset asset) {
++        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
++            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
++            byte[] buffer = new byte[8192]; int count; long size = 0;
++            while ((count = input.read(buffer)) != -1) { size += count; digest.update(buffer, 0, count); }
++            return size == asset.size && hex(digest.digest()).equals(asset.sha256);
++        } catch (Exception error) { return false; }
++    }
++
++    public static String hex(byte[] bytes) {
++        StringBuilder result = new StringBuilder(bytes.length * 2);
++        for (byte value : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 255));
++        return result.toString();
++    }
++
++    public static synchronized void trace(String event, long assetId, String fileName, long size, boolean digestOk) {
++        try {
++            File directory = new File(ApplicationLoader.applicationContext.getFilesDir(), "gramlab");
++            directory.mkdirs();
++            JSONObject row = new JSONObject().put("event", event).put("asset_id", assetId)
++                    .put("cache_file", fileName).put("file_size", size).put("digest_ok", digestOk);
++            try (FileWriter output = new FileWriter(new File(directory, "trace.jsonl"), true)) {
++                output.write(row.toString()); output.write("\n");
++            }
++        } catch (Exception ignored) {}
++    }
++
++    public static JSONObject describePhoto(TLRPC.Photo value) throws JSONException {
++        if (!(value instanceof TLRPC.TL_photo) || value.id <= 0 || value.dc_id != 0
++                || value.access_hash != 0 || value.file_reference == null || value.file_reference.length != 0
++                || value.sizes.size() != 1) throw new IllegalArgumentException("GRAMLAB_INVALID_SYNTHETIC_PHOTO");
++        TLRPC.PhotoSize size = value.sizes.get(0);
++        if (!(size instanceof TLRPC.TL_photoSize) || size.location == null || size.location.dc_id != 0
++                || size.location.volume_id != value.id || size.location.local_id != 1)
++            throw new IllegalArgumentException("GRAMLAB_INVALID_SYNTHETIC_PHOTO");
++        return new JSONObject().put("asset_id", value.id).put("dc_id", value.dc_id)
++                .put("access_hash", value.access_hash).put("file_reference_bytes", value.file_reference.length)
++                .put("size_type", size.type).put("volume_id", size.location.volume_id)
++                .put("local_id", size.location.local_id).put("width", size.w).put("height", size.h)
++                .put("file_size", size.size);
++    }
++
++    public static boolean isSynthetic(org.telegram.messenger.ImageLocation location) {
++        return location != null && location.location != null && location.dc_id == 0
++                && location.location.dc_id == 0 && location.location.volume_id > 0 && location.location.local_id == 1;
++    }
++}
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+index ae536ef..0a8d2c2 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -82,7 +82,9 @@ public final class GramLabRichMessage {
+         fields(record, "blocks", "is_rtl");
+         TL_iv.RichMessage result = new TL_iv.RichMessage();
+         result.rtl = flag(record, "is_rtl");
+-        result.blocks = blocks(record.getJSONArray("blocks"));
++        JSONArray sourceBlocks = record.getJSONArray("blocks");
++        result.blocks = blocks(sourceBlocks);
++        collectPhotos(sourceBlocks, result);
+         return result;
+     }
+ 
+@@ -180,6 +182,25 @@ public final class GramLabRichMessage {
+         return result;
+     }
+ 
++    private static void collectPhotos(Object value, TL_iv.RichMessage result) throws JSONException {
++        if (value instanceof JSONArray) {
++            JSONArray array = (JSONArray) value;
++            for (int i = 0; i < array.length(); i++) collectPhotos(array.get(i), result);
++        } else if (value instanceof JSONObject) {
++            JSONObject object = (JSONObject) value;
++            if ("photo".equals(object.optString("type"))) {
++                long id = GramLabBridge.positiveIdentifier(object, "asset_id");
++                for (org.telegram.tgnet.TLRPC.Photo photo : result.photos) require(photo.id != id);
++                result.photos.add(GramLabMedia.photo(id, 0));
++            }
++            Iterator<String> keys = object.keys();
++            while (keys.hasNext()) {
++                String key = keys.next();
++                if (!"asset_id".equals(key)) collectPhotos(object.get(key), result);
++            }
++        }
++    }
++
+     private static TL_iv.RichText text(Object value) throws JSONException {
+         if (value instanceof String) {
+             TL_iv.textPlain result = new TL_iv.textPlain();
+@@ -290,6 +311,22 @@ public final class GramLabRichMessage {
+                 pre.language = record.has("language") ? string(record, "language") : "";
+                 return pre;
+             }
++            case "photo": {
++                fields(record, "type", "asset_id", "caption");
++                TL_iv.pageBlockPhoto photo = new TL_iv.pageBlockPhoto();
++                photo.photo_id = GramLabBridge.positiveIdentifier(record, "asset_id");
++                photo.caption = new TL_iv.PageCaption();
++                photo.caption.text = new TL_iv.textEmpty();
++                photo.caption.credit = new TL_iv.textEmpty();
++                if (record.has("caption")) {
++                    JSONObject caption = record.getJSONObject("caption");
++                    fields(caption, "text", "credit");
++                    require(caption.has("text"));
++                    photo.caption.text = text(caption.get("text"));
++                    photo.caption.credit = optionalText(caption, "credit");
++                }
++                return photo;
++            }
+             case "divider":
+                 fields(record, "type");
+                 return new TL_iv.pageBlockDivider();
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
+index 87465e9..d169f07 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
+@@ -8,6 +8,9 @@
+ 
+ package org.telegram.messenger;
+ 
++import org.telegram.gramlab.GramLabMedia;
++import org.json.JSONObject;
++
+ import android.text.TextUtils;
+ import android.util.SparseArray;
+ 
+@@ -215,6 +218,8 @@ public class FileLoader extends BaseController {
+ 
+ 
+     private final ConcurrentHashMap<String, FileLoadOperation> loadOperationPaths = new ConcurrentHashMap<>();
++    private final ConcurrentHashMap<String, SyntheticPhotoLoad> syntheticPhotoLoads = new ConcurrentHashMap<>();
++    private final java.util.concurrent.ExecutorService syntheticPhotoExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
+     private final ConcurrentHashMap<String, LoadOperationUIObject> loadOperationPathsUI = new ConcurrentHashMap<>(10, 1, 2);
+     private final HashMap<String, Long> uploadSizes = new HashMap<>();
+ 
+@@ -604,6 +609,11 @@ public class FileLoader extends BaseController {
+         } else {
+             fileName = name;
+         }
++        SyntheticPhotoLoad synthetic = syntheticPhotoLoads.get(fileName);
++        if (synthetic != null) {
++            synthetic.cancel(deleteFile);
++            return;
++        }
+         LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);
+         Runnable runnable = uiObject != null ? uiObject.loadInternalRunnable : null;
+         boolean removed = uiObject != null;
+@@ -757,6 +767,117 @@ public class FileLoader extends BaseController {
+         }
+     }
+ 
++    private final class SyntheticPhotoLoad implements Runnable {
++        final String fileName;
++        final GramLabMedia.Asset asset;
++        final Object parentObject;
++        final File temporary;
++        final File target;
++        volatile boolean canceled;
++        volatile java.net.HttpURLConnection connection;
++        boolean terminal;
++
++        SyntheticPhotoLoad(String fileName, GramLabMedia.Asset asset, Object parentObject, File target) {
++            this.fileName = fileName; this.asset = asset; this.parentObject = parentObject; this.target = target;
++            this.temporary = new File(target.getParentFile(), fileName + ".gramlab-part");
++        }
++
++        synchronized boolean finish() { if (terminal) return false; terminal = true; return true; }
++        synchronized void cancel(boolean deleteFile) {
++            if (terminal) return;
++            canceled = true; terminal = true;
++            java.net.HttpURLConnection active = connection;
++            if (active != null) active.disconnect();
++            temporary.delete();
++            if (deleteFile) target.delete();
++            syntheticPhotoLoads.remove(fileName, this); loadOperationPathsUI.remove(fileName);
++            GramLabMedia.trace("media_load_cancel", asset.id, fileName, asset.size, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, 1);
++        }
++        void terminalFailure(int reason, String event) {
++            if (!finish()) return;
++            syntheticPhotoLoads.remove(fileName, this);
++            loadOperationPathsUI.remove(fileName);
++            temporary.delete();
++            GramLabMedia.trace(event, asset.id, fileName, asset.size, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, reason);
++        }
++        @Override public void run() {
++            java.security.MessageDigest digest;
++            try {
++                digest = java.security.MessageDigest.getInstance("SHA-256");
++                JSONObject config = GramLabMedia.configuration();
++                java.net.URL endpoint = new java.net.URL(config.getString("endpoint"));
++                java.net.URL targetUrl = new java.net.URL(endpoint, "/v3/assets/" + asset.id);
++                connection = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
++                connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(3000); connection.setReadTimeout(5000);
++                connection.setUseCaches(false); connection.setRequestProperty("Authorization", "Bearer " + config.getString("capability"));
++                connection.setRequestProperty("Accept", asset.mimeType); connection.setRequestProperty("Connection", "close");
++                int status = connection.getResponseCode();
++                if (status != 200 || connection.getContentLengthLong() != asset.size
++                        || !asset.mimeType.equals(connection.getContentType())) throw new java.io.IOException("asset_response");
++                long count = 0; byte[] buffer = new byte[8192];
++                try (java.io.InputStream input = connection.getInputStream(); java.io.FileOutputStream output = new java.io.FileOutputStream(temporary)) {
++                    int read;
++                    while ((read = input.read(buffer)) != -1) {
++                        if (canceled || count + read > asset.size) throw new java.io.InterruptedIOException();
++                        output.write(buffer, 0, read); digest.update(buffer, 0, read); count += read;
++                        if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, asset.size);
++                    }
++                    output.getFD().sync();
++                }
++                boolean digestOk = count == asset.size && GramLabMedia.hex(digest.digest()).equals(asset.sha256);
++                if (!digestOk || canceled) throw new java.io.IOException("asset_integrity");
++                synchronized (this) {
++                    if (canceled || terminal) throw new java.io.InterruptedIOException();
++                    java.nio.file.Files.move(temporary.toPath(), target.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
++                    terminal = true;
++                }
++                syntheticPhotoLoads.remove(fileName, this); loadOperationPathsUI.remove(fileName);
++                GramLabMedia.trace("media_load_success", asset.id, fileName, asset.size, true);
++                if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
++            } catch (java.io.InterruptedIOException error) {
++                terminalFailure(1, "media_load_cancel");
++            } catch (Exception error) {
++                terminalFailure(0, "media_load_failure");
++            } finally {
++                if (connection != null) connection.disconnect();
++            }
++        }
++    }
++
++    private void loadSyntheticPhoto(ImageLocation location, Object parentObject, String ext, int cacheType) {
++        String fileName = getAttachFileName(location.location, ext);
++        GramLabMedia.Asset asset = GramLabMedia.asset(location.location.volume_id);
++        if (asset == null) {
++            GramLabMedia.trace("media_load_failure", location.location.volume_id, fileName, 0, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++            return;
++        }
++        File directory = getDirectory(cacheType == 0 ? MEDIA_DIR_IMAGE : MEDIA_DIR_CACHE);
++        File target = new File(directory, fileName);
++        if (target.isFile() && target.length() == asset.size && GramLabMedia.matches(target, asset)) {
++            GramLabMedia.trace("media_cache_hit", asset.id, fileName, asset.size, true);
++            if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
++            return;
++        }
++        if (target.exists() && !target.delete()) {
++            GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
++            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++            return;
++        }
++        SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, asset, parentObject, target);
++        SyntheticPhotoLoad existing = syntheticPhotoLoads.putIfAbsent(fileName, load);
++        if (existing != null) {
++            GramLabMedia.trace("media_load_coalesced", asset.id, fileName, asset.size, false);
++            return;
++        }
++        LoadOperationUIObject uiObject = new LoadOperationUIObject();
++        loadOperationPathsUI.put(fileName, uiObject);
++        GramLabMedia.trace("media_load_start", asset.id, fileName, asset.size, false);
++        syntheticPhotoExecutor.execute(load);
++    }
++
+     public File getLocalFile(ImageLocation imageLocation) {
+         if (imageLocation == null) return null;
+         String fileName;
+@@ -791,6 +912,10 @@ public class FileLoader extends BaseController {
+         if (imageLocation == null) {
+             return;
+         }
++        if (GramLabMedia.isSynthetic(imageLocation)) {
++            loadSyntheticPhoto(imageLocation, parentObject, ext, cacheType);
++            return;
++        }
+         if (cacheType == 0 && (imageLocation.isEncrypted() || imageLocation.photoSize != null && imageLocation.getSize() == 0)) {
+             cacheType = 1;
+         }
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
+index 73815bc..8872682 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/ImageLoader.java
+@@ -2230,7 +2230,7 @@ public class ImageLoader {
+                 public void fileLoadProgressChanged(FileLoadOperation operation, final String location, long uploadedSize, long totalSize) {
+                     fileProgresses.put(location, new long[]{uploadedSize, totalSize});
+ 
+-                    if (!imageLoadingByUrlPframe.isEmpty() && operation.checkPrefixPreloadFinished()) {
++                    if (operation != null && !imageLoadingByUrlPframe.isEmpty() && operation.checkPrefixPreloadFinished()) {
+                         imageLoadQueue.postRunnable(() -> {
+                             CacheImage img = imageLoadingByUrlPframe.remove(location);
+                             if (img == null) {
+@@ -2279,8 +2279,8 @@ public class ImageLoader {
+                         });
+                     }
+                     long currentTime = SystemClock.elapsedRealtime();
+-                    if (operation.lastProgressUpdateTime == 0 || operation.lastProgressUpdateTime < currentTime - 500 || uploadedSize == 0) {
+-                        operation.lastProgressUpdateTime = currentTime;
++                    if (operation == null || operation.lastProgressUpdateTime == 0 || operation.lastProgressUpdateTime < currentTime - 500 || uploadedSize == totalSize) {
++                        if (operation != null) operation.lastProgressUpdateTime = currentTime;
+ 
+                         AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.fileLoadProgressChanged, location, uploadedSize, totalSize));
+                     }
