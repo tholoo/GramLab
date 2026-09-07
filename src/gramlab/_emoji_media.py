@@ -45,7 +45,7 @@ def _executable(variable: str) -> str:
 
 
 def _run_decoder(
-    arguments: list[str], data: bytes, *, stdout_limit: int
+    arguments: list[str], data: bytes, *, stdout_limit: int, deadline: float
 ) -> subprocess.CompletedProcess[bytes]:
     try:
         process = subprocess.Popen(  # noqa: S603
@@ -68,7 +68,6 @@ def _run_decoder(
     output = bytearray()
     errors = bytearray()
     offset = 0
-    deadline = time.monotonic() + _PROCESS_TIMEOUT_SECONDS
     try:
         for stream in streams:
             os.set_blocking(stream.fileno(), False)
@@ -170,11 +169,57 @@ def _decimal(value: object) -> Decimal:
     return result
 
 
+def _read_ebml_vint(
+    data: bytes, offset: int, *, maximum_length: int, keep_marker: bool
+) -> tuple[int, int]:
+    if offset >= len(data) or data[offset] == 0:
+        raise ValueError("Custom emoji main has an invalid EBML header")
+    first = data[offset]
+    length = 1
+    marker = 0x80
+    while not first & marker:
+        length += 1
+        marker >>= 1
+    end = offset + length
+    if length > maximum_length or end > len(data):
+        raise ValueError("Custom emoji main has an invalid EBML header")
+    value = int.from_bytes(data[offset:end])
+    if not keep_marker:
+        value &= (1 << (7 * length)) - 1
+        if value == (1 << (7 * length)) - 1:
+            raise ValueError("Custom emoji main has an indefinite EBML header")
+    return value, end
+
+
+def _require_webm_doctype(data: bytes) -> None:
+    cursor = len(_WEBM_MAGIC)
+    header_size, cursor = _read_ebml_vint(data, cursor, maximum_length=8, keep_marker=False)
+    header_end = cursor + header_size
+    if header_size > 1024 or header_end > len(data):
+        raise ValueError("Custom emoji main has an invalid EBML header")
+    doctype: bytes | None = None
+    while cursor < header_end:
+        element_id, cursor = _read_ebml_vint(data, cursor, maximum_length=4, keep_marker=True)
+        element_size, cursor = _read_ebml_vint(data, cursor, maximum_length=8, keep_marker=False)
+        element_end = cursor + element_size
+        if element_end > header_end:
+            raise ValueError("Custom emoji main has an invalid EBML header")
+        if element_id == 0x4282:
+            if doctype is not None:
+                raise ValueError("Custom emoji main has duplicate EBML DocType")
+            doctype = data[cursor:element_end]
+        cursor = element_end
+    if doctype != b"webm":
+        raise ValueError("Custom emoji animated main must use WebM DocType")
+
+
 def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
     if len(data) > 256 * 1024:
         raise ValueError("Custom emoji main exceeds its byte limit")
+    _require_webm_doctype(data)
     ffmpeg = _executable("GRAMLAB_FFMPEG")
     ffprobe = _executable("GRAMLAB_FFPROBE")
+    deadline = time.monotonic() + _PROCESS_TIMEOUT_SECONDS
     probe = _run_decoder(
         [
             ffprobe,
@@ -201,8 +246,9 @@ def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
         ],
         data,
         stdout_limit=_PROBE_OUTPUT_LIMIT,
+        deadline=deadline,
     )
-    if probe.returncode != 0:
+    if probe.returncode != 0 or probe.stderr:
         raise ValueError("Invalid or truncated custom emoji WebM")
     try:
         metadata = json.loads(probe.stdout)
@@ -231,9 +277,6 @@ def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
         raise ValueError("Custom emoji WebM must contain one 100x100 VP9 video stream")
     if container.get("format_name") != "matroska,webm":
         raise ValueError("Custom emoji animated main must be WebM")
-    tags = stream.get("tags")
-    if not isinstance(tags, dict) or tags.get("alpha_mode") != "1":
-        raise ValueError("Custom emoji WebM must preserve alpha")
     frame_count_value = stream.get("nb_read_frames")
     try:
         frame_count = int(frame_count_value) if isinstance(frame_count_value, str) else 0
@@ -247,16 +290,25 @@ def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
 
     expected_timestamp = Decimal(0)
     minimum_frame_duration = Decimal(1) / Decimal(30)
+    timestamp_tolerance = Decimal("0.001")
     for packet in packets:
         if not isinstance(packet, dict) or packet.get("stream_index") != 0:
             raise ValueError("Custom emoji WebM has inconsistent packets")
         timestamp = _decimal(packet.get("pts_time"))
         frame_duration = _decimal(packet.get("duration_time"))
-        if timestamp != expected_timestamp or frame_duration < minimum_frame_duration:
+        if (
+            abs(timestamp - expected_timestamp) > timestamp_tolerance
+            or frame_duration <= 0
+            or frame_duration + timestamp_tolerance < minimum_frame_duration
+        ):
             raise ValueError("Custom emoji WebM has inconsistent frame timing")
-        expected_timestamp += frame_duration
+        expected_timestamp = timestamp + frame_duration
     duration = _decimal(container.get("duration"))
-    if duration != expected_timestamp or not Decimal(0) < duration <= Decimal(3):
+    if (
+        abs(duration - expected_timestamp) > timestamp_tolerance
+        or not Decimal(0) < duration <= Decimal(3)
+        or Decimal(frame_count) / duration > Decimal(30)
+    ):
         raise ValueError("Custom emoji WebM has invalid duration")
     milliseconds = duration * 1000
     if milliseconds != milliseconds.to_integral_value():
@@ -268,6 +320,9 @@ def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
             "-hide_banner",
             "-loglevel",
             "error",
+            "-xerror",
+            "-err_detect",
+            "explode",
             "-f",
             "matroska",
             "-protocol_whitelist",
@@ -293,8 +348,13 @@ def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
         ],
         data,
         stdout_limit=_FRAME_BYTES * _MAX_FRAMES,
+        deadline=deadline,
     )
-    if decoded.returncode != 0 or len(decoded.stdout) != frame_count * _FRAME_BYTES:
+    if (
+        decoded.returncode != 0
+        or decoded.stderr
+        or len(decoded.stdout) != frame_count * _FRAME_BYTES
+    ):
         raise ValueError("Invalid or truncated custom emoji WebM frames")
     return (
         ImageAsset(
