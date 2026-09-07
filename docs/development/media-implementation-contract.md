@@ -22,11 +22,16 @@ caption_entities=..., reply_markup=...)` and standard `sendPhoto`/`getFile` HTTP
 photo input uses the same attachment/reuse resolver as rich photos. Sender must be the chat bot
 in this first upload profile. World methods remain usable for independently authored tests.
 
-A stored rich photo block is `{"type":"photo","asset_id":1}` plus optional normalized rich
-`caption`. Public input remains `{"type":"photo","photo":{"type":"photo","media":"attach://asset"}}`;
+A stored rich photo block is `{"type":"photo","asset_id":1}` plus optional normalized
+`caption` of type RichBlockCaption. Public input remains `{"type":"photo","photo":{"type":"photo","media":"attach://asset"}}`;
 public output remains `{"type":"photo","photo":[PhotoSize,...]}`. One full-size PhotoSize has
 `file_id`, `file_unique_id`, `width`, `height`, and `file_size`. Its file identity belongs to the
-sending bot. Retain captions through normal recursive rich validation. Source-ignored nested
+sending bot. A photo caption is an object with optional `text` and `credit` RichText members, not a rich
+message's `blocks` or a table's direct RichText caption. Normalize each through existing recursive
+RichText validation. Missing/null caption is absent; missing/null text or credit becomes empty
+plain text. Omit the entire caption if both cleaned members are empty plain text. Otherwise emit
+`text` even when empty, and emit `credit` unless it is empty plain text; preserve empty nested
+wrappers/arrays under existing admission rules. Reject extra caption fields explicitly. Source-ignored nested
 ordinary captions do not replace the rich block caption. Unsupported spoiler/thumbnail and other
 media options must fail explicitly under the recorded first profile. Do not project empty images
 or replace a photo with a divider.

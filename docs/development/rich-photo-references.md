@@ -122,3 +122,14 @@ multipart. User consultation is required for:
 No fixture filename is a proposed public media ID. After approval, work can split into core
 validation/storage, GPL projection/delivery and real-bot native acceptance. That split is planning
 guidance, not an interface decision.
+
+## Caption normalization clarification
+
+The pinned server's `get_page_block_caption` (`Client.cpp` 12057–12069) reads a
+RichBlockCaption object with optional `text` and `credit` RichText members; a nested `blocks`
+message is not that shape. `JsonRichBlockCaption` (980–990) always emits text and emits credit
+when present. TDLib's `WebPageBlockCaption::get_page_block_caption_object`
+(`WebPageBlock.cpp` 853–859) omits the entire caption when both members are empty plain text;
+otherwise it emits text and omits empty plain credit. `RichText::empty` (415–417) means empty
+plain text specifically, not an empty nested wrapper. These observations use the same recorded
+immutable source pins; they do not expand the admitted RichText types or prove native rendering.
