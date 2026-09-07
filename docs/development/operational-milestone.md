@@ -31,3 +31,13 @@ consumer to force it off is not equivalent compatibility. Incoming custom-emoji 
 survive update delivery as well as outgoing rendering. Preserve these requirements when ordering
 implementation; a smaller explicit-entity example cannot stand in for this flow. Consumer-specific
 source locations and configuration stay in ignored local notes.
+
+The representative asset workflow requires JPEG as well as PNG photos, reusable photo IDs and
+collages/album paths. The animated custom-emoji profile must include transparent VP9 WebM;
+TGS-only evidence would leave that required path untested. Custom emoji must work in rich button
+labels as well as message content and incoming ordinary entities. Preserve supplied logical IDs
+and message fallback text at the scenario/application boundary; do not invent an owner-bot or
+catalog-fallback-equality restriction from sticker administration prerequisites. A synthetic
+catalog/admission design still needs consultation and must distinguish logical emoji IDs from
+bot-scoped file identities and recipient media access. Static/animated fixtures can be prepared
+independently while that design is reviewed.
