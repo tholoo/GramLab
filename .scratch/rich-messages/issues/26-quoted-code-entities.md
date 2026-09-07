@@ -2,8 +2,8 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by coordinator for boundary reproduction
-Blocked by: none for reproduction; freeze core/native ownership before parallel implementation
+Work state: open for assigned core worker
+Blocked by: none; frozen contract and coordinator reproduction available
 
 Pinned TDLib `MessageEntity.cpp` at `bc9c263e2bfee06aaab41e82db51a103376030bc`,
 `are_entities_valid` lines 1588–1594, permits pre-like entities inside blockquotes. GramLab's
@@ -37,3 +37,15 @@ input is `Q\ncode\nZ`, an ordinary blockquote at UTF-16 offset 0/length 8, and c
 validation before insertion. The process is terminal with exit status 1 and its original log is
 retained in ignored artifacts. No production code has changed yet. The pinned source contract is
 linked from [the HTML findings](../../../docs/development/html-formatting-references.md#gramlab-boundary-and-next-evidence).
+
+## Core worker assignment
+
+Follow [the frozen contract](../../../docs/development/quoted-code-formatting.md). Own only
+`src/gramlab/entities.py`, `tests/test_quoted_code_entities.py` and this ticket, on
+`task/quoted-code-core`. Add real World/HTTP regressions and record their intended failure before
+fixing. Exercise JSON and form sends/edits, the quote-kind/code-kind/equal-range combinations,
+all-ancestor rejection, Unicode, durable state/events/snapshots, duplicate/no-op canonicalization
+and unchanged state/IDs after invalid requests. Run the new file and existing `test_entities.py`
+inside the assigned pinned shell and outer network guard; run scoped Ruff and source mypy.
+Coordinator owns full combined checks and native acceptance. Keep the branch frozen/clean after
+handoff and ticket claimed until integration acceptance. No bot/guest/build run is assigned.
