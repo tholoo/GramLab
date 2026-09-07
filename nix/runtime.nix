@@ -14,6 +14,14 @@ let
     ]
     ++ extraPackages;
   };
+  supervisorClosure = pkgs.closureInfo {
+    rootPaths = [
+      python
+      pkgs.bubblewrap
+      pkgs.ffmpeg_6
+    ]
+    ++ extraPackages;
+  };
 in
 pkgs.writeText "gramlab-runtime.json" (
   builtins.toJSON {
@@ -21,6 +29,11 @@ pkgs.writeText "gramlab-runtime.json" (
     bubblewrap = "${pkgs.bubblewrap}/bin/bwrap";
     python = "${python}/bin/python3";
     storePaths = "${closure}/store-paths";
+    supervisorStorePaths = "${supervisorClosure}/store-paths";
     inherit executables environment posixShell;
+    supervisorEnvironment = {
+      GRAMLAB_FFMPEG = "${pkgs.ffmpeg_6}/bin/ffmpeg";
+      GRAMLAB_FFPROBE = "${pkgs.ffmpeg_6}/bin/ffprobe";
+    };
   }
 )

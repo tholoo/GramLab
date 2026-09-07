@@ -142,8 +142,11 @@ def run(
     profile: RuntimeProfile,
     android_profile: RuntimeProfile | None = None,
     android_apk: Path | None = None,
+    bridge_version: int = 3,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
+    if type(bridge_version) is not int or bridge_version not in (3, 4):
+        raise ValueError("Android bridge version must be 3 or 4")
     config, inputs = _inputs(manifest)
     apk = None
     android_json = None
@@ -162,6 +165,7 @@ def run(
             "apk_sha256": hashlib.sha256(apk).hexdigest(),
             "profile_sha256": hashlib.sha256(android_json.encode()).hexdigest(),
             "image_package": IMAGE_PACKAGE,
+            "bridge_version": bridge_version,
         }
     output = output.absolute()
     with _data_directory(output.parent) as parent:

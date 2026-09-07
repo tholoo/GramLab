@@ -40,6 +40,7 @@ def execute() -> None:
             RuntimeProfile(**json.loads(Path("android-profile.json").read_text())),
             deadline=deadline,
             secrets=secrets,
+            bridge_version=config["android"]["bridge_version"],
         )
     renderer_lock = threading.Lock()
     captures = Captures(

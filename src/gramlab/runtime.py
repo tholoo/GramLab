@@ -32,6 +32,8 @@ class RuntimeProfile:
     executables: Mapping[str, str] = field(default_factory=dict)
     environment: tuple[tuple[str, str], ...] = ()
     posix_shell: str | None = None
+    supervisor_store_paths: tuple[str, ...] = ()
+    supervisor_environment: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def load(cls, path: Path) -> RuntimeProfile:
@@ -45,6 +47,12 @@ class RuntimeProfile:
             executables=manifest.get("executables", {}),
             environment=tuple(manifest.get("environment", {}).items()),
             posix_shell=manifest.get("posixShell"),
+            supervisor_store_paths=tuple(
+                Path(manifest["supervisorStorePaths"]).read_text().splitlines()
+            )
+            if "supervisorStorePaths" in manifest
+            else (),
+            supervisor_environment=tuple(manifest.get("supervisorEnvironment", {}).items()),
         )
 
 
@@ -153,13 +161,19 @@ class Sandbox:
             # Mapping parent UID 0 into another user namespace requires CAP_SETFCAP.
             # Use a fixed non-root namespace identity instead of retaining capabilities.
             arguments.extend(("--uid", "65534", "--gid", "65534"))
-        for path in self.profile.store_paths:
+        store_paths = self.profile.store_paths
+        if supervisor:
+            store_paths = tuple(dict.fromkeys((*store_paths, *self.profile.supervisor_store_paths)))
+        for path in store_paths:
             arguments.extend(("--ro-bind", path, path))
         if self.profile.posix_shell is not None:
             # SDK Ninja invokes /bin/sh directly. Resolve it only to the trusted closure.
             arguments.extend(("--symlink", self.profile.posix_shell, "/bin/sh"))
         for name, value in self.profile.environment:
             arguments.extend(("--setenv", name, value))
+        if supervisor:
+            for name, value in self.profile.supervisor_environment:
+                arguments.extend(("--setenv", name, value))
         if kvm:
             arguments.extend(("--dev-bind", "/dev/kvm", "/dev/kvm"))
         return arguments

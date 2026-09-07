@@ -70,7 +70,17 @@ def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
 
 
 class Android:
-    def __init__(self, profile: RuntimeProfile, *, deadline: float, secrets: list[str]) -> None:
+    def __init__(
+        self,
+        profile: RuntimeProfile,
+        *,
+        deadline: float,
+        secrets: list[str],
+        bridge_version: int = 3,
+    ) -> None:
+        if type(bridge_version) is not int or bridge_version not in (3, 4):
+            raise ValueError("Android bridge version must be 3 or 4")
+        self._bridge_version = bridge_version
         self.profile = profile
         self.deadline = deadline
         self.secrets = secrets
@@ -251,7 +261,7 @@ class Android:
                 "capability": self._capability,
                 "world_id": world.world_id,
                 "user_id": self._persona,
-                "bridge_version": 3,
+                "bridge_version": self._bridge_version,
             }
         self._adb(
             "shell",

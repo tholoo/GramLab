@@ -55,6 +55,8 @@
             ];
           UV_PYTHON = "${pkgs.python313}/bin/python3";
           UV_PYTHON_DOWNLOADS = "never";
+          GRAMLAB_FFMPEG = "${pkgs.ffmpeg_6}/bin/ffmpeg";
+          GRAMLAB_FFPROBE = "${pkgs.ffmpeg_6}/bin/ffprobe";
           shellHook = ''
             export GRAMLAB_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
             export UV_PROJECT_ENVIRONMENT="$GRAMLAB_ROOT/.venv"

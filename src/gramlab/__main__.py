@@ -20,6 +20,7 @@ def main() -> int:
         "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     )
     execute.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    execute.add_argument("--bridge-version", type=int, choices=(3, 4), default=3)
     args = parser.parse_args()
     if args.profile is None:
         parser.error("Enter the provisioned Nix shell or supply --profile")
@@ -32,6 +33,7 @@ def main() -> int:
             if args.android_profile
             else None,
             android_apk=args.android_apk,
+            bridge_version=args.bridge_version,
         )
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"gramlab: cannot prepare run ({type(error).__name__}): {error}", file=sys.stderr)

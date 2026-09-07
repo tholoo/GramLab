@@ -95,6 +95,14 @@ their geometry, colors, transparency and timing. An explicit encoder or decoder 
 match the active profile before the scripts claim pinned provenance. Without that profile,
 generation records unpinned observations. Entering this shell does not encode assets or launch
 a bot/client. Its toolchain profile is separate from the default and Android runtime profiles.
+
+Custom-emoji runtime preparation also selects those pinned decoder binaries through absolute
+`GRAMLAB_FFMPEG`/`GRAMLAB_FFPROBE` variables. Development shells expose them for trusted direct
+World checks. Runtime profiles mount/export the additional codec closure only in the trusted
+supervisor, where registration runs; ordinary bot/scenario components retain their smaller
+dependency closure and do not inherit these variables. This avoids paying hundreds of extra
+mount operations on every component launch. Paths stay in generated profiles, never World rows
+or scenario input. Decoder provisioning alone does not establish custom-emoji API/rendering support.
 The namespace command above requires Linux; evaluating the shell on another declared platform
 does not establish identical encoded bytes or runtime support there.
 
