@@ -2,10 +2,10 @@
 
 Type: task
 Status: claimed
-Work state: ready for coordinator review; native evidence pending
+Work state: resolved
 Assigned branch: task/rich-buttons-input
 Assigned worker: rich_button_seam
-Blocked by: ticket 17 experimental APK for native execution
+Blocked by: none
 
 Use the [geometry experiment](../../../clients/android/experiments/rich-actions/README.md), frozen
 [button contract](../../../docs/development/rich-buttons-contract.md) and actual admitted world
@@ -131,3 +131,21 @@ This is a harness failure, not missing rendering or valid missing-observer red. 
 world callbacks remain empty. Add an ordinary plain-text anchor beside the inline button and use
 that anchor for readiness/capture checks; retain the two native button identities and all actual
 geometry/action assertions. Rerun the intended negative trial before experimental input.
+
+## Coordinator acceptance
+
+The integrated explicit experiment passes in 83.83 seconds on the separately fingerprinted APK.
+It first launches with neither private file present and verifies unchanged World state, then
+cold-launches wrong and correct identities. Wrong identity yields explicit fresh unavailability;
+two original controls each receive one ordinary guest tap after independent identity/content and
+freshness checks. The real bot answers both callbacks and edits the same message, with complete
+native/API/history/event assertions, cold restart, zero accounts and guest isolation passing.
+All six original PNGs were inspected against actual rectangles and tap centers. Desktop/mobile
+report checks pass with six loaded images, no overflow and no external resources. The normal-APK
+missing-observer red is retained separately from the earlier fixture-readiness failure.
+
+The shared-probe normal regressions pass (two native cases in 169.61 seconds), as do the combined
+390-test core gate and documented static/workflow checks. See the [acceptance and reproduction
+record](../../../docs/development/rich-action-input-experiment.md) for exact scope and limitations.
+Earlier preparation/handoff paragraphs are historical; native acceptance above resolves this
+bounded ticket. Copy/disabled effects and general/public targeting remain separate work.

@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by coordinator; experiment preparation
-Blocked by: tickets 14 and 15 for native execution
+Work state: resolved
+Blocked by: none
 
 The [shared button contract](../../../docs/development/rich-buttons-contract.md) separates actual
 rich content from public input design. Prepare an explicitly opt-in GPL experiment outside the
@@ -48,3 +48,21 @@ The frozen ticket 19 Python harness passes its real-bot simulation and scoped st
 separate read-only review found no blocking source defect in callback/event correlation, wrong
 message identity, bounded freshness, single ordinary taps or failure retention. Native execution
 and original rectangle-to-PNG inspection remain coordinator acceptance work after the normal gate.
+
+## Coordinator acceptance
+
+The integrated explicit experiment passes in 83.83 seconds on the separately fingerprinted APK.
+It first launches with neither private file present and verifies unchanged World state, then
+cold-launches wrong and correct identities. Wrong identity yields explicit fresh unavailability;
+two original controls each receive one ordinary guest tap after independent identity/content and
+freshness checks. The real bot answers both callbacks and edits the same message, with complete
+native/API/history/event assertions, cold restart, zero accounts and guest isolation passing.
+All six original PNGs were inspected against actual rectangles and tap centers. Desktop/mobile
+report checks pass with six loaded images, no overflow and no external resources. The normal-APK
+missing-observer red is retained separately from the earlier fixture-readiness failure.
+
+The shared-probe normal regressions pass (two native cases in 169.61 seconds), as do the combined
+390-test core gate and documented static/workflow checks. See the [acceptance and reproduction
+record](../../../docs/development/rich-action-input-experiment.md) for exact scope and limitations.
+Earlier preparation/handoff paragraphs are historical; native acceptance above resolves this
+bounded ticket. Copy/disabled effects and general/public targeting remain separate work.

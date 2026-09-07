@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by guest-startup-diagnostics on task/guest-startup-diagnostics
+Work state: resolved
 Blocked by: none for helper preparation; coordinator integration after current normal gate
 
 The [parallel trial](06-parallel-native-gate.md) retained only a late, brief-format log tail. It
@@ -71,3 +71,20 @@ not boot readiness. `startup_log` records a bounded prefix and explicit collecti
 A `complete` collector outcome means the owned stream stayed alive until intentional cleanup;
 it does not prove that every boot event was logged or identify a startup cause. Actual guest
 log format, buffering, tags and cleanup remain pending the coordinator's planned native trial.
+
+## Integrated native acceptance
+
+The five controlled-process cases pass after integration in 0.27 seconds. Actual failed and
+successful native probes retain timestamped buffered startup logs, separate boot/probe timing,
+explicit untruncated collection and a reaped logger. The failed scene-predicate trial retains
+141,101 bytes and its partial timing observations; the successful two-callback/edit/restart trial
+retains 65,832 bytes. These are bounded collector observations, not complete Android log coverage.
+The existing normal rich-message and cleaning probes also pass after integration (two cases in
+169.61 seconds). All 390 cases in the combined core gate pass at 80.99% coverage.
+
+The early failed-trial log identifies UWB initialization timeout and a failed retry, followed by
+a full system report request from the same system thread. The successful input control initializes
+UWB successfully and contains no report collection in its untruncated observed interval. Both app
+launches succeed. This identifies the report requester in one run; it does not establish the cause
+of intermittent UWB initialization failure or a causal contribution to launch latency. Parallel
+Android scheduling remains unaccepted and the guest profile/timeouts are unchanged.

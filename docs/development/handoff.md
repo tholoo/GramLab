@@ -129,22 +129,48 @@ is covered without skips on the same immutable normal APK. Preserve both origina
 this is resumed gate coverage, not one uninterrupted green run. The full core gate also passes
 370 tests in 58.87 seconds at 81.03% coverage. The normal run handles are terminal.
 
-The ticket 19 input harness is frozen and independently reviewed without a blocking source
-finding; its real-bot simulation and scoped static checks pass. The coordinator is integrating its
-shared-probe hooks now that the normal gate is terminal. The coordinator's separate
-experimental source matches all 43,250 files in the fresh normal export before the two-file GPL
-overlay. That overlay applies with zero fuzz, and its isolated offline build passes in 2 minutes
-8 seconds. Normal and experimental APKs have separate immutable copies and fingerprints. No
-experimental geometry or input has run yet. Check current handles and paths in ignored notes;
-review and merge frozen workers before the native experiment, and do not infer permanent targeting
-support from preparation evidence.
+The [original rich-button input experiment](rich-action-input-experiment.md) is accepted for the
+short LTR row/inline callback fixture. The input, startup diagnostics, retained-test selection
+and semantic property timing branches are merged. The expanded native loop passes in 83.83 seconds:
+absent opt-in produces no geometry, wrong-message activation produces explicit unavailability,
+and two freshly observed original controls each receive one ordinary guest tap. The real bot
+answers both callbacks and edits the same message; complete native/API/history/event comparisons,
+cold restart, zero accounts and guest isolation pass. All six original PNGs and both report browser
+captures were inspected. The six-image report loads without overflow or external resources at
+390×844 and 1280×900. Tickets 17 and 19 are resolved. This remains an opt-in experiment outside
+the normal patch series; public targeting, copy/disabled effects, RTL/nesting and stale/duplicate
+input behavior remain open.
 
-The [startup diagnostics worker](../../.scratch/developer-tooling/issues/07-guest-startup-diagnostics.md)
-is frozen and reviewed after passing five real-process tests and scoped static checks. Failed
-extra probes retain elapsed time, an 8 MiB controlled emitter proves draining beyond pipe capacity
-after the output cap, and cleanup handles child exit during termination while checking reader
-shutdown. The finite system-tag list includes UWB tags observed in retained logs. Its frozen branch is ready for coordinator integration after the completed normal gate. Actual guest applicability
-remains unverified; no startup cause or parallel Android scheduling fix is claimed.
+The experimental source matches all 43,250 files in the fresh normal export before the two-file
+GPL overlay. Its separate offline build passes in 2 minutes 8 seconds. Binary inspection finds
+the helper only in the experimental APK. The first native trial exposed an inaccessible-button-label
+readiness predicate, corrected with ordinary text beside the original inline button. The normal
+APK then produces the intended missing-observer rejection before any tap. Both failures remain
+retained; no renderer change or synthetic native callback was used.
+
+The combined core gate passes all 390 tests in 54.01 seconds at 80.99% coverage. Its preceding
+389-pass run exposed only an incidental Hypothesis timing deadline in a persistent semantic IO
+property; the reviewed correction preserves all 25 examples and assertions. Existing normal
+rich-message and cleaning native probes pass after the shared helper integration (two tests in
+169.61 seconds). Nineteen documented static commands and the pinned offline workflow check pass;
+later fixture changes also pass affected simulation and static checks. Avoid repeating the earlier
+41-case gate without a change that warrants it.
+
+The [startup diagnostics](../../.scratch/developer-tooling/issues/07-guest-startup-diagnostics.md)
+pass five real-process checks after integration and retain bounded timestamped logs and a reaped
+logger in both failed and successful guests. One failed scene-predicate trial records a UWB
+initialization timeout/retry failure followed by a system report request from the same system
+thread. A successful input control initializes UWB and contains no report collection in the
+observed interval. Both launches succeed; neither the UWB failure cause nor its contribution to
+latency is established. Parallel Android scheduling remains unaccepted, with profiles/timeouts
+unchanged. The [retained-test selection tool](test-timings.md) passes 27 integrated CLI tests and
+reproduces the real 41/19/22 selection, avoiding unnecessary repeat guest work.
+
+All current native/build/check/preview handles are terminal; actual fingerprints and paths remain
+in ignored local notes. Next prove original copy/disabled effects through ordinary guest input and
+original composer paste, retaining unchanged World/API state. Paste-key handling and transient
+copy feedback need direct evidence. Keep that bounded experiment separate from any permanent
+observation interface or public targeting design.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays

@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed by semantic-property-deadline on task/semantic-property-deadline
+Work state: resolved
 Blocked by: none
 
 The combined core gate after the input/diagnostics/tool merges passes 389 tests but the rich-text
@@ -33,3 +33,10 @@ failure. The property now explicitly disables that incidental per-example deadli
 its 25 examples, generated input domain and persistence/reopen assertions. The focused property and
 all 62 tests in `tests/test_rich_messages.py` pass under the offline network guard. Scoped Ruff
 check and format also pass. This rerun does not identify or claim a filesystem or host-load cause.
+
+## Integrated acceptance
+
+The reviewed change keeps all 25 examples, generated input rules and complete assertions. All
+62 rich-message World tests pass after integration in 7.22 seconds; scoped lint/format pass.
+The combined core rerun passes all 390 tests in 54.01 seconds at 80.99% coverage. The earlier
+389-pass deadline failure remains retained. No Android timeout or production behavior changed.

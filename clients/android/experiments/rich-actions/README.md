@@ -1,6 +1,6 @@
 # Original rich-button geometry experiment
 
-Unverified experiment preparation for [ticket 17](../../../../.scratch/rich-messages/issues/17-rich-button-geometry-experiment.md).
+Bounded native experiment for [ticket 17](../../../../.scratch/rich-messages/issues/17-rich-button-geometry-experiment.md).
 This directory is GPL-2.0-or-later, using the applicable [license text](../../patches/COPYING).
 It refers to original client objects and belongs outside the MIT simulator. It is intentionally
 outside the normal patch series and is not a public geometry or input interface.
@@ -27,8 +27,9 @@ promise of atomic freshness between observation and touch.
 
 The first fixture is a short LTR message with a top-level callback row and a paragraph containing
 one inline callback. The observer explicitly rejects unsupported block/transform states and expects
-two targets. Real callback/answer/edit, wrong-identity rejection, PNG inspection and cold restart
-remain required before claiming the coordinate mapping works. RTL/nesting, other actions and a
+two targets. [Native acceptance](../../../../docs/development/rich-action-input-experiment.md)
+passes real callback/answer/edit, absent opt-in and wrong-identity rejection, original PNG inspection
+and cold restart. RTL/nesting, other actions and a
 permanent targeting contract remain future work; no fallback synthesizes a callback.
 
 
