@@ -81,3 +81,13 @@ the shared Android lock; all 5,114 retained evidence-file hashes match. Eight pa
 are now retained and the remaining 35 are running with source/APK/profile equivalence checked.
 Combined acceptance and ticket resolution remain pending. Corrected desktop/mobile reports were
 inspected: all three images load, timing units are milliseconds and neither viewport overflows.
+
+The second continuation passes seven cases before the list fixture's restart reports activity
+launch timeout/unknown state. Its log records the activity displayed after 12.321 seconds, beyond
+the command's 10.737-second wait; the edited/restarted XML matches. Host checkbox assertions after
+the failing launch check were not executed in that pytest run; they subsequently pass against
+the retained result. Original lifecycle acceptance remains failed. One unchanged isolated control
+then passes in 72.79 seconds with both cold-launch statuses, and its edited/restarted PNGs were
+inspected. This is evidence of variable launch delay, not a proven scheduling fix. Sixteen passing
+identities are retained across the four reports; the remaining 27 are running. Both failed JUnit
+reports remain unmodified.

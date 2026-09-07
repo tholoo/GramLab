@@ -31,13 +31,20 @@ offline safety, licensing and completion requirements before the corresponding a
   [ticket 25](../../.scratch/rich-messages/issues/25-html-source-contract.md) is resolved. The Bot API
   still rejects parse modes. Parser output, cleaning, range repair and automatic entity detection
   are distinct stages; feeding raw HTML entities into the existing validator is insufficient.
-- [Quoted code/pre correction](quoted-code-formatting.md) is integrated in the core and normal
-  Android adapter. Public World/real-bot regression checks and original rendering/edit/restart
-  pass. The broader 43-case Android inventory has eight passes across retained focused and
-  continuation runs; the next case failed at emulator startup for insufficient disk space.
-  Original results remain preserved. Disposable disks from completed suites were reclaimed with
-  retained evidence hashes unchanged; the remaining 35 identities are running on unchanged inputs.
-  Tickets 26/27 remain claimed until combined verification finishes.
+- [Quoted code/pre correction](quoted-code-formatting.md) is integrated in core and the normal
+  Android adapter. Public World/real-bot and original rendering/edit/restart checks pass. The
+  broader 43-case inventory retains 16 passes; 27 remaining cases are running on unchanged inputs.
+  Original disk-space and late activity-launch failures remain recorded. The unchanged list
+  control passes with both cold-launch statuses and inspected edited/restarted images. This does
+  not prove the launch-delay cause fixed. Tickets 26/27 await combined acceptance.
+- [Polling startup](../../.scratch/update-delivery/issues/03-polling-startup-reset.md) has a reviewed
+  worker implementation of `deleteWebhook` and scoped queue discard. Its independent contained
+  bot fixture currently reproduces HTTP 404 on the integration branch. Keep the worker frozen until
+  the current native source snapshot is no longer needed, then integrate and run that fixture.
+- [Structured rich links](rich-links-contract.md) are assigned to separate core/native workers.
+  Coordinator owns real-bot/capture/native acceptance; canonical URL/email/phone text and metadata
+  are frozen. This changes rendering data, not navigation or network access. Automatic detection,
+  text mentions, custom emoji and media remain additional operational requirements.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
@@ -68,10 +75,10 @@ fingerprints; experimental geometry is absent from the normal patch series. Curr
 coverage is short LTR row/inline callbacks, copy row and disabled inline. RTL/nesting, duplicate or
 stale input, offscreen/long-press behavior and atomic observation/input remain open.
 
-The first quoted-code native continuation stopped after six passes and one disk-space startup
-failure; its JUnit remains failed. The two focused passes are retained separately. The second
-continuation is running only the remaining 35 identities. Build/core/check/preview processes are
-terminal. Inspect current agent state and exact process handles before dispatch or resume. Host paths, handles, fingerprints and artifact locations stay in ignored local notes.
+The current native continuation is live; inspect its exact handle before resuming. Earlier
+build/core/check/preview and list-control processes are terminal. Worker branches have separate
+status and acceptance. Host paths, handles, fingerprints and artifact locations stay in ignored
+local notes. Preserve the existing native source snapshot while its continued gate runs.
 
 ## Development throughput
 
