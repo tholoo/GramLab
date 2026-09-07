@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by rich-buttons-captures on task/rich-buttons-captures
 Blocked by: ticket 14 for positive public execution
 
 Follow the frozen [button contract](../../../docs/development/rich-buttons-contract.md).
@@ -26,3 +26,19 @@ helper-only tests as the main acceptance. Run scoped Ruff/format/mypy and the fo
 under the pinned shell/outer network guard. Coordinator performs positive integrated checks after
 the frozen core branch is merged. No guest, build or full gate is assigned. Commit only owned
 files and return a clean frozen branch; keep the ticket claimed until combined acceptance.
+
+## Worker evidence
+
+The capture walker now treats each rich button-row label as its own readable fragment and includes
+an inline button label within its surrounding RichText fragment. It reads only button `text`, so
+callback payloads, copied text, style and row alignment do not become capture evidence. The public
+runner test uses a real standard-library HTTP bot and independently authored complete initial,
+edited and repeated semantic capture expectations. It also rejects payload, copied-text, style,
+alignment and cross-button targets while requiring string/array labels in both placements.
+
+On the assigned base, the focused loopback-only public test fails before capture exactly because
+`sendRichMessage` returns `GRAMLAB_UNSUPPORTED: rich content fields`. No validator patch, direct
+World insertion or database fixture bypasses that expected ticket-14 dependency. Scoped Ruff
+lint/format and strict mypy pass for both owned Python files. Positive public execution remains
+coordinator-owned after integrating the core branch. No guest, APK build, full gate or external
+network access was used.
