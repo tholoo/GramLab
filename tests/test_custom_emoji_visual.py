@@ -8,6 +8,7 @@ from custom_emoji_visual import (
     locate_animation,
     locate_static,
     require_complete_cycle,
+    require_distinct_carriers,
 )
 from PIL import Image, ImageDraw
 
@@ -57,7 +58,8 @@ def test_locator_rejects_opaque_backing_and_global_changes() -> None:
 
 def test_distinct_carrier_mapping_rejects_overlapping_duplicate_bounds() -> None:
     carriers = {"incoming": (0, 0, 100, 50), "ordinary": (0, 0, 100, 50)}
-    assert len(set(carriers.values())) != len(carriers)
+    with pytest.raises(AssertionError, match="distinct"):
+        require_distinct_carriers(carriers, {"incoming", "ordinary"})
 
 
 def test_static_oracle_requires_diamond_geometry_not_one_blue_pixel() -> None:

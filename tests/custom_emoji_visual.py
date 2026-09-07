@@ -65,6 +65,13 @@ def locate_static(frame: Image.Image, box: tuple[int, int, int, int]) -> bool:
     return abs(width - height) <= max(2, width // 3) and 0.28 <= occupancy <= 0.78
 
 
+def require_distinct_carriers(
+    carriers: dict[str, tuple[int, int, int, int]], required: set[str]
+) -> None:
+    if set(carriers) != required or len(set(carriers.values())) != len(carriers):
+        raise AssertionError("Custom emoji carriers must have distinct semantic regions")
+
+
 def locate_animation(
     frame: Image.Image, box: tuple[int, int, int, int], *, color_tolerance: int = 38
 ) -> LocatedFrame | None:

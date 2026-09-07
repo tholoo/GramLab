@@ -12,7 +12,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from custom_emoji_visual import animation_states, locate_static, require_complete_cycle
+from custom_emoji_visual import (
+    animation_states,
+    locate_static,
+    require_complete_cycle,
+    require_distinct_carriers,
+)
 from PIL import Image
 from test_android_quoted_code import assert_isolation
 
@@ -103,8 +108,10 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     with Image.open(tmp_path / "initial.png") as opened:
         initial = opened.convert("RGB")
     initial_boxes = client["carrier_bounds"]["initial"]
-    assert set(initial_boxes) == {"incoming", "ordinary", "rich", "button"}
-    assert len({tuple(box) for box in initial_boxes.values()}) == 4
+    require_distinct_carriers(
+        {name: tuple(box) for name, box in initial_boxes.items()},
+        {"incoming", "ordinary", "rich", "button"},
+    )
     assert all(locate_static(initial, tuple(raw_box)) for raw_box in initial_boxes.values())
     burst = []
     timestamps = client["burst_timestamps_ns"]
