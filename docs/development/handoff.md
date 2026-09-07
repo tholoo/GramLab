@@ -138,8 +138,8 @@ answers both callbacks and edits the same message; complete native/API/history/e
 cold restart, zero accounts and guest isolation pass. All six original PNGs and both report browser
 captures were inspected. The six-image report loads without overflow or external resources at
 390×844 and 1280×900. Tickets 17 and 19 are resolved. This remains an opt-in experiment outside
-the normal patch series; public targeting, copy/disabled effects, RTL/nesting and stale/duplicate
-input behavior remain open.
+the normal patch series; public targeting, RTL/nesting and stale/duplicate input behavior remain
+open. Copy-row/disabled-inline effects have subsequent acceptance below.
 
 The experimental source matches all 43,250 files in the fresh normal export before the two-file
 GPL overlay. Its separate offline build passes in 2 minutes 8 seconds. Binary inspection finds
@@ -166,13 +166,25 @@ latency is established. Parallel Android scheduling remains unaccepted, with pro
 unchanged. The [retained-test selection tool](test-timings.md) passes 27 integrated CLI tests and
 reproduces the real 41/19/22 selection, avoiding unnecessary repeat guest work.
 
-All current native/build/check/preview handles are terminal; actual fingerprints and paths remain
-in ignored local notes. The [copy/disabled experiment](../../.scratch/rich-messages/issues/21-rich-copy-disabled-native-experiment.md)
-is now in preparation: a real-bot simulation and scoped Python static checks pass. The isolated
-geometry worker is frozen for review. Next build its separately fingerprinted experimental APK
-and prove ordinary guest input and original composer paste, retaining unchanged World/API state. Paste-key handling and transient
-copy feedback need direct evidence. Keep that bounded experiment separate from any permanent
-observation interface or public targeting design.
+The [copy-row/disabled-inline experiment](rich-action-effects-experiment.md) is accepted. Its new
+APK builds offline in 2 minutes 32 seconds, and the preceding callback-only APK rejects the new
+fixture before input. Two retained harness failures identify a clipboard-overlay intercept of a
+redundant focus tap and an unnecessary Escape clearing focus. The corrected ordinary paste/delete
+flow proves exact clipboard content, unchanged World/API state and cold restart. All native
+assertions pass in 98.39 seconds; the retained pytest failure is solely report packaging exceeding
+the existing eight-image limit. Complete retained-result revalidation and two bounded reports pass
+in 0.28 seconds, preserving all original evidence and the failing JUnit. Do not describe this as
+one uninterrupted green pytest run. The new-APK callback regression passes in 101.82 seconds.
+All thirteen effect PNGs, six callback PNGs and four browser captures were inspected. Both reports
+pass desktop/mobile loading, overflow and external-resource checks. Ticket 21 is resolved.
+
+Native/build/preview handles are terminal; actual fingerprints and paths remain ignored. Two
+independent media preparation tasks are underway: [deterministic original PNG fixtures](../../.scratch/rich-messages/issues/22-deterministic-photo-fixtures.md)
+and [pinned photo source-contract research](../../.scratch/rich-messages/issues/23-rich-photo-source-contract.md).
+The fixture worker is frozen for coordinator review and independent decoding. The research worker
+will supply primary-source evidence for a concrete user-reviewed asset identity/delivery proposal.
+There is currently no asset registry, file API or native media delivery seam. Do not invent those
+interfaces or stage a fake renderer result while waiting for design review.
 
 Prepare concrete proposals before consequential design or navigation changes. Rich actions, media, custom
 emoji, Mini Apps, interactive mode and the wider inventory remain unfinished; the full goal stays

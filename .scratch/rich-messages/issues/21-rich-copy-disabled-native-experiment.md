@@ -2,7 +2,7 @@
 
 Type: task
 Status: claimed
-Work state: claimed by coordinator; geometry extension delegated
+Work state: resolved
 Blocked by: none
 
 Extend the accepted opt-in callback experiment to actual copy and disabled effects. This remains
@@ -126,3 +126,14 @@ Original pasted/cleared PNGs and XML were inspected. No IME was opened. The reta
 has focus, while the next pre-disabled XML lacks it: the harness's unnecessary Escape key between
 those captures cleared focus. Remove that keypress and retain strict focus/paste checks. The
 second disabled-phase paste and cold restart remain unaccepted until a full native pass.
+
+
+## Final coordinator acceptance
+
+All native effect assertions pass in the third run; the retained pytest failure is solely the
+reporter's eight-image limit. Complete native revalidation and two bounded reports pass without
+altering or rerunning the original native evidence. The new-APK callback regression passes in
+101.82 seconds. All thirteen effect images, six callback images and four report browser captures
+were inspected; desktop/mobile report checks pass. See the [precise acceptance and retained-failure
+record](../../../docs/development/rich-action-effects-experiment.md). This resolves the bounded
+copy-row/disabled-inline experiment; wider placements and public targeting remain open.

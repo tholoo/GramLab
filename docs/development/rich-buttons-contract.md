@@ -4,8 +4,8 @@ This implementation contract extends the existing rich-message subset using the
 [pinned action findings](rich-actions-references.md). Core/API/capture support and focused native
 codec/rendering checks pass, and the resumed normal gate covers all 41 cases. The separate
 [rich-button input experiment](rich-action-input-experiment.md) passes real row/inline callbacks,
-answers/edit/restart and absent/wrong activation checks. Copy/disabled effects and a public input
-API remain open; the original renderer is preserved. URL/navigation, Web Apps, login, switch-inline, pay/game and custom emoji
+answers/edit/restart and absent/wrong activation checks. The [effect experiment](rich-action-effects-experiment.md)
+adds original copy-row/disabled-inline input and clipboard evidence. A public input API remains open; the original renderer is preserved. URL/navigation, Web Apps, login, switch-inline, pay/game and custom emoji
 remain separate inventory items requiring their own contracts and evidence.
 
 ## Shared JSON boundary

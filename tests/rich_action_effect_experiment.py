@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -183,7 +183,11 @@ def test_experimental_original_copy_and_disabled_effects(tmp_path: Path) -> None
     (tmp_path / "native-result.json").write_text(result.stdout)
     (tmp_path / "native-stderr.log").write_text(result.stderr)
     assert result.returncode == 0, result.stderr
-    full = json.loads(result.stdout)
+    validate_and_report(tmp_path, apk, json.loads(result.stdout))
+
+
+def validate_and_report(tmp_path: Path, apk: str, full: dict[str, Any]) -> None:
+    """Validate retained native evidence independently of costly guest execution."""
     assert full["host_interfaces"] == [[1, "lo"]]
     assert "Accounts: 0" in full["accounts"]
     assert full["emulator_filesystem"] == {
@@ -331,34 +335,54 @@ def test_experimental_original_copy_and_disabled_effects(tmp_path: Path) -> None
     for phase in phases:
         assert (tmp_path / f"{phase}.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
         assert (tmp_path / f"{phase}.xml").read_text()
-    write_report(
-        tmp_path / "report.html",
-        Report(
-            run_id="rich-action-effect-experiment",
-            title="Original rich copy and disabled effects",
-            mode="headless-android",
-            outcome="passed",
-            seed=21,
-            profile={
-                "APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
-                "Display": "320 x 640, 160 dpi; short LTR scene",
-            },
-            summary="Original copy input pastes the exact payload into the original composer. "
-            "Disabled input preserves it. World and bot state stay unchanged.",
-            evidence={
-                "Scenario": observed,
-                "Network": full["network"],
-                "Emulator filesystem": full["emulator_filesystem"],
-            },
-            screenshots=[
-                Screenshot(caption=phase, png=(tmp_path / f"{phase}.png").read_bytes())
-                for phase in phases
-            ],
-            limitations=[
-                "Opt-in experiment only; public targeting remains unimplemented.",
-                "Copy row and disabled inline only; no RTL, nesting or long-press proof.",
-                "No atomic observe/touch guarantee or input retry.",
-                "Original bounds, copy feedback and disabled styling require visual review.",
-            ],
-        ),
+    report = Report(
+        run_id="rich-action-effect-experiment",
+        title="Original rich copy and disabled effects",
+        mode="headless-android",
+        outcome="passed",
+        seed=21,
+        profile={
+            "APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
+            "Display": "320 x 640, 160 dpi; short LTR scene",
+        },
+        summary="Original copy input pastes the exact payload into the original composer. "
+        "Disabled input preserves it. World and bot state stay unchanged.",
+        evidence={
+            "Scenario": observed,
+            "Network": full["network"],
+            "Emulator filesystem": full["emulator_filesystem"],
+        },
+        limitations=[
+            "Opt-in experiment only; public targeting remains unimplemented.",
+            "Copy row and disabled inline only; no RTL, nesting or long-press proof.",
+            "No atomic observe/touch guarantee or input retry.",
+            "Original bounds, copy feedback and disabled styling require visual review.",
+        ],
     )
+    # Keep the reporter's eight-image bound and retain every original capture in two reports.
+    main_phases = [
+        "initial",
+        "before-wrong",
+        "before-copy",
+        "before-copy-pasted",
+        "before-copy-cleared",
+        "before-disabled",
+        "before-disabled-pasted",
+        "restarted",
+    ]
+    detail_phases = [phase for phase in phases if phase not in main_phases]
+    detail_phases.extend(["before-copy-feedback", "before-disabled-feedback"])
+    for filename, selected in (
+        ("report.html", main_phases),
+        ("report-details.html", detail_phases),
+    ):
+        write_report(
+            tmp_path / filename,
+            replace(
+                report,
+                screenshots=[
+                    Screenshot(caption=phase, png=(tmp_path / f"{phase}.png").read_bytes())
+                    for phase in selected
+                ],
+            ),
+        )

@@ -4,7 +4,9 @@ The opt-in [GPL observer](../../clients/android/experiments/rich-actions/README.
 passing real-bot input loop on the pinned original Android renderer. A row callback and an inline
 callback each receive one ordinary guest tap. The bot answers both and edits the same message
 after the second; original rendering and cold restart retain that edit. Public rich-button
-targeting, clipboard semantics and a permanent observation interface remain open decisions.
+targeting and a permanent observation interface remain open decisions. The subsequent
+[copy/disabled experiment](rich-action-effects-experiment.md) adds bounded original-composer
+clipboard evidence.
 
 ## Evidence boundary
 
@@ -67,6 +69,7 @@ The filename intentionally lies outside default pytest discovery. Supplying the 
 the native fixture deliberately tests missing-observer refusal; it cannot supply geometry.
 
 This is a short, top-level LTR fixture. Non-atomic observation/touch, duplicate or stale targets,
-RTL/nesting, copy and disabled effects remain unaccepted. No automatic input retry, renderer
+RTL/nesting and general targeting remain unaccepted. Copy-row/disabled-inline effects have separate
+[acceptance evidence](rich-action-effects-experiment.md). No automatic input retry, renderer
 modification, exported component or public targeting API is added by the experiment. The normal
 APK and ordinary scenario interface retain their separate acceptance evidence.

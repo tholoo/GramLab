@@ -79,8 +79,8 @@ The opt-in
 [geometry experiment](../../clients/android/experiments/rich-actions/README.md) is outside the normal
 series and has a separately built APK. Its [bounded input acceptance](rich-action-input-experiment.md)
 passes actual row/inline callback taps, real bot answers/edit/restart, absent opt-in and wrong-message
-rejection. All six original captures were inspected. Public targeting and copy/disabled effects
-remain unaccepted.
+rejection. All six original captures were inspected. The separate [effect experiment](rich-action-effects-experiment.md) verifies copy-row/disabled-inline
+input, exact clipboard pastes and state invariance; public targeting remains unaccepted.
 
 The preceding twelve-patch queue applies to a fresh pinned export, preserving all 6,666 original
 UI/resource files. The list integration changes two Java inputs; its incremental offline APK

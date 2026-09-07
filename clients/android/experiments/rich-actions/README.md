@@ -45,5 +45,7 @@ The [copy/disabled extension](../../../../.scratch/rich-messages/issues/21-rich-
 preserves callback target fields and admits exactly one of `callback_data`, `copy_text` or
 `disabled: true` from the corresponding original native action. This extends observations only;
 it never invokes actions or reads the clipboard. The separate APK build passes, and the preceding
-callback-only APK refuses the new fixture before input. Actual copy/paste and disabled effects
-remain pending native acceptance; do not infer them from compilation or rendered styling.
+callback-only APK refuses the new fixture before input. [Native copy/paste and disabled acceptance](../../../../docs/development/rich-action-effects-experiment.md)
+now verifies exact original-composer pastes, unchanged World/API state and cold restart. The report-only
+failure and retained-evidence revalidation are recorded separately; other placements and public
+targeting remain open.
