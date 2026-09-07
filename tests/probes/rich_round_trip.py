@@ -16,19 +16,22 @@ from gramlab.world import World
 def run(
     show: Callable[[dict[str, Any]], str] | None = None,
     observe: Callable[[], dict[str, Any]] | None = None,
+    *,
+    bot_fixture: str = "rich_bot.py",
+    request_text: str = "Show rich blocks",
 ) -> dict[str, Any]:
     directory = Path("world")
     with World.create(directory, seed=7, now=1700000000) as world:
         world.create_user(first_name="Sara", language_code="fa")
         world.create_user(first_name="Echo", username="gramlab_echo_bot", is_bot=True)
         world.open_private_chat(user_id=1, bot_id=2)
-        world.send_message(chat_id=1, sender_id=1, text="Show rich blocks")
+        world.send_message(chat_id=1, sender_id=1, text=request_text)
         token = world.issue_bot_token(2)
         capability = world.issue_client_token(1)
         world_id = world.world_id
     client: dict[str, Any] = {}
     with BotAPIServer(directory) as server, ClientBridge(directory) as bridge:
-        with FixtureBot("rich_bot.py").start(
+        with FixtureBot(bot_fixture).start(
             {
                 "GRAMLAB_BOT_API": server.base_url,
                 "GRAMLAB_BOT_TOKEN": token,

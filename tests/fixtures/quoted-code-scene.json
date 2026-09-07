@@ -1,0 +1,20 @@
+{
+  "initial": {
+    "text": "Code 😀\nalpha()\nPre سلام\nprint(1)",
+    "entities": [
+      {"type": "blockquote", "offset": 0, "length": 15},
+      {"type": "code", "offset": 8, "length": 7},
+      {"type": "expandable_blockquote", "offset": 16, "length": 17},
+      {"type": "pre", "offset": 25, "length": 8, "language": "python"}
+    ]
+  },
+  "edited": {
+    "text": "کد 😀\nbeta()\nPre edited\nprint(2)",
+    "entities": [
+      {"type": "expandable_blockquote", "offset": 0, "length": 12},
+      {"type": "code", "offset": 6, "length": 6},
+      {"type": "blockquote", "offset": 13, "length": 19},
+      {"type": "pre", "offset": 24, "length": 8, "language": "python"}
+    ]
+  }
+}

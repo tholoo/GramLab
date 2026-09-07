@@ -13,6 +13,10 @@ media/custom emoji/Mini Apps, previews, performance diagnostics and reports. The
 checkpoint, not completion. Consult the [compatibility matrix](../compatibility/matrix.md) before
 claiming any feature; explicit unsupported behavior remains part of the contract.
 
+The user clarified the [first operational milestone](operational-milestone.md): messages/buttons,
+rich messages, photos/files and custom emoji are required. Mini Apps may follow later and remain
+in the full goal. A text-only subset is not the operational milestone.
+
 ## First action
 
 Read [AGENTS.md](../../AGENTS.md) and the assigned ticket. Follow its linked testing, architecture,
