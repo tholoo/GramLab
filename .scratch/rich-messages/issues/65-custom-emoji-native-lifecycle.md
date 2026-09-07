@@ -2,8 +2,8 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
-Blocked by: ticket63 frozen shared real-bot fixture for integrated execution
+Work state: ready for coordinator review; native execution remains coordinator-owned
+Blocked by: none; ticket63 frozen at e0fb984c0230c28f579c58b88dbf2dd47f3a934f
 
 Coordinator owns this ticket, new `tests/probes/android_custom_emoji.py`,
 `tests/test_android_custom_emoji.py`, optional original pixel-oracle helper/test, and native execution.
@@ -40,8 +40,34 @@ not prove animation/alpha. Original LiteMode/device animation restrictions must 
 reported, not bypassed. Match geometry with explicit sampling tolerances for real decoder/scaling
 and recording; preserve observed outputs for independent inspection.
 
+The worker implementation stages the frozen three-phase callback interface, records native-only
+document/asset journals, exact original cache destinations and a 24-frame edited burst. A small
+pixel oracle rejects global screenshot changes and requires the authored marker plus all four
+moving-color states inside semantic carrier bounds. Its two pure host cases and Android test
+collection pass. Native execution and inspection remain with the coordinator.
+
 Run one serial guest under android-gate with the verified immutable normal24 APK and outer network
 guard. Keep unchanged source/APK/profile/probe fingerprints before/after. Retain complete JUnit
 including failures; inspect original PNGs and desktop/mobile report previews before declaring
 visual acceptance. All scopes still need stronger fault/cancel/unknown/mixed resolver recovery and
 wider native regression under ticket58; this lifecycle cannot substitute for those checks.
+
+## Coordinator review and current acceptance boundary
+
+Frozen implementation `91babfc279e6ec3587d158e42bb24bf363d68f96` includes seven pure oracle
+cases: translated/downsampled authored geometry, ordered cycles, alpha/background rejection,
+distinct nonoverlapping carriers, diamond shape and clipped-canvas rejection. Native acceptance
+is still pending; the earlier two-case worker result is superseded.
+
+The first diagnostic shows all four authored static thumbnails but fails on a nonexistent
+accessibility label for the rich button. The corrected second diagnostic resolves both documents
+and applies the real bot edit; it makes no WebM GET and remains on the static thumbnail. Original
+power-saving behavior is the leading explanation, not yet verified by a controlled UI change.
+The next frozen probe observes and enables the original keyboard/chat animation checkboxes only
+in its disposable guest, recording selected preferences and battery. It changes no renderer, APK
+or default profile. Its first attempted run fails before app launch because emulator userdata
+creation needs more free disk than available. No settings, playback or restart evidence follows.
+
+Retain these original failures. After approved resource cleanup, run the final probe, verify all
+three animated bot carriers plus the unchanged incoming static control, exact bytes and unchanged
+cold-cache reuse, then inspect the original captures and bounded report before resolving this ticket.
