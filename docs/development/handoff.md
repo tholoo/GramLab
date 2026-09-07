@@ -39,10 +39,15 @@ offline safety, licensing and completion requirements before the corresponding a
   initial screenshots. Native serialization initially changed cache IDs; patch 0018 preserves
   explicit locations using an existing upstream PhotoSize constructor. All four valid codec
   outputs then match. Eight missing-field rejection failures motivate patch 0019; it compiles,
-  and combined codec/render/edit/restart verification is pending. Cache evidence discovery now
-  covers the app's external storage as selected by upstream. Transfer fault/cancel/retry and
-  combined native regression acceptance remain required; initial screenshots are not full media
-  completion. See tickets [40](../../.scratch/rich-messages/issues/40-media-native.md),
+  and the complete 28-case native codec now passes. The real-bot photo/edit/restart run completes;
+  retained observations pass corrected host cache/trace assertions with all original bytes
+  unchanged, preserving the original failed JUnit. The report explicitly labels this retained
+  acceptance. Cache evidence covers every matching app-owned internal/external copy and proves
+  no new transfer after restart. Four original images and desktop/mobile reports were inspected.
+  Better top-capture framing, transfer fault/cancel/retry and combined native regression acceptance
+  remain required. Ticket [46](../../.scratch/rich-messages/issues/46-media-native-faults.md) has a
+  frozen worker branch with four native fault/restart scenarios and eight passing HTTP fixture
+  tests; coordinator review, integration and guest execution are next. See tickets [40](../../.scratch/rich-messages/issues/40-media-native.md),
   [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
   [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).
 - Pinned [HTML formatting research](html-formatting-references.md) is integrated and

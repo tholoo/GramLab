@@ -3,9 +3,12 @@
 The first photo profile accepts PNG and JPEG through `sendPhoto` and rich photo blocks.
 Seventeen focused World, HTTP, bridge, contained real-bot and public capture checks pass.
 All 471 non-Android tests pass at 81.71% coverage after restoring missing historical callback
-events in the migration fixtures. The original Android media adapter compiles offline; its first
-native run exposed a serialized-location defect. The corrected adapter also compiles, and native
-runtime acceptance remains pending. This page does not claim completed Android photo support. The [shared contract](media-implementation-contract.md) defines
+journal events in migration fixtures. The original Android codec passes four complete valid cases
+and 24 rejection cases. A contained real-bot photo/edit/restart scenario completes and its retained
+observations pass corrected host assertions with original bytes unchanged. The original failed
+JUnit is preserved; this is retained acceptance, not a relabeled green run. Original images and
+reports have been inspected. Download faults, wider native regressions and better capture framing
+remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
 the precise limits and bridge fields.
 
 ## Sending and reusing a photo

@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: normal17 APK for coordinator execution
 
 Own new `tests/probes/android_media_codec.py`, `tests/test_android_media_codec.py`, and this ticket.
@@ -58,3 +58,7 @@ Patch 0019 rejects incomplete six-field asset descriptors before JSON access and
 identifier validation handle an absent field as invalid data. This addresses the eight native
 missing-field failures without catching arbitrary crashes in the probe or changing valid output.
 Corrected compilation and the complete native inventory remain required.
+
+Coordinator normal19 native acceptance passes the complete inventory: all four valid full outputs
+and all 24 structured rejections match in 69.955 seconds. Original accounts/filesystem/network
+isolation checks pass. This is codec evidence only, independent of native loader fault coverage.

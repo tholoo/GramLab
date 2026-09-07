@@ -61,3 +61,28 @@ only internal files; upstream AndroidUtilities selects external cache and ImageL
 app-owned external image storage. The corrected probe searches both dedicated app roots, records
 every matching copy, quotes discovered paths and requires exact bytes plus stable paths across
 edit/restart. This changes evidence discovery only. Full lifecycle green remains required.
+
+The next retained run completes original initial/edit/restart observation and exact semantic
+comparisons, then fails a host cache-set assertion: first using the PNG in a rich receiver adds
+a correct cache copy alongside the ordinary image-directory copy. All copies have original
+bytes. The corrected invariant retains initial paths through edit and requires the complete
+edited cache set unchanged after restart, with no new transfer starts. Both inspected edited
+and restarted screenshots show the replacement photo and bilingual rich caption. Native source
+and APK remain unchanged; the corrected complete acceptance run is pending.
+
+## Retained native acceptance
+
+The complete normal19 scenario finishes all guest observations. A final host assertion compared
+restart transfers with an edited trace captured before viewport-driven cache work had finished.
+The complete ordered trace proves there are no transfer starts after its second initialization.
+Host assertions now use that actual restart boundary and are factored into a callable evidence
+validator. Revalidation passes in 0.21 seconds with all 26 original evidence files, APK, profiles
+and staged native/scenario sources unchanged; the original failed JUnit remains untouched.
+The first report is preserved, and a separate report explicitly labels retained acceptance.
+
+Four original screenshots were inspected: JPEG quadrants, ordinary PNG decoding, live PNG
+replacement with bilingual rich caption, and cold restart. Desktop/mobile report layouts load
+all four original images without overflow. The top capture partly clips the ordinary caption and
+contains a guest screenshot toast; better viewport framing and broader native gates remain open.
+This acceptance establishes the semantic/render/edit/cache/restart checkpoint, not full media
+fault or production-fidelity coverage. Scoped Ruff/format/mypy and workflow checks pass.

@@ -7,6 +7,7 @@ import shutil
 import xml.etree.ElementTree as ET
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import pytest
 from test_android_quoted_code import assert_isolation
@@ -57,6 +58,23 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
     (tmp_path / "media-native-stderr.log").write_text(result.stderr)
     assert result.returncode == 0, result.stderr
     full = json.loads(result.stdout)
+    assert_media_observation(tmp_path, full, apk, toolchain)
+
+
+def assert_media_observation(
+    tmp_path: Path,
+    full: dict[str, Any],
+    apk: str,
+    toolchain: dict[str, Any],
+    *,
+    acceptance_note: str = "",
+    report_path: Path | None = None,
+) -> None:
+    """Validate retained real-guest evidence without rerunning the guest or changing bytes."""
+    image_package = (
+        f"system-images;android-{toolchain['sdk']['platform']};"
+        f"{toolchain['runtime']['imageType']};{toolchain['runtime']['abi']}"
+    )
     assert_isolation(full)
     observed = full["extra_probe"]
     assert_media_scenario(observed)
@@ -91,6 +109,7 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
     }
     assert set(client["cache"]) == {"initial", "edited", "restart"}
     initial_paths: dict[str, list[str]] = {}
+    edited_paths: dict[str, list[str]] = {}
     for phase, files in client["cache"].items():
         assert set(files) == set(expected_cache)
         for filename, expected in expected_cache.items():
@@ -105,8 +124,13 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
             assert paths == sorted(set(paths))
             if phase == "initial":
                 initial_paths[filename] = paths
+            elif phase == "edited":
+                # Rich and ordinary receivers select different upstream cache directories.
+                # The first rich use may add a copy; existing bytes/locations must survive.
+                assert set(initial_paths[filename]) <= set(paths)
+                edited_paths[filename] = paths
             else:
-                assert paths == initial_paths[filename]
+                assert paths == edited_paths[filename]
 
     media_trace = client["media_trace"]
     assert media_trace
@@ -128,22 +152,18 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
         assert any(
             row["event"] == "media_load_success" and row["digest_ok"] is True for row in matching
         )
-        # Original ImageLoader may decode an existing cache file before FileLoader is
-        # called. Cache reuse is proven by retained bytes, rendered restart evidence,
-        # and no new transfer starts, not a synthetic FileLoader cache-hit callback.
-        before_restart = [
-            json.loads(line) for line in (tmp_path / "edited-trace.jsonl").read_text().splitlines()
-        ]
-        after_restart = [
-            json.loads(line) for line in (tmp_path / "final-trace.jsonl").read_text().splitlines()
-        ]
-        assert sum(
-            row.get("event") == "media_load_start" and row.get("asset_id") == asset_id
-            for row in before_restart
-        ) == sum(
-            row.get("event") == "media_load_start" and row.get("asset_id") == asset_id
-            for row in after_restart
-        )
+    # Compare within the complete ordered trace. The edited polling trace precedes
+    # viewport-driven cache work and cannot mark the cold-restart boundary.
+    final_rows = [
+        json.loads(line) for line in (tmp_path / "final-trace.jsonl").read_text().splitlines()
+    ]
+    initializations = [
+        index for index, row in enumerate(final_rows) if row.get("event") == "initialized"
+    ]
+    assert len(initializations) == 2
+    assert not any(
+        row.get("event") == "media_load_start" for row in final_rows[initializations[1] :]
+    )
 
     assert set(client["launches"]) == {"initial", "restart"}
     for launch in client["launches"].values():
@@ -151,7 +171,7 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
     assert "Accounts: 0" in client["accounts"]
 
     write_report(
-        tmp_path / "report.html",
+        report_path or tmp_path / "report.html",
         Report(
             run_id="media-send-edit-restart",
             title="Local photos in the original Android renderer",
@@ -167,7 +187,8 @@ def test_real_photos_render_edit_cache_and_survive_cold_restart(tmp_path: Path) 
                 "APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
             },
             summary="A contained real bot publishes PNG and JPEG photos, edits the primary rich "
-            "photo, and the original Android client retains decoded media across cold restart.",
+            "photo, and the original Android client retains decoded media across cold restart."
+            + (" " + acceptance_note if acceptance_note else ""),
             evidence={
                 "Semantic round trip": observed,
                 "Media loader trace": media_trace,

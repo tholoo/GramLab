@@ -35,6 +35,18 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     def adb(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         result = guest(*arguments, **kwargs)
         if result.returncode:
+            retain(
+                "command-failure.json",
+                json.dumps(
+                    {
+                        "arguments": arguments,
+                        "returncode": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    },
+                    indent=2,
+                ),
+            )
             raise RuntimeError(f"Dedicated Android media command failed: {arguments[0]}")
         return result
 
@@ -115,11 +127,14 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             PACKAGE,
             "find",
             ".",
-            f"/storage/emulated/0/Android/data/{PACKAGE}",
             "-type",
             "f",
             "-name",
             "*_1.jpg",
+        ).stdout.splitlines()
+        external = f"/storage/emulated/0/Android/data/{PACKAGE}"
+        listing += adb(
+            "shell", "find", external, "-type", "f", "-name", "'*_1.jpg'"
         ).stdout.splitlines()
         selected: dict[str, object] = {}
         for filename in ("1_1.jpg", "2_1.jpg"):
@@ -129,12 +144,11 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             copies = []
             for path in sorted(matches):
                 quoted = shlex.quote(path)
-                digest = adb(
-                    "shell", "run-as", PACKAGE, "toybox", "sha256sum", quoted
-                ).stdout.split()[0]
-                size = int(
-                    adb("shell", "run-as", PACKAGE, "toybox", "wc", "-c", quoted).stdout.split()[0]
+                command = (
+                    ("shell",) if path.startswith(external + "/") else ("shell", "run-as", PACKAGE)
                 )
+                digest = adb(*command, "toybox", "sha256sum", quoted).stdout.split()[0]
+                size = int(adb(*command, "toybox", "wc", "-c", quoted).stdout.split()[0])
                 copies.append({"path": path, "sha256": digest, "size": size})
             selected[filename] = {"copies": copies}
         Path(f"{name}-cache.json").write_text(json.dumps(selected, indent=2) + "\n")
