@@ -27,6 +27,7 @@ standard Nix profile under ignored `.cache/nix/profiles/`:
 ```sh
 tools/dev default --command uv run --locked --offline ruff check .
 tools/dev android --command python3 --version
+tools/dev media --command ffmpeg -version
 ```
 
 The profile keeps the development closure rooted between invocations, avoiding reprovisioning
@@ -68,11 +69,34 @@ For the Android shell, create an ignored `.envrc.local` containing:
 export GRAMLAB_DEV_SHELL=android
 ```
 
-Then run `direnv reload`. Remove that override to return to the default shell. `.envrc` watches
-the lockfiles, Python configuration and Android profile. An invalid shell name fails explicitly.
+Use `GRAMLAB_DEV_SHELL=media` instead for the media fixture tools. Then run `direnv reload`.
+Remove that override to return to the default shell. `.envrc` watches the lockfiles, Python
+configuration and Nix profiles. An invalid shell name fails explicitly.
 Local environment customization belongs in `.envrc.local`; do not commit credentials or proxies.
 When nix-direnv is available, fallback to a stale development shell is disabled so evaluation
 failures remain visible.
+
+## Media fixtures
+
+The optional `media` shell adds FFmpeg 6.1.6 from the existing nixpkgs pin, with libvpx 1.16.0
+and libwebp 1.6.0. It exports `GRAMLAB_MEDIA_TOOLCHAIN`, a generated JSON profile containing
+pinned package versions and executable locations. Fixture manifests retain portable versions
+and the nixpkgs revision; executable store paths stay in the generated profile.
+
+```sh
+tools/dev media --command ffmpeg -version
+tools/dev media --offline --command unshare --user --map-root-user --net \
+  python tests/assets/custom-emoji/verify.py
+```
+
+Provision the shell before the isolated verification command. The verifier regenerates the
+[original emoji fixtures](../../tests/assets/custom-emoji/README.md), compares bytes and decodes
+their geometry, colors, transparency and timing. An explicit encoder or decoder override must
+match the active profile before the scripts claim pinned provenance. Without that profile,
+generation records unpinned observations. Entering this shell does not encode assets or launch
+a bot/client. Its toolchain profile is separate from the default and Android runtime profiles.
+The namespace command above requires Linux; evaluating the shell on another declared platform
+does not establish identical encoded bytes or runtime support there.
 
 ## Android preparation
 

@@ -1,8 +1,8 @@
 # Reproduce media fixtures with pinned developer tools
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: resolved
+Work state: completed
 Blocked by: none; normal runtime media architecture is separate
 
 The original custom-emoji fixtures currently require a host FFmpeg installation and cannot name
@@ -56,3 +56,29 @@ rejects before any encoding or provenance publication. Run the existing focused 
 checks; no new normal pytest inventory or Android guest is required for these tooling changes.
 The coordinator owns independent browser checks if fixture bytes change and verifies that the
 default/Android runtime profile digests and immutable native APK are unchanged.
+
+## Worker evidence
+
+The optional media shell reports FFmpeg/ffprobe 6.1.6, libvpx 1.16.0 and libwebp 1.6.0 from the
+pinned nixpkgs revision. Guarded generation preserves all four accepted binary hashes; the manifest
+now adds portable pinned provenance. Guarded decoding verifies the complete static/video geometry,
+colors, alpha, four frames, one-second duration and malformed-file rejection. A mismatched active
+profile exits before creating files. Focused shell/Nix/Python static checks and all-platform
+evaluation pass. The first offline host checks lacked a Bash development output and attempted
+transitive source builds. This was missing provisioning, not evidence that unrelated checks were selected. The
+coordinator inspected the binary-cache plan and provisioned the missing output separately.
+
+## Integrated acceptance
+
+The coordinator independently repeated generation and decoding in a network namespace, checked
+all four unchanged binary hashes against the retained baseline, rejected an incompatible encoder
+with zero output files, and verified portable manifest provenance. Default/Android runtime profile
+and immutable APK digests remain unchanged. The retained browser decode evidence still applies to
+the identical bytes; this tooling change requires no new Android gate.
+
+Actual media-shell entry and retained per-worktree profile, helper exit propagation, controlled
+direnv selection/rejection, Bash/ShellCheck, Nix formatting, scoped Ruff and strict typing pass.
+All three explicit host flake checks pass after provisioning. All declared platforms evaluate;
+Only the host shell and encoding were executed. Coordinator configuration/link validation covers
+162 Markdown files. Exact local commands, terminal outcomes
+and the failed provisioning attempts remain in ignored evidence.

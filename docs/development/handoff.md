@@ -93,8 +93,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 447 passed at 81.18% coverage in 104.55 seconds using four isolated workers and verified primary imports, with Android excluded. No production performance conclusion follows from test scheduling. |
-| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 161 Markdown files. Contributor guidance/CI include the new strict typing scope. |
-| Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. Exact linked codec library revisions remain unpinned. This establishes fixtures/contracts, not media API or native media/emoji support. |
+| Latest static/workflow | All 24 documented static commands and the pinned offline workflow check pass for the rich-link integration batch. Later native diagnostics and new custom-emoji scripts pass focused static checks; current configuration/local links pass across 162 Markdown files. Contributor guidance/CI include the new strict typing scope. |
+| Media preparation | Three original PNGs decode independently with exact dimensions/corners; truncated fixture rejects. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
 fingerprints; experimental geometry is absent from the normal patch series. Current experimental
@@ -105,10 +105,17 @@ The old native continuation, repeated old-APK red, core, static and workflow che
 Normal15/16 builds, required-field reds, focused native acceptance and report preview are terminal.
 The remaining43 native suite and independent combined-coverage verification are terminal and
 passing. Original custom-emoji fixture checks and browser review are terminal; the worker branch
-is frozen and integrated, with coordinator-owned acceptance. Host paths, handles,
-fingerprints and artifact locations stay in ignored local notes.
+is frozen and integrated, with coordinator-owned acceptance. The optional media shell is integrated
+with guarded reproduction, provenance checks and unchanged runtime/APK fingerprints. Host paths,
+handles, fingerprints and artifact locations stay in ignored local notes.
 
 ## Development throughput
+
+Use `tools/dev media` for pinned fixture generation and verification; see
+[environment guidance](environment.md#media-fixtures) and
+[ticket 12](../../.scratch/developer-tooling/issues/12-pinned-media-shell.md). Its generated profile
+keeps executable paths out of committed manifests. Provision missing check dependencies from a
+reviewed binary-cache plan before offline checks; missing outputs can trigger large source builds.
 
 Use the [parallel workflow](parallel-work.md): implementation workers each own a ticket, branch and
 separate worktree; coordinator owns merges/conflicts and combined verification. Freeze shared

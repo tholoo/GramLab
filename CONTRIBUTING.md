@@ -14,9 +14,10 @@ Dependency provisioning can access package registries. Normal scenario execution
 network isolation of a bot, client, or test subprocess.
 
 The [development flake and direnv setup](docs/development/environment.md) provide pinned Python
-and Android preparation shells. Run `nix develop` for core work or `nix develop .#android` for
-the approved Android toolchain on x86_64 Linux. `nix fmt` and `nix flake check` validate Nix and
-direnv changes. Store host inventory, proxy addresses and other machine-specific notes in ignored
+and Android preparation shells, plus an optional media fixture shell. Run `nix develop` for core
+work, `nix develop .#android` for the approved Android toolchain on x86_64 Linux, or
+`tools/dev media` for pinned FFmpeg and codec libraries. `nix fmt` and `nix flake check` validate
+Nix and direnv changes. Store host inventory, proxy addresses and other machine-specific notes in ignored
 `.cache/local-notes/` or run artifacts; keep committed setup and documentation portable.
 
 ```sh
@@ -78,7 +79,7 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py
-uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py
+uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py tests/assets/custom-emoji/toolchain.py
 uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
   tests/test_android_quoted_code.py tests/probes/quoted_code_round_trip.py \
   tests/probes/android_quoted_code.py tests/probes/android_quoted_code_codec.py \

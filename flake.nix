@@ -94,6 +94,14 @@
         in
         {
           default = pkgs.mkShellNoCC (common // { name = "gramlab-core"; });
+          media = pkgs.mkShellNoCC (
+            common
+            // {
+              name = "gramlab-media";
+              packages = common.packages ++ [ pkgs.ffmpeg_6 ];
+              GRAMLAB_MEDIA_TOOLCHAIN = import ./nix/media.nix { inherit pkgs nixpkgs; };
+            }
+          );
         }
         // lib.optionalAttrs (system == profile.runtime.hostSystem) {
           android = pkgs.mkShell (
