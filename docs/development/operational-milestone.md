@@ -12,11 +12,12 @@ read-only inventory below identifies immediate method/media and custom-emoji req
 consumer acceptance still needs executable scenarios. Do not treat unsupported features as optional.
 
 Current [compatibility evidence](../compatibility/matrix.md) establishes bounded text/callback,
-formatting and rich-block loops. Local PNG/JPEG storage and delivery have partial core/native acceptance; custom-emoji document
-support remains unimplemented. The user approved the [photo design](rich-photo-proposal.md) and the other three prepared
-designs on 2026-09-07; implementation and public/native acceptance remain required. HTML parsing is also
-unsupported. Prioritize closing consumer-facing gaps after the current quoted-code correction;
-keep developer tooling/research bounded to blockers in those workflows.
+formatting, rich-block and explicit mention loops. PNG/JPEG storage/delivery has partial native
+acceptance; full photo lifecycle/shared completion, general files/albums, custom emoji and public
+rich-button actions still need work. The four designs approved on 2026-09-07 remain the direction.
+Quoted-code correction is complete at its documented checkpoint. Prioritize the remaining
+consumer-facing media/emoji/action gaps; HTML parsing and automatic detection are also unsupported.
+Keep developer tooling/research bounded to blockers in those workflows.
 
 Track acceptance in the current [handoff](handoff.md) and individual tickets. Readiness requires
 complete semantic comparisons, original visual evidence where relevant, isolation, useful reports

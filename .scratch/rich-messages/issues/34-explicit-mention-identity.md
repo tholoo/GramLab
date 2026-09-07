@@ -6,7 +6,7 @@ the recommended direction; freeze shared implementation contracts before paralle
 
 Type: feature
 Status: ready-for-agent
-Work state: design approved; implementation pending
+Work state: design approved; focused core/native implementation verified
 Blocked by: none; user approved all four designs on 2026-09-07
 
 The [proposal](../../../docs/development/rich-mention-proposal.md) separates Bot API input User
@@ -20,3 +20,9 @@ synthetic accessibility/disclosure and versioning choices need consultation unde
 Do not implement them or record them as an approved ADR yet. After review, freeze response schemas,
 error rules and ownership before parallel implementation. Current native gate inputs remain frozen;
 source research/proposal preparation does not prove runtime mention support.
+
+
+Implementation now follows the frozen mentions contract. Core/API/v3 replay, all 75 native codec
+cases and original real-bot rendering/edit/removal/COLD restart pass; tickets 50 and 54 record
+acceptance. Broader native regression remains in ticket 52. The consultation text above is
+proposal history, not a renewed approval requirement.

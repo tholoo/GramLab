@@ -99,6 +99,7 @@ uv run --locked mypy tests/probes/android_media_faults.py tests/test_android_med
 uv run --locked mypy tests/probes/android_media_interactions.py tests/test_android_media_interactions.py
 uv run --locked mypy --strict tests/test_rich_mentions.py tests/test_rich_mentions_api.py tests/test_rich_mentions_bridge.py
 uv run --locked mypy tests/probes/android_rich_mentions_codec.py tests/test_android_rich_mentions_codec.py
+uv run --locked mypy tests/fixtures/rich_mentions_bot.py tests/probes/rich_mentions_round_trip.py tests/probes/android_rich_mentions.py tests/test_rich_mentions_round_trip.py tests/test_android_rich_mentions.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

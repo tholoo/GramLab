@@ -43,8 +43,9 @@ Explicit mentions accept `{type: "text_mention", text: RichText, user: User}`. T
 the referenced synthetic identity through a private conversation, or mention itself. Only the ID
 is consumed from supplied User claims; HTTP results contain the authoritative World User, while
 World/client records retain `user_id`. Bridge v3 carries identities from exactly the selected
-message versions. Core/API/replay tests and 75 native codec cases pass; original rendering/live edits are still
-unverified.
+message versions. Core/API/replay tests, 75 native codec cases and a contained real-bot original rendering/inline
+callback edit/removal/cold-restart scenario pass. Four original captures and responsive reports
+are inspected; wider native regressions remain separate.
 See the [approved frozen contract](mentions-implementation-contract.md). This does not add automatic
 mention detection or profile navigation.
 

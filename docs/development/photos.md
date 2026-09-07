@@ -5,7 +5,8 @@ Seventeen focused World, HTTP, bridge, contained real-bot and public capture che
 All 471 non-Android tests pass at 81.71% coverage after restoring missing historical callback
 journal events in migration fixtures. The original Android codec passes four complete valid cases
 and 24 rejection cases. A contained real-bot photo/edit/restart scenario completes and its retained
-observations pass corrected host assertions with original bytes unchanged. The original failed
+observations pass corrected host assertions with original bytes unchanged. That earlier viewport sequence did not need a transfer after restart; the later framed scenario
+exposes original destination cleanup/reload, tracked in ticket 56. The original failed
 JUnit is preserved; this is retained acceptance, not a relabeled green run. Original images and
 reports have been inspected. Four controlled response faults (truncated, corrupt, redirected and
 missing) also pass original Android failure/cleanup and explicit cold-restart recovery, with eight
