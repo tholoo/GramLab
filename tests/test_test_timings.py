@@ -158,3 +158,137 @@ def test_rejects_utf16_dtd_before_expanding_its_entity(tmp_path: Path) -> None:
     assert result.stdout == ""
     assert "unsupported DTD" in result.stderr
     assert "expanded" not in result.stderr
+
+
+def test_selects_only_observed_passes_from_an_ordered_complete_collection(tmp_path: Path) -> None:
+    report = tmp_path / "partial.xml"
+    report.write_text(
+        """<testsuite name="pytest" tests="5" time="12">
+        <testcase classname="tests.test_gate" name="test_pass[param::one]" time="1" />
+        <testcase classname="tests.test_gate.TestGroup"
+          name="test_class[value.with.dot]literal]" time="2" />
+        <testcase classname="tests.test_gate" name="test_failed" time="3"><failure /></testcase>
+        <testcase classname="tests.test_gate" name="test_error" time="4"><error /></testcase>
+        <testcase classname="tests.test_gate" name="test_skipped" time="2"><skipped /></testcase>
+        </testsuite>"""
+    )
+    collection = [
+        "tests/test_gate.py::test_pass[param::one]",
+        "tests/test_gate.py::test_failed",
+        "tests/test_gate.py::TestGroup::test_class[value.with.dot]literal]",
+        "tests/test_gate.py::test_error",
+        "tests/test_gate.py::test_skipped",
+        "tests/test_gate.py::test_absent",
+    ]
+    collected = tmp_path / "collected.json"
+    collected.write_text(json.dumps(collection))
+
+    result = run_tool(report, "--collected-nodeids", collected, "--limit", "1")
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert len(observed["current"]["slowest"]) == 1
+    assert observed["selection"] == {
+        "collected_nodeids": collection,
+        "retained_passing_nodeids": [collection[0], collection[2]],
+        "remaining_nodeids": [collection[1], *collection[3:]],
+        "collected_count": 6,
+        "retained_passing_count": 2,
+        "remaining_count": 4,
+    }
+
+
+def test_old_invocation_output_is_unchanged_without_a_collection(tmp_path: Path) -> None:
+    report = tmp_path / "report.xml"
+    report.write_text(
+        '<testsuite><testcase classname="tests.x" name="test_one" time="1" /></testsuite>'
+    )
+
+    result = run_tool(report)
+
+    assert result.returncode == 0, result.stderr
+    assert set(json.loads(result.stdout)) == {"schema", "current"}
+
+
+def test_zero_observed_cases_retain_no_passes(tmp_path: Path) -> None:
+    report = tmp_path / "empty.xml"
+    report.write_text('<testsuite name="stopped" tests="0" time="0" />')
+    collection = ["tests/test_gate.py::test_one", "tests/test_gate.py::TestGroup::test_two[x]"]
+    collected = tmp_path / "collected.json"
+    collected.write_text(json.dumps(collection))
+
+    result = run_tool(report, "--collected-nodeids", collected)
+
+    assert result.returncode == 0, result.stderr
+    selection = json.loads(result.stdout)["selection"]
+    assert selection["retained_passing_nodeids"] == []
+    assert selection["remaining_nodeids"] == collection
+    assert selection["retained_passing_count"] == 0
+
+
+@pytest.mark.parametrize(
+    ("collection", "message"),
+    [
+        ([], "nonempty JSON array"),
+        (["tests/test_x.py::test_one", "tests/test_x.py::test_one"], "duplicates"),
+        (["tests/test_x.py::test_one", 3], "only nonempty strings"),
+        (["tests/test_x.py"], "supported Python test node"),
+        (["tests/test_x.py::test_one[param::broken"], "malformed parameter name"),
+        (["tests/test_x.py::Helper::test_one"], "unsupported class or selection shape"),
+        (
+            [
+                "tests/test_x.py::TestGroup::test_one",
+                "tests/test_x/TestGroup.py::test_one",
+            ],
+            "ambiguous JUnit identity",
+        ),
+    ],
+)
+def test_rejects_invalid_duplicate_and_ambiguous_collections(
+    tmp_path: Path, collection: object, message: str
+) -> None:
+    report = tmp_path / "empty.xml"
+    report.write_text("<testsuite />")
+    collected = tmp_path / "collected.json"
+    collected.write_text(json.dumps(collection))
+
+    result = run_tool(report, "--collected-nodeids", collected)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert message in result.stderr
+
+
+@pytest.mark.parametrize("contents", ["{", '"not an array"', '"\\ud800"'])
+def test_rejects_malformed_or_nonarray_collection_json(tmp_path: Path, contents: str) -> None:
+    report = tmp_path / "empty.xml"
+    report.write_text("<testsuite />")
+    collected = tmp_path / "collected.json"
+    collected.write_text(contents)
+
+    result = run_tool(report, "--collected-nodeids", collected)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    "collected_name",
+    ["test_other", "test_value[raw::value]"],
+)
+def test_rejects_junit_cases_absent_from_the_collection(
+    tmp_path: Path, collected_name: str
+) -> None:
+    report = tmp_path / "report.xml"
+    report.write_text(
+        '<testsuite><testcase classname="tests.test_x" name="test_value[sanitized]" '
+        'time="1" /></testsuite>'
+    )
+    collected = tmp_path / "collected.json"
+    collected.write_text(json.dumps([f"tests/test_x.py::{collected_name}"]))
+
+    result = run_tool(report, "--collected-nodeids", collected)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "absent from the collected node IDs" in result.stderr

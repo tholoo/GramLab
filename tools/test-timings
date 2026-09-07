@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize and compare pytest JUnit XML case durations."""
+"""Summarize and compare pytest JUnit timing or plan a retained partial-gate selection."""
 
 from __future__ import annotations
 
@@ -203,6 +203,89 @@ def compare(current: Report, baseline: Report, limit: int) -> dict[str, object]:
     }
 
 
+def test_name(value: str, node_id: str) -> str:
+    bracket = value.find("[")
+    base = value if bracket < 0 else value[:bracket]
+    if not base.startswith("test_") or not base.isidentifier():
+        fail(f"collected node ID {node_id!r} has unsupported test name")
+    if bracket >= 0 and (not value.endswith("]") or bracket == len(value) - 1):
+        fail(f"collected node ID {node_id!r} has malformed parameter name")
+    return value
+
+
+def junit_identity(node_id: str) -> str:
+    if not node_id or "::" not in node_id:
+        fail(f"collected node ID {node_id!r} is not a supported Python test node")
+    path, selection = node_id.split("::", 1)
+    parts = path.split("/")
+    if (
+        path.startswith("/")
+        or not path.endswith(".py")
+        or any(not part or part in {".", ".."} for part in parts)
+    ):
+        fail(f"collected node ID {node_id!r} has unsupported module path")
+    module_parts = [*parts[:-1], parts[-1][:-3]]
+    if any(not part.isidentifier() for part in module_parts):
+        fail(f"collected node ID {node_id!r} has unsupported module path")
+    parameter = selection.find("[")
+    separator = selection.find("::")
+    if separator >= 0 and (parameter < 0 or separator < parameter):
+        class_name, name_value = selection.split("::", 1)
+        if not class_name.startswith("Test") or not class_name.isidentifier():
+            fail(f"collected node ID {node_id!r} has unsupported class or selection shape")
+        classname = ".".join([*module_parts, class_name])
+        name = test_name(name_value, node_id)
+    else:
+        classname = ".".join(module_parts)
+        name = test_name(selection, node_id)
+    return f"{classname}::{name}"
+
+
+def collected_nodeids(path: Path) -> tuple[list[str], dict[str, str]]:
+    try:
+        value = json.loads(path.read_bytes())
+    except OSError as exc:
+        fail(f"cannot read {path}: {exc}")
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"cannot parse collected node IDs from {path}: {exc}")
+    if not isinstance(value, list) or not value:
+        fail("collected node IDs must be a nonempty JSON array")
+    if any(not isinstance(node_id, str) or not node_id for node_id in value):
+        fail("collected node IDs must contain only nonempty strings")
+    if len(set(value)) != len(value):
+        fail("collected node IDs contain duplicates")
+    identities: dict[str, str] = {}
+    for node_id in value:
+        identity = junit_identity(node_id)
+        if identity in identities:
+            fail(
+                f"collected node IDs {identities[identity]!r} and {node_id!r} "
+                f"have ambiguous JUnit identity {identity!r}"
+            )
+        identities[identity] = node_id
+    return value, identities
+
+
+def selection(report: Report, path: Path) -> dict[str, object]:
+    collection, identities = collected_nodeids(path)
+    missing = sorted(set(report.cases) - set(identities))
+    if missing:
+        fail(f"JUnit testcase {missing[0]!r} is absent from the collected node IDs")
+    passed = {
+        identities[identity] for identity, case in report.cases.items() if case.outcome == "passed"
+    }
+    retained = [node_id for node_id in collection if node_id in passed]
+    remaining = [node_id for node_id in collection if node_id not in passed]
+    return {
+        "collected_nodeids": collection,
+        "retained_passing_nodeids": retained,
+        "remaining_nodeids": remaining,
+        "collected_count": len(collection),
+        "retained_passing_count": len(retained),
+        "remaining_count": len(remaining),
+    }
+
+
 def positive_int(value: str) -> int:
     try:
         parsed = int(value)
@@ -224,6 +307,11 @@ def parser() -> argparse.ArgumentParser:
     argument_parser.add_argument(
         "--limit", type=positive_int, default=10, help="maximum entries per case list (default: 10)"
     )
+    argument_parser.add_argument(
+        "--collected-nodeids",
+        type=Path,
+        help="JSON array of the original ordered pytest collection used to plan remaining tests",
+    )
     return argument_parser
 
 
@@ -239,6 +327,8 @@ def main() -> int:
             result["comparison"] = compare(
                 current, parse_report(arguments.baseline), arguments.limit
             )
+        if arguments.collected_nodeids is not None:
+            result["selection"] = selection(current, arguments.collected_nodeids)
     except ReportError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
