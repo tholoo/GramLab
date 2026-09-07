@@ -1,5 +1,5 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
-index 5bd5d9e..dcb4293 100644
+index 5bd5d9e..11f71ba 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 @@ -60,7 +60,7 @@ public final class GramLabBridge {
@@ -35,11 +35,11 @@ index 5bd5d9e..dcb4293 100644
      private static TLRPC.TL_message message(JSONObject record, long persona, long bot) throws JSONException {
 -        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message");
 +        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
-+        boolean photoRecord = record.has("photo");
-+        require(!record.has("caption") || photoRecord);
-+        require(!record.has("caption_entities") || photoRecord);
-+        require(!photoRecord || !record.has("entities"));
-+        require(!record.has("rich_message") || !photoRecord && !record.has("caption") && !record.has("caption_entities"));
++        boolean hasPhoto = record.has("photo");
++        require(!record.has("caption") || hasPhoto);
++        require(!record.has("caption_entities") || hasPhoto);
++        require(!hasPhoto || !record.has("entities"));
++        require(!record.has("rich_message") || !hasPhoto && !record.has("caption") && !record.has("caption_entities"));
          long sender = identifier(record, "sender_id");
          require(sender == persona || sender == bot);
          TLRPC.TL_message message = new TLRPC.TL_message();
@@ -437,7 +437,7 @@ index ae536ef..42c624e 100644
                  fields(record, "type");
                  return new TL_iv.pageBlockDivider();
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
-index 87465e9..6d812cd 100644
+index 87465e9..82c7932 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
 @@ -8,6 +8,9 @@
@@ -450,28 +450,43 @@ index 87465e9..6d812cd 100644
  import android.text.TextUtils;
  import android.util.SparseArray;
  
-@@ -215,6 +218,8 @@ public class FileLoader extends BaseController {
+@@ -215,6 +218,10 @@ public class FileLoader extends BaseController {
  
  
      private final ConcurrentHashMap<String, FileLoadOperation> loadOperationPaths = new ConcurrentHashMap<>();
++    // All synthetic registration, cache publication and notifications use this one lock.
++    private final Object syntheticPhotoLock = new Object();
 +    private final ConcurrentHashMap<String, SyntheticPhotoLoad> syntheticPhotoLoads = new ConcurrentHashMap<>();
 +    private final java.util.concurrent.ExecutorService syntheticPhotoExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
      private final ConcurrentHashMap<String, LoadOperationUIObject> loadOperationPathsUI = new ConcurrentHashMap<>(10, 1, 2);
      private final HashMap<String, Long> uploadSizes = new HashMap<>();
  
-@@ -604,6 +609,11 @@ public class FileLoader extends BaseController {
+@@ -604,7 +611,23 @@ public class FileLoader extends BaseController {
          } else {
              fileName = name;
          }
-+        SyntheticPhotoLoad synthetic = syntheticPhotoLoads.get(fileName);
+-        LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);
++        SyntheticPhotoLoad synthetic;
++        java.net.HttpURLConnection syntheticConnection = null;
++        LoadOperationUIObject uiObject;
++        synchronized (syntheticPhotoLock) {
++            synthetic = syntheticPhotoLoads.get(fileName);
++            if (synthetic != null) {
++                syntheticConnection = synthetic.cancelLocked(deleteFile);
++                uiObject = null;
++            } else {
++                uiObject = loadOperationPathsUI.remove(fileName);
++            }
++        }
 +        if (synthetic != null) {
-+            synthetic.cancel(deleteFile);
++            // Closing a blocked connection must not hold the lifecycle lock.
++            if (syntheticConnection != null) syntheticConnection.disconnect();
 +            return;
 +        }
-         LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);
          Runnable runnable = uiObject != null ? uiObject.loadInternalRunnable : null;
          boolean removed = uiObject != null;
-@@ -757,6 +767,143 @@ public class FileLoader extends BaseController {
+         if (runnable != null) {
+@@ -757,6 +780,164 @@ public class FileLoader extends BaseController {
          }
      }
  
@@ -482,6 +497,8 @@ index 87465e9..6d812cd 100644
 +        final Object parentObject;
 +        final File temporary;
 +        final File target;
++        final LoadOperationUIObject uiObject = new LoadOperationUIObject();
++        // Guarded exclusively by syntheticPhotoLock; no per-attempt monitor.
 +        private boolean canceled;
 +        private boolean terminal;
 +        private java.net.HttpURLConnection connection;
@@ -493,35 +510,46 @@ index 87465e9..6d812cd 100644
 +            this.temporary = new File(target.getParentFile(), fileName + ".gramlab-" + java.util.UUID.randomUUID() + ".part");
 +        }
 +
-+        private synchronized boolean attach(java.net.HttpURLConnection value) {
-+            if (terminal || canceled) return false;
-+            connection = value;
-+            return true;
++        private boolean attach(java.net.HttpURLConnection value) {
++            synchronized (syntheticPhotoLock) {
++                if (terminal || canceled) return false;
++                connection = value;
++                return true;
++            }
 +        }
 +
-+        synchronized void cancel(boolean deleteFile) {
++        // Caller holds syntheticPhotoLock and closes the returned connection after unlocking.
++        private java.net.HttpURLConnection cancelLocked(boolean deleteFile) {
++            if (!terminal) {
++                canceled = true;
++                temporary.delete();
++                if (deleteFile) target.delete();
++                finishLocked(1, "media_load_cancel");
++            }
++            return connection;
++        }
++
++        // Caller holds syntheticPhotoLock. Enqueue the terminal notification before
++        // releasing filename ownership, so a retry cannot precede that notification.
++        private void finishLocked(int reason, String event) {
 +            if (terminal) return;
-+            canceled = true; terminal = true;
-+            java.net.HttpURLConnection active = connection;
-+            if (active != null) active.disconnect();
-+            temporary.delete();
-+            if (deleteFile) target.delete();
-+            loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
-+            GramLabMedia.trace("media_load_cancel", asset.id, fileName, asset.size, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, 1);
++            terminal = true;
++            GramLabMedia.trace(event, asset.id, fileName, asset.size, reason == -1);
++            try {
++                if (delegate != null) {
++                    if (reason == -1) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
++                    else delegate.fileDidFailedLoad(fileName, reason);
++                }
++            } finally {
++                loadOperationPathsUI.remove(fileName, uiObject);
++                syntheticPhotoLoads.remove(fileName, this);
++            }
 +        }
 +
 +        private void fail() {
-+            boolean wasCanceled;
-+            synchronized (this) {
-+                if (terminal) return;
-+                wasCanceled = canceled;
-+                terminal = true;
++            synchronized (syntheticPhotoLock) {
++                finishLocked(canceled ? 1 : 0, canceled ? "media_load_cancel" : "media_load_failure");
 +            }
-+            loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
-+            GramLabMedia.trace(wasCanceled ? "media_load_cancel" : "media_load_failure",
-+                    asset.id, fileName, asset.size, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, wasCanceled ? 1 : 0);
 +        }
 +
 +        @Override public void run() {
@@ -531,91 +559,99 @@ index 87465e9..6d812cd 100644
 +                java.net.URL endpoint = new java.net.URL(configuration.getString("endpoint"));
 +                java.net.URL targetUrl = new java.net.URL(endpoint, "/v3/assets/" + asset.id);
 +                active = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
-+                if (!attach(active)) return;
 +                active.setInstanceFollowRedirects(false); active.setConnectTimeout(3000); active.setReadTimeout(5000);
 +                active.setUseCaches(false); active.setRequestProperty("Authorization", "Bearer " + configuration.getString("capability"));
 +                active.setRequestProperty("Accept", asset.mimeType); active.setRequestProperty("Connection", "close");
++                if (!attach(active)) return;
 +                int status = active.getResponseCode();
 +                if (status != 200 || active.getContentLengthLong() != asset.size
 +                        || !asset.mimeType.equals(active.getContentType())) throw new java.io.IOException("asset_response");
 +                long count = 0; byte[] buffer = new byte[8192];
-+                synchronized (this) { if (terminal || canceled) return; }
-+                try (java.io.InputStream input = active.getInputStream(); java.io.FileOutputStream output = new java.io.FileOutputStream(temporary)) {
-+                    int read;
-+                    while ((read = input.read(buffer)) != -1) {
-+                        synchronized (this) { if (terminal || canceled) return; }
-+                        if (count + read > asset.size) throw new java.io.IOException("asset_oversized");
-+                        output.write(buffer, 0, read); digest.update(buffer, 0, read); count += read;
-+                        if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, asset.size);
++                try (java.io.InputStream input = active.getInputStream()) {
++                    java.io.FileOutputStream stream;
++                    synchronized (syntheticPhotoLock) {
++                        if (terminal || canceled) return;
++                        stream = new java.io.FileOutputStream(temporary);
 +                    }
-+                    output.getFD().sync();
++                    try (java.io.FileOutputStream output = stream) {
++                        int read;
++                        while ((read = input.read(buffer)) != -1) {
++                            synchronized (syntheticPhotoLock) {
++                                if (terminal || canceled) return;
++                                if (count + read > asset.size) throw new java.io.IOException("asset_oversized");
++                                output.write(buffer, 0, read); digest.update(buffer, 0, read); count += read;
++                                if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, asset.size);
++                            }
++                        }
++                        output.getFD().sync();
++                    }
 +                }
 +                if (count != asset.size || !GramLabMedia.hex(digest.digest()).equals(asset.sha256))
 +                    throw new java.io.IOException("asset_integrity");
-+                synchronized (this) {
++                synchronized (syntheticPhotoLock) {
 +                    if (terminal || canceled) return;
 +                    java.nio.file.Files.move(temporary.toPath(), target.toPath(),
 +                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
 +                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-+                    terminal = true;
++                    finishLocked(-1, "media_load_success");
 +                }
-+                loadOperationPathsUI.remove(fileName); syntheticPhotoLoads.remove(fileName, this);
-+                GramLabMedia.trace("media_load_success", asset.id, fileName, asset.size, true);
-+                if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
 +            } catch (Exception error) {
 +                fail();
 +            } finally {
 +                if (active != null) active.disconnect();
 +                temporary.delete();
-+                syntheticPhotoLoads.remove(fileName, this);
 +            }
 +        }
 +    }
 +
 +    private void loadSyntheticPhoto(ImageLocation location, Object parentObject, String ext, int cacheType) {
 +        String fileName = getAttachFileName(location.location, ext);
-+        GramLabMedia.Asset asset = location.location.volume_id > 0 && location.location.local_id == 1
-+                ? GramLabMedia.asset(location.location.volume_id) : null;
-+        if (asset == null) {
-+            GramLabMedia.trace("media_load_failure", location.location.volume_id, fileName, 0, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
-+            return;
++        synchronized (syntheticPhotoLock) {
++            // Coalesce before inspecting or deleting a target another attempt may publish.
++            SyntheticPhotoLoad existing = syntheticPhotoLoads.get(fileName);
++            if (existing != null) {
++                GramLabMedia.trace("media_load_coalesced", existing.asset.id, fileName, existing.asset.size, false);
++                return;
++            }
++            GramLabMedia.Asset asset = location.location.volume_id > 0 && location.location.local_id == 1
++                    ? GramLabMedia.asset(location.location.volume_id) : null;
++            if (asset == null) {
++                GramLabMedia.trace("media_load_failure", location.location.volume_id, fileName, 0, false);
++                if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++                return;
++            }
++            File directory = getDirectory(cacheType == 0 ? MEDIA_DIR_IMAGE : MEDIA_DIR_CACHE);
++            File target = new File(directory, fileName);
++            if (target.isFile() && target.length() == asset.size && GramLabMedia.matches(target, asset)) {
++                GramLabMedia.trace("media_cache_hit", asset.id, fileName, asset.size, true);
++                if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
++                return;
++            }
++            if (target.exists() && !target.delete()) {
++                GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
++                if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++                return;
++            }
++            JSONObject configuration;
++            try { configuration = GramLabMedia.configuration(); }
++            catch (Exception error) {
++                GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
++                if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++                return;
++            }
++            SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, asset, configuration, parentObject, target);
++            syntheticPhotoLoads.put(fileName, load);
++            loadOperationPathsUI.put(fileName, load.uiObject);
++            GramLabMedia.trace("media_load_start", asset.id, fileName, asset.size, false);
++            try { syntheticPhotoExecutor.execute(load); }
++            catch (RuntimeException error) { load.fail(); }
 +        }
-+        File directory = getDirectory(cacheType == 0 ? MEDIA_DIR_IMAGE : MEDIA_DIR_CACHE);
-+        File target = new File(directory, fileName);
-+        if (target.isFile() && target.length() == asset.size && GramLabMedia.matches(target, asset)) {
-+            GramLabMedia.trace("media_cache_hit", asset.id, fileName, asset.size, true);
-+            if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, MEDIA_DIR_IMAGE);
-+            return;
-+        }
-+        if (target.exists() && !target.delete()) {
-+            GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
-+            return;
-+        }
-+        JSONObject configuration;
-+        try { configuration = GramLabMedia.configuration(); }
-+        catch (Exception error) {
-+            GramLabMedia.trace("media_load_failure", asset.id, fileName, asset.size, false);
-+            if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
-+            return;
-+        }
-+        SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, asset, configuration, parentObject, target);
-+        SyntheticPhotoLoad existing = syntheticPhotoLoads.putIfAbsent(fileName, load);
-+        if (existing != null) {
-+            GramLabMedia.trace("media_load_coalesced", asset.id, fileName, asset.size, false);
-+            return;
-+        }
-+        LoadOperationUIObject uiObject = new LoadOperationUIObject();
-+        loadOperationPathsUI.put(fileName, uiObject);
-+        GramLabMedia.trace("media_load_start", asset.id, fileName, asset.size, false);
-+        syntheticPhotoExecutor.execute(load);
 +    }
 +
      public File getLocalFile(ImageLocation imageLocation) {
          if (imageLocation == null) return null;
          String fileName;
-@@ -791,6 +938,10 @@ public class FileLoader extends BaseController {
+@@ -791,6 +972,10 @@ public class FileLoader extends BaseController {
          if (imageLocation == null) {
              return;
          }

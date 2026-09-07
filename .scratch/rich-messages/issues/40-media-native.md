@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: claimed by media-native worker
+Work state: claimed by media-native correction worker (media_patch_review)
 Blocked by: none; approved shared contract frozen
 
 Follow [the media contract](../../../docs/development/media-implementation-contract.md).
@@ -64,3 +64,24 @@ and message field combinations. Its ordinary-message observation adds `native_ph
 message adds canonical photo blocks and `native_photos`. Each native photo object is exactly
 `asset_id`, `dc_id`, `access_hash`, `file_reference_bytes`, `size_type`, `volume_id`, `local_id`,
 `width`, `height`, and `file_size`. Existing non-media probe output remains unchanged.
+
+
+## Coordinator-requested lifecycle correction
+
+The correction worker replaces split registration/attempt monitors with one FileLoader lifecycle
+lock. Duplicate filename lookup precedes cache validation/deletion; registration of the attempt
+and its UI token is atomic with filename cancellation. Cancellation, terminal callbacks, progress
+and final-file publication use that same lock, with attempt-owned conditional map removal. The
+ordinary cancellation fallback also removes its UI entry under that lock, preventing it from
+removing a newly registered synthetic retry. Connection close and network reads run outside the
+lock. Unique temporary paths and unconditional attempt cleanup remain in place. The bridge's
+ordinary-photo presence flag is renamed to avoid Java local-variable redeclaration.
+
+Source verification: regenerate patch 0017 against the five recorded immutable preimages; apply
+with `patch --batch --fuzz=0 -p1` to fresh private copies, then compare every reconstructed source
+byte-for-byte with the six modified sources. All six match, without fuzz or offsets, and
+`git diff --check` passes. These checks establish patch applicability only. No compilation, APK,
+guest or behavioral red/green test was assigned to this correction worker; controlled native
+cancel/duplicate-load scheduling, timeout retry, cache bytes and original rendering remain
+coordinator-owned acceptance gates. The failure interleavings recorded in review are source
+findings, not runtime reproductions.
