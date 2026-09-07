@@ -37,6 +37,13 @@ def startup_log_command(adb: str) -> list[str]:
         "InputDispatcher:I",
         "InputReader:I",
         "UwbService:I",
+        "UwbServiceCore:I",
+        "UwbSettingsStore:I",
+        "UwbCountryCode:I",
+        "UwbContext:I",
+        "uwb:I",
+        "android.hardware.uwb:I",
+        "android.hardware.uwb-service:I",
         "UwbSessionManager:I",
         "BugreportManagerService:I",
         "DumpstateListener:I",
@@ -71,6 +78,10 @@ class StartupLogCollector:
     @property
     def retained_bytes(self) -> int:
         return len(self._retained)
+
+    @property
+    def reader_running(self) -> bool:
+        return self._reader is not None and self._reader.is_alive()
 
     def start(self) -> "StartupLogCollector":
         if self._process is not None or self._error is not None:
@@ -108,7 +119,10 @@ class StartupLogCollector:
         early_exit = process is not None and process.poll() is not None
         if process is not None:
             if process.poll() is None:
-                process.terminate()
+                try:
+                    process.terminate()
+                except ProcessLookupError:
+                    pass
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
@@ -291,8 +305,10 @@ def main(
             observations["host_interfaces"] = socket.if_nameindex()
             if extra_probe is not None:
                 probe_started = time.monotonic()
-                observations["extra_probe"] = extra_probe(adb_command)
-                observations["extra_probe_seconds"] = time.monotonic() - probe_started
+                try:
+                    observations["extra_probe"] = extra_probe(adb_command)
+                finally:
+                    observations["extra_probe_seconds"] = time.monotonic() - probe_started
             if startup_log is not None:
                 observations["startup_log"] = startup_log.finish()
             observations["emulator_filesystem"] = probe_emulator_filesystem()
