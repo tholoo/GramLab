@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none; normal runtime media architecture is separate
 
 The original custom-emoji fixtures currently require a host FFmpeg installation and cannot name
@@ -56,3 +56,13 @@ rejects before any encoding or provenance publication. Run the existing focused 
 checks; no new normal pytest inventory or Android guest is required for these tooling changes.
 The coordinator owns independent browser checks if fixture bytes change and verifies that the
 default/Android runtime profile digests and immutable native APK are unchanged.
+
+## Worker evidence
+
+The optional media shell reports FFmpeg/ffprobe 6.1.6, libvpx 1.16.0 and libwebp 1.6.0 from the
+pinned nixpkgs revision. Guarded generation preserves all four accepted binary hashes; the manifest
+now adds portable pinned provenance. Guarded decoding verifies the complete static/video geometry,
+colors, alpha, four frames, one-second duration and malformed-file rejection. A mismatched active
+profile exits before creating files. Focused shell/Nix/Python static checks and all-platform
+evaluation pass. The broad host flake command incorrectly expanded into uncached nixpkgs package
+checks and failed during a source fetch; the coordinator owns focused merged host checks.

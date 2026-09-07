@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   cat <<'HELP'
-Usage: tools/dev [default|android] [nix develop options]
+Usage: tools/dev [default|android|media] [nix develop options]
 
 Enter a pinned development shell and retain its closure in an ignored local profile.
 The default shell is selected when no shell name is supplied. Remaining arguments
@@ -13,6 +13,7 @@ go directly to nix develop, including --offline and --command.
 Examples:
   tools/dev default
   tools/dev android --command python3 --version
+  tools/dev media --command ffmpeg -version
 HELP
 }
 
@@ -27,7 +28,7 @@ if [[ $# -gt 0 && $1 != -* ]]; then
   shift
 fi
 case "$dev_shell" in
-  default|android) ;;
+  default|android|media) ;;
   *) printf 'Unsupported development shell: %s\n' "$dev_shell" >&2; exit 2 ;;
 esac
 

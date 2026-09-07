@@ -10,6 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from toolchain import MediaToolchain, load_media_toolchain, select_executable
+
 WIDTH = 100
 HEIGHT = 100
 FRAMES = 4
@@ -61,7 +63,7 @@ def run_encoder_file(command: list[str], data: bytes, suffix: str) -> bytes:
         return destination.read_bytes()
 
 
-def ffmpeg_profile(ffmpeg: str) -> dict[str, object]:
+def ffmpeg_profile(ffmpeg: str, toolchain: MediaToolchain | None = None) -> dict[str, object]:
     result = subprocess.run(  # noqa: S603
         [ffmpeg, "-version"], capture_output=True, text=True, check=True
     )
@@ -72,15 +74,26 @@ def ffmpeg_profile(ffmpeg: str) -> dict[str, object]:
         .split(maxsplit=1)[1]
     )
     normalized_libavcodec = ".".join(part.strip(".") for part in libavcodec.split())
-    return {
+    profile: dict[str, object] = {
         "ffmpeg": lines[0],
         "libavcodec": normalized_libavcodec,
-        "libvpx": "enabled; exact library revision unavailable from selected executable",
-        "libwebp": "enabled; exact library revision unavailable from selected executable",
+        "libvpx": (
+            toolchain.versions["libvpx"]
+            if toolchain
+            else "enabled; exact library revision unavailable from selected executable"
+        ),
+        "libwebp": (
+            toolchain.versions["libwebp"]
+            if toolchain
+            else "enabled; exact library revision unavailable from selected executable"
+        ),
     }
+    if toolchain is not None:
+        profile["toolchain"] = toolchain.portable_profile()
+    return profile
 
 
-def generated_files(ffmpeg: str) -> dict[str, bytes]:
+def generated_files(ffmpeg: str, toolchain: MediaToolchain | None = None) -> dict[str, bytes]:
     common = [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba"]
     webp = run_encoder(
         [
@@ -203,7 +216,7 @@ def generated_files(ffmpeg: str) -> dict[str, bytes]:
         records.append(record)
     manifest = {
         "generator_profile": {
-            **ffmpeg_profile(ffmpeg),
+            **ffmpeg_profile(ffmpeg, toolchain),
             "reproducibility": (
                 "byte-identical under this recorded encoder profile; other versions may differ"
             ),
@@ -235,9 +248,11 @@ def write_exact(directory: Path, files: dict[str, bytes]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output_directory", type=Path)
-    parser.add_argument("--ffmpeg", default="ffmpeg")
+    parser.add_argument("--ffmpeg")
     args = parser.parse_args()
-    write_exact(args.output_directory, generated_files(args.ffmpeg))
+    toolchain = load_media_toolchain()
+    ffmpeg = select_executable("ffmpeg", args.ffmpeg, toolchain)
+    write_exact(args.output_directory, generated_files(ffmpeg, toolchain))
 
 
 if __name__ == "__main__":

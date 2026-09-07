@@ -59,9 +59,19 @@
   "generator_profile": {
     "ffmpeg": "ffmpeg version 6.1.6 Copyright (c) 2000-2026 the FFmpeg developers",
     "libavcodec": "60.31.102",
-    "libvpx": "enabled; exact library revision unavailable from selected executable",
-    "libwebp": "enabled; exact library revision unavailable from selected executable",
+    "libvpx": "1.16.0",
+    "libwebp": "1.6.0",
     "reproducibility": "byte-identical under this recorded encoder profile; other versions may differ",
+    "toolchain": {
+      "nixpkgs_revision": "9387b3fcc0c23c86661636da63faabad4235a0a6",
+      "package": "ffmpeg_6",
+      "schema": 1,
+      "versions": {
+        "ffmpeg": "6.1.6",
+        "libvpx": "1.16.0",
+        "libwebp": "1.6.0"
+      }
+    },
     "webm_flags": "fflags=+bitexact libvpx-vp9 lossless=1 yuva420p flags:v=+bitexact deadline=good cpu-used=0 row-mt=0 tile-columns=0 frame-parallel=0 threads=1",
     "webp_flags": "libwebp bgra lossless=1 compression_level=6 threads=1"
   }

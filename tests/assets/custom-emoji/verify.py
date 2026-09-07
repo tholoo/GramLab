@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from generate import FRAMES, HEIGHT, WIDTH, generated_files, rgba_frame, thumbnail_rgba
+from toolchain import load_media_toolchain, select_executable
 
 
 def command(args: list[str], *, ok: bool = True) -> subprocess.CompletedProcess[bytes]:
@@ -73,12 +74,15 @@ def require_animation_geometry(frame: bytes, index: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ffmpeg", default="ffmpeg")
-    parser.add_argument("--ffprobe", default="ffprobe")
+    parser.add_argument("--ffmpeg")
+    parser.add_argument("--ffprobe")
     args = parser.parse_args()
     directory = Path(__file__).resolve().parent
+    toolchain = load_media_toolchain()
+    ffmpeg = select_executable("ffmpeg", args.ffmpeg, toolchain)
+    ffprobe = select_executable("ffprobe", args.ffprobe, toolchain)
 
-    generated = generated_files(args.ffmpeg)
+    generated = generated_files(ffmpeg, toolchain)
     for name, expected in generated.items():
         if (actual := (directory / name).read_bytes()) != expected:
             raise ValueError(f"fixture differs from repeated generation: {name}")
@@ -91,12 +95,12 @@ def main() -> None:
         if hashlib.sha256(contents).hexdigest() != record["sha256"]:
             raise ValueError(f"SHA-256 mismatch: {record['filename']}")
 
-    static = decode_rgba(args.ffmpeg, directory / "emoji-static.webp")
+    static = decode_rgba(ffmpeg, directory / "emoji-static.webp")
     require_visible_rgba(static, rgba_frame(0), "static WebP")
-    thumbnail = decode_rgba(args.ffmpeg, directory / "emoji-thumbnail.webp")
+    thumbnail = decode_rgba(ffmpeg, directory / "emoji-thumbnail.webp")
     require_visible_rgba(thumbnail, thumbnail_rgba(), "thumbnail WebP")
 
-    animation = decode_rgba(args.ffmpeg, directory / "emoji-animated.webm", "libvpx-vp9")
+    animation = decode_rgba(ffmpeg, directory / "emoji-animated.webm", "libvpx-vp9")
     frame_size = WIDTH * HEIGHT * 4
     if len(animation) != FRAMES * frame_size:
         raise ValueError(f"expected {FRAMES} decoded frames, got {len(animation) // frame_size}")
@@ -109,13 +113,13 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="gramlab-custom-emoji-") as temporary:
         generated_animation = Path(temporary) / "generated.webm"
         generated_animation.write_bytes(generated["emoji-animated.webm"])
-        decoded_generated = decode_rgba(args.ffmpeg, generated_animation, "libvpx-vp9")
+        decoded_generated = decode_rgba(ffmpeg, generated_animation, "libvpx-vp9")
         if decoded_generated != animation:
             raise ValueError("repeated WebM encode has different decoded pixels")
 
     probe = command(
         [
-            args.ffprobe,
+            ffprobe,
             "-v",
             "error",
             "-count_frames",
@@ -155,12 +159,10 @@ def main() -> None:
     ):
         raise ValueError("unexpected WebM frame timing")
 
-    command(
-        [args.ffprobe, "-v", "error", str(directory / "emoji-truncated-invalid.webm")], ok=False
-    )
+    command([ffprobe, "-v", "error", str(directory / "emoji-truncated-invalid.webm")], ok=False)
     command(
         [
-            args.ffmpeg,
+            ffmpeg,
             "-v",
             "error",
             "-i",
