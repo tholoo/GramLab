@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: resolved by custom-emoji-real-bot worker; native acceptance pending coordinator
 Blocked by: none for contained semantic implementation; native rendering is coordinator-owned
 
 Own this ticket and new `tests/fixtures/custom_emoji_bot.py`,
@@ -42,3 +42,63 @@ Run focused contained semantic test(s) in the outer loopback-only guard, scoped 
 mypy, retaining unique JUnit/logs. No build or guest. Frozen complete handoff includes hooks and
 portable reproduction so the coordinator can add actual rendering, animation, request and cache
 oracles separately. Claim/check assigned worktree, commit only owned files, keep branch frozen.
+
+## Worker handoff: contained semantic lifecycle passed
+
+Task `custom-emoji-real-bot`, branch `task/custom-emoji-real-bot`, assigned base
+`6340a2d22fc589b99ee916726f775e7e5b2b5999`. Only this ticket and the three assigned new Python
+files change. No production, native, media-fixture, lock or shared-document file is committed.
+
+`custom_emoji_bot.py` is a contained stdlib HTTP consumer with no simulator import or access to
+the authoritative World. It consumes the exact incoming update; requests IDs 1109, 1 and 1109;
+checks the deduplicated numeric order; downloads both main files and the shared thumbnail through
+the bot-scoped `getFile` identities; compares all four responses byte-for-byte with its private
+copies; and publishes only ordinary message 2 and rich message 3. It verifies a same-content rich
+edit rejection, then polls the one original ordinary-button callback, answers it, edits both
+messages to animated ID 1109 and drains its update queue.
+
+The shared probe registers actual static WebP and VP9 WebM bytes through World, starts the real
+Bot API server and contained bot, and exposes the frozen native hooks. `run(capture=None,
+tap=None, observe=None)` calls capture at `initial`, `edited` and `restarted` with the authorized
+v4 configuration. It calls `tap("initial", "Animate / متحرک")` once when supplied; otherwise it
+publishes the equivalent v4 callback. Observe runs after services reopen and may add private
+native evidence under `client`. The final capability scan covers both client personas and the bot.
+Host consumers import `stage_scenario(directory, core)` and `assert_scenario(observed)` from
+`test_custom_emoji_round_trip.py`.
+
+The independent oracle compares the complete result outside optional `client` evidence. It covers
+14 full Bot API status/body records, both complete Sticker projections, correlated dynamic file
+identities and exact file paths, four byte downloads, the no-op rejection, two delivered updates,
+all 12 World events, final history, empty pending updates, all three complete v4 snapshots, two
+selected change envelopes, and the frozen callback before answer, after both edits and after
+reopen. It also checks retained old/new grants, initial ungranted and mixed rejection, canonical
+string-only document input, all three authenticated v4 asset downloads before and after reopen,
+and the uninvolved persona's complete empty snapshot. Expected messages, assets, descriptors,
+events and envelopes are literals derived only from the frozen scene and fixture bytes; no
+production serializer or screenshot hash supplies expected content.
+
+Verification used this checkout's pinned media environment, whose Python import resolved to this
+worktree. The final semantic command was `tools/dev media --offline --command unshare --user
+--map-root-user --net bash -eu -o pipefail -c 'ip link set lo up; env PYTHONPATH=tests/probes
+.venv/bin/pytest tests/test_custom_emoji_round_trip.py -q
+--junitxml=artifacts/custom-emoji-real-bot.xml
+--basetemp=/tmp/gramlab-custom-emoji-real-bot-final-green'`: **1 passed in 7.64 seconds**. JUnit and
+the terminal log remain ignored under `artifacts/custom-emoji-real-bot.{xml,log}`; the supervised
+result, bot stderr, private API log and World remain in the named basetemp directory. Scoped Ruff
+check, Ruff format check and strict mypy pass for all three Python files; `git diff --check` passes.
+
+The initial red collected the new test before its fixture/probe existed and failed on the missing
+`custom_emoji_round_trip` module. Once implemented, the complete oracle on assigned-base bytes
+failed because integer document ID `1` returned HTTP 200 instead of the required canonical-string
+HTTP 400. Coordinator commit `8e076158b9a38da682d814780ac3f2bb747ab68d` fixes that separately.
+For final worker verification only, the coordinator SHA-guarded exact fixed `world.py` bytes
+(blob `6f711593d2b886dd852c976b17c58a1816377563`) and restores the assigned-base bytes before this
+worker commit; the production file is neither staged nor committed here.
+
+The coordinator still owns original-client rendering, animation, native request/cache evidence,
+and integrated verification. Native staging needs this test module, both new probe/fixture files,
+existing `component_bot.py`, the three existing custom-emoji media fixtures, current integrated
+core and a reviewed v4-capable APK/profile. The native hook owns opening the initial scene, applying
+the one live callback edit and proving an unchanged cold restart. Simulation verifies structured
+content and exact bytes; it does not prove original rendering or playback. No build or guest was
+run, and all worker-started processes are terminal.
