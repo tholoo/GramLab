@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none
 
 Own this ticket, `tests/probes/native_asset_proxy.py` and `tests/test_native_asset_proxy.py`.
@@ -34,3 +34,19 @@ before coordinator review. Use this worktree's tools/dev and outer loopback-only
 imports and tools/worktree check before edits/resume. Run scoped Ruff/format and strict mypy using
 the existing explicit-package-bases convention. No Android build/guest/full core gate. Commit owned
 files and send a frozen clean tip/base, exact checks, retained evidence and terminal process state.
+
+## Answer
+
+Implemented on `task/custom-emoji-request-observer` from base
+`42430827b170df7bf66bfc22dd51fdc616dcaffc`. The proxy now forwards the exact v4 bridge route set,
+validates bounded custom-emoji document requests before forwarding, and records those requests in
+a lock-protected journal separate from asset GET observations. Actual loopback HTTP peers cover
+response bodies and headers, whole-batch 404, interruption, redirects, authorization and framing,
+phase/retarget identity, detached snapshots and rejected nonlocal or wrong-version paths.
+
+The guarded behavioral red is retained as
+`artifacts/custom-emoji-request-observer-red.{log,xml}` (16 expected failures). The final guarded
+suite is retained as `artifacts/custom-emoji-request-observer-green-final.{log,xml}` and passes all
+31 cases, including the 12 pre-existing cases. Scoped Ruff lint and format plus strict mypy pass;
+their logs are retained under `artifacts/custom-emoji-request-observer-{ruff,format,mypy}.log`.
+Coordinator integration and combined verification remain pending, so the work state stays claimed.
