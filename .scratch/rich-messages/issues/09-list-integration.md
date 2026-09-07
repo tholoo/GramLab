@@ -37,3 +37,20 @@ The reviewed Python branch is integrated. All 82 focused World and real HTTP tes
 including the unchanged Unicode property test, in 23.42 seconds without a concurrent guest.
 Scoped lint, format and source typing pass. The earlier worker deadline failure is not
 reproduced by this run; no deadline or test semantics were changed.
+
+Public capture regression: the real bot sent canonical lists, but capture rejected nested item
+text before traversal was added (one failed, one passed). Both expanded capture cases now pass,
+including metadata and cross-fragment rejection. The native patch is integrated and builds offline
+incrementally in 151 seconds; fresh preparation retains all 6,666 original UI/resource files and
+the unchanged rich renderer. The full native list catalog and 42 malformed cases pass. Review
+strengthened invalid type/value labels so label mismatch cannot mask missing validation.
+
+The dedicated real-bot checkbox scene passes in 71.97 seconds. Original checkbox accessibility
+reports two visible read-only rows while an empty item remains only in canonical content. A normal
+tap opens the original message menu; the probe retains that observation, dismisses it with Back,
+and verifies identical checkbox attributes, complete snapshot and events. The bot's live edit
+reverses both states and switches to RTL; native serialization and cold restart retain the result.
+All phase/menu images were reviewed. Initial diagnostic runs missed an over-specific private
+breakpoint, then reached the original rich touch handler but left its menu covering the chat.
+The passing probe removes the debugger and handles only the observed menu. No renderer or input
+retry change was made. Public native list inline targeting and the combined gates remain pending.

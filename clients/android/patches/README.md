@@ -77,3 +77,11 @@ from the semantic world representation. The shared message decoder covers snapsh
 and difference recovery. A separate probe observes the full structure after native serialization;
 original message cells, rich layout and resources remain unchanged. See the
 [projection contract and verification limits](../../../docs/development/android-rich-projection.md).
+
+`0012-rich-list-projection.patch` extends the semantic adapter and serializer probe with original
+ordered/unordered block-item constructors, canonical labels and checkbox state. Empty item block
+arrays remain empty. Strict native validation rejects inconsistent fields and optional flags.
+The twelve-patch export preserves all 6,666 original UI/resource files and RichMessageLayout;
+the integrated incremental offline build passes. See the [list contract](../../../docs/development/rich-list-references.md)
+and [integration ticket](../../../.scratch/rich-messages/issues/09-list-integration.md) for the
+separate runtime and original-rendering acceptance status.

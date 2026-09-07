@@ -49,6 +49,8 @@ uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/andr
   tests/probes/trace_runner.py
 uv run --locked mypy tests/probes/rich_round_trip.py tests/probes/android_rich_messages.py \
   tests/fixtures/rich_bot.py tests/test_rich_round_trip.py tests/test_android_rich_messages.py
+uv run --locked mypy tests/probes/android_rich_lists.py tests/test_android_rich_lists.py \
+  tests/probes/android_list_rendering.py tests/test_android_list_rendering.py
 uv run --locked mypy examples/inline
 uv run --locked mypy examples/recovery
 uv run --locked mypy examples/composer

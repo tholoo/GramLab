@@ -16,11 +16,20 @@ from gramlab.client_bridge import ClientBridge
 from gramlab.world import World
 
 
-def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
+def probe(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+    *,
+    scene_checks: dict[str, list[str]] | None = None,
+    on_initial: Callable[[str], None] | None = None,
+) -> dict[str, object]:
     capability = ""
     launches: dict[str, str] = {}
     codecs: dict[str, Any] = {}
     timings: dict[str, float] = {}
+    required = scene_checks or {
+        "initial": ["Rich blocks", "Original Android rendering", "GramLab", "Language", "۱۲۳"],
+        "edited": ["Rich blocks updated", "Edited rich message", "GramLab", "زبان", "۴۵۶"],
+    }
 
     def configure_codec(configuration: dict[str, Any]) -> None:
         nonlocal capability
@@ -178,11 +187,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             ui = adb("shell", "cat", "/data/local/tmp/rich-message.xml").stdout
             if applied and all(
                 text in ui
-                for text in (
-                    ("Rich blocks updated", "Edited rich message", "GramLab", "زبان", "۴۵۶")
-                    if edited or name == "restarted"
-                    else ("Rich blocks", "Original Android rendering", "GramLab", "Language", "۱۲۳")
-                )
+                for text in required["edited" if edited or name == "restarted" else "initial"]
             ):
                 ready = True
                 break
@@ -220,7 +225,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         configure_codec(configuration)
         codec("initial")
         launch("initial")
-        return screen("initial")
+        initial = screen("initial")
+        if on_initial is not None:
+            on_initial(initial)
+        return initial
 
     def observe() -> dict[str, Any]:
         edited = screen("edited", edited=True)
@@ -240,7 +248,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     try:
         result = run(show, observe)
         adb("shell", "am", "force-stop", "org.gramlab.android")
-        catalog()
+        if scene_checks is None:
+            catalog()
         return result
     finally:
         guest("shell", "am", "force-stop", "org.gramlab.android")

@@ -99,6 +99,8 @@ jobs:
           tests/probes/trace_runner.py
       - name: Type check the rich-message scenario and Android probes
         run: uv run --locked mypy tests/probes/rich_round_trip.py tests/probes/android_rich_messages.py tests/fixtures/rich_bot.py tests/test_rich_round_trip.py tests/test_android_rich_messages.py
+      - name: Type check the native list probes
+        run: uv run --locked mypy tests/probes/android_rich_lists.py tests/test_android_rich_lists.py tests/probes/android_list_rendering.py tests/test_android_list_rendering.py
       - name: Type check the independent inline consumer example
         run: uv run --locked mypy examples/inline
       - name: Type check the independent recovery consumer example

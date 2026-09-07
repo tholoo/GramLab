@@ -43,6 +43,17 @@ structure and multilingual content.
 | `expandable_blockquote`, `pullquote` | `text` | RichText `credit` |
 | `table` | `cells` (array of rows of cells) | RichText `caption`; boolean `is_bordered`, `is_striped`, `is_compact` |
 | `details` | RichText `summary`, `blocks` | boolean `is_open` |
+| `list` | non-empty `items` array | — |
+
+List items require `blocks`, including an empty array, and accept optional boolean `has_checkbox`
+and `is_checked`, signed 32-bit integer `value`, and label `type`. An absent or empty type means
+unordered; nonempty types are `a`, `A`, `i`, `I` and `1`. Every item in one list must agree on
+ordered versus unordered behavior. Ordered items may mix the five styles and arbitrary values.
+Output adds a required `label`; ordered output also retains type/value, defaulting omitted input
+value to zero. Positive alphabetic labels use spreadsheet letters; Roman values 1–3999 use
+numerals; other values use decimal fallback. Unordered values normalize away. False checkbox
+flags omit, and checked state without a checkbox normalizes away. Output labels must be removed
+before resubmitting a message as input. See the [pinned list contract](rich-list-references.md).
 
 Cells accept optional RichText `text` (absent means invisible), boolean `is_header`, integer
 `colspan`/`rowspan`, `align` (`left`, `center`, `right`) and `valign` (`top`, `middle`, `bottom`).
@@ -56,10 +67,11 @@ The local implementation bounds both input and canonical output to depth 32 (roo
 Individual spans are capped at 100, and the sum of cell colspan × rowspan is capped at 10,000.
 Later rows cannot be wider than the first row when summing normalized column spans. These are
 explicit GramLab limits for the supported native table profile, not asserted Telegram
-production limits. Blocks, table rows and RichText arrays must be non-empty. C0 controls other
+production limits. Blocks, table rows and RichText arrays must be non-empty, except list-item
+block arrays, which may be empty. C0 controls other
 than newline and tab are rejected as unsupported normalization; invalid UTF-8 is rejected.
 Unknown fields, unsupported wrappers/blocks and ambiguous text plus rich content fail explicitly.
-HTML/Markdown parsing, automatic entities, links, lists, buttons, media, custom emoji, streaming,
+HTML/Markdown parsing, automatic entities, links, buttons, media, custom emoji, streaming,
 and the remaining rich inventory are still open. No network asset is fetched.
 
 ## State and evidence
@@ -70,6 +82,11 @@ use the same durable message, journal and client-position path as ordinary messa
 canonical edit fails without allocating an event. Existing SQLite message bodies carry the new
 field without a schema migration. Snapshot, difference events and database reopening retain the
 complete content; input and returned objects cannot mutate stored state after the operation.
+
+The integrated list World/HTTP suite passes all 82 focused cases, including the Unicode property
+test. Public captures find nested list fragments while preserving canonical history and rejecting
+metadata or cross-fragment text targets. List rendering and native input remain under integrated
+verification; the preceding renderer checkpoint below does not establish those additions.
 
 The dedicated tests exercise actual HTTP sends/edits through both request encodings, full responses,
 atomic malformed/unsupported rejection, wrong bot/message ownership, normalization, plain/rich
