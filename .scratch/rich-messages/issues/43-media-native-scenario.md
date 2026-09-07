@@ -2,7 +2,7 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none for authoring; green requires core/native integration and coordinator APK
 
 Own only `tests/probes/android_media.py`, `tests/test_android_media.py`, and this ticket.
@@ -33,3 +33,24 @@ report of original screenshots. Include SDK/font/theme/profile inputs as establi
 Label this authoring/static-only until coordinator runs an immutable reviewed APK; no worker guest,
 build, fabricated green, external traffic, or broad gate. Run scoped Ruff/format/mypy, commit owned
 files and return a frozen clean handoff with explicit runtime limitations and terminal resources.
+
+## Worker evidence
+
+The dedicated three-stage original-app probe and Android test entry are authored on
+`task/media-native-scenario`. The probe installs once, removes the orchestration `stage` before
+writing strict bridge-version-3 configuration, captures bottom/top initial views, observes the live
+edit, rewrites the reopened endpoint, and cold-starts the same app data. It retains original PNG and
+UIAutomator XML files, launch traces, capability-free media traces, failure artifacts, and read-only
+SHA-256/size observations from cache locations discovered inside the app sandbox.
+
+The test reuses the independently specified media round trip, checks the full existing guest
+isolation boundary, requires successful and cache-hit diagnostics for both original assets, compares
+their private cache bytes with the committed PNG/JPEG, and packages four original screenshots into
+a bounded report with SDK, system-image, display, theme, fonts, APK, guest and graphics inputs.
+Scoped Ruff format/check and mypy pass. This is authoring/static evidence only: this worker did not
+build an APK, start a guest or claim runtime rendering, decoding, transfer, cache or report success.
+
+Coordinator source review corrects a fixture assumption before native execution: original
+ImageLoader may decode a cached file before FileLoader is called. Restart acceptance therefore
+checks unchanged cache bytes and no new transfer starts alongside original screenshots; it does
+not require a synthetic FileLoader cache-hit diagnostic. Runtime acceptance remains pending.
