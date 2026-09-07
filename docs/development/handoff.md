@@ -104,7 +104,10 @@ pass; the full core gate passes 368 tests in 49.71 seconds at 80.99% coverage. A
 scopes pass. The later independent rendering fixture's real-bot case also passes in 1.23 seconds;
 it is additional focused evidence after that full core gate. Offline package build/install and the
 installed rich-button scenario pass with complete world/history/capture comparisons. The final
-workflow check passes.
+workflow check passes. Both the rich-button and normalization reports were browser-reviewed at
+390x844 and 1280x900: all six original images load, document width matches the viewport, and no
+external resource requests occur. All four browser captures were visually inspected; the preview
+server and owned browser tab are closed.
 
 The normal 13-patch APK builds offline in 2 minutes 50 seconds. Its native codec case passes in
 104.79 seconds: complete catalog, four positive boundaries and 57 exact malformed rejections,
