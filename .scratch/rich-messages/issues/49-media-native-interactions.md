@@ -40,3 +40,31 @@ but exposes a missing external JPEG copy after edit and a real new download afte
 cache/restart assertions correctly remain red. These are incomplete acceptance, not passed cases.
 Ignored first-run evidence is `artifacts/media-interaction-native-01.xml` and its matching log,
 source provenance and per-test directories. Guest/build processes for that first run are terminal.
+
+
+## Normal21 observations and remaining acceptance
+
+The same first-photo cancel/retry case reaches cancellation 1.21 seconds after initial bytes,
+then an explicit original download tap completes the exact PNG with no stray partial file.
+Retained host assertions pass for its request counts, receiver bindings, cache bytes and all
+three activation guards; the original combined JUnit stays failed for the other two cases.
+All 41 original files are unchanged. Visual inspection confirms canceled/download and completed
+photo states, but finds the loading capture predates visible message cells. The probe now waits
+for original drawn cells, captures, then obtains a fresh input sample. Its new capture order
+requires a native rerun; the retained report is not complete visual acceptance.
+
+Shared loading continues after canceling one receiver: the second displays the photo, but the
+canceled first receiver loses its download icon after completion without displaying the image.
+Do not tap a nonexistent download control or alter the original renderer to satisfy that oracle.
+The ordinary live edit cancels the old shared transfer through original MessagesStorage cleanup;
+this is not proof of old transfer completion after edit. Source inspection suggests a richer
+fixture with an unchanged leading rich photo and a replaced second photo can retain the old
+transfer; this remains a native hypothesis requiring exact receiver observation.
+
+Ignored evidence: original `artifacts/media-interaction-native-03.xml`, retained case assertion
+receipt `artifacts/media-cancel-retry-retained-02.json` and matching `retained-04.log`. Local run
+wrappers accidentally reused the first input-manifest name; its surviving contents are verified
+as run03 and copied to a distinct name. Earlier APK/staged-source fingerprints remain verifiable,
+but their overwritten pre-run manifests are unavailable. The explicit recovery receipt preserves
+this limitation; do not infer full earlier host/profile equivalence. Historical wrappers now
+refuse reuse before writing anything.

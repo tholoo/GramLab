@@ -396,6 +396,13 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 result["partial_sent_at"] = transfer.partial_sent_at
                 assert transfer.partial_sent_at is not None
                 observe.window_end = transfer.partial_sent_at + 4.8
+                loading = observe.sample(
+                    lambda rows: all(
+                        row["progress_icon"] == CANCEL and not row["has_image"] for row in rows
+                    )
+                )
+                # First establish that original cells have drawn, then capture them. A launch
+                # completing does not mean that its message list is already on screen.
                 result["captures"].append(observe.screenshot("loading"))
                 loading = observe.sample(
                     lambda rows: all(

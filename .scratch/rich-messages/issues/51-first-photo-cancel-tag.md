@@ -27,3 +27,14 @@ Ignored evidence: `artifacts/media-interaction-native-01.xml`, `media-interactio
 and `artifacts/photo-cancel-diagnostic-native-01/photo-cancellation-diagnostic.log`. The diagnostic
 source overlay was removed and all eight normal20 source fingerprints restored; its separate APK
 and provenance remain retained. Diagnostic runs do not replace normal native acceptance.
+
+
+## Focused normal APK result
+
+Patch 0021 compiles in 3m21s and the first-photo original cancel/retry case passes retained
+transfer/cache/binding assertions: cancellation occurs after 1.21 seconds, release after 1.84
+seconds, and only explicit retry starts the successful replacement request. Absent/wrong-World/
+missing-message activation assertions pass. The loading screenshot was taken before visible
+cells, so corrected capture ordering needs fresh native evidence. Shared-consumer and ordinary
+late-edit cases remain failed for separately observed upstream behavior; unchanged fault/codec
+and combined native regression are still required. Keep this ticket claimed.

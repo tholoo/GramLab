@@ -78,13 +78,26 @@ def test_original_photo_cancel_retry_shared_consumers_and_late_edit(tmp_path: Pa
     (tmp_path / "media-interaction-stderr.log").write_text(result.stderr)
     assert result.returncode == 0, result.stderr
     full = json.loads(result.stdout)
+    assert_interaction_observation(tmp_path, full, apk, toolchain, image_package, expected)
+
+
+def assert_interaction_observation(
+    tmp_path: Path,
+    full: dict[str, Any],
+    apk: str,
+    toolchain: dict[str, Any],
+    image_package: str,
+    expected: list[dict[str, Any]],
+    *,
+    acceptance_note: str = "",
+    report_suffix: str = "",
+) -> None:
     assert_isolation(full)
     observed = full["extra_probe"]
     assert "Accounts: 0" in observed["accounts"]
     failures = {
         name: case["failure"] for name, case in observed["cases"].items() if "failure" in case
     }
-    assert not failures, json.dumps(failures, indent=2)
     assert observed["assets"] == expected
     assert observed["stale_rejections"] == [
         {
@@ -110,114 +123,142 @@ def test_original_photo_cancel_retry_shared_consumers_and_late_edit(tmp_path: Pa
     assert missing["available"] is False and missing["messages"] == []
     assert missing["reason"] == "message_not_unique_or_visible"
     assert set(observed["cases"]) == {"cancel-retry", "shared-consumer", "late-edit"}
+    for name, case in observed["cases"].items():
+        if "failure" not in case:
+            assert_interaction_case(
+                tmp_path,
+                name,
+                case,
+                expected,
+                full,
+                apk,
+                toolchain,
+                image_package,
+                acceptance_note=acceptance_note,
+                report_path=tmp_path / f"report-{name}{report_suffix}.html",
+            )
+    assert not failures, json.dumps(failures, indent=2)
+
+
+def assert_interaction_case(
+    tmp_path: Path,
+    name: str,
+    case: dict[str, Any],
+    expected: list[dict[str, Any]],
+    full: dict[str, Any],
+    apk: str,
+    toolchain: dict[str, Any],
+    image_package: str,
+    *,
+    acceptance_note: str = "",
+    report_path: Path | None = None,
+) -> None:
+    assert "failure" not in case
     gated = {"operation": "asset", "asset_id": 1, "fault": "gated"}
     complete = {"operation": "asset", "asset_id": 1, "fault": "complete"}
-    for name, case in observed["cases"].items():
-        assert 0 <= case["release_elapsed"] < 4.8
-        assert case["released_at"] > case["partial_sent_at"]
-        trace = case["final_trace"]
-        for row in trace:
-            assert set(row) == {"event", "asset_id", "cache_file", "file_size", "digest_ok"}
-            assert row["asset_id"] in (1, 2)
-            assert row["cache_file"] == f"{row['asset_id']}_1.jpg"
-            assert row["event"] != "media_load_failure"
-        terminals = [
-            row for row in trace if row["event"] in ("media_load_success", "media_load_cancel")
+    assert 0 <= case["release_elapsed"] < 4.8
+    assert case["released_at"] > case["partial_sent_at"]
+    trace = case["final_trace"]
+    for row in trace:
+        assert set(row) == {"event", "asset_id", "cache_file", "file_size", "digest_ok"}
+        assert row["asset_id"] in (1, 2)
+        assert row["cache_file"] == f"{row['asset_id']}_1.jpg"
+        assert row["event"] != "media_load_failure"
+    terminals = [
+        row for row in trace if row["event"] in ("media_load_success", "media_load_cancel")
+    ]
+    success_ids = [row["asset_id"] for row in terminals if row["event"] == "media_load_success"]
+    if name == "cancel-retry":
+        assert [row["event"] for row in terminals] == [
+            "media_load_cancel",
+            "media_load_success",
         ]
-        success_ids = [row["asset_id"] for row in terminals if row["event"] == "media_load_success"]
-        if name == "cancel-retry":
-            assert [row["event"] for row in terminals] == [
-                "media_load_cancel",
-                "media_load_success",
-            ]
-            assert asset_requests(case["requests_before_retry"]) == [gated]
-            assert asset_requests(case["requests"]) == [gated, complete]
-            assert case["files_before_retry"] == []
-        elif name == "shared-consumer":
-            assert [row["event"] for row in terminals] == ["media_load_success"]
-            assert asset_requests(case["requests_before_retry"]) == [gated]
-            assert asset_requests(case["requests"]) == [gated]
-            before = case["shared_binding"]["messages"]
-            assert [row["has_image"] for row in before] == [False, True]
-            assert before[0]["progress_icon"] == 2
-            assert before[1]["image_key"].startswith("1_1@")
-        else:
-            assert [row["event"] for row in terminals] == [
-                "media_load_success",
-                "media_load_success",
-            ]
-            assert success_ids == [2, 1]
-            assert asset_requests(case["requests"]) == [gated, complete | {"asset_id": 2}]
-            before = case["new_binding"]["messages"]
-            assert [row["has_image"] for row in before] == [True, False]
-            assert before[0]["image_key"].startswith("2_1@")
-            assert case["post_release_bindings"]
-            for binding in case["post_release_bindings"]:
-                assert binding["messages"][0]["image_key"] == before[0]["image_key"]
-                assert binding["messages"][0]["has_image"] is True
-            assert case["taps"] == []
-        if name != "late-edit":
-            assert success_ids == [1]
-            assert len(case["taps"]) == 2
-            assert [tap["message_id"] for tap in case["taps"]] == [1, 1]
-            assert [tap["sample"]["messages"][0]["progress_icon"] for tap in case["taps"]] == [3, 2]
-            assert 0 <= case["cancel_elapsed"] < 4.8
-        bindings = case["final_binding"]["messages"]
-        assert [row["message_id"] for row in bindings] == (
-            [1] if name == "cancel-retry" else [1, 2]
-        )
-        assert all(row["has_image"] and row["progress_icon"] == 4 for row in bindings)
-        expected_ids = [2, 1] if name == "late-edit" else [1] * len(bindings)
-        for row, asset_id in zip(bindings, expected_ids, strict=True):
-            assert row["image_key"].startswith(f"{asset_id}_1@")
-        assert {Path(row["path"]).name for row in case["files"]} == {
-            f"{asset}_1.jpg" for asset in expected_ids
-        }
-        assert len(case["files"]) == len(set(expected_ids))
-        for row in case["files"]:
-            asset = expected[int(Path(row["path"]).name.split("_")[0]) - 1]
-            assert row["size"] == asset["file_size"]
-            assert row["sha256"] == asset["sha256"]
-        for row in terminals:
-            if row["event"] == "media_load_success":
-                assert row["digest_ok"] is True
-                assert row["file_size"] == expected[row["asset_id"] - 1]["file_size"]
-        screenshots = tuple(
-            Screenshot(caption=Path(path).stem, png=(tmp_path / path).read_bytes())
-            for path in case["captures"]
-        )
-        assert len(screenshots) == 3
-        assert all(screenshot.png.startswith(b"\x89PNG\r\n\x1a\n") for screenshot in screenshots)
-        write_report(
-            tmp_path / f"report-{name}.html",
-            Report(
-                run_id=f"media-interaction-{name}",
-                title=f"Original Android photo: {name}",
-                mode="headless-android",
-                outcome="passed",
-                seed=17,
-                profile={
-                    "Android SDK": str(toolchain["sdk"]["platform"]),
-                    "System image": image_package,
-                    "Display": "320 x 640 at 160 dpi",
-                    "Theme": "Original app default light theme",
-                    "Fonts": "Pinned AOSP system fonts",
-                    "APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
-                },
-                summary="Original photo controls and image receivers observed during controlled "
-                "local transfers.",
-                evidence={
-                    "Interaction": case,
-                    "Expected assets": expected,
-                    "Network isolation": full["network"],
-                    "Emulator filesystem": full["emulator_filesystem"],
-                    "Guest fingerprint": full["fingerprint"],
-                    "Graphics": full["graphics"],
-                },
-                screenshots=screenshots,
-                limitations=(
-                    "Shared UI loading does not by itself prove the FileLoader coalescing branch. "
-                    "Observation and ordinary input are not an atomic public targeting API.",
-                ),
+        assert asset_requests(case["requests_before_retry"]) == [gated]
+        assert asset_requests(case["requests"]) == [gated, complete]
+        assert case["files_before_retry"] == []
+    elif name == "shared-consumer":
+        assert [row["event"] for row in terminals] == ["media_load_success"]
+        assert asset_requests(case["requests_before_retry"]) == [gated]
+        assert asset_requests(case["requests"]) == [gated]
+        before = case["shared_binding"]["messages"]
+        assert [row["has_image"] for row in before] == [False, True]
+        assert before[0]["progress_icon"] == 2
+        assert before[1]["image_key"].startswith("1_1@")
+    else:
+        assert [row["event"] for row in terminals] == [
+            "media_load_success",
+            "media_load_success",
+        ]
+        assert success_ids == [2, 1]
+        assert asset_requests(case["requests"]) == [gated, complete | {"asset_id": 2}]
+        before = case["new_binding"]["messages"]
+        assert [row["has_image"] for row in before] == [True, False]
+        assert before[0]["image_key"].startswith("2_1@")
+        assert case["post_release_bindings"]
+        for binding in case["post_release_bindings"]:
+            assert binding["messages"][0]["image_key"] == before[0]["image_key"]
+            assert binding["messages"][0]["has_image"] is True
+        assert case["taps"] == []
+    if name != "late-edit":
+        assert success_ids == [1]
+        assert len(case["taps"]) == 2
+        assert [tap["message_id"] for tap in case["taps"]] == [1, 1]
+        assert [tap["sample"]["messages"][0]["progress_icon"] for tap in case["taps"]] == [3, 2]
+        assert 0 <= case["cancel_elapsed"] < 4.8
+    bindings = case["final_binding"]["messages"]
+    assert [row["message_id"] for row in bindings] == ([1] if name == "cancel-retry" else [1, 2])
+    assert all(row["has_image"] and row["progress_icon"] == 4 for row in bindings)
+    expected_ids = [2, 1] if name == "late-edit" else [1] * len(bindings)
+    for row, asset_id in zip(bindings, expected_ids, strict=True):
+        assert row["image_key"].startswith(f"{asset_id}_1@")
+    assert {Path(row["path"]).name for row in case["files"]} == {
+        f"{asset}_1.jpg" for asset in expected_ids
+    }
+    assert len(case["files"]) == len(set(expected_ids))
+    for row in case["files"]:
+        asset = expected[int(Path(row["path"]).name.split("_")[0]) - 1]
+        assert row["size"] == asset["file_size"]
+        assert row["sha256"] == asset["sha256"]
+    for row in terminals:
+        if row["event"] == "media_load_success":
+            assert row["digest_ok"] is True
+            assert row["file_size"] == expected[row["asset_id"] - 1]["file_size"]
+    screenshots = tuple(
+        Screenshot(caption=Path(path).stem, png=(tmp_path / path).read_bytes())
+        for path in case["captures"]
+    )
+    assert len(screenshots) == 3
+    assert all(screenshot.png.startswith(b"\x89PNG\r\n\x1a\n") for screenshot in screenshots)
+    write_report(
+        report_path or tmp_path / f"report-{name}.html",
+        Report(
+            run_id=f"media-interaction-{name}",
+            title=f"Original Android photo: {name}",
+            mode="headless-android",
+            outcome="passed",
+            seed=17,
+            profile={
+                "Android SDK": str(toolchain["sdk"]["platform"]),
+                "System image": image_package,
+                "Display": "320 x 640 at 160 dpi",
+                "Theme": "Original app default light theme",
+                "Fonts": "Pinned AOSP system fonts",
+                "APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
+            },
+            summary="Original photo controls and image receivers observed during controlled "
+            "local transfers." + (" " + acceptance_note if acceptance_note else ""),
+            evidence={
+                "Interaction": case,
+                "Expected assets": expected,
+                "Network isolation": full["network"],
+                "Emulator filesystem": full["emulator_filesystem"],
+                "Guest fingerprint": full["fingerprint"],
+                "Graphics": full["graphics"],
+            },
+            screenshots=screenshots,
+            limitations=(
+                "Shared UI loading does not by itself prove the FileLoader coalescing branch. "
+                "Observation and ordinary input are not an atomic public targeting API.",
             ),
-        )
+        ),
+    )

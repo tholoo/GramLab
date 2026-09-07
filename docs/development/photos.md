@@ -9,8 +9,9 @@ observations pass corrected host assertions with original bytes unchanged. The o
 JUnit is preserved; this is retained acceptance, not a relabeled green run. Original images and
 reports have been inspected. Four controlled response faults (truncated, corrupt, redirected and
 missing) also pass original Android failure/cleanup and explicit cold-restart recovery, with eight
-inspected captures and exact recovered JPEG bytes. Original UI cancel/retry, shared consumers,
-completion after a live edit, wider native regressions and better capture framing remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
+inspected captures and exact recovered JPEG bytes. The first-photo cancellation fix passes retained native transfer/cache/binding assertions;
+its loading capture needs a rerun after correcting capture order. Shared consumers, completion
+after a live edit, wider native regressions and complete capture acceptance remain open; this is not complete media support. The [shared contract](media-implementation-contract.md) defines
 the precise limits and bridge fields.
 
 ## Sending and reusing a photo

@@ -49,8 +49,13 @@ offline safety, licensing and completion requirements before the corresponding a
   and recovery screenshots were inspected; each failed attempt leaves no final or partial photo,
   and recovery downloads the exact original JPEG. Eight real HTTP fixture checks also pass.
   Ticket [46](../../.scratch/rich-messages/issues/46-media-native-faults.md) is integrated and resolved.
-  Better top-capture framing, original UI cancel/retry, shared consumers, completion after live
-  edit and combined native regression remain required. See ticket
+  A framed top-photo capture is inspected. Patch 0021 corrects the first synthetic receiver's
+  reserved-zero tag, and retained normal21 cancel/retry transfer/cache/binding plus activation
+  guards pass. Its loading screenshot precedes visible cells, so corrected capture ordering needs
+  another native run. Shared cancellation exposes a missing download control after completion;
+  ordinary edit globally cancels the old transfer through upstream cleanup. Preserve those reds
+  and use original rich receivers to prove a stronger late-completion case. Complete visual and
+  combined native regression remain required. See ticket
   [40](../../.scratch/rich-messages/issues/40-media-native.md),
   [43](../../.scratch/rich-messages/issues/43-media-native-scenario.md), and
   [45](../../.scratch/rich-messages/issues/45-media-native-codec.md).
