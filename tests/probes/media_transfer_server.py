@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import TracebackType
 from typing import Any, Literal, Self
+from urllib.parse import parse_qs, urlsplit
 
 Fault = Literal["complete", "truncate", "corrupt", "redirect", "missing", "gated"]
 
@@ -41,6 +42,16 @@ class MediaTransferServer:
         if [name for _, name in socket.if_nameindex()] != ["lo"]:
             raise RuntimeError("Media fault server requires the isolated loopback runtime")
         self._snapshot = json.dumps(snapshot).encode()
+        self._changes: dict[str, Any] = {
+            "schema": 3,
+            "world_id": snapshot["world_id"],
+            "user_id": snapshot.get("user_id", 1),
+            "head": snapshot.get("message_position", 0),
+            "now": snapshot.get("now", 1700000000),
+            "users": [],
+            "assets": [],
+            "changes": [],
+        }
         self._assets = dict(assets)
         self._plans: dict[int, list[Transfer]] = {}
         self._transfers: list[Transfer] = []
@@ -94,6 +105,29 @@ class MediaTransferServer:
                         payload = owner._snapshot
                         owner._requests.append({"operation": "snapshot"})
                     self.reply(200, "application/json", payload)
+                    return
+                if urlsplit(self.path).path == "/v3/changes":
+                    try:
+                        fields = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                        if fields.keys() - {"after", "limit"} or any(
+                            len(value) != 1 for value in fields.values()
+                        ):
+                            raise ValueError("Invalid change query")
+                        after = int(fields["after"][0])
+                        limit = int(fields.get("limit", ["100"])[0])
+                        with owner._lock:
+                            result = dict(owner._changes)
+                            if not 0 <= after <= result["head"] or not 1 <= limit <= 1000:
+                                raise ValueError("Invalid change cursor")
+                            selected = [
+                                change for change in result["changes"] if change["position"] > after
+                            ][:limit]
+                            result["changes"] = selected
+                            result["cursor"] = selected[-1]["position"] if selected else after
+                            owner._requests.append({"operation": "changes", "after": after})
+                        self.reply(200, "application/json", json.dumps(result).encode())
+                    except (ValueError, KeyError):
+                        self.error(400, "invalid_request", "Invalid fixture change cursor")
                     return
                 suffix = self.path.removeprefix("/v3/assets/")
                 if (
@@ -164,6 +198,14 @@ class MediaTransferServer:
         payload = json.dumps(value).encode()
         with self._lock:
             self._snapshot = payload
+
+    def publish(self, snapshot: Mapping[str, Any], changes: Mapping[str, Any]) -> None:
+        """Atomically install independently authored snapshot and change fixtures."""
+        payload = json.dumps(snapshot).encode()
+        journal = json.loads(json.dumps(changes))
+        with self._lock:
+            self._snapshot = payload
+            self._changes = journal
 
     def requests(self) -> list[dict[str, Any]]:
         with self._lock:

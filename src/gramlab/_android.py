@@ -251,6 +251,7 @@ class Android:
                 "capability": self._capability,
                 "world_id": world.world_id,
                 "user_id": self._persona,
+                "bridge_version": 3,
             }
         self._adb(
             "shell",

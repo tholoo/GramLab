@@ -39,3 +39,11 @@ Android loader cancellation/retry/integrity and original visual acceptance remai
 The pinned Pillow runtime fully decodes original PNG/JPEG and rejects a truncated JPEG inside
 Sandbox. All nine existing runtime boundary checks pass. Core and Android runtime profiles include
 the new decoder closure; historical native gates retain their original profile fingerprints.
+
+The public runner photo-capture fixture records the expected pre-media red: the real bot's first
+multipart sendPhoto receives `GRAMLAB_UNSUPPORTED: request content type`, with no photo message
+published. Coordinator capture traversal now handles ordinary caption text and separate rich-photo
+text/credit, and the production Android configuration explicitly selects v3. Source typing and
+scoped lint/format pass; combined behavioral green awaits core/native integration. The fault
+fixture additionally serves explicit change batches, allowing a real client poll/edit while an
+old download remains gated; all seven updated HTTP checks pass.

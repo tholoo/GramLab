@@ -82,6 +82,8 @@ jobs:
           PY
       - name: Guest startup diagnostics typing
         run: MYPYPATH=tests uv run --locked mypy --explicit-package-bases tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
+      - name: Public media capture typing
+        run: uv run --locked mypy tests/test_runner_media_captures.py
       - name: Media transfer fault fixture typing
         run: MYPYPATH=tests uv run --locked mypy --explicit-package-bases tests/probes/media_transfer_server.py tests/test_media_transfer_server.py
       - name: Explicit rich button input experiment typing

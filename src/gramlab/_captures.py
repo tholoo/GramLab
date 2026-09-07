@@ -29,7 +29,15 @@ def _rich_fragments(rich_message: dict[str, Any]) -> list[str]:
         block = pending.pop()
         for name in ("text", "summary", "caption", "credit"):
             if name in block:
-                fragments.append(_rich_text(block[name]))
+                if name == "caption" and block["type"] == "photo":
+                    caption = block[name]
+                    fragments.extend(
+                        _rich_text(caption[field])
+                        for field in ("text", "credit")
+                        if field in caption
+                    )
+                else:
+                    fragments.append(_rich_text(block[name]))
         if "blocks" in block:
             pending.extend(reversed(block["blocks"]))
         if "items" in block:
@@ -47,6 +55,8 @@ def _rich_fragments(rich_message: dict[str, Any]) -> list[str]:
 
 def _message_fragments(message: dict[str, Any]) -> list[str]:
     fragments = [message["text"]]
+    if "caption" in message:
+        fragments.append(message["caption"])
     if "rich_message" in message:
         fragments.extend(_rich_fragments(message["rich_message"]))
     return fragments

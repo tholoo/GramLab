@@ -82,11 +82,34 @@ def test_delayed_old_transfer_finishes_after_snapshot_edit() -> None:
                 assert old.partial_sent.wait(timeout=5)
                 assert not result.done()
                 updated = {"schema": 3, "world_id": "fixture", "assets": [{"asset_id": 2}]}
-                server.snapshot(updated)
+                change = {
+                    "position": 1,
+                    "type": "message.edited",
+                    "revision": 5,
+                    "data": {"id": 1, "photo": {"asset_id": 2}},
+                }
+                journal = {
+                    "schema": 3,
+                    "world_id": "fixture",
+                    "user_id": 1,
+                    "head": 1,
+                    "now": 1700000000,
+                    "users": [],
+                    "assets": [{"asset_id": 2}],
+                    "changes": [change],
+                }
+                server.publish(updated, journal)
                 client = connection(server)
                 try:
                     client.request("GET", "/v3/snapshot", headers=AUTHORIZATION)
                     assert json.loads(client.getresponse().read()) == updated
+                    client.request("GET", "/v3/changes?after=0&limit=1", headers=AUTHORIZATION)
+                    assert json.loads(client.getresponse().read()) == journal | {"cursor": 1}
+                    client.request("GET", "/v3/changes?after=1", headers=AUTHORIZATION)
+                    assert json.loads(client.getresponse().read()) == journal | {
+                        "cursor": 1,
+                        "changes": [],
+                    }
                 finally:
                     client.close()
                 assert not result.done()

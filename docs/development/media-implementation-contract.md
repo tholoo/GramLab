@@ -73,7 +73,9 @@ requests retain the existing 65,536-byte body bound. Validation failures expose 
 Version 3 coordinates media, later identity dependencies and rich-target message revisions:
 
 - `GET /v3/snapshot` keeps all v2 fields, sets `schema:3`, and adds `assets` and
-  `message_revisions`. `users` remains the authoritative visible identity list.
+  `message_revisions`. `users` remains the authoritative visible identity list. In this photo batch, snapshot,
+  changes and callback responses all include that full current persona-visible list in the same
+  order: the persona and every bot in its private chats.
 - `GET /v3/changes?after=N&limit=L` keeps v2 pagination/cursor semantics, sets `schema:3`, and adds
   `users` and `assets` dependency lists. Each returned message change also has `revision`, the
   corresponding global message creation/edit event sequence. These are distinct from persona
