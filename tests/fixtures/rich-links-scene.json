@@ -1,0 +1,17 @@
+{
+  "initial": {
+    "blocks": [
+      {"type": "heading", "size": 2, "text": "Linked text / پیوندها"},
+      {"type": "paragraph", "text": ["Visit ", {"type": "url", "text": {"type": "bold", "text": "Guide راهنما"}, "url": "https://example.invalid/guide?source=hidden-url"}]},
+      {"type": "paragraph", "text": [{"type": "email_address", "text": "Email team", "email_address": "hidden-email@example.invalid"}, " / ", {"type": "phone_number", "text": "Call team", "phone_number": "+12025550123"}]}
+    ]
+  },
+  "edited": {
+    "is_rtl": true,
+    "blocks": [
+      {"type": "heading", "size": 2, "text": "Links updated / ویرایش"},
+      {"type": "paragraph", "text": ["Open ", {"type": "url", "text": {"type": "italic", "text": "New guide راهنمای تازه"}, "url": "not an address"}]},
+      {"type": "paragraph", "text": [{"type": "email_address", "text": {"type": "bold", "text": "New email ایمیل"}, "email_address": ""}, " / ", {"type": "phone_number", "text": "New phone تلفن", "phone_number": "not a phone number"}]}
+    ]
+  }
+}
