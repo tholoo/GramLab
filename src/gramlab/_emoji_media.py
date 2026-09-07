@@ -25,6 +25,8 @@ _PROBE_OUTPUT_LIMIT: Final = 256 * 1024
 _ERROR_OUTPUT_LIMIT: Final = 64 * 1024
 _FRAME_BYTES: Final = 100 * 100 * 4
 _MAX_FRAMES: Final = 90
+_MAX_SEGMENT_CHILDREN: Final = 4096
+_UNKNOWN_EBML_SIZE: Final = -1
 
 
 @dataclass(frozen=True)
@@ -170,7 +172,12 @@ def _decimal(value: object) -> Decimal:
 
 
 def _read_ebml_vint(
-    data: bytes, offset: int, *, maximum_length: int, keep_marker: bool
+    data: bytes,
+    offset: int,
+    *,
+    maximum_length: int,
+    keep_marker: bool,
+    allow_unknown_size: bool = False,
 ) -> tuple[int, int]:
     if offset >= len(data) or data[offset] == 0:
         raise ValueError("Custom emoji main has an invalid EBML header")
@@ -187,7 +194,9 @@ def _read_ebml_vint(
     if not keep_marker:
         value &= (1 << (7 * length)) - 1
         if value == (1 << (7 * length)) - 1:
-            raise ValueError("Custom emoji main has an indefinite EBML header")
+            if allow_unknown_size:
+                return _UNKNOWN_EBML_SIZE, end
+            raise ValueError("Custom emoji main has an unsupported unknown EBML size")
     return value, end
 
 
@@ -211,6 +220,41 @@ def _require_webm_doctype(data: bytes) -> None:
         cursor = element_end
     if doctype != b"webm":
         raise ValueError("Custom emoji animated main must use WebM DocType")
+
+    segment_id, cursor = _read_ebml_vint(data, header_end, maximum_length=4, keep_marker=True)
+    if segment_id != 0x18538067:
+        raise ValueError("Custom emoji WebM must contain one top-level Segment")
+    segment_size, cursor = _read_ebml_vint(
+        data,
+        cursor,
+        maximum_length=8,
+        keep_marker=False,
+        allow_unknown_size=True,
+    )
+    if segment_size != _UNKNOWN_EBML_SIZE:
+        if cursor + segment_size != len(data):
+            raise ValueError("Custom emoji WebM Segment does not end at input EOF")
+        return
+
+    child_count = 0
+    while cursor < len(data):
+        child_count += 1
+        if child_count > _MAX_SEGMENT_CHILDREN:
+            raise ValueError("Custom emoji WebM has too many top-level Segment children")
+        _, cursor = _read_ebml_vint(data, cursor, maximum_length=4, keep_marker=True)
+        child_size, cursor = _read_ebml_vint(
+            data,
+            cursor,
+            maximum_length=8,
+            keep_marker=False,
+            allow_unknown_size=True,
+        )
+        if child_size == _UNKNOWN_EBML_SIZE:
+            raise ValueError("Custom emoji WebM has an unsupported unknown-sized Segment child")
+        child_end = cursor + child_size
+        if child_end > len(data):
+            raise ValueError("Custom emoji WebM has a truncated Segment child")
+        cursor = child_end
 
 
 def _validate_webm(data: bytes) -> tuple[ImageAsset, int]:
