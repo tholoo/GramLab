@@ -1,8 +1,10 @@
 # Project rich buttons through the original native codec
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: claimed
+Work state: ready for coordinator integration; native acceptance pending
+Assigned branch: task/rich-buttons-codec
+Assigned worker: rich_button_seam
 Blocked by: none for independent canonical codec; ticket 14 for real-bot execution
 
 Implement the GPL side of the frozen [button contract](../../../docs/development/rich-buttons-contract.md).
@@ -31,3 +33,50 @@ verify all original UI/resources remain unchanged. Report checks that require co
 explicitly. Commit owned files and hand back a frozen clean branch, retained evidence and exact
 reproduction. Coordinator owns shared static lists, APK build, native red/green, real-bot/input
 acceptance, shared docs and combined gates. No public targeting/geometry API is assigned.
+
+## Worker handoff
+
+The canonical codec fixture/probe/test checkpoint is `d166ae84bf0e8d8c571062a821314a5f13f94d1d`.
+Those four files remain frozen for coordinator-owned existing-APK red. The fixture server is
+loopback-only and capability-authenticated, using a real baseline World snapshot with separately
+authored canonical rich content. It deliberately proves native codec behavior only.
+
+Patch 0013 modifies only the two assigned GPL adapter/probe classes. It projects original row,
+page-button, inline-text-button, style and callback/copy/disabled constructors; rejects malformed
+or noncanonical records; preserves UTF-8 callback bytes; validates copied-text code points and
+canonical plain-label leaves. BridgeProbe observes the complete serialized content and checks
+native style/alignment/optional-style/password flags. No upstream renderer, UI, input or assets
+changed; no client-derived code entered the MIT core. Fixture JSON and Python are independently
+authored contract examples and reuse the repository's existing authenticated codec transport.
+
+The complete catalog covers eight-button fill rows, all explicit alignments, absent/all styles,
+all actions in row and inline positions, nested plain arrays and currently admitted RichText roles.
+Four independent positives distinguish 256 Unicode code points from Java UTF-16 units, 64 UTF-8
+callback bytes, the last allowed multibyte label character, and per-leaf direction normalization.
+There are 51 static malformed records and six generated length/depth/node/aggregate-byte cases.
+Full observed message metadata and complete rich content are compared, with exact rejection errors.
+
+Verified in the worker's independent offline tool profiles and editable environment:
+
+- Scoped Ruff lint, formatting and strict mypy for both new Python files passed.
+- Scoped JDK 17 compilation of the two changed GPL classes against the approved immutable main
+  compiled classes and Android 36 SDK passed. This is not an APK or native behavioral check.
+- A fresh private export of pinned Android revision `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`
+  accepted the complete 13-patch queue and reproduced both authored GPL files exactly.
+- 10,759 original UI/resource/asset files compared directly against pinned Git blob identifiers;
+  zero differences. The source and prepared exports remain in this worker's ignored cache.
+
+Retained worker evidence: `artifacts/rich-buttons-codec-static/` contains scoped check logs,
+`source-integrity.json` and `verification.json` with exact local provenance/tool paths. Reproduce
+Python checks with `tools/dev default --offline --command uv run --offline` followed by
+`ruff check`, `ruff format --check`, or `mypy` and the two owned Python paths. Reproduce preparation
+with that shell's Python, `clients/android/prepare.py`, the approved pinned `--upstream` and a
+new private `--destination`. Source acquisition was unnecessary.
+
+Deferred to coordinator: run
+`tests/test_android_rich_button_codec.py::test_canonical_buttons_survive_native_serialization_and_reject_malformed_snapshots`
+under the Android profile, shared serial lock and documented outer network guard, first against
+the existing APK for red and then rebuilt APK for green. Native red/green, full/static integration
+lists, real-bot/button-input acceptance and shared compatibility/handoff docs remain coordinator
+work. No native acceptance is claimed here. No guest, APK build or worker background process was
+started or remains running. Ticket remains claimed until coordinator acceptance.

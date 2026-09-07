@@ -1,0 +1,234 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -5,6 +5,7 @@
+ import org.json.JSONException;
+ import org.json.JSONObject;
+ import org.telegram.tgnet.tl.TL_iv;
++import org.telegram.tgnet.tl.TL_keyboard;
+ 
+ import java.nio.charset.StandardCharsets;
+ import java.util.ArrayList;
+@@ -85,6 +86,100 @@
+         return result;
+     }
+ 
++    // Button content arrives canonical. Reject dirty leaves rather than silently cleaning
++    // snapshots differently from the world; callback payloads deliberately skip this check.
++    private static String buttonString(String value) {
++        int bytes = 0;
++        boolean previousDirection = false;
++        for (int i = 0; i < value.length();) {
++            int codepoint = value.codePointAt(i);
++            boolean direction = codepoint == 0x200e || codepoint == 0x200f;
++            require(bytes < 34996 && codepoint != '\t'
++                    && !(codepoint >= 0x2028 && codepoint <= 0x202e)
++                    && codepoint != 0x030a && codepoint != 0x0333 && codepoint != 0x033f
++                    && !(previousDirection && direction));
++            bytes += codepoint < 0x80 ? 1 : codepoint < 0x800 ? 2 : codepoint < 0x10000 ? 3 : 4;
++            previousDirection = direction;
++            i += Character.charCount(codepoint);
++        }
++        return value;
++    }
++
++    private static TL_iv.RichText buttonLabel(Object value) throws JSONException {
++        if (value instanceof String) return text(buttonString((String) value));
++        require(value instanceof JSONArray);
++        JSONArray array = (JSONArray) value;
++        require(array.length() > 0);
++        TL_iv.textConcat result = new TL_iv.textConcat();
++        for (int i = 0; i < array.length(); i++) result.texts.add(buttonLabel(array.get(i)));
++        return result;
++    }
++
++    private static TL_keyboard.PageButton button(JSONObject record) throws JSONException {
++        fields(record, "text", "style", "callback_data", "copy_text", "disabled");
++        require((record.has("callback_data") ? 1 : 0) + (record.has("copy_text") ? 1 : 0)
++                + (record.has("disabled") ? 1 : 0) == 1);
++        TL_keyboard.PageButton result = new TL_keyboard.PageButton();
++        result.text = buttonLabel(record.opt("text"));
++        if (record.has("callback_data")) {
++            TL_keyboard.TL_inlineButtonTypeCallback callback = new TL_keyboard.TL_inlineButtonTypeCallback();
++            callback.data = string(record, "callback_data").getBytes(StandardCharsets.UTF_8);
++            require(callback.data.length >= 1 && callback.data.length <= 64);
++            callback.requires_password = false;
++            result.type = callback;
++        } else if (record.has("copy_text")) {
++            require(record.opt("copy_text") instanceof JSONObject);
++            JSONObject copy = record.getJSONObject("copy_text");
++            fields(copy, "text");
++            require(copy.opt("text") instanceof String);
++            TL_keyboard.TL_inlineButtonTypeCopy action = new TL_keyboard.TL_inlineButtonTypeCopy();
++            action.copy_text = buttonString(string(copy, "text"));
++            int count = action.copy_text.codePointCount(0, action.copy_text.length());
++            require(count >= 1 && count <= 256);
++            result.type = action;
++        } else {
++            require(record.opt("disabled") instanceof JSONObject);
++            fields(record.getJSONObject("disabled"));
++            result.type = new TL_keyboard.TL_inlineButtonTypeDisabled();
++        }
++        if (record.has("style")) {
++            TL_keyboard.RichButtonStyle style = new TL_keyboard.RichButtonStyle();
++            switch (string(record, "style")) {
++                case "primary": style.bg_primary = true; break;
++                case "danger": style.bg_danger = true; break;
++                case "success": style.bg_success = true; break;
++                case "link":
++                    require(result.type instanceof TL_keyboard.TL_inlineButtonTypeCallback);
++                    style.link = true;
++                    break;
++                default: require(false);
++            }
++            result.style = style;
++        }
++        return result;
++    }
++
++    private static TL_iv.pageBlockButtonRow buttonRow(JSONObject record) throws JSONException {
++        fields(record, "type", "buttons", "align");
++        require(record.opt("buttons") instanceof JSONArray);
++        JSONArray buttons = record.getJSONArray("buttons");
++        require(buttons.length() >= 1 && buttons.length() <= 8);
++        TL_iv.pageBlockButtonRow result = new TL_iv.pageBlockButtonRow();
++        for (int i = 0; i < buttons.length(); i++) {
++            require(buttons.opt(i) instanceof JSONObject);
++            result.buttons.add(button(buttons.getJSONObject(i)));
++        }
++        if (record.has("align")) {
++            switch (string(record, "align")) {
++                case "left": result.align_left = true; break;
++                case "center": result.align_center = true; break;
++                case "right": result.align_right = true; break;
++                default: require(false);
++            }
++        }
++        return result;
++    }
++
+     private static TL_iv.RichText text(Object value) throws JSONException {
+         if (value instanceof String) {
+             TL_iv.textPlain result = new TL_iv.textPlain();
+@@ -100,6 +195,16 @@
+         }
+         require(value instanceof JSONObject);
+         JSONObject record = (JSONObject) value;
++        if (string(record, "type").equals("button")) {
++            fields(record, "type", "button");
++            require(record.opt("button") instanceof JSONObject);
++            TL_keyboard.PageButton button = button(record.getJSONObject("button"));
++            TL_iv.textButton result = new TL_iv.textButton();
++            result.text = button.text;
++            result.type = button.type;
++            result.style = button.style;
++            return result;
++        }
+         fields(record, "type", "text");
+         TL_iv.RichText result;
+         switch (string(record, "type")) {
+@@ -133,6 +238,7 @@
+         String type = string(record, "type");
+         TL_iv.PageBlock result;
+         switch (type) {
++            case "buttons": return buttonRow(record);
+             case "paragraph": case "footer":
+                 fields(record, "type", "text");
+                 result = type.equals("paragraph") ? new TL_iv.pageBlockParagraph() : new TL_iv.pageBlockFooter();
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -7,6 +7,7 @@
+ import org.telegram.tgnet.SerializedData;
+ import org.telegram.tgnet.TLRPC;
+ import org.telegram.tgnet.tl.TL_iv;
++import org.telegram.tgnet.tl.TL_keyboard;
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
+@@ -29,6 +30,11 @@
+             JSONArray result = new JSONArray();
+             for (TL_iv.RichText item : value.texts) result.put(richText(item));
+             return result;
++        }
++        if (value instanceof TL_iv.textButton) {
++            TL_iv.textButton button = (TL_iv.textButton) value;
++            return new JSONObject().put("type", "button")
++                    .put("button", richButton(button.flags, button.text, button.type, button.style));
+         }
+         String type;
+         if (value instanceof TL_iv.textBold) type = "bold";
+@@ -44,6 +50,51 @@
+         return new JSONObject().put("type", type).put("text", richText(value.text));
+     }
+ 
++    private static Object buttonLabel(TL_iv.RichText value) throws Exception {
++        if (value instanceof TL_iv.textPlain) return ((TL_iv.textPlain) value).text;
++        if (value instanceof TL_iv.textConcat && !value.texts.isEmpty()) {
++            JSONArray result = new JSONArray();
++            for (TL_iv.RichText item : value.texts) result.put(buttonLabel(item));
++            return result;
++        }
++        throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_LABEL");
++    }
++
++    private static JSONObject richButton(int flags, TL_iv.RichText text,
++            TL_keyboard.InlineButtonType action, TL_keyboard.RichButtonStyle style) throws Exception {
++        if (flags != (style == null ? 0 : 1)) {
++            throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_FLAGS");
++        }
++        JSONObject result = new JSONObject().put("text", buttonLabel(text));
++        if (action instanceof TL_keyboard.TL_inlineButtonTypeCallback) {
++            TL_keyboard.TL_inlineButtonTypeCallback callback = (TL_keyboard.TL_inlineButtonTypeCallback) action;
++            if (callback.flags != 0 || callback.requires_password) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_CALLBACK_FLAGS");
++            }
++            String data = new String(callback.data, StandardCharsets.UTF_8);
++            if (!java.util.Arrays.equals(callback.data, data.getBytes(StandardCharsets.UTF_8))) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_CALLBACK_ENCODING");
++            }
++            result.put("callback_data", data);
++        } else if (action instanceof TL_keyboard.TL_inlineButtonTypeCopy) {
++            result.put("copy_text", new JSONObject().put("text",
++                    ((TL_keyboard.TL_inlineButtonTypeCopy) action).copy_text));
++        } else if (action instanceof TL_keyboard.TL_inlineButtonTypeDisabled) {
++            result.put("disabled", new JSONObject());
++        } else throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_ACTION");
++        if (style != null) {
++            int bits = (style.bg_primary ? 1 : 0) | (style.bg_danger ? 2 : 0)
++                    | (style.bg_success ? 4 : 0) | (style.link ? 8 : 0);
++            if (style.flags != bits || Integer.bitCount(bits) != 1
++                    || (style.link && !(action instanceof TL_keyboard.TL_inlineButtonTypeCallback))) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_STYLE");
++            }
++            result.put("style", style.bg_primary ? "primary" : style.bg_danger ? "danger"
++                    : style.bg_success ? "success" : "link");
++        }
++        return result;
++    }
++
+     private static void optionalRichText(JSONObject result, String key, TL_iv.RichText value) throws Exception {
+         if (value != null && !(value instanceof TL_iv.textEmpty)
+                 && !(value instanceof TL_iv.textPlain && ((TL_iv.textPlain) value).text.isEmpty())) {
+@@ -59,6 +110,21 @@
+ 
+     private static JSONObject richBlock(TL_iv.PageBlock block) throws Exception {
+         JSONObject result = new JSONObject();
++        if (block instanceof TL_iv.pageBlockButtonRow) {
++            TL_iv.pageBlockButtonRow row = (TL_iv.pageBlockButtonRow) block;
++            int bits = (row.align_left ? 1 : 0) | (row.align_center ? 2 : 0) | (row.align_right ? 4 : 0);
++            if (row.flags != bits || Integer.bitCount(bits) > 1
++                    || row.buttons.isEmpty() || row.buttons.size() > 8) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_ROW");
++            }
++            JSONArray buttons = new JSONArray();
++            for (TL_keyboard.PageButton button : row.buttons) {
++                buttons.put(richButton(button.flags, button.text, button.type, button.style));
++            }
++            result.put("type", "buttons").put("buttons", buttons);
++            if (bits != 0) result.put("align", row.align_left ? "left" : row.align_center ? "center" : "right");
++            return result;
++        }
+         int heading = block instanceof TL_iv.pageBlockHeading1 ? 1
+                 : block instanceof TL_iv.pageBlockHeading2 ? 2
+                 : block instanceof TL_iv.pageBlockHeading3 ? 3
