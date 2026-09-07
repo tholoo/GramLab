@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: claimed by photo-lifecycle-cache worker
 Blocked by: none for host/probe corrections; coordinator owns native execution
 
 Own this ticket, existing `tests/probes/android_media.py`, `tests/test_android_media.py`, and
@@ -50,3 +50,76 @@ focused static/HTTP checks before handoff. Coordinator runs fresh serial native 
 inspects images/reports under android-gate. No worker APK/guest. Send frozen clean commit, exact
 source/retained evidence supporting the oracle, helper scope, commands and remaining native risks.
 Keep claimed until full integration acceptance, including the unchanged-photo control, passes.
+
+## Worker handoff
+
+Owned changes are this ticket, `tests/probes/android_media.py`, `tests/test_android_media.py`,
+and the authorized bounded helper `tests/probes/native_asset_proxy.py` with
+`tests/test_native_asset_proxy.py`. No shared fixture/server/helper, native source, patch, APK,
+profile, rendering, transport guard or timeout was changed.
+
+The real-bot probe now starts its edited phase before returning the initial observation to the
+bot scenario. Restart gets a distinct boundary after force-stop. Each phase requires its own
+initialization/edit event, exact new loader start/success totals and independently observed native
+GET totals, successful complete HTTP bodies, exact selected destination paths/digests/sizes and
+empty internal/external `*.gramlab-*.part` scans. Hashing follows transfer completion. The final
+ordered trace is partitioned without gaps; late work cannot borrow a previous phase's success.
+The four original captures, seven-gesture complete ordinary framing bound, full semantic
+round-trip assertions, cold launches, accounts and runtime isolation checks remain required.
+
+The exact transfer counts by asset 1/2 are initial 1/2, edit 1/0, restart 0/1. PNG starts only in
+the image directory, then exists in both directories. JPEG starts in both, loses only its image
+copy after edit, and regains that copy through a new restart GET. JPEG messages are rich messages;
+its image-directory copy does not imply an ordinary JPEG message. Original MessageObject.getPhoto
+selects the first rich photo; MessagesStorage's changed-photo cleanup selects the non-force-cache
+path. RichMessageLayout uses cache type 1 and ChatMessageCell.fileAttach may select type 0.
+Original FileLoader/FileLoadOperation also validate the selected destination. These observations
+justify the bounded oracle, not suppressing original deletion or claiming universal cache reuse.
+
+The test-only proxy forwards only the configured authenticated loopback bridge and bounded
+known fixture routes; it does not follow redirects. Scenario-owned asset reads keep using the
+actual bridge directly. Only native asset GETs enter its sanitized sequence/phase/asset/status/
+byte/timing/error journal. Reopening the bridge retargets the proxy while preserving its native
+endpoint and exact World/persona/capability binding. HTTP handler sockets have bounded waits;
+shutdown waits for owned handler/server threads. It requires the isolated loopback namespace.
+
+A second native test creates one ordinary PNG through public World operations. Its complete
+independent v3 envelope includes now=1700000000, message_position=1, cursor/revision=4 and the
+exact photo/identity descriptors. After COLD restart it requires the same image-directory bytes,
+zero new loader starts/successes/asset GETs, and a fresh exact-identity original photo observer
+result showing the current ImageReceiver has the full image. Both photo/caption captures must be
+fully framed. The control produces two report captures and makes no claim about edited rich
+photos. The full snapshot oracle is also exercised through actual guarded ClientBridge HTTP.
+
+Verification from the checkout-local pinned environment:
+
+- `tools/worktree check photo-lifecycle-cache`; `tools/dev default --command uv sync --locked`;
+  imported gramlab resolves to this worker checkout.
+- `tools/dev default --command unshare --user --map-root-user --net bash -eu -c
+  'ip link set lo up; .venv/bin/pytest tests/test_native_asset_proxy.py
+  --junitxml=artifacts/ticket56-proxy.xml'`: 12 passed, 3.35 seconds. Covers exact body/status and
+  redirect preservation, wrong auth/route/target rejection, actual closed/reopened ClientBridge
+  retarget, missing asset, complete control snapshot and exclusion of direct scenario GETs.
+- Scoped Ruff lint/format and `git diff --check` pass.
+- `tools/dev default --command uv run --locked mypy tests/probes/android_media.py
+  tests/test_android_media.py` passes. Separate
+  `tools/dev default --command env MYPYPATH=tests uv run --locked mypy --explicit-package-bases
+  tests/probes/native_asset_proxy.py tests/test_native_asset_proxy.py` passes. Separate scopes
+  preserve the staged standalone-probe and imported test-module layouts.
+- `tools/dev default --command uv run --locked pytest tests/test_android_media.py --collect-only`:
+  two native cases collected; no worker guest or APK build was run.
+- Worker-local ignored `artifacts/ticket56-retained/check.py` replays the untouched normal20
+  `media-interaction-native-01/test_real_photos_render_edit_c0` result. The baseline oracle fails
+  its initial-path-subset assertion. Corrected exact cache and phase transfer totals pass, and
+  wrong bytes, missing rich JPEG cache and undeleted JPEG image-path mutations all reject. The
+  preserved full semantic/framing/cache/media-shape checks reach the new mandatory phase evidence
+  requirement and reject the old artifact's absence of it. Results are retained in
+  `artifacts/ticket56-retained/result.log`; no old artifact/report was rewritten.
+
+Remaining acceptance belongs to the coordinator: fresh serial original-APK real-bot lifecycle
+and unchanged-photo control under android-gate, plus screenshot/report inspection. Old evidence
+cannot prove the new native-only GET counts, phase boundaries, no-parts gate or unchanged control.
+Exact scheduling/directory disagreement must fail visibly and be diagnosed, not force a schedule
+or relax bytes, framing, semantics, no-DC or isolation requirements. Keep this ticket claimed until
+both fresh native cases pass. Shared handoff/compatibility/contributor check documentation remains
+coordinator-owned. No worker server, bot, build or guest process remains active at handoff.
