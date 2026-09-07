@@ -95,3 +95,10 @@ codec and real-bot rendering/live RTL edit/restart checks pass. Combined regress
 rich-button input remain separate acceptance steps; see the
 [button contract](../../../docs/development/rich-buttons-contract.md). The optional geometry
 experiment is not part of this series or the normal APK.
+
+`0014-quoted-code-entities.patch` corrects quote containment of code/pre in the existing
+nine-entity validator. Equal extents order the quote first; all ancestors are checked to keep
+emphasis/code nesting, crossing ranges and nested quotes invalid. Only `GramLabBridge` changes.
+Fresh preparation and comparison of 43,268 exported files find that one adapter difference;
+all 6,666 checked upstream UI/resource files remain unchanged. Integrated compilation and
+runtime acceptance are tracked in [the quoted-code correction](../../../docs/development/quoted-code-formatting.md).

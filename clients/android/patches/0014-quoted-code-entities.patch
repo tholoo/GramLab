@@ -1,0 +1,37 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -177,8 +177,13 @@
+                     && boundary(text, entity.offset + entity.length));
+             result.add(entity);
+         }
+-        result.sort((left, right) -> left.offset != right.offset
+-                ? Integer.compare(left.offset, right.offset) : Integer.compare(right.length, left.length));
++        result.sort((left, right) -> {
++            if (left.offset != right.offset) return Integer.compare(left.offset, right.offset);
++            if (left.length != right.length) return Integer.compare(right.length, left.length);
++            boolean leftQuote = left instanceof TLRPC.TL_messageEntityBlockquote;
++            boolean rightQuote = right instanceof TLRPC.TL_messageEntityBlockquote;
++            return leftQuote == rightQuote ? 0 : leftQuote ? -1 : 1;
++        });
+         java.util.ArrayDeque<TLRPC.MessageEntity> active = new java.util.ArrayDeque<>();
+         int quotes = 0;
+         for (TLRPC.MessageEntity entity : result) {
+@@ -188,10 +193,13 @@
+             if (!active.isEmpty()) {
+                 TLRPC.MessageEntity parent = active.peekLast();
+                 require(entity.offset + entity.length <= parent.offset + parent.length);
+-                require(!(entity instanceof TLRPC.TL_messageEntityCode)
+-                        && !(entity instanceof TLRPC.TL_messageEntityPre)
+-                        && !(parent instanceof TLRPC.TL_messageEntityCode)
+-                        && !(parent instanceof TLRPC.TL_messageEntityPre));
++                boolean code = entity instanceof TLRPC.TL_messageEntityCode
++                        || entity instanceof TLRPC.TL_messageEntityPre;
++                for (TLRPC.MessageEntity ancestor : active) {
++                    require(!(ancestor instanceof TLRPC.TL_messageEntityCode)
++                            && !(ancestor instanceof TLRPC.TL_messageEntityPre));
++                    if (code) require(ancestor instanceof TLRPC.TL_messageEntityBlockquote);
++                }
+             }
+             if (entity instanceof TLRPC.TL_messageEntityBlockquote) {
+                 require(quotes == 0);

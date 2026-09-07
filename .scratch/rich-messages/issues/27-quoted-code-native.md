@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: none for patch implementation; coordinator owns integrated native acceptance
 
 Follow [the frozen core/native contract](../../../docs/development/quoted-code-formatting.md) and
@@ -22,3 +22,16 @@ existing build cache for one integrated build and owns old/new native codec and 
 Report preparation evidence honestly as source evidence, not compilation/runtime acceptance.
 Commit only assigned files, return a frozen clean branch with terminal processes, and leave the
 ticket claimed until coordinator acceptance. Request any ownership changes before editing.
+
+## Worker result
+
+Patch 0014 changes only `GramLabBridge.entities`. Equal-offset/equal-length quotes sort before
+other entities while equal nonquotes retain stable input order. Validation now inspects every
+active ancestor: code/pre accepts quote ancestors only, and no entity may have a code/pre ancestor.
+Existing range, crossing, nested-quote, type, payload and UTF-16 boundary checks remain in place.
+
+A fresh pinned 14-patch export applies without fuzz. Compared with the retained exact 13-patch
+source, only `GramLabBridge.java` differs under `TMessagesProj/src`. All 1,471 original UI Java
+files and 5,195 original resource files match acquired upstream byte-for-byte, and the source lock
+and dependency-verification metadata are unchanged. This is preparation/source evidence only;
+the coordinator still owns compilation, old/new codec behavior and real Android acceptance.
