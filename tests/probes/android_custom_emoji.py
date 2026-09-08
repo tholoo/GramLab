@@ -148,6 +148,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         xml = adb("shell", "cat", "/data/local/tmp/custom-emoji-settings.xml").stdout
         retain(name + ".xml", xml)
         screenshot(name)
+        retain(name + "-preferences.json", json.dumps(preferences(), indent=2))
         return ET.fromstring(xml)  # noqa: S314
 
     def find_setting(text: str, tree: ET.Element) -> tuple[ET.Element, ET.Element]:
@@ -180,62 +181,92 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if node.get("name") in keys
         }
 
+    def animation_checkbox(tree: ET.Element, label: str) -> ET.Element:
+        controls = [
+            node
+            for node in tree.iter("node")
+            if node.get("content-desc") == label and node.get("class") == "android.widget.CheckBox"
+        ]
+        if len(controls) != 1:
+            raise RuntimeError("Original animation checkbox is ambiguous: " + label)
+        if controls[0].get("checked") not in {"false", "true"}:
+            raise RuntimeError("Original animation checkbox has no checked state: " + label)
+        return controls[0]
+
+    def tap_checkbox_side(node: ET.Element) -> None:
+        match = BOUNDS.fullmatch(node.get("bounds", ""))
+        if match is None:
+            raise RuntimeError("Original animation checkbox has no bounds")
+        left, top, right, bottom = map(int, match.groups())
+        if not (0 <= left < right <= 320 and 0 <= top < bottom <= 640):
+            raise RuntimeError("Original animation checkbox is outside the guest display")
+        adb(
+            "shell",
+            "input",
+            "tap",
+            str(left + (right - left) // 4),
+            str((top + bottom) // 2),
+        )
+
+    def enable_animation_checkbox(label: str, tree: ET.Element) -> ET.Element:
+        nonlocal navigation_frame
+        for _attempt in range(3):
+            control = animation_checkbox(tree, label)
+            if control.get("checked") == "true":
+                return tree
+            tap_checkbox_side(control)
+            for poll in range(3):
+                if poll:
+                    time.sleep(0.25)
+                navigation_frame += 1
+                tree = settings_tree(f"settings-{navigation_frame:02d}")
+                if animation_checkbox(tree, label).get("checked") == "true":
+                    return tree
+        raise RuntimeError(
+            "No enabled state was observed for original animation checkbox: " + label
+        )
+
     def enable_animations() -> None:
         nonlocal navigation_frame
         animation_profile["before"] = preferences()
-        animation_profile["battery"] = adb("shell", "dumpsys", "battery").stdout
-        adb(
-            "shell",
-            "am",
-            "start",
-            "-W",
-            "-n",
-            f"{PACKAGE}/org.telegram.ui.LaunchActivity",
-            "-a",
-            "org.telegram.messenger.OPEN_ACCOUNT",
-            timeout=40,
-        )
-        navigation_frame += 1
-        tree = settings_tree(f"settings-{navigation_frame:02d}")
-        if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
-            adb("shell", "input", "keyevent", "4")
+        try:
+            animation_profile["battery"] = adb("shell", "dumpsys", "battery").stdout
+            adb(
+                "shell",
+                "am",
+                "start",
+                "-W",
+                "-n",
+                f"{PACKAGE}/org.telegram.ui.LaunchActivity",
+                "-a",
+                "org.telegram.messenger.OPEN_ACCOUNT",
+                timeout=40,
+            )
             navigation_frame += 1
             tree = settings_tree(f"settings-{navigation_frame:02d}")
-        power, tree = find_setting("Power Saving", tree)
-        tap_node(power)
-        navigation_frame += 1
-        tree = settings_tree(f"settings-{navigation_frame:02d}")
-        emoji, tree = find_setting("Animated Emoji", tree)
-        tap_node(emoji)  # Text-side tap expands the original category without toggling all flags.
-        navigation_frame += 1
-        tree = settings_tree(f"settings-{navigation_frame:02d}")
-        checked: dict[str, str] = {}
-        for label in ("Autoplay in keyboard", "Autoplay in chat"):
-            target, tree = find_setting(label, tree)
-            controls = [
-                node
-                for node in tree.iter("node")
-                if node.get("content-desc") == label
-                and node.get("class") == "android.widget.CheckBox"
-            ]
-            if len(controls) != 1:
-                raise RuntimeError("Original animation checkbox is ambiguous: " + label)
-            if controls[0].get("checked") != "true":
-                tap_node(target)
+            if any(node.get("text") == "Turn on notifications" for node in tree.iter("node")):
+                adb("shell", "input", "keyevent", "4")
                 navigation_frame += 1
                 tree = settings_tree(f"settings-{navigation_frame:02d}")
-                controls = [
-                    node
-                    for node in tree.iter("node")
-                    if node.get("content-desc") == label
-                    and node.get("class") == "android.widget.CheckBox"
-                ]
-            if len(controls) != 1 or controls[0].get("checked") != "true":
-                raise RuntimeError("Original animation checkbox did not enable: " + label)
-            checked[label] = controls[0].get("checked", "")
-        animation_profile["checked"] = checked
-        animation_profile["after"] = preferences()
-        retain("animation-profile.json", json.dumps(animation_profile, indent=2))
+            power, tree = find_setting("Power Saving", tree)
+            tap_node(power)
+            navigation_frame += 1
+            tree = settings_tree(f"settings-{navigation_frame:02d}")
+            emoji, tree = find_setting("Animated Emoji", tree)
+            tap_node(
+                emoji
+            )  # Text-side tap expands the original category without toggling all flags.
+            navigation_frame += 1
+            tree = settings_tree(f"settings-{navigation_frame:02d}")
+            checked: dict[str, str] = {}
+            for label in ("Autoplay in keyboard", "Autoplay in chat"):
+                _, tree = find_setting(label, tree)
+                tree = enable_animation_checkbox(label, tree)
+                checked[label] = animation_checkbox(tree, label).get("checked", "")
+            animation_profile["checked"] = checked
+        finally:
+            animation_profile["after"] = preferences()
+            retain("animation-profile.json", json.dumps(animation_profile, indent=2))
         adb("shell", "am", "force-stop", PACKAGE)
         launch("animation-enabled")
 
