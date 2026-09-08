@@ -307,8 +307,8 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
             "mode": "simulation",
             "world_event_sequences": [],
             "clipboard_observation": {
-                "before": "row copied / ردیف",
-                "after": "row copied / ردیف",
+                "before": "inline copied / درون",
+                "after": "inline copied / درون",
             },
         },
     }

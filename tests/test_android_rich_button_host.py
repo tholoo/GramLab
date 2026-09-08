@@ -98,7 +98,7 @@ class ExternalGuest(AndroidRichInput):
                 ),
             }
 
-    def _guest_state(self) -> tuple[int, int]:
+    def _guest_state(self, *, allow_owned_popup: bool = False) -> tuple[int, int]:
         return self.pid, self.now
 
     def _capture_original(self, path: Path) -> None:
@@ -1329,3 +1329,128 @@ def test_private_reader_matches_adb_argument_and_remote_status_contract(
     else:
         with pytest.raises(FileNotFoundError):
             reader._read("rich-button-observation.json")
+
+
+@pytest.fixture
+def popup_guest(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Independent WindowManager output, including ownership absent from a title."""
+    import subprocess
+
+    def make(defect: str = "") -> AndroidRichInput:
+        android = Android(
+            RuntimeProfile(bubblewrap="", python="", store_paths=()),
+            deadline=time.monotonic() + 3,
+            secrets=[],
+            bridge_version=4,
+        )
+        focus = "  mCurrentFocus=Window{abc123 u0 PopupWindow:456}\n"
+        popup = """  Window #0 Window{abc123 u0 PopupWindow:456}:
+    mDisplayId=0 taskId=8 mSession=Session{def123 4321:u0a10150} mClient=android.os.BinderProxy@aaa
+    mOwnerUid=10150 showForAllUsers=false package=org.gramlab.android appop=NONE
+    mAttrs={(16,236)(wrapxwrap) gr=TOP LEFT CENTER ty=APPLICATION_PANEL fmt=TRANSLUCENT
+    mParentWindow=Window{parent123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}
+    mLayoutAttached=true
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+    mHasSurface=true isReadyForDisplay()=true mWindowRemovalAllowed=false
+"""
+        parent = """
+  Window #1 Window{parent123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}:
+    mDisplayId=0 taskId=8 mSession=Session{def123 4321:u0a10150} mClient=android.os.BinderProxy@bbb
+    mOwnerUid=10150 showForAllUsers=false package=org.gramlab.android appop=NONE
+    mAttrs={(0,0)(fillxfill) ty=BASE_APPLICATION fmt=TRANSLUCENT
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+    mHasSurface=true isReadyForDisplay()=true mWindowRemovalAllowed=false
+"""
+        replacements = {
+            "foreign_pid": ("4321:u0a10150", "9999:u0a10150"),
+            "foreign_uid": ("mOwnerUid=10150", "mOwnerUid=10124"),
+            "foreign_package": ("package=org.gramlab.android", "package=com.android.systemui"),
+            "wrong_type": ("ty=APPLICATION_PANEL", "ty=APPLICATION_OVERLAY"),
+            "hidden": ("mViewVisibility=0x0", "mViewVisibility=0x4"),
+            "no_surface": ("mHasSurface=true", "mHasSurface=false"),
+            "missing_parent": ("mParentWindow=Window{parent123", "mParentWindow=Window{missing"),
+            "missing_owner": ("mOwnerUid=10150", "missingOwnerUid=10150"),
+            "unattached": ("mLayoutAttached=true", "mLayoutAttached=false"),
+        }
+        if defect in replacements:
+            popup = popup.replace(*replacements[defect])
+        if defect == "foreign_parent":
+            parent = parent.replace("4321:u0a10150", "9999:u0a10150")
+        if defect == "duplicate_window":
+            popup *= 2
+        if defect == "duplicate_parent":
+            parent *= 2
+        if defect == "wrong_focus_token":
+            focus = focus.replace("abc123", "unknown")
+        package = "package:org.gramlab.android uid:10150\n"
+        if defect == "duplicate_package":
+            package *= 2
+        if defect == "wrong_package_uid":
+            package = package.replace("10150", "10124")
+        calls: dict[tuple[str, ...], int] = {}
+
+        def replay(*args: str, **_kwargs: Any) -> Any:
+            calls[args] = calls.get(args, 0) + 1
+            if args == ("shell", "pidof", "org.gramlab.android"):
+                value = "9999\n" if defect == "restart" and calls[args] > 1 else "4321\n"
+            elif args == ("shell", "cat", "/proc/uptime"):
+                value = "100.00 5.00\n"
+            elif args == ("shell", "dumpsys", "window", "displays"):
+                value = focus
+                if defect == "focus_changed" and calls[args] > 1:
+                    value = "mCurrentFocus=Window{foreign u0 com.android.launcher3/.Launcher}\n"
+            elif args == ("shell", "dumpsys", "window", "windows"):
+                value = popup + parent
+            else:
+                assert args == (
+                    "shell",
+                    "cmd",
+                    "package",
+                    "list",
+                    "packages",
+                    "-U",
+                    "org.gramlab.android",
+                )
+                value = package
+            return subprocess.CompletedProcess(args, 0, stdout=value, stderr="")
+
+        monkeypatch.setattr(android, "_adb", replay)
+        return AndroidRichInput(android)
+
+    return make
+
+
+def test_confirmation_accepts_only_proven_owned_popup(popup_guest: Any) -> None:
+    assert popup_guest()._guest_state(allow_owned_popup=True) == (4321, 100000)
+
+
+def test_popup_cannot_authorize_new_touch(popup_guest: Any) -> None:
+    with pytest.raises(ValueError, match="target_unavailable"):
+        popup_guest()._guest_state()
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "foreign_pid",
+        "foreign_uid",
+        "foreign_package",
+        "wrong_type",
+        "hidden",
+        "no_surface",
+        "missing_parent",
+        "missing_owner",
+        "unattached",
+        "foreign_parent",
+        "duplicate_window",
+        "duplicate_parent",
+        "wrong_focus_token",
+        "duplicate_package",
+        "wrong_package_uid",
+        "restart",
+        "focus_changed",
+    ],
+)
+def test_confirmation_rejects_unproven_or_changed_popup(popup_guest: Any, defect: str) -> None:
+    with pytest.raises(ValueError):
+        popup_guest(defect)._guest_state(allow_owned_popup=True)

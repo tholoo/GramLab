@@ -25,3 +25,12 @@ original menu. The scenario's existing subsequent observation already cold-launc
 Do not add an extra launch, synthesize input, alter the renderer or count diagnostic substitution
 as uninstrumented acceptance. Preserve diagnostic09 and focused external-boundary red/green;
 run the real public scenario after the correction.
+
+## Focused coordinator checkpoint
+
+The positive owned-popup replay fails at the original focus check while 18 rejection controls
+pass (`artifacts/rich-button-popup-red-01.xml`). The corrected host and reordered real-bot
+simulation pass 108 focused tests (`artifacts/rich-button-popup-green-03.xml`), with scoped Ruff
+and strict typing. Post-input confirmation verifies the exact window, package UID, session PID,
+visible panel and owned original parent, then rereads focus/PID. Pre-input focus remains strict.
+No native effect, clipboard, event or quiet-period check is removed. Native acceptance is next.

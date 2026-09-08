@@ -223,7 +223,7 @@ class AndroidRichInput:
             input=raw.decode("utf-8"),
         )
 
-    def _guest_state(self) -> tuple[int, int]:
+    def _guest_state(self, *, allow_owned_popup: bool = False) -> tuple[int, int]:
         pids = self.android._adb("shell", "pidof", _PACKAGE).stdout.split()
         _require(len(pids) == 1 and pids[0].isdecimal(), "client_restarted")
         uptime = self.android._adb("shell", "cat", "/proc/uptime").stdout.split()
@@ -231,9 +231,62 @@ class AndroidRichInput:
         seconds = float(uptime[0])
         _require(math.isfinite(seconds) and seconds >= 0)
         windows = self.android._adb("shell", "dumpsys", "window", "displays").stdout
-        focused = re.findall(r"mCurrentFocus=Window\{[^\n]*\bu\d+ ([^\s}]+)", windows)
-        _require(len(focused) == 1 and focused[0].startswith(_PACKAGE + "/"))
+        focus_pattern = r"mCurrentFocus=Window\{([^\s{}]+) u(\d+) ([^{}\r\n]+)\}"
+        focused = re.findall(focus_pattern, windows)
+        _require(len(focused) == 1)
+        if not focused[0][2].startswith(_PACKAGE + "/"):
+            _require(allow_owned_popup and focused[0][2].startswith("PopupWindow:"))
+            self._owned_popup(focused[0], int(pids[0]))
+            # Ownership reads span several ADB calls. A popup from an earlier
+            # process or focus interval cannot confirm the current operation.
+            _require(self.android._adb("shell", "pidof", _PACKAGE).stdout.split() == pids)
+            current = self.android._adb("shell", "dumpsys", "window", "displays").stdout
+            _require(re.findall(focus_pattern, current) == focused)
         return int(pids[0]), int(seconds * 1000)
+
+    def _owned_popup(self, focused: tuple[str, str, str], pid: int) -> None:
+        packages = self.android._adb(
+            "shell", "cmd", "package", "list", "packages", "-U", _PACKAGE
+        ).stdout.splitlines()
+        _require(len(packages) == 1)
+        package = re.fullmatch(r"package:" + re.escape(_PACKAGE) + r" uid:(\d+)", packages[0])
+        _require(package is not None)
+        if package is None:
+            raise ValueError("target_unavailable")
+        uid = package[1]
+        inventory = self.android._adb("shell", "dumpsys", "window", "windows").stdout
+        _require(len(inventory.encode("utf-8")) <= _LIMIT)
+        records: list[tuple[tuple[str, str, str], str]] = []
+        for block in re.split(r"(?m)^  Window #\d+ ", inventory)[1:]:
+            header, _, body = block.partition("\n")
+            match = re.fullmatch(r"Window\{([^\s{}]+) u(\d+) ([^{}\r\n]+)\}:", header)
+            if match is not None:
+                records.append(((match[1], match[2], match[3]), body))
+
+        def owned_surface(identity: tuple[str, str, str], window_type: str) -> str:
+            matching = [body for key, body in records if key == identity]
+            _require(len(matching) == 1)
+            body = matching[0]
+            _require(re.findall(r"\bmSession=Session\{[^\s{}]+ (\d+):[^{}]+\}", body) == [str(pid)])
+            _require(
+                re.findall(r"\bmOwnerUid=(\d+) showForAllUsers=\w+ package=([^\s]+)", body)
+                == [(uid, _PACKAGE)]
+            )
+            _require(re.findall(r"\bty=(\w+)", body) == [window_type])
+            _require(re.findall(r"\bmViewVisibility=(\S+)", body) == ["0x0"])
+            _require(re.findall(r"\bmHasSurface=(\w+)", body) == ["true"])
+            _require(re.findall(r"\bisReadyForDisplay\(\)=(\w+)", body) == ["true"])
+            return body
+
+        popup = owned_surface(focused, "APPLICATION_PANEL")
+        parents = re.findall(r"\bmParentWindow=Window\{([^\s{}]+) u(\d+) ([^{}\r\n]+)\}", popup)
+        _require(len(parents) == 1)
+        parent = parents[0]
+        _require(
+            parent[1] == focused[1] and parent[2] == _PACKAGE + "/org.telegram.ui.LaunchActivity"
+        )
+        _require(re.findall(r"\bmLayoutAttached=(\w+)", popup) == ["true"])
+        owned_surface(parent, "BASE_APPLICATION")
 
     def _capture_original(self, path: Path) -> None:
         screenshot = subprocess.run(  # noqa: S603 — dedicated serial, original unmodified PNG
@@ -731,7 +784,7 @@ class AndroidRichInput:
         observed = self._read("rich-button-observation.json")
         state["candidate"] = {"source": "rich-button-observation.json", "observation": observed}
         observed = self._observation(observed, nonce=state["arm"]["client_nonce"])
-        pid, now = self._guest_state()
+        pid, now = self._guest_state(allow_owned_popup=True)
         _require(pid == observed["pid"] == state["pid"])
         _require(self.android._persona == state["arm"]["user_id"])
         _require(self.android._active_chat == state["arm"]["chat_id"])

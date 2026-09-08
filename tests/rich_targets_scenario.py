@@ -38,12 +38,12 @@ by_path = {json.dumps(target["path"]): target for target in observation["targets
 paths: list[list[str | int]] = [
     ["blocks", 16, "buttons", 0],
     ["blocks", 16, "buttons", 1],
-    ["blocks", 16, "buttons", 2],
     ["blocks", 17, "text", 1, "text", 0, "button"],
     ["blocks", 17, "text", 1, "text", 2, "button"],
     ["blocks", 17, "text", 2, "button"],
     ["blocks", 18, "blocks", 0, "text", "button"],
     ["blocks", 0, "text", "button"],
+    ["blocks", 16, "buttons", 2],
 ]
 
 
@@ -51,18 +51,20 @@ def target(path: list[str | int]) -> dict[str, Any]:
     return cast(dict[str, Any], by_path[json.dumps(path)])
 
 
+# The original disabled row propagates its tap to the message menu. Run it last;
+# the existing next observation starts a fresh client, while receipt repeats need no input.
 receipts: dict[str, Any] = {}
 states: dict[str, Any] = {}
 for name, path in zip(
     (
         "row_callback",
         "row_copy",
-        "row_disabled",
         "inline_callback",
         "inline_copy",
         "inline_disabled",
         "hidden",
         "offscreen",
+        "row_disabled",
     ),
     paths,
     strict=True,
