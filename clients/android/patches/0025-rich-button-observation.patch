@@ -1,4 +1,4 @@
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java	2026-09-08 04:09:27.954925954 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java	2026-09-08 04:23:37.698141670 +0330
 @@ -100,7 +100,7 @@
@@ -86,7 +86,7 @@ diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gr
              if (callbackAnswer != null) return callbackAnswer;
              if (SystemClock.elapsedRealtime() >= deadline) {
                  throw new IllegalStateException("GRAMLAB_CALLBACK_ANSWER_TIMEOUT");
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java	1970-01-01 03:30:00.000000000 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java	2026-09-08 04:24:42.199850639 +0330
 @@ -0,0 +1,231 @@
@@ -321,7 +321,7 @@ diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gr
 +        Files.move(temporary.toPath(), new File(directory, name).toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 +    }
 +}
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java	2026-09-08 04:09:27.956309032 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java	2026-09-08 04:23:13.921697971 +0330
 @@ -83,11 +83,15 @@
@@ -359,7 +359,7 @@ diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gr
              return result;
          }
          String type = string(record, "type");
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java	2026-09-08 04:09:27.953686261 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java	2026-09-08 04:22:31.839266057 +0330
 @@ -95,6 +95,7 @@
@@ -386,7 +386,7 @@ diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/gr
          worker.execute(() -> {
              TLObject response = null;
              TLRPC.TL_error error = null;
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java	2026-09-08 04:09:27.957552077 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java	2026-09-08 04:21:13.644703603 +0330
 @@ -70,6 +70,7 @@
@@ -445,7 +445,7 @@ diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/me
                  delegate.didPressBotButton(cell, textButton);
              }
          }
-diff -urN /tmp/gramlab-button-0025/a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java /tmp/gramlab-button-0025/b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
 --- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java	2026-09-08 04:09:27.959209075 +0330
 +++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java	2026-09-08 04:13:12.547801578 +0330
 @@ -114,6 +114,7 @@
