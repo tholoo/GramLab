@@ -98,3 +98,23 @@ Worker104's patch lines 612-627 preserves the same split. The expected presentat
 therefore `Telegram/Telegram Files/گزارش-English.pdf`; `Telegram Documents` was incorrect. The
 attachment trace/cache identity remains `-1_-1.pdf`, and production destination selection is
 unchanged.
+
+A second independent review corrected the native evidence boundary before execution. The initial
+phase now opens immediately before the first cold launch, so startup HTTP is included. Restart
+force-stops the old process before endpoint configuration and retargeting, closes the reused
+interval while it is stopped, and opens the restart interval immediately before the new launch.
+Target lookup failure, render/download timeout and exhausted restart framing all use one bounded
+failure recorder before teardown. It retains a contemporaneous original screenshot, current XML,
+redacted logcat, trace and valid bounded request ledger; its host control verifies the complete
+surface, 256-KiB text bounds and capability removal.
+
+Native execution also requires `GRAMLAB_ANDROID_APK_PROVENANCE` pointing to the coordinator's
+existing APK pointer format. Before any guest is created, the test verifies the supplied APK and
+retained pointer APK hashes, rejects experimental pointers, requires the current complete ordered
+series with `0030-ordinary-document-delivery.patch`, walks the linked source-provenance digests and
+per-patch hashes through the established 24-patch base, and matches the toolchain's upstream
+revision to `upstream-lock.json`. The report labels that value as the upstream revision and records
+the distinct patched-source provenance hash plus all ordered patch digests. Host controls reject
+changed APK bytes, delivery-patch bytes and upstream identity. These checks do not claim that
+external-files publication works; reviewed104 native delivery and this original UI run remain
+required.

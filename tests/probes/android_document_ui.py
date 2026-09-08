@@ -15,7 +15,7 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self, cast
+from typing import Any, NoReturn, Self, cast
 from urllib.parse import urlsplit
 
 from android_guest import main
@@ -33,6 +33,90 @@ MEDIA_EVENTS = {
     "media_load_cancel",
     "media_cache_hit",
 }
+FAILURE_TEXT_LIMIT = 256 * 1024
+
+
+def _bounded_redacted(value: str, capability: str) -> tuple[str, bool]:
+    if capability:
+        value = value.replace(capability, "[REDACTED]")
+    raw = value.encode("utf-8")
+    if len(raw) <= FAILURE_TEXT_LIMIT:
+        return value, False
+    return raw[:FAILURE_TEXT_LIMIT].decode("utf-8", errors="ignore"), True
+
+
+def retain_failure_evidence(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+    requests: Callable[[], list[dict[str, Any]]],
+    capability: str,
+    stage: str,
+    prior_ui: str,
+    *,
+    directory: Path = Path("."),
+) -> dict[str, Any]:
+    """Retain one bounded, redacted native failure snapshot before teardown."""
+
+    def command(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        try:
+            return guest(*arguments, **kwargs)
+        except (OSError, subprocess.TimeoutExpired) as failure:
+            return subprocess.CompletedProcess(arguments, 124, "", type(failure).__name__)
+
+    screenshot_name = stage + "-failure.png"
+    screenshot = command("shell", "screencap", "-p", "/data/local/tmp/document-ui-failure.png")
+    pulled = command(
+        "pull",
+        "/data/local/tmp/document-ui-failure.png",
+        str(directory / screenshot_name),
+    )
+    dumped = command(
+        "shell", "uiautomator", "dump", "/data/local/tmp/document-ui-failure.xml", timeout=15
+    )
+    current_ui = command("shell", "cat", "/data/local/tmp/document-ui-failure.xml")
+    trace = command("shell", "run-as", PACKAGE, "cat", TRACE)
+    logcat = command("logcat", "-d", "-t", "2000")
+    request_rows = requests()
+    dropped = 0
+    while True:
+        raw_requests = json.dumps(
+            {"dropped": dropped, "requests": request_rows}, ensure_ascii=False, indent=2
+        )
+        if len(raw_requests.encode()) <= FAILURE_TEXT_LIMIT or not request_rows:
+            break
+        request_rows = request_rows[1:]
+        dropped += 1
+    values = {
+        "xml": current_ui.stdout if current_ui.returncode == 0 else prior_ui,
+        "trace": trace.stdout,
+        "logcat": logcat.stdout + logcat.stderr,
+        "requests": raw_requests,
+    }
+    retained: dict[str, Any] = {}
+    suffixes = {
+        "xml": ".xml",
+        "trace": "-trace.jsonl",
+        "logcat": "-logcat.txt",
+        "requests": "-requests.json",
+    }
+    for name, value in values.items():
+        clean, truncated = _bounded_redacted(value, capability)
+        path = directory / (stage + "-failure" + suffixes[name])
+        path.write_text(clean)
+        retained[name] = {
+            "path": path.name,
+            "bytes": len(clean.encode()),
+            "truncated": truncated,
+        }
+    retained["screenshot"] = {
+        "path": screenshot_name,
+        "capture_returncode": screenshot.returncode,
+        "pull_returncode": pulled.returncode,
+    }
+    retained["ui_dump_returncode"] = dumped.returncode
+    (directory / (stage + "-failure-evidence.json")).write_text(
+        json.dumps(retained, indent=2) + "\n"
+    )
+    return retained
 
 
 class BridgeProxy:
@@ -239,6 +323,16 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         adb("shell", "screencap", "-p", "/data/local/tmp/document-ui.png")
         adb("pull", "/data/local/tmp/document-ui.png", f"/work/{name}.png")
 
+    def fail(stage: str, message: str, ui: str = "") -> NoReturn:
+        retain_failure_evidence(
+            guest,
+            proxy.requests if proxy is not None else lambda: [],
+            capability,
+            stage,
+            ui,
+        )
+        raise RuntimeError(message)
+
     def screen(name: str, labels: tuple[str, ...], *, applied: bool = False) -> str:
         deadline = time.monotonic() + 40
         ui = ""
@@ -252,10 +346,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 break
             time.sleep(0.2)
         else:
-            screenshot(name + "-failure")
-            retain(name + "-failure.xml", ui)
-            retain(name + "-failure-logcat.txt", adb("logcat", "-d", "-t", "2000").stdout)
-            raise RuntimeError(f"Original document scene did not render during {name}")
+            fail(name, f"Original document scene did not render during {name}", ui)
         captures[name] = retain(name + ".xml", ui)
         screenshot(name)
         return ui
@@ -284,7 +375,11 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     break
                 node = parents.get(node)
         if not candidates:
-            raise RuntimeError("Original document target lacks current semantic bounds: " + label)
+            fail(
+                active_phase + "-target",
+                "Original document target lacks current semantic bounds: " + label,
+                ui,
+            )
         return min(candidates)[2]
 
     def begin_phase(name: str) -> None:
@@ -396,7 +491,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             ):
                 return
             time.sleep(0.2)
-        raise RuntimeError("Original document download did not complete")
+        fail("download", "Original document download did not complete")
 
     def show(configuration: dict[str, Any]) -> str:
         nonlocal proxy
@@ -408,15 +503,19 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             proxy = BridgeProxy(configuration["endpoint"], configuration["capability"])
             proxy.__enter__()
             write_config(configuration)
-            launch("initial")
             begin_phase("initial")
+            launch("initial")
             ui = screen(
                 "initial",
                 (SCENE["file_name"], SCENE["caption"], SCENE["button_text"]),
             )
             before = len(proxy.requests())
             if any(row["kind"] == "document" for row in proxy.requests()):
-                raise RuntimeError("Document transfer started before the original download tap")
+                fail(
+                    "download-preload",
+                    "Document transfer started before the original download tap",
+                    ui,
+                )
             bounds = target(ui, SCENE["file_name"])
             taps["download"] = {
                 "label": SCENE["file_name"],
@@ -438,15 +537,16 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             )
             return ui
 
-        proxy.retarget(configuration["endpoint"])
         if name == "reused":
+            proxy.retarget(configuration["endpoint"])
             ui = screen("reused", (SCENE["file_name"], SCENE["reuse_caption"]), applied=True)
             cache_files("reused")
             return ui
 
-        begin_phase("restart")
-        write_config(configuration)
         adb("shell", "am", "force-stop", PACKAGE)
+        proxy.retarget(configuration["endpoint"])
+        write_config(configuration)
+        begin_phase("restart")
         launch("restart")
         ui = screen("restart-bottom", (SCENE["file_name"], SCENE["reuse_caption"]))
         for attempt in range(5):
@@ -457,8 +557,11 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 screenshot("restart-top")
                 break
             if attempt == 4:
-                retain("restart-top-failure.xml", older)
-                raise RuntimeError("Cold restart did not retain the original document and keyboard")
+                fail(
+                    "restart-top",
+                    "Cold restart did not retain the original document and keyboard",
+                    older,
+                )
             adb("shell", "input", "swipe", "160", "220", "160", "520", "300")
             time.sleep(0.3)
         cache_files("restart")
