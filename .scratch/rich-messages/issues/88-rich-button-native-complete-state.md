@@ -1,9 +1,9 @@
 # Complete native rich-button state acceptance
 
 Type: task
-Status: ready-for-agent
-Work state: implemented on `task/rich-button-native-complete-state`; coordinator review pending
-Blocked by: coordinator integration and native execution
+Status: resolved
+Work state: integrated; complete native endpoint accepted
+Blocked by: none
 
 Own this ticket, `tests/test_runner_rich_targets.py`, `tests/rich_targets_scenario.py` and
 `tests/fixtures/rich_targets_bot.py`. No production, native patch, profile, shared doc or lockfile
@@ -138,3 +138,26 @@ Android interactions or captures; emulator startup output is retained separately
 exercise the expanded acceptance oracle. Startup-only diagnostics and synchronized host-pressure
 sampling are prepared for the next run; no runtime deadline or profile is changed. Evidence:
 `artifacts/rich-button-native-14.xml`. The disposable failed guest disks have been retired.
+
+## Complete native endpoint accepted
+
+Fresh normal27 native15 passes in 81.47 seconds with the reviewed startup-only collector. All
+independent complete history/event/API-order/receipt/effect/capture/provenance comparisons pass
+through visible actions, ABA and repeated targets. The actual guest boots in 36.825 seconds;
+startup diagnostics retain complete filtered output and terminate both child and reader. Their
+post-start cleanup takes 0.0012 seconds; there are no added rich-input calls or deadline changes.
+The original operation screenshot was inspected and successful guest disks retired. Evidence:
+`artifacts/rich-button-native-15.xml`. This is an explicitly startup-instrumented run; native13's
+older uninstrumented scope remains separate. Actual clipboard paste is assigned92 and unrelated
+edit native survival remains74; neither is inferred from this pass.
+
+Combined core08 detects six recovery-harness failures: its independent project staging omitted
+the now-required fixture-variant.json, so the scenario exits with FileNotFoundError before the
+interruption hook is reached. One case reproduces in 1.66 seconds. The coordinator stages the
+explicit full variant without changing timeouts or abrupt-exit assertions; all six existing
+process-boundary cases must pass before the corrected combined checkpoint is accepted. Evidence:
+`artifacts/rich-button-recovery-integration-red-01.xml`.
+
+The corrected harness passes all six abrupt-exit cases in 5.17 seconds, plus scoped lint/format/
+strict typing. Evidence: `artifacts/rich-button-recovery-integration-green-01.xml`. Core08 remains
+retained as a failed combined checkpoint; the corrected combined gate runs separately.

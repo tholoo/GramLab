@@ -24,11 +24,12 @@ def test_runner_retains_offline_recovery_after_abrupt_supervisor_exit(
     manifest = project / "run.toml"
     manifest.write_text(
         'schema = 1\nmode = "simulation-only"\nseed = 41\nnow = 1700000000\ntimeout = 15\n'
-        '[scenario]\nentry = "scenario.py"\nfiles = ["scenario.py"]\n'
+        '[scenario]\nentry = "scenario.py"\nfiles = ["scenario.py", "fixture-variant.json"]\n'
         '[bots.targets]\nentry = "bot.py"\nfiles = ["bot.py"]\n'
     )
     (project / "scenario.py").write_bytes(Path("tests/rich_targets_scenario.py").read_bytes())
     (project / "bot.py").write_bytes(Path("tests/fixtures/rich_targets_bot.py").read_bytes())
+    (project / "fixture-variant.json").write_text(json.dumps("full"))
     bootstrap = Path("tests/probes/rich_button_interruption.py").read_bytes()
     original = Sandbox.supervise
     terminated_journal: list[bytes] = []
