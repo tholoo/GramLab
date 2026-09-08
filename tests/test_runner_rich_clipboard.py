@@ -492,6 +492,7 @@ def test_public_native_rich_clipboard_paste_clear_and_disabled_preservation(tmp_
 def native_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AndroidRichInput:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(AndroidRichInput, "observe", AndroidRichInput.observe)
+    monkeypatch.setattr(AndroidRichInput, "prepare", AndroidRichInput.prepare)
     with World.create(tmp_path / "world", seed=41, now=1700000000) as world:
         user = world.create_user(first_name="Sara")
         bot = world.create_user(first_name="Targets", is_bot=True)
@@ -893,3 +894,87 @@ def test_original_observation_failure_is_not_retried(
     with pytest.raises(ValueError):
         native_host.observe({})
     assert calls == 1
+
+
+@pytest.mark.parametrize("mode", ["returned", "raised", "missing", "oversized"])
+def test_prepare_diagnostic_retains_actual_pending_frame_without_changing_outcome(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    from probes.rich_native_clipboard_supervisor import install_fresh_diagnostic
+
+    directory = Path("rich-buttons") / ("6" * 32)
+    directory.mkdir(parents=True)
+    failure = ValueError("Original prepare failure " + SECRET)
+    returned: dict[str, Any] = {"context": "original object"}
+    receipt: dict[str, Any] = {"operation_id": "6" * 32}
+    calls = 0
+
+    def original(
+        self: AndroidRichInput, actual: dict[str, Any], *, client_nonce: str
+    ) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        assert actual is receipt and client_nonce == "actual-client"
+        state: dict[str, Any] = {
+            "directory": directory,
+            "arm": {"operation_id": actual["operation_id"]},
+            "target": {"label": SECRET},
+            "record": {"must_not_retain": "private World"},
+        }
+        if mode == "missing":
+            raise failure
+        sample = {"generation": 5, "available": True}
+        pending = {"operation_id": "previous-operation", "private": SECRET}
+        if mode == "oversized":
+            pending["padding"] = "x" * (256 * 1024)
+        effect = None
+        if mode == "returned":
+            return returned
+        assert (
+            state["arm"]["operation_id"] == actual["operation_id"]
+            and sample["available"]
+            and effect is None
+        )
+        raise failure
+
+    monkeypatch.setattr(AndroidRichInput, "prepare", original)
+    monkeypatch.setattr(AndroidRichInput, "_fresh", AndroidRichInput._fresh)
+    install_fresh_diagnostic()
+    path = directory / "prepare-failure.json"
+    if mode == "returned":
+        assert native_host.prepare(receipt, client_nonce="actual-client") is returned
+        assert calls == 1 and not path.exists()
+        return
+    with pytest.raises(ValueError) as caught:
+        native_host.prepare(receipt, client_nonce="actual-client")
+    assert caught.value is failure and calls == 1
+    raw = path.read_bytes()
+    assert len(raw) <= 128 * 1024 and SECRET.encode() not in raw and b"private World" not in raw
+    evidence = json.loads(raw)
+    assert evidence["source"] == {
+        "file": Path(original.__code__.co_filename).name,
+        "sha256": hashlib.sha256(Path(original.__code__.co_filename).read_bytes()).hexdigest(),
+    }
+    cursor = caught.value.__traceback__
+    while cursor is not None and cursor.tb_frame.f_code is not original.__code__:
+        cursor = cursor.tb_next
+    assert cursor is not None and evidence["line"] == cursor.tb_lineno
+    assert evidence["operation_id"] == receipt["operation_id"]
+    if mode == "missing":
+        assert evidence["locals"] == {} and evidence["missing_locals"] == [
+            "sample",
+            "pending",
+            "effect",
+        ]
+    elif mode == "oversized":
+        assert evidence["details_omitted"] == "record_exceeds_bound"
+    else:
+        assert evidence["locals"] == {
+            "sample": {"generation": 5, "available": True},
+            "pending": {"operation_id": "previous-operation", "private": "[REDACTED]"},
+            "effect": None,
+        }
+        assert evidence["state"]["target"] == {"label": "[REDACTED]"}
+    with pytest.raises(ValueError) as repeated:
+        native_host.prepare(receipt, client_nonce="actual-client")
+    assert repeated.value is failure and calls == 2 and path.read_bytes() == raw
