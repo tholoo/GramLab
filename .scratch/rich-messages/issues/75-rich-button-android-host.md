@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
 Blocked by: frozen contract70; real guest acceptance needs reviewed adapter72
 
 Own this ticket, new `src/gramlab/_android_rich_buttons.py`, scoped observation-launch support
@@ -51,3 +51,67 @@ stale/lifetime/correlation mismatch, at-most-one input across preparation/reconc
 framing and copy/disabled evidence. Preserve meaningful focused red/green and scoped typing/lint.
 No guest, full gate, build, external traffic or fake successful native evidence. Coordinate any
 discovered adapter protocol deficiency with the coordinator rather than weakening verification.
+
+## Ownership
+
+Claimed by implementation worker `rich-button-android-host` on `task/rich-button-android-host`.
+Focused host verification substitutes only external guest evidence; native acceptance is coordinator-owned.
+
+## Implemented worker handoff
+
+The host adapter now consumes strict bounded private schema-1 observations, verifies the actual
+process nonce/PID, guest-uptime freshness, focused app and complete canonical mapping, retains
+original pre-input captures, rechecks revision/lifetime/geometry and waits for the exact arm
+acknowledgement before returning preparation. Dispatch issues one ordinary ADB tap and confirms
+only original action evidence plus the complete frozen World callback/revision, or actual bounded
+clipboard evidence for copy/disabled. A 250 ms observed World quiet interval accompanies local
+effects; this is bounded evidence, not a global quiet guarantee.
+
+Per-operation JSON snapshots remain immutable. Known mismatches cannot become success. Readonly
+reconciliation can confirm a retained exact effect after an input reply is lost. Bounded malformed
+framing and oversized effect diagnostics are referenced from Android observations. The prospective
+receipt reserves worst-case clipboard JSON escaping and artifact path lengths and supplies no
+actual reported effect. A failed disarm preserves a known effect, records pending cleanup and
+blocks another input rather than replacing an outstanding arm.
+
+### Approved interface clarification
+
+The coordinator approved `abort_prepared(receipt, prepared) -> None`: idempotently disarm only
+the exact prepared arm after registry size preflight or intent-journal failure, without input,
+restart or changes to retained evidence. Registry cleanup must call it even if journal writing
+is poisoned. `reconcile` remains readonly and is not used for abort cleanup.
+
+### Focused evidence
+
+All commands use the assigned checkout's pinned `tools/dev default --offline` environment,
+provisioned through a separate virtual environment and local cached locked packages.
+
+- Initial missing-module red: `artifacts/rich-button-host-red.xml`. The first World fixture
+  omitted required `skip_entity_detection`; that fixture failure remains separately retained.
+- Meaningful behavioral red: `artifacts/rich-button-host-race-red2.xml` shows the first
+  implementation falsely succeeding when the process restarted during ordinary input.
+  The corrected implementation checks process/lifetime when confirming retained effects;
+  `artifacts/rich-button-host-race-green.xml` passes all 37 tests at that stage.
+- Final host command: `tools/dev default --offline --command unshare --user --map-root-user --net
+  .venv/bin/pytest tests/test_android_rich_button_host.py
+  --junitxml=artifacts/rich-button-host-verified.xml -q`: **50 passed**.
+- Scoped Ruff lint and format checks pass for `src/gramlab/_android_rich_buttons.py`,
+  `src/gramlab/_android.py` and `tests/test_android_rich_button_host.py`.
+- `tools/dev default --offline --command .venv/bin/mypy --strict` with those same three paths:
+  **no issues in 3 source files**.
+
+Coverage includes exact row/inline callback, copy and disabled effects, frozen callback answers,
+lost replies and at-most-one input, clipboard action/equality distinctions, unavailable clipboard,
+non-finite/clipped bounds, boolean paths/integers, duplicate labels and offscreen availability,
+same-clock/ABA edits after capture, lifetime changes during input, exact callback revision races,
+immutable evidence, malformed UTF-8/JSON, asynchronous acknowledgement, abort and disarm failure.
+
+The tests use a **real World with independently authored guest observations and substituted
+external guest input/capture boundaries**. They create no invented native PNG and provide no
+native acceptance evidence. The GPL observer must supply actual armed clipboard baselines and
+original copy/disabled pairs, preserve full mapping availability independently of offscreen
+targets, and retain exact request-object correlation. These deficiencies were reported to the
+coordinator and observer reviewer. No guest, build, full gate or network execution ran.
+
+Work remains claimed until coordinator review/integration and required native acceptance. Shared
+contributor/CI typing scopes, compatibility and handoff updates remain coordinator-owned.
