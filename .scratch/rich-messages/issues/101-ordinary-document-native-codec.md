@@ -104,3 +104,9 @@ SHA-256 is `df64f3597b1f55042f1e9585b2efe89bc53c7610c98ea2eeaa03d779175881e7`, w
 SHA-256 `97cb282debf2071ac3b58f219404f18c8ca6489447295e89a0fc2109e4417c8c`. Java compilation with
 `-Xlint:all -Werror`, D8, and three focused non-Android tests pass. Native diagnostic execution
 remains coordinator-owned.
+
+Fresh normal29 native03 with probe05 identifies the carrier failure at NativeByteBuffer allocation:
+its Java buffer is null. Source inspection confirms the standalone fixture omitted the original
+native_setJava(false) VM binding used by ApplicationLoader. Probe06 adds that binding only;
+the production codec and normal29 APK remain unchanged. Java/D8 compilation passes; native
+acceptance of this correction remains pending.

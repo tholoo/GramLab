@@ -342,6 +342,11 @@ public final class DocumentCodecProbe {
         }
         stage = "bootstrap.native_library";
         System.load(new File(arguments[1]).getAbsolutePath());
+        // Match ApplicationLoader's VM binding before the original native buffer allocation.
+        // This does not initialize an account or start ConnectionsManager.native_init.
+        stage = "bootstrap.java_vm";
+        Class.forName("org.telegram.tgnet.ConnectionsManager")
+                .getMethod("native_setJava", boolean.class).invoke(null, Boolean.FALSE);
         stage = "bootstrap.native_buffer_class";
         Class<?> nativeBuffer = Class.forName("org.telegram.tgnet.NativeByteBuffer");
         stage = "bootstrap.native_buffer_constructor";

@@ -10,6 +10,10 @@ ordinary `TL_document` carrier, original serialization and attachment keys, the 
 namespace, and the positive custom-emoji namespace. The fixture calls the real codec only through
 reflection and does not contain a substitute TLRPC implementation. It loads the original x86_64
 native library extracted from the reviewed client APK solely to exercise `NativeByteBuffer`.
+After loading the library, the probe calls the original `ConnectionsManager.native_setJava(false)`
+VM binding used by ApplicationLoader before allocating a native buffer. It does not call
+`native_init`, initialize an account or start a network connection. Library loading alone leaves
+the native Java-VM pointer unset; diagnostic native03 demonstrated the resulting allocation failure.
 Failure records name the exact reflection stage and retain bounded cause and relevant-stack details.
 A client that lacks the codec emits the same structured one-case bootstrap summary to stdout and
 `summary.json` before native loading; successful clients retain the original 34-case result shape.
