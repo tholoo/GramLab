@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: implemented on `task/pinned-document-filename-metadata`; coordinator review/integration pending
+Work state: resolved
 Blocked by: none
 
 Implement the pure metadata prerequisite for ordinary document uploads under the approved media
@@ -132,3 +132,13 @@ and compiler. All 32 focused tests now pass (`artifacts/ticket97-create-only-gre
 strict mypy and Ruff lint/format passing. Fresh-path source regeneration remains byte-identical
 to the committed reference (`artifacts/ticket97-reference-create-only-repeat.json`; generator
 log `artifacts/ticket97-create-only-oracle.log`). Production metadata behavior is unchanged.
+
+
+## Coordinator integration
+
+The reviewed frozen branch is integrated. All 32 focused checks pass in the integration checkout,
+including exhaustive scalar/alias comparisons and create-only generator controls. Strict mypy and
+Ruff lint/format pass for the module, tests and generator. Generator provenance exactly matches the
+committed bytes. Contributor/CI typing scopes and shared licensing guidance include this module.
+The combined gate is tracked in the handoff; ordinary document World implementation follows under
+[ticket99](99-ordinary-document-world.md), with HTTP/native delivery and albums still incomplete.

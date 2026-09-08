@@ -41,3 +41,14 @@ That adapted module retains BSL-1.0; the root MIT license does not replace it. T
 hashes, scope and known generation limits. Preserve these notices in future packaging; no remote
 publication or binary distribution is authorized. Predicate reuse supplies a documented local
 coverage check, not evidence of production custom-emoji entitlement or server admission.
+
+
+## Pinned document metadata reuse
+
+The document filename/MIME helpers reuse TDLib's BSL-1.0 filename rules, Unicode predicates and
+extension mapping at a pinned revision. The standalone adapted module retains the original
+copyright and complete Boost license; its generated fixture directory also carries that license.
+The [provenance](tdlib-document-metadata-provenance.json) identifies exact sources, hashes, generator
+scope and independently executed C++ reference results. No GPL Android source/data enters these
+Python helpers. Keep the notices with staged/distributed copies and preserve the distinction
+between client-local metadata derivation and Telegram's unavailable server classification.

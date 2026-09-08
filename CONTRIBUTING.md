@@ -122,6 +122,7 @@ MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/prob
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/unrelated_target_bot.py tests/unrelated_target_scenario.py tests/probes/unrelated_target_supervisor.py tests/test_runner_unrelated_target.py
 uv run --locked mypy --strict tests/test_multipart_uploads.py
 uv run --locked mypy --strict src/gramlab/world.py tests/test_media_world.py tests/test_media_storage_migration.py tests/fixtures/media_storage_v7/generate.py
+uv run --locked mypy --strict src/gramlab/_document_metadata.py tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 
