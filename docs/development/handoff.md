@@ -21,18 +21,21 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 
 ## Accepted integration checkpoint
 
-Core18 passes all **1,183 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
-commands** and configuration/links in 263 Markdown files. Typed document World99, multipart100,
+Core19 passes all **1,192 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
+commands**; the changed diagnostic scope also passes strict typing/Ruff, and configuration/links
+validate in 265 Markdown files. Typed document World99, multipart100,
 codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone
 media edits106 are integrated and verified at the World/HTTP boundary. The real-bot scenario105
 is integrated; original Android acceptance remains pending. [Documents](documents.md) records
 implemented forced-file behavior and standalone edits, including their limits.
 
-Normal30 is built with the complete ordered 30-patch source provenance and the original document
-delivery implementation. Its first actual loader suite timed out inside instrumentation after
-240 seconds, and archive retrieval failed. This establishes a failed acceptance run, not the
-cause of the stall. The earlier preflight run selected the wrong APK environment variable and
-skipped; it is recorded as unavailable coverage. Neither is a passing native document gate.
+Normal30 is built with complete ordered 30-patch source provenance and original document delivery.
+Native03 retains the actual timeout archive:31 cases pass, one fails with AndroidUtilities
+NoClassDefFoundError/ExceptionInInitializerError, and case33 waits in FilePathDatabase.getPath
+through loadOrdinaryDocument. Seven watchdog samples show the same wait and no database queue
+thread. This narrows diagnosis; it does not yet establish whether reduced fixture startup or
+production caused the initialization failure. The source APK and deadlines remain unchanged.
+Native02's timeout and failed archive, and native01's unavailable preflight skip, remain preserved.
 
 The prior normal29 codec gate passes34 actual native cases; the same probe rejects normal28 for
 its absent codec class. Earlier failed core/native results remain retained with their specific
@@ -43,11 +46,13 @@ corrections or unresolved causes. Do not infer an unrelated failure's cause from
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
    is integrated with41 affected host checks, strict typing and Ruff passing. Bounded source
    reconstruction matches all29 prior patches and private staging verifies all five changed files.
-   Normal30 is built. Diagnose its actual240-second instrumentation timeout before changing
-   production or increasing the deadline. The worker is adding bounded per-case progress/thread
-   diagnostics and reliable app-owned archive retrieval; preserve the original failure even if
-   evidence retention also fails. Review that fixture follow-up, use its immutable probe, then
-   rerun the35-case original loader suite and cold restart on the existing APK.
+   Normal30 is built. Instrumentation08 diagnostics are integrated with44 host checks and all33
+   compile-input hashes verified. Actual native03 captures initialization/case records and bounded
+   thread stacks successfully through app-owned tar/base64 retrieval. The worker is investigating
+   the first AndroidUtilities initialization failure and subsequent database-queue wait. Preserve
+   this red; expose the original cause and shorten the focused platform loop before changing
+   production or increasing a deadline. Watchdog coverage starts at Instrumentation.onStart;
+   earlier Application construction is outside that diagnostic coverage. Each run uses a fresh AVD.
 2. The atomic publication primitive has separate actual target-process evidence: app external
    files are writable, Java/Os hard links fail with access denied, and a bounded no-replace rename
    succeeds for absent/Unicode paths and preserves occupied targets. Eight two-source races retain
@@ -64,18 +69,20 @@ corrections or unresolved causes. Do not infer an unrelated failure's cause from
    failure evidence and full ordered APK input binding. Actual rows/captions/emoji/keyboard,
    download/callback actions, exact destination bytes, phase-local GETs, warm reuse and cold restart
    still require execution after104 passes.
-5. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is frozen
-   on its worker branch:22 new and176 affected host cases pass, with two retained baseline failures.
-   Review is underway. Integration remains gated on104 native delivery; default3 and explicit3/4
-   behavior must remain unchanged. Then exercise the public runner on Android with complete mixed
-   document/photo/emoji/rich-button state.
+5. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) has22
+   new and176 affected passing worker checks, but independent review found unsafe document row
+   matching: any prefix with the expected caption could match. The worker is adding descriptor-bound
+   type/size matching and zero-tap rejection controls at the dispatch boundary. Keep default3 and
+   explicit3/4 unchanged. Integration and public native acceptance remain gated on104 delivery.
 
 [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
 is resolved for its bounded World/HTTP implementation after19 integrated cases and the combined
 core/static gates. The empty-caption false-edit regression has eight actual red/green cases.
 Coordinator checks independently specify complete cross-kind messages and use a valid oversized
-PNG; an injected one-byte limit increase fails through real HTTP. Android edit acceptance remains
-separate: reuse the existing real-bot/UI harness for caption edits and media replacements.
+PNG; an injected one-byte limit increase fails through real HTTP. [108: Android edit acceptance](../../.scratch/rich-messages/issues/108-native-standalone-media-edits.md)
+is assigned independently, extending the existing real-bot/UI harness with four callback-driven
+caption/cross-kind edits, retained D1 reuse, exact transfers and cold restart. Host implementation
+can proceed; native execution waits for104.
 
 Remaining operational work includes default upload classification, albums, approved automatic
 rich detection, wider rich-button placement/recovery and representative combined workflow/current-APK

@@ -185,3 +185,16 @@ compiles/signs against the coordinator-built normal30 using cached javac/D8/NDK 
 sources/manifests are retained separately from07. Binary retrieval status retains only encoded
 length/SHA, returncode and bounded stderr, not a duplicate opaque base64 payload. No production
 patch, native deadline, input or case order changed; actual native diagnosis remains pending.
+
+## Integrated diagnostic result
+
+The diagnostic follow-up passes44 integrated host cases and scoped strict typing/Ruff; core19
+passes all1,192 cases at88.11% coverage. Native03 on unchanged normal30 reaches32 completed cases
+within about2.1 seconds:31 pass, while v5_emoji_and_ordinary_namespaces fails with
+NoClassDefFoundError for AndroidUtilities through SharedConfig initialization. Its recorded cause
+is ExceptionInInitializerError without the original nested cause. Case33, cache10_exact_boundary_and_upgrade,
+then blocks in FilePathDatabase.getPath's latch through FileLoader.loadOrdinaryDocument. Seven
+watchdog samples retain the same stack, with no database queue thread among the19 observed threads.
+The240-second deadline still fails. Archive packing/retrieval now both return0 and exact diagnostics
+are retained. These partial results do not close native delivery or cold restart. Investigate the
+first initialization cause and reduced fixture prerequisites before a production correction.

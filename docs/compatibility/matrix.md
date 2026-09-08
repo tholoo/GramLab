@@ -44,11 +44,12 @@ do not establish Telegram rendering or protocol conformance.
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Partial: [scenario chat captures](../development/scenario-captures.md) retain original Android PNGs and semantic checkpoints in reports; live viewing, stitched histories and export presets pending |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Partial: [self-contained recovery report](../development/reports.md) with original Android screenshots and measured app-launch times; [consumer runner](../development/consumer-runner.md) retains redacted pass/failure/timeout evidence; workload percentiles and separated latency diagnosis planned |
 
-The current core18 integration gate passes 1,183 non-Android tests at 88.11% coverage; static17
+The current core19 integration gate passes 1,192 non-Android tests at 88.11% coverage; static17
 passes 67 documented commands. Typed ordinary files, their Bot API/v5 HTTP routes, standalone
 media edits, and the complete real-bot document scenario's host controls are included. The ordinary
 codec separately passes34 actual native cases on normal29. Normal30 builds with document delivery,
-but its actual loader suite times out inside instrumentation; diagnostic work is ongoing.
+but its actual loader suite remains incomplete. Native03 captures31 passing cases, an AndroidUtilities
+initialization failure, and a subsequent file-path database wait; diagnosis is ongoing.
 These results do not establish the pending original Android document loader/UI and media-edit
 workflows or close classification, albums and wider current-APK regression. Earlier row-specific
 results remain historical evidence for their stated scope.
