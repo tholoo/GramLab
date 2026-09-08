@@ -255,3 +255,41 @@ All worker subprocesses are terminal. No guest/build/full gate, provisioning, up
 shared-file edit ran. Original native01/02/03 evidence remains untouched. The coordinator must run
 fresh four-phase native acceptance; native03 is retained as a failed earlier arrangement and
 cannot be relabeled a pass. The unchanged88 full native15 endpoint remains separate evidence.
+
+
+## Native04 preparation diagnostic follow-up (implemented; native05 diagnosis pending)
+
+Native04's first phase proves row-copy actual paste/clear. Phase2 rejects inline-copy before intent.
+The failed operation retains a valid available generation5 observation with a distinct client
+nonce/PID and320x640 original before PNG, but no effect or freshness-failure diagnostic. The exact
+pending private sample and exception remain unknown. An ordinary `_ready` rejection follows effect
+retention, so absent effect evidence instead prioritizes missing/old arm-ACK timeout, guest
+read/write failure, or an effect schema rejection before retention; these are hypotheses only.
+
+The coordinator authorizes extending the existing passive traceback diagnostic to original
+`prepare`, through a shared helper. Retain only actual existing frame locals/sample/pending/effect
+and selected state, source hash/lines, explicit missing fields, bounded redaction and immutable
+operation-keyed publication. Preserve exact original returns and exceptions. Add no guest calls,
+private-file/World reads, clock calls, timeout/guard changes, input, retry or scenario rearrangement.
+Original native04 and all prior evidence remain unchanged. Native05 is coordinator-owned.
+
+
+The shared failure-retention helper now serves `_fresh` and `prepare`. It locates the original
+function's actual traceback frame, retains up to16 original/nested source locations and hashes
+original source once per distinct file at installation. Prepare retains existing `sample`,
+`pending`, `effect`, and selected state including any existing candidate/effect/baseline. Missing
+locals are explicit; a failure before original operation state exists produces no invented record.
+Values reflect the actual exception frame after original cleanup. The helper never reads guest
+files, World or clocks. Each immutable record is capped at128KiB; oversized details are explicitly
+omitted. An operation may retain both `fresh-failure.json` and `prepare-failure.json` (at most256KiB
+combined). Diagnostic failure never replaces the original exception. Success returns the exact
+original object without diagnostic work.
+
+The new four-mode host control passes the original return directly and initially reproduces three
+missing prepare diagnostics (`artifacts/ticket92-prepare-red.xml`). After the correction all30
+focused tests pass in `artifacts/ticket92-prepare-green.xml`, including the existing contained
+four-phase simulation. Controls verify actual source/frame/line and pending values, missing and
+oversized values, secret redaction, immutable evidence and exact propagated exception identity.
+Scoped strict typing, Ruff lint/format and diff checks pass. No phase/input/timeout/guard/APK/profile
+change occurred, and no native04 artifact was edited. All worker subprocesses are terminal; no
+guest/build/full gate or provisioning ran. Root must execute native05 to establish the cause.

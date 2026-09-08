@@ -12,6 +12,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import CodeType
 from typing import Any
 
 from gramlab._android_rich_buttons import AndroidRichInput
@@ -201,80 +202,129 @@ def retain(directory: Path, record: dict[str, Any], secrets: list[str]) -> None:
         stream.write(body)
 
 
+def _retain_failure(
+    self: AndroidRichInput,
+    error: BaseException,
+    *,
+    code: CodeType,
+    source: dict[str, str],
+    kind: str,
+    state: dict[str, Any] | None = None,
+) -> None:
+    """Read only existing Python frames; publication cannot replace the original failure."""
+    try:
+        cursor = error.__traceback__
+        frame = None
+        frames: list[dict[str, Any]] = []
+        while cursor is not None and len(frames) < 16:
+            if cursor.tb_frame.f_code is code and frame is None:
+                frame = cursor
+            if frame is not None:
+                frames.append(
+                    {
+                        "file": Path(cursor.tb_frame.f_code.co_filename).name,
+                        "function": cursor.tb_frame.f_code.co_name,
+                        "line": cursor.tb_lineno,
+                    }
+                )
+            cursor = cursor.tb_next
+        values = frame.tb_frame.f_locals if frame is not None else {}
+        if state is None:
+            state = values.get("state")
+        if not isinstance(state, dict):
+            return  # No original operation state/directory exists yet; do not invent one.
+        operation = state.get("arm", {}).get("operation_id", "")
+        directory = state.get("directory")
+        if (
+            re.fullmatch(r"[a-f0-9]{32}", operation) is None
+            or not isinstance(directory, Path)
+            or directory != Path("rich-buttons") / operation
+        ):
+            return
+        names = ("sample", "pid", "now") if kind == "fresh" else ("sample", "pending", "effect")
+        state_names: tuple[str, ...] = (
+            "arm",
+            "target",
+            "pid",
+            "geometry",
+            "dispatched",
+            "mismatch",
+        )
+        if kind == "prepare":
+            state_names += ("candidate", "effect", "baseline")
+        record = {
+            "schema": 1,
+            "operation_id": operation,
+            "exception_class": type(error).__name__,
+            "source": source,
+            "line": frame.tb_lineno if frame is not None else None,
+            "frame_present": frame is not None,
+            "traceback": frames,
+            "locals": {key: copy.deepcopy(values[key]) for key in names if key in values},
+            "missing_locals": [key for key in names if key not in values],
+            "state": {key: copy.deepcopy(state[key]) for key in state_names if key in state},
+            "missing_state": [key for key in state_names if key not in state],
+        }
+        redactor = _Redactor(self.android.secrets)
+        body = json.dumps(redactor.clean(record), ensure_ascii=True).encode()
+        if len(body) > 128 * 1024:
+            for key in ("locals", "state"):
+                record.pop(key)
+            record["details_omitted"] = "record_exceeds_bound"
+            body = json.dumps(redactor.clean(record), ensure_ascii=True).encode()
+        if len(body) <= 128 * 1024:
+            with (directory / f"{kind}-failure.json").open("xb") as stream:
+                stream.write(body)
+    except Exception as diagnostic_error:
+        print(
+            kind + " failure diagnostic unavailable: " + type(diagnostic_error).__name__,
+            file=sys.stderr,
+        )
+
+
 def install_fresh_diagnostic() -> None:
-    """Observe an original failure using its traceback; no extra guest or World reads."""
-    original = AndroidRichInput._fresh
-    code = original.__code__
-    source = {
-        "file": Path(code.co_filename).name,
-        "sha256": hashlib.sha256(Path(code.co_filename).read_bytes()).hexdigest(),
+    """Passively observe original freshness/preparation failures, with no guest/World reads."""
+    original_fresh = AndroidRichInput._fresh
+    original_prepare = AndroidRichInput.prepare
+    sources = {
+        filename: {
+            "file": Path(filename).name,
+            "sha256": hashlib.sha256(Path(filename).read_bytes()).hexdigest(),
+        }
+        for filename in {original_fresh.__code__.co_filename, original_prepare.__code__.co_filename}
     }
 
     def fresh(self: AndroidRichInput, state: dict[str, Any]) -> dict[str, Any]:
         try:
-            return original(self, state)
+            return original_fresh(self, state)
         except BaseException as error:
-            try:
-                operation = state.get("arm", {}).get("operation_id", "")
-                directory = state.get("directory")
-                if (
-                    re.fullmatch(r"[a-f0-9]{32}", operation) is not None
-                    and isinstance(directory, Path)
-                    and directory == Path("rich-buttons") / operation
-                ):
-                    cursor = error.__traceback__
-                    frame = None
-                    frames: list[dict[str, Any]] = []
-                    while cursor is not None and len(frames) < 16:
-                        if cursor.tb_frame.f_code is code and frame is None:
-                            frame = cursor
-                        if frame is not None:
-                            frames.append(
-                                {
-                                    "file": Path(cursor.tb_frame.f_code.co_filename).name,
-                                    "function": cursor.tb_frame.f_code.co_name,
-                                    "line": cursor.tb_lineno,
-                                }
-                            )
-                        cursor = cursor.tb_next
-                    values = frame.tb_frame.f_locals if frame is not None else {}
-                    names = ("sample", "pid", "now")
-                    state_names = ("arm", "target", "pid", "geometry", "dispatched", "mismatch")
-                    record = {
-                        "schema": 1,
-                        "operation_id": operation,
-                        "exception_class": type(error).__name__,
-                        "source": source,
-                        "line": frame.tb_lineno if frame is not None else None,
-                        "frame_present": frame is not None,
-                        "traceback": frames,
-                        "locals": {
-                            key: copy.deepcopy(values[key]) for key in names if key in values
-                        },
-                        "missing_locals": [key for key in names if key not in values],
-                        "state": {
-                            key: copy.deepcopy(state[key]) for key in state_names if key in state
-                        },
-                        "missing_state": [key for key in state_names if key not in state],
-                    }
-                    redactor = _Redactor(self.android.secrets)
-                    body = json.dumps(redactor.clean(record), ensure_ascii=True).encode()
-                    if len(body) > 128 * 1024:
-                        for key in ("locals", "state"):
-                            record.pop(key)
-                        record["details_omitted"] = "record_exceeds_bound"
-                        body = json.dumps(redactor.clean(record), ensure_ascii=True).encode()
-                    if len(body) <= 128 * 1024:
-                        with (directory / "fresh-failure.json").open("xb") as stream:
-                            stream.write(body)
-            except Exception as diagnostic_error:
-                print(
-                    "Fresh failure diagnostic unavailable: " + type(diagnostic_error).__name__,
-                    file=sys.stderr,
-                )
+            _retain_failure(
+                self,
+                error,
+                code=original_fresh.__code__,
+                source=sources[original_fresh.__code__.co_filename],
+                kind="fresh",
+                state=state,
+            )
+            raise
+
+    def prepare(
+        self: AndroidRichInput, receipt: dict[str, Any], *, client_nonce: str
+    ) -> dict[str, Any]:
+        try:
+            return original_prepare(self, receipt, client_nonce=client_nonce)
+        except BaseException as error:
+            _retain_failure(
+                self,
+                error,
+                code=original_prepare.__code__,
+                source=sources[original_prepare.__code__.co_filename],
+                kind="prepare",
+            )
             raise
 
     AndroidRichInput._fresh = fresh  # type: ignore[method-assign]
+    AndroidRichInput.prepare = prepare  # type: ignore[method-assign]
 
 
 def install() -> None:
