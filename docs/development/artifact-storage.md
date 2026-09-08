@@ -73,3 +73,20 @@ users should materialize files they own rather than attempting privileged owners
 Do not edit, truncate, chmod or delete a content object or one of its archived hardlinks. Retention
 and deletion policy remains manual and outside this tool. Preserve the plan and receipt for as long
 as the archive uses shared objects.
+
+## Run retention
+
+Retain source commits, patch/build provenance, one immutable APK per distinct build, test results,
+logs, semantic/native JSON evidence, screenshots and reports. Guest disks are disposable runtime
+state, not the default report format. After a run terminates and required evidence has been
+extracted, remove its dedicated AVD disk files. Keep at most two recent failed guest disks only
+when they are still needed for active diagnosis; retire the older one when a new failure replaces
+it. Preserve failed test results even after their guest disks are removed.
+
+Before removal, hold the Android gate lock, confirm the dedicated process has stopped and its
+files have no open writer, and verify the exact owned paths. Keep an ignored cleanup receipt
+recording removed file identities and retained evidence. Do not remove the current build inputs,
+shared SDK/Nix store, consumer data, source worktrees or another application's runtime data.
+Completed merged worker environments, copied upstream exports and obsolete build intermediates
+may be removed once their source commits and required evidence are retained. Do not retain
+compressed copies of disposable disks merely to move the storage problem elsewhere.

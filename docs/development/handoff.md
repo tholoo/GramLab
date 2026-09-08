@@ -22,6 +22,14 @@ in the full goal. A text-only subset is not the operational milestone.
 This checkpoint supersedes the older native blockers described below. The full operational
 milestone remains incomplete; the last combined core gate is still 780 passed at 86.71% coverage.
 
+The user explicitly requested disk cleanup. Completed-run guest disks, old disk archives and
+reproducible caches from merged workers have been removed, while source branches and review
+artifacts remain. Follow [run retention](artifact-storage.md#run-retention) after every guest:
+keep the current build and at most two recent failed guests when their disks are still useful.
+Do not recreate an archive of every emulator disk. Cleanup receipts and exact retained paths are
+in ignored local notes. Some historical disk paths are intentionally absent; their logs,
+screenshots, APKs, reports and source provenance remain available.
+
 - Normal26 fixes reconstructed rich-button provenance. Independent execution against actual
   Android native buffers and SQLite passes all 25 reload, reopen, stale-update, A→B→A and
   malformed-record cases; the same probe demonstrates the original normal25 identity loss.
@@ -29,7 +37,10 @@ milestone remains incomplete; the last combined core gate is still 780 passed at
   pass 88 focused checks and let the subsequent diagnostic execute the actual row callback and
   original row copy. A disabled row opens Telegram's original message context menu; its popup
   focus makes confirmation uncertain and blocks later targets. Preserve that original behavior.
-  App-owned popup confirmation requires actual ownership evidence, not a matching title.
+  The reviewed app-owned popup confirmation fix passes 108 focused checks using exact PID/UID/parent
+  ownership. Uninstrumented native10 now succeeds for row and inline callback/copy, but disabled
+  preparation rejects. Its retained draw is already 4.397 seconds old at arm acknowledgement;
+  passive tracing must distinguish the five-second freshness bound from other causes.
 - Normal27 applies the coordinate observer's explicit cell-local matrix normalization without
   changing original rendering or touch propagation. Its zero-fuzz/offset two-file application
   and complete offline build pass; native matrix regression and combined public acceptance
@@ -39,8 +50,8 @@ milestone remains incomplete; the last combined core gate is still 780 passed at
   controls and full immutable retained lifecycle revalidation, including all 72 burst frames,
   exact cache bytes and isolation. The separate report is inspected at desktop/mobile sizes;
   the original failed JUnit remains failed. Fresh UI07 also completes the lifecycle but rejects
-  one 500.3 ms capture interval. Ticket83 batches original guest screenshots before transfer to
-  remove host transfer latency from sampling; its fresh native acceptance remains pending.
+  one 500.3 ms capture interval. Integrated ticket83 batches original guest screenshots before
+  transfer and passes 58 combined helper/oracle checks; fresh native acceptance remains pending.
 - Immutable archived APK tooling passes 20 integrated filesystem cases and scoped static checks;
   contributor/CI checks include it. It performs no automatic cleanup. Ticket15 prepares a small
   private-only Android patch staging helper to replace repeated version-specific scripts.
