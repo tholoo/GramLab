@@ -35,8 +35,10 @@ Ordinary documents can reuse the immutable-byte, bot-file, recipient-grant, auth
 and original loader lifecycle concepts, but the current image-only storage/descriptors and
 bytes-only multipart output cannot represent document filename/MIME metadata. ADR 0005 already
 governs World ownership, grants, bot identity, retention, versioned dependencies and original
-loading. The remaining compatibility gaps are Telegram's automatic MIME detection and metadata
-precedence, filename/empty-file/limit behavior, and exact album failure/group identity semantics.
-A 10 MB no-sniff path is identified only as an incomplete implementation probe. General files and
-atomic 2–10 document albums remain required, including normal detection defaults, reuse/download,
-ordered shared group identity and native document-group layout.
+loading. The pinned path cleans the multipart filename, derives MIME from its extension, ignores
+the part content type for semantic metadata, rejects zero bytes, and maps the detection flag to
+Telegram's `force_file`. The remaining compatibility gap is Telegram-server classification and
+metadata rewriting when detection is enabled, plus the operational size ceiling and exact album
+failure/group identity semantics. A 10 MB forced-file path is only an incomplete implementation
+probe. General files and atomic 2–10 document albums remain required, including the normal
+detection default, reuse/download, ordered shared group identity and native document-group layout.
