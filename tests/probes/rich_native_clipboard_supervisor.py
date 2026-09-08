@@ -25,7 +25,14 @@ CASES: list[tuple[str, list[str | int], str]] = [
     ("row_copy", ["blocks", 16, "buttons", 1], ROW),
     ("inline_copy", ["blocks", 17, "text", 1, "text", 2, "button"], INLINE),
     ("inline_disabled", ["blocks", 17, "text", 2, "button"], INLINE),
-    ("row_disabled", ["blocks", 16, "buttons", 2], INLINE),
+    ("row_disabled", ["blocks", 16, "buttons", 2], ROW),
+]
+# Each phase starts with one deliberate public observation. Baselines never paste.
+PHASES = [
+    [CASES[0]],
+    [CASES[1]],
+    [("inline_baseline", CASES[1][1], INLINE), CASES[2]],
+    [("row_baseline", CASES[0][1], ROW), CASES[3]],
 ]
 FOCUS = r"mCurrentFocus=Window\{([^\s{}]+) u(\d+) ([^{}\r\n]+)\}"
 LIMIT = 1024 * 1024
@@ -272,15 +279,37 @@ def install_fresh_diagnostic() -> None:
 
 def install() -> None:
     original = AndroidRichInput.dispatch
-    completed: list[str] = []
+    original_observe = AndroidRichInput.observe
+    phase = -1
+    position = 0
+    healthy = True
+    lifetimes: list[str] = []
+    baseline: dict[str, Any] | None = None
+
+    def observe(self: AndroidRichInput, record: dict[str, Any]) -> str:
+        nonlocal phase, position, baseline, healthy
+        if not healthy or (phase >= 0 and position != len(PHASES[phase])) or phase >= 3:
+            raise ValueError("Clipboard phases cannot retry or abandon unfinished actions")
+        healthy = False
+        lifetime = original_observe(self, record)
+        if lifetime in lifetimes:
+            raise ValueError("Clipboard phase requires a distinct original client lifetime")
+        baseline = semantic_state(Path("world"))
+        lifetimes.append(lifetime)
+        phase += 1
+        position = 0
+        healthy = True
+        return lifetime
 
     def dispatch(
         self: AndroidRichInput, receipt: dict[str, Any], prepared: dict[str, Any]
     ) -> dict[str, Any]:
+        nonlocal position, healthy, baseline
         # Nothing runs before original dispatch; preparation and its freshness budget are untouched.
         try:
             result = original(self, receipt, prepared)
         except BaseException as error:
+            healthy = False
             try:
                 operation = receipt.get("operation_id", "")
                 if re.fullmatch(r"[a-f0-9]{32}", operation) is not None:
@@ -301,14 +330,18 @@ def install() -> None:
             except Exception:
                 print("Original dispatch failure evidence unavailable", file=sys.stderr)
             raise
-        selected = next((case for case in CASES if case[1] == receipt["target"]["path"]), None)
-        if selected is None:
-            return result
-        name, _path, text = selected
+        valid_position = healthy and phase >= 0 and position < len(PHASES[phase])
+        selected = PHASES[phase][position] if valid_position else ("unexpected", [], "")
+        name, path, text = selected
+        terminal = not name.endswith("baseline")
+        healthy = False
         directory: Path | None = None
         record: dict[str, Any] = {
             "schema": 1,
             "name": name,
+            "phase_index": phase,
+            "terminal": terminal,
+            "client_nonce": lifetimes[-1] if lifetimes else None,
             "operation_id": receipt["operation_id"],
             "target": copy.deepcopy(receipt["target"]),
             "dispatch_result": copy.deepcopy(result),
@@ -324,27 +357,34 @@ def install() -> None:
             directory.mkdir(parents=True, exist_ok=False)
             expected_effect = (
                 {"kind": "copy", "text": text}
-                if name.endswith("copy")
+                if not name.endswith("disabled")
                 else {"kind": "none", "reason": "disabled"}
             )
             if (
-                completed != [case[0] for case in CASES[: len(completed)]]
-                or len(completed) >= 4
-                or name != CASES[len(completed)][0]
+                not valid_position
+                or receipt["target"]["path"] != path
+                or prepared["context"]["arm"]["client_nonce"] != lifetimes[-1]
                 or result["status"] != "succeeded"
                 or result["dispatch"] != "dispatched"
                 or result["effect"] != expected_effect
                 or result["reason"] is not None
             ):
                 raise ValueError("Clipboard probe requires the exact ordered confirmed effect")
-            record["before"] = semantic_state(Path("world"))
-            try:
-                ClipboardProbe(self, directory, record).run(name, text)
-            finally:
-                record["after"] = semantic_state(Path("world"))
-            if record["before"] != record["after"]:
-                raise ValueError("Paste or clear changed authoritative semantic state")
-            completed.append(name)
+            record["action_before"] = baseline
+            record["action_after"] = semantic_state(Path("world"))
+            if record["action_before"] != record["action_after"]:
+                raise ValueError("Rich action changed authoritative semantic state")
+            if terminal:
+                record["before"] = record["action_after"]
+                try:
+                    ClipboardProbe(self, directory, record).run(name, text)
+                finally:
+                    record["after"] = semantic_state(Path("world"))
+                if record["before"] != record["after"]:
+                    raise ValueError("Paste or clear changed authoritative semantic state")
+            baseline = record["action_after"]
+            position += 1
+            healthy = True
             record["status"] = "passed"
         except Exception as error:
             record["exception_class"] = type(error).__name__
@@ -360,6 +400,7 @@ def install() -> None:
                     )
         return result
 
+    AndroidRichInput.observe = observe  # type: ignore[method-assign]
     AndroidRichInput.dispatch = dispatch  # type: ignore[method-assign]
 
 

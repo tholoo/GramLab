@@ -6,7 +6,8 @@ Work state: implemented on `task/rich-button-native-clipboard-acceptance`; coord
 Blocked by: coordinator integration and actual native clipboard acceptance
 
 Own this ticket and new `tests/probes/rich_native_clipboard_supervisor.py`,
-`tests/rich_native_clipboard_plugin.py`, `tests/test_runner_rich_clipboard.py` only.
+`tests/rich_native_clipboard_plugin.py`, `tests/test_runner_rich_clipboard.py`, and
+`tests/rich_clipboard_scenario.py` only (coordinator-approved follow-up scope).
 Do not change production, existing scenario/test files, native patches, profiles, timeout/freshness
 contracts, fixture texts, dependencies or shared docs. Read74/88 and the approved targeting proposal.
 Coordinator owns guest execution and integration. No guest/build/full gate assigned.
@@ -14,8 +15,9 @@ Coordinator owns guest execution and integration. No guest/build/full gate assig
 Native15 now accepts88's complete visible/ABA endpoint on normal27. Remaining clipboard evidence
 must prove the actual original Android effect, rather than relying on effect receipts or simulated
 state. Stage a bounded test-only bootstrap through the real contained supervisor, preserving the
-actual bot/scenario and all existing native dispatch. Reuse88's visible/ABA scenario as input;
-do not monkeypatch only the outer pytest process, which cannot observe the contained execution.
+actual bot and original native dispatch. Use the approved four-phase clipboard scenario below;
+the unchanged88 visible/ABA endpoint remains a separate gate. Instrumentation must run inside the
+real contained supervisor, not only the outer pytest process.
 
 After each actual confirmed row/inline copy dispatch, paste through the original visible composer
 using the existing UIAutomator input helper and Android paste key event. Assert exact copied text,
@@ -34,8 +36,7 @@ timeouts. Preserve original return values and propagated failures. Bound guest c
 existing run deadline and retain operation-keyed redacted evidence on failures as well as success.
 
 Assert no bot send/update/callback or message/history mutation comes from paste/clear: compare
-complete relevant semantic state around each probe and retain original UI evidence. Continue to
-run the independent88 complete endpoint oracle. Add meaningful host controls for containment
+complete relevant semantic state around each probe and retain original UI evidence. Keep the independent88 complete endpoint oracle as its unchanged separate native gate. Add meaningful host controls for containment
 staging, exact returned effects, redaction, deadline exhaustion and incorrect/missing composer
 state without claiming those controls prove native clipboard behavior. Preserve original red
 when native acceptance is first executed; coordinator will run it after reviewing the frozen branch.
@@ -43,7 +44,7 @@ Use the existing pinned environment and focused host/static checks only. Return 
 exact reproduction, terminal processes, evidence paths and pending native acceptance.
 
 
-## Implemented acceptance boundary
+## Initial acceptance boundary (superseded by the native03 phase arrangement below)
 
 The new Android entry point uses88's `execute`/project staging, including its explicit
 `native-visible-aba` variant, then runs both unchanged independent88 prefix/complete-endpoint
@@ -175,3 +176,78 @@ All20 host controls now pass in `artifacts/ticket92-fresh-diagnostic-green.xml`;
 and strict typing pass. No native02 files changed and no guest/build/full gate ran. Coordinator
 native03 retains identical clipboard/input/freshness behavior and must establish the actual failing
 sample/guard before any further acceptance arrangement is proposed or changed.
+
+
+## Approved native03 four-phase follow-up (implemented; native acceptance pending)
+
+Native03 retained actual successful row-copy, inline-copy and inline-disabled paste/clear probes.
+Its original failing `_fresh` frame establishes the unchanged five-second draw-age guard: hidden,
+offscreen and row-disabled samples age9745/10016/10236ms, before input. All previous native01/02/03
+artifacts remain retained failures; this evidence authorizes an acceptance arrangement change,
+not a runtime/freshness correction.
+
+The dedicated clipboard scenario now owns four predetermined public observations in the same
+World/guest, each beginning a new original client lifetime: row copy; inline copy; inline copy
+baseline then inline disabled; row copy baseline then row disabled. Exactly six ordered dispatches
+produce four terminal paste/clear probes. Baseline copies in disabled phases have no intermediate
+probe. Both actions in each disabled phase use targets from that phase's single observation.
+Any rejected/uncertain action fails immediately; no replacement target, retry or guard/timeout
+change is permitted. Row-disabled preserves ROW text; inline-disabled preserves INLINE text.
+
+A new independent oracle checks all observations/lifetimes/targets, six exact effects and native
+input/provenance, unchanged semantic state around baseline/disabled/probe, and the complete
+publication/finish bot transcript with no callback/client-send side effects. Only legitimate empty
+polls may vary. The unchanged88 visible/ABA full endpoint remains a separate existing native gate;
+this dedicated clipboard scenario does not repeat callbacks, hidden/offscreen checks or ABA.
+The original fixture bot and shared88 files remain unchanged. Existing passive freshness diagnosis
+and reviewed bootstrap-source equality remain in place. Worker checks are focused host/contained
+simulation and scoped static only; coordinator owns fresh native acceptance.
+
+
+### Four-phase implementation and verification
+
+The dedicated scenario stages through88's unchanged project helper, replacing only its temporary
+scenario copy and selecting an explicit `clipboard-four-phases` manifest value. Reviewed scenario,
+variant and unchanged bot source hashes must exactly match the actual run report. The bootstrap
+and its reviewed/staged SHA equality remain independently checked.
+
+The test-only observer wrapper calls each authorized original observation exactly once, records
+its returned client nonce and captures one read-only full semantic baseline afterward. It rejects
+an early/new phase after an unfinished or failed phase, a repeated client lifetime, or a fifth
+observation. Original observation exceptions propagate unchanged and cannot trigger a retry.
+The dispatch wrapper still calls original dispatch before any added work; afterward it requires
+the exact next path/effect and matching phase client nonce. It compares the saved full semantic
+baseline with the actual post-action snapshot. After each terminal probe it compares another full
+snapshot. Six immutable operation directories retain action records; only four terminal directories
+contain paste/clear XML/PNG and guest commands. Baseline directories contain `result.json` alone.
+A failed post-action check does not change the original dispatch return, but blocks the next phase
+and fails outer acceptance. Original dispatch exceptions still propagate unchanged.
+
+The independent endpoint oracle requires32 distinct target IDs across four observations, six unique
+operation IDs and exact copy/disabled effects, and unchanged complete canonical state around every
+observation/action. Native checks reuse the independently authored88 observation/effect/touch/PNG
+validator and require four distinct activation/client nonces with consistent same-phase identity
+and the actual retained World ID. Each action record is cross-bound to its receipt and client
+nonce. Terminal probes require exact ordinary paste/end/delete input (and at most one existing
+owned-popup Back for row-disabled), exact composer XML/text and original320x640 PNG evidence.
+The sole bot traffic is initial publication delivery, two exact ordered rich-message responses,
+zero or more empty offset2/timeout10 polls, the exact finish delivery, and the final offset3 poll.
+Callbacks/client sends remain empty and the generated-update counter is exactly3 at completion.
+No fixture/API/World/runtime/native/profile/freshness/timeout behavior changed.
+
+Four new phase controls initially fail against the preceding wrapper in
+`artifacts/ticket92-phases-red.xml`. The final focused suite passes26 tests in
+`artifacts/ticket92-phases-green.xml`: the prior20 controls, four phase progression/effect/state
+controls, original-observation exception/no-retry control, and one real contained simulation of
+the complete new scenario. That contained result also supplies nine independent mutation checks
+for reused targets, extra actions, wrong copy/disabled baselines, history mutation and invalid
+BotAPI poll/write/delivery ordering. These mutations are explicitly simulation controls; no native
+recording or PNG is fabricated. The simulation proves semantics only.
+
+Final strict mypy, Ruff lint/format and diff checks pass; Android-only collection finds one selected
+clipboard test, without executing it. Add `tests/rich_clipboard_scenario.py` to the four-file scoped
+static commands above and select `artifacts/ticket92-phases-green.xml` for focused host reproduction.
+All worker subprocesses are terminal. No guest/build/full gate, provisioning, upstream export or
+shared-file edit ran. Original native01/02/03 evidence remains untouched. The coordinator must run
+fresh four-phase native acceptance; native03 is retained as a failed earlier arrangement and
+cannot be relabeled a pass. The unchanged88 full native15 endpoint remains separate evidence.
