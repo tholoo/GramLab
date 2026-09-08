@@ -45,37 +45,36 @@ not establish the cause of an unrelated earlier failure.
    document/emoji identities, exact v5 dependencies, rejected-response atomicity, original
    destinations, cancellation, cache and notifications. Review found same-world authority rotation,
    cache10 lifecycle and missing v4/v5 native controls; the worker is addressing them.
-2. Resolve publication on the actual external-files filesystem before building. Filesystem01/02
-   fail at getExternalFilesDir with callingPackage/UID mismatch. Probe07 verifies Context identity
-   but filesystem03 still fails: Android's static volume lookup uses ActivityThread's initial
-   Application, left as the system app by systemMain. Source-backed probe08 binds the already
-   attached original ApplicationLoader; filesystem04 proves operation package android → the
-   installed app and passes that lookup, then fails mkdir. The worker is retaining a non-null
-   external root and concrete filesystem error next. No hard-link result is established yet.
-   All four original results/source snapshots remain; terminal guest disks are retired.
+2. Actual target-process filesystem07 now establishes the publication blocker: app external files
+   are writable, but Java and Os hard-link creation both fail with access denied. The original
+   draft therefore cannot publish downloads there. A sequential Files.move control rejects an
+   existing destination; race-safe non-overwrite remains unproven. Investigate a narrow atomic
+   rename primitive before changing production. Earlier standalone probes used a different
+   process/storage context; target instrumentation suppresses Application.onCreate explicitly,
+   verifies public Context/Application identity and retains zero-account/isolation evidence.
+   Filesystem06 failed on hidden-API reflection; public-API-only instrumentation05 passes07.
+   Preserve all original source/results; diagnostic success is not document-delivery acceptance.
 3. Source/caller review corrects the cache10 interpretation: ordinary filename-only documents do
    not enable the original video preload stream. Above2MiB, the original path fails on its first
    nonempty response; the stock caller targets video, with an MKV MIME edge. Preserve explicit
    local rejection for ordinary files, both loader entrypoints, zero requests/UI/files and normal
    retry; keep the original small-file behavior. Those native controls remain pending. A generic
    document preloader or Range protocol is not required to reproduce this unsupported boundary.
-4. Review [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
-   independently. Its worker reports one contained simulation pass with complete bot API/state
-   comparisons; coordinator review and native execution remain. Freeze the owned harness against
-   the reviewed104 trace/route contract. Root owns the APK build and actual UI/loader acceptance.
-5. Merge only reviewed frozen branch tips, run affected checks, and build using the existing
-   incremental cache. Enable the host's explicit v5 selector only after delivery is verified.
-   Capture original rows/captions/emoji/keyboard, real download/callback actions, exact destination
+4. [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
+   is reviewed and integrated. Its three host cases pass on the current World, with strict typing
+   and Ruff. They cover the full contained real-bot scenario, bounded failure evidence and complete
+   ordered APK input binding. Corrected launch/restart phase accounting and original named-file
+   destination assertions are included. Native execution remains pending104 and a normal30 APK.
+5. Merge only reviewed frozen delivery/edit branches, run affected checks, and build using the
+   existing incremental cache. Enable the host's explicit v5 selector only after delivery passes.
+   Capture original rows/captions/emoji/keyboard, actual download/callback actions, exact destination
    bytes, phase-local GETs, warm reuse, cold restart and complete matching World/API state.
-   Independent105 review found launch/restart phase boundaries that can misattribute requests,
-   incomplete action-failure artifacts and an APK hash not bound to the patched-source manifest;
-   the worker is correcting these before integration. Its named-file destination oracle is now
-   corrected to the original MEDIA_DIR_FILES path, distinct from the database/attachment key.
 
 Independent [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
-is ready for a separate World/HTTP worker. Its frozen slice covers photo/document replacement and
-caption-only edits through both methods; original native acceptance, albums and other unsupported
-forms remain separate. It owns World/bot_api edit seams and new tests, avoiding104/105 ownership.
+has a completed worker branch under independent review: 90 affected World/HTTP checks pass.
+The worker disclosed that the required pre-implementation red was not executed; do not claim it
+exists. Integration and original native acceptance remain pending. Its slice covers photo/document
+replacement and caption-only edits; albums and other unsupported forms remain separate.
 
 After this batch, required operational work still includes default upload classification,
 media/document edits, albums, approved automatic rich detection, wider rich-button placement/
