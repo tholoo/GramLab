@@ -219,19 +219,12 @@ media shapes are not generic:
   consume `Mapping[str, bytes]`; multipart dispatch now additionally preserves filename/type metadata.
 
 Do not widen `ImageAsset`, overload zero dimensions, add filename fields to existing exact asset
-objects, or make strict clients guess descriptor kinds. The implementation may either:
-
-1. Generalize immutable byte storage into a neutral blob record, retain image metadata in a
-   separate typed record, and point both photo and document records at a blob. Existing grants and
-   bot identities then migrate to typed media references.
-2. Add document-specific asset, grant, and bot-file tables while reusing the same authorization and
-   identity rules. This is a smaller first migration but duplicates mechanisms and makes later
-   albums/cross-kind file accounting harder.
-
-The first choice is the deeper module if its migration preserves every existing photo/custom-emoji
-ID and response byte-for-byte. The second limits the first schema change but duplicates mechanisms.
-This is an implementation seam within ADR 0005; verification of existing identifiers, grants and
-strict descriptors is the deciding constraint.
+objects, or make strict clients guess descriptor kinds. [Ticket 96](../../.scratch/rich-messages/issues/96-neutral-media-byte-storage.md)
+now implements the neutral-byte prerequisite: schema 8 stores immutable bytes in `media_blobs`,
+while image metadata, IDs and grants remain in their existing typed records. Its populated legacy
+migration and public/HTTP/real-bot checks pass. Ordinary document metadata, bot identities and
+recipient grants remain unimplemented and must reference those shared bytes independently of
+image authorization. Reusing a byte digest must never grant access to either media kind.
 
 ADR 0005 already requires a negotiated successor bridge schema. The next version can add a separate
 exact `documents` dependency collection and fixed authenticated document-byte route while keeping
@@ -240,7 +233,6 @@ v4 responses exactly unchanged. A candidate descriptor is:
 ```json
 {
   "document_id": "9001",
-  "asset_id": 7,
   "file_name": "report.pdf",
   "mime_type": "application/pdf",
   "file_size": 1234,
@@ -250,8 +242,9 @@ v4 responses exactly unchanged. A candidate descriptor is:
 
 The implementation contract must specify number-versus-decimal-string ID encoding,
 ordering/deduplication, allowed metadata lengths, native-ID namespace, exact route and error shape,
-and whether the descriptor refers to a neutral blob or a document-specific row. Authorization and
-retention continue to follow ADR 0005. Adding fields to v4 would violate its strict exact-field
+and document-specific metadata/identity rules. The descriptor must not borrow an image asset ID;
+its digest identifies the shared bytes while its document ID identifies the immutable file metadata.
+Authorization and retention continue to follow ADR 0005. Adding fields to v4 would violate its strict exact-field
 contract.
 
 ## Albums are a separate contract
