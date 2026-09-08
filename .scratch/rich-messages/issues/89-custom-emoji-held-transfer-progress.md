@@ -1,9 +1,9 @@
 # Preserve an active shared transfer through native observation
 
 Type: bug
-Status: ready-for-agent
-Work state: implemented on `task/custom-emoji-held-transfer-progress`; coordinator review pending
-Blocked by: coordinator integration and native execution
+Status: resolved
+Work state: integrated; required native acceptance passed
+Blocked by: none
 
 Own this ticket, `tests/probes/custom_emoji_fault_server.py`,
 `tests/test_custom_emoji_fault_server.py`, `tests/probes/native_asset_proxy.py`, its focused tests

@@ -1,9 +1,9 @@
 # Exercise original custom-emoji lookup failures and explicit recovery
 
 Type: feature
-Status: ready-for-agent
-Work state: claimed; host harness integrated, native acceptance pending
-Blocked by: shared-thumbnail failure diagnosis
+Status: resolved
+Work state: integrated; required native acceptance passed
+Blocked by: none
 
 Own this ticket and new `tests/probes/android_custom_emoji_faults.py`,
 `tests/test_android_custom_emoji_faults.py`, `tests/probes/custom_emoji_fault_server.py`, and
@@ -121,3 +121,16 @@ This is an earlier UI/lifecycle observation failure, not evidence that89's share
 Ticket90 adds a separate exact shared-case native gate and extends failure-only diagnostics to
 document phases. The original four-case acceptance remains required. Evidence:
 `artifacts/custom-emoji-faults-native-03.xml` and its dedicated run's reopen command/failure JSON.
+
+## Complete original regression accepted
+
+Fresh normal24 native04 passes the unchanged complete four-case acceptance in 195.89 seconds.
+Single missing, mixed missing and partial responses retain their original failure/no-idle-retry
+observations and recover after explicit restart; each actual request contains the expected batch.
+Same-process reopen performs no refetch in this run, recorded as an external outcome rather than
+callback-owner evidence. The shared transfer completes exactly once with correct bytes/digest,
+surviving-carrier pixels and success without cancellation. Full isolation and zero-account checks
+pass. Original failure/recovered/shared screenshots were inspected; report and JSON are retained.
+Evidence: `artifacts/custom-emoji-faults-native-04.xml`. Both the successful guest and obsolete
+native03 diagnostic disks were retired while preserving their evidence. This accepts the bounded
+fault/recovery contract; earlier intermittent UI/startup causes remain unproven.

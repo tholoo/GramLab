@@ -43,18 +43,19 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   The unchanged spatial/phase oracle accepts all 72 carrier frames; independent PNG decoding
   exactly matches every retained raw frame. Original captures and desktop/mobile reports are
   inspected. Ticket86 has 79 combined capture/oracle checks; no renderer or fixture was changed.
-- The checkpointed ticket66 fault rerun fails shared cache settlement in 244.62 seconds, while
-  all three complete document checkpoints pass their original assertion loop. The hold lasts
-  5.4607 seconds; the proxy fails at 5.0038 seconds with zero bytes delivered, before release.
-  Actual Android trace records media_load_failure and no media_load_cancel. Ticket87's durable
-  diagnostics are accepted. Ticket89 corrects only the progressive shared-transfer test stimulus
-  and transparent proxy forwarding; native timeouts, loader ownership and rendering stay intact.
-  Whole fault-suite/isolation-result acceptance remains unavailable until the suite returns.
+- Ticket66's fresh full normal24 fault regression passes in 195.89 seconds after89's progressive
+  fixture/transparent forwarding correction and90's diagnostic integration. All three document
+  failure/recovery cases and original shared-transfer assertions pass, including full isolation
+  and zero accounts. The focused shared gate separately passes in 66.59 seconds. Original
+  captures are inspected and reports retained; successful and obsolete failed guest disks are
+  retired. Earlier reds remain: measured proxy timeout in native02 and UI reopen failure before
+  the shared case in native03. The latter's intermittent cause remains unproven.
 - Ticket69's fresh native mixed-content run passes in 84.80 seconds after correcting the expected
   callback-event shape. Complete six-message history, callback creation/answer and composer-send
   comparisons pass; the original capture and desktop/mobile report were inspected. The first red
   remains retained and successful guest disks were retired. Ticket88 expands native button state
-  acceptance independently; actual clipboard paste and native unrelated-edit survival remain
+  acceptance independently and is integrated with two passing contained scenarios; native14
+  failed the existing boot deadline before scenario execution, so fresh acceptance is pending; actual clipboard paste and native unrelated-edit survival remain
   separate gaps. Unrelated message revisions do not bypass native geometry/freshness checks.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
@@ -62,8 +63,8 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
 
 The combined core checkpoint passes 917 tests at 87.07% coverage in 145.42 seconds with four
 isolated workers and no simultaneous guest. All 53 documented static commands, Ruff lint/format
-across 474 files and configuration/links in 233 Markdown documents pass. Worker88/89 remain
-outside this checkpoint. Run native gates serially using exact immutable APK provenance; review
+across 474 files and configuration/links in 233 Markdown documents pass. Integrated88/89/90 remain
+outside this combined checkpoint. Run native gates serially using exact immutable APK provenance; review
 and integrate frozen worker branches before further combined verification. Live handles and
 machine-specific details stay in ignored coordinator notes.
 

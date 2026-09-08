@@ -1,9 +1,9 @@
 # Isolate shared-thumbnail acceptance and retain document UI failures
 
 Type: task
-Status: ready-for-agent
-Work state: implemented on `task/focused-emoji-shared-acceptance`; coordinator review pending
-Blocked by: coordinator integration and native execution
+Status: resolved
+Work state: integrated; required native acceptance passed
+Blocked by: none
 
 Own this ticket, `tests/test_android_custom_emoji_faults.py`,
 `tests/probes/android_custom_emoji_faults.py` and focused diagnostic controls in
