@@ -1,0 +1,128 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabDocument.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabDocument.java
+new file mode 100644
+index 0000000..31b2e8f
+--- /dev/null
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabDocument.java
+@@ -0,0 +1,122 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++package org.telegram.gramlab;
++
++import java.util.LinkedHashMap;
++import java.util.Map;
++import org.json.JSONArray;
++import org.json.JSONException;
++import org.json.JSONObject;
++import org.telegram.tgnet.TLRPC;
++
++/** Strict immutable ordinary-document descriptors and original native carriers. */
++public final class GramLabDocument {
++    private static final String ERROR = "GRAMLAB_BRIDGE_INVALID_DOCUMENT";
++
++    private GramLabDocument() {}
++
++    private static void require(boolean value) {
++        if (!value) {
++            throw new IllegalArgumentException(ERROR);
++        }
++    }
++
++    public static long identifier(Object value) {
++        require(value instanceof String && ((String) value).matches("[1-9][0-9]{0,18}"));
++        try {
++            long identifier = Long.parseLong((String) value);
++            require(identifier > 0);
++            return identifier;
++        } catch (NumberFormatException error) {
++            throw new IllegalArgumentException(ERROR);
++        }
++    }
++
++    public static final class Entry {
++        public final long id;
++        public final long size;
++        public final String fileName;
++        public final String mimeType;
++        public final String sha256;
++
++        private Entry(long id, long size, String fileName, String mimeType, String sha256) {
++            this.id = id;
++            this.size = size;
++            this.fileName = fileName;
++            this.mimeType = mimeType;
++            this.sha256 = sha256;
++        }
++    }
++
++    public static Map<Long, Entry> parse(JSONArray rows) throws JSONException {
++        require(rows != null);
++        Map<Long, Entry> result = new LinkedHashMap<>();
++        long previous = 0;
++        for (int index = 0; index < rows.length(); index++) {
++            Object value = rows.get(index);
++            require(value instanceof JSONObject);
++            JSONObject row = (JSONObject) value;
++            exact(row, "document_id", "file_name", "mime_type", "file_size", "sha256");
++            require(row.opt("file_name") instanceof String);
++            require(row.opt("mime_type") instanceof String);
++            Object sizeValue = row.opt("file_size");
++            require(sizeValue instanceof Integer || sizeValue instanceof Long);
++            require(row.opt("sha256") instanceof String);
++
++            long id = identifier(row.opt("document_id"));
++            long size = ((Number) sizeValue).longValue();
++            String fileName = row.getString("file_name");
++            String mimeType = row.getString("mime_type");
++            String sha256 = row.getString("sha256");
++            require(id > previous && size >= 1 && size <= 50_000_000);
++            validFileName(fileName);
++            require(mimeType.isEmpty() || mimeType.length() <= 256
++                    && mimeType.matches("[A-Za-z0-9!#$%&'*+.^_`|~-]+/[A-Za-z0-9!#$%&'*+.^_`|~-]+"));
++            require(sha256.matches("[0-9a-f]{64}"));
++
++            result.put(id, new Entry(id, size, fileName, mimeType, sha256));
++            previous = id;
++        }
++        return result;
++    }
++
++    public static TLRPC.TL_document project(Entry entry) {
++        require(entry != null);
++        TLRPC.TL_document document = new TLRPC.TL_document();
++        document.flags = 0;
++        document.id = -entry.id;
++        document.dc_id = -1;
++        document.access_hash = 0;
++        document.file_reference = new byte[0];
++        document.date = 0;
++        document.mime_type = entry.mimeType;
++        document.size = entry.size;
++        TLRPC.TL_documentAttributeFilename filename = new TLRPC.TL_documentAttributeFilename();
++        filename.file_name = entry.fileName;
++        document.attributes.add(filename);
++        return document;
++    }
++
++    private static void exact(JSONObject row, String... names) {
++        require(row.length() == names.length);
++        for (String name : names) {
++            require(row.has(name));
++        }
++    }
++
++    private static void validFileName(String value) {
++        require(!value.isEmpty());
++        int codePoints = 0;
++        for (int index = 0; index < value.length(); index++) {
++            char character = value.charAt(index);
++            require(character != '/' && character != '\\' && character != 0);
++            if (Character.isHighSurrogate(character)) {
++                require(index + 1 < value.length() && Character.isLowSurrogate(value.charAt(index + 1)));
++                index++;
++            } else {
++                require(!Character.isLowSurrogate(character));
++            }
++            codePoints++;
++        }
++        require(codePoints <= 81);
++    }
++}

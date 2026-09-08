@@ -188,3 +188,4 @@ jobs:
           uv run --locked mypy --strict src/gramlab/_document_metadata.py tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
           MYPYPATH=tests:tests/probes uv run --locked mypy --strict --explicit-package-bases tests/test_android_button_disarm.py tests/probes/android_button_disarm.py
           MYPYPATH=tests uv run --locked mypy --strict src/gramlab/documents.py tests/test_document_world.py tests/test_document_storage_migration.py tests/fixtures/document_storage_v8/generate.py
+          MYPYPATH=tests:tests/probes uv run --locked mypy --strict --explicit-package-bases tests/probes/android_document_codec.py tests/test_android_document_codec.py

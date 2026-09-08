@@ -2,7 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
+Owner: task/ordinary-document-native-codec
 Blocked by: none
 
 Implement the independently testable ordinary-document descriptor/carrier prerequisite from the
@@ -56,3 +57,26 @@ patch-stage plus focused host/static checks. Root performs the old-APK missing-c
 actual native green and full subsequent integration. Clearly label unavailable native coverage.
 No full APK build, guest, network, dependency changes, full gate or large source copy. Keep temporary
 data small; return a clean actual Git hash, focused results and terminal processes.
+
+## Comments
+
+Worker implementation at the assigned base adds only the new-file patch, series entry, bounded GPL
+reflection fixture, host probe collector and focused acceptance test. Private zero-fuzz staging status
+is `ready`; the patch SHA-256 is
+`94ff7ff25fa88578486dd2065acdcad4a33adfcec42a2ec0ce766dfd5a7b88b8`, and the staged
+`GramLabDocument.java` SHA-256 is
+`9a6107581f9beeda22fd179441492c95dd6e69efa94a5645f27c063389d8c449`. The final fixture compiles
+with `javac -Xlint:all -Werror` and D8; its probe APK SHA-256 is
+`799de74e1dd0e131c86be5187f0ae0a77a0c4626ab8415651895d979390f33b9`. Focused Ruff, strict
+Mypy and two non-Android tests pass. The worker did not build an APK or run a guest. The required
+pre-0029 missing-class red and post-0029 real `TLRPC`/`NativeByteBuffer` green remain coordinator
+acceptance, so this ticket stays claimed until integration succeeds.
+
+Review follow-up binds every parsed `Entry` field to independent literals before projection,
+including distinct `a`/`b`/`c`/`d`/`e` SHA-256 values, and requires the pulled native
+`summary.json` to parse exactly equal to process stdout. A disagreement host control rejects. The
+updated fixture source SHA-256 is
+`c8faa83decccee5a5bd1d3d0fe9b75daf81b286a42a8286d7ebe3e038a0178bb`; retained probe04 APK
+SHA-256 is `d32f21950413e179fa7a2c72a92b17ecdfe8e1cb74382c6fc43ac04addd7511a`.
+Probe03 remains retained as prior evidence. Updated focused Ruff, formatting, strict Mypy,
+ShellCheck, and three non-Android tests pass; native execution remains coordinator-owned.

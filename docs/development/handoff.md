@@ -67,7 +67,7 @@ and configuration/links in252 Markdown documents pass. This includes integrated 
 multipart decoding100, native disarm98 and the final clipboard92 popup-settling correction. No
 resource warnings remain. Clipboard92 and disarm98 are resolved after actual native acceptance
 and this combined gate. World99 is subsequently integrated with102 focused checks, including high-ID allocation and
-late-grant rollback; this combined gate predates99. Native codec101 remains in progress. Successful temporary
+late-grant rollback; this combined gate predates99. Native codec101 is integrated with three focused host checks and scoped static validation; actual native execution remains pending. Successful temporary
 core fixtures are retired after retaining JUnit, logs and outcome.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
