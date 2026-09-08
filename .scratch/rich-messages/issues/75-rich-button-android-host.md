@@ -146,3 +146,46 @@ Those helpers are coordinator-owned integration dependencies, not additions to t
   terminal results and the distinction between retained evidence and a dispatch attempt.
 
 No native, guest, build, full-gate or external-network evidence is added by this correction.
+
+### Final observation and late-completion review correction
+
+Post-input confirmation now passes the accompanying observation through the full strict schema,
+activation/lifetime and complete frozen-mapping validator, checks the current app PID/window and
+persona/chat, and enforces guest-uptime freshness and monotonic observation generations. Invalid
+observations remain diagnostic evidence, never success. This does not compare the current World
+message with the old record: an exact authoritative frozen callback can succeed after the bot
+has already edited its message, including a valid observation that the activated old revision
+is no longer applied.
+
+Native `complete`, `unavailable` and `uncertain` states cannot switch to another terminal state.
+An established clipboard pair cannot disappear, its `before` cannot change, and its `after` can
+move only from the baseline to the exact selected text with original copy/UP evidence; it cannot
+change arbitrarily or reverse. Consumed copy evidence must retain the actual baseline pair, a
+requirement coordinated with the GPL observer worker. Callback-only arms use null clipboard
+evidence rather than creating a needless clipboard dependency.
+
+**This supersedes the earlier unconditional terminal-observation cleanup description:** an
+unresolved dispatched arm remains live after an uncertain host receipt so truly late callback
+completion can arrive through the original native correlation guard. Another preparation rejects
+while that arm is outstanding. Reconciliation never arms, touches or restarts; it reads actual
+evidence and disarms the exact arm only after conclusive success or a known mismatch. A deliberate
+new observation may instead record permanent abandonment and disarm the unresolved operation
+before its already-authorized cold launch. Old abandoned operations cannot later recover.
+Pre-touch failures may still disarm immediately, and already successful receipts stay immutable.
+
+- `artifacts/rich-button-host-late-observation-red.xml`: 13 meaningful failures cover malformed
+  and unrelated post-input observations, stale uptime, terminal-state switches, clipboard removal,
+  premature disarm and explicit observation abandonment; the legitimate bot-edit control passes.
+- `artifacts/rich-button-host-clipboard-progression-red.xml`: the stricter arbitrary-after-value
+  control initially fails; baseline-before and original-copy controls pass.
+- `artifacts/rich-button-host-late-final.xml`: **79 passed**, including actual callback completion
+  after the uncertain receipt, readonly late success followed by disarm, sticky late mismatch,
+  explicit abandonment, consumed baseline preservation and all earlier host controls.
+- Scoped strict mypy, Ruff lint/format and whitespace checks pass. The final post-test edit only
+  annotates the external guest test boundary's result type; behavior remains unchanged.
+
+The full focused suite used the guarded journal/traversal dependency receipt
+`rich-button-host-primitives-02` from integrated commit
+`70248cdd4b0c98bb37fadb562eede545ea9e9b44`, including the three actual journal preflight tests.
+Borrowed helpers remain coordinator-owned and are restored before this worker commit. There is
+no guest/build/full-gate/external-network or native-acceptance claim.

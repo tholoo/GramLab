@@ -91,7 +91,11 @@ class ExternalGuest(AndroidRichInput):
                 "touch": None,
                 "action": None,
                 "requests": [],
-                "clipboard": {"before": self.baseline, "after": self.baseline},
+                "clipboard": (
+                    None
+                    if "callback_data" in self.selected_button
+                    else {"before": self.baseline, "after": self.baseline}
+                ),
             }
 
     def _guest_state(self) -> tuple[int, int]:
@@ -363,7 +367,7 @@ def test_lost_input_reply_can_reconcile_exact_effect_without_touch_or_arm(staged
     writes = list(guest.writes)
     recovered = guest.reconcile(receipt)
     assert recovered is not None and recovered["status"] == "succeeded"
-    assert guest.writes == writes
+    assert guest.writes == [*writes, "rich-button-disarm.json"]
     assert guest.touches == 1
 
 
@@ -850,3 +854,273 @@ def test_prospective_receipt_passes_real_journal_preflight(staged: Any, kind: st
     finally:
         journal.close()
         guest.abort_prepared(receipt, prepared)
+
+
+@pytest.mark.parametrize(
+    "change", ["schema", "extra", "world", "chat", "revision", "mapping", "uptime"]
+)
+def test_post_input_observation_must_remain_strict_and_bound(staged: Any, change: str) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+
+    def alter(_effect: dict[str, Any]) -> None:
+        observation = guest.files["rich-button-observation.json"]
+        if change == "schema":
+            observation["schema"] = True
+        elif change == "extra":
+            observation["extra"] = None
+        elif change == "world":
+            observation["world_id"] = "unrelated-world"
+        elif change == "chat":
+            observation["chat_id"] += 1
+        elif change == "revision":
+            observation["revision"] += 1
+        elif change == "mapping":
+            observation["targets"][0]["button"]["callback_data"] = "unrelated"
+        else:
+            observation["drawn_uptime_ms"] = 0
+
+    guest.after_touch = alter
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "uncertain"
+    assert result["effect"] is None
+    assert guest.touches == 1
+    assert guest.reconcile(receipt) is None
+
+
+def test_actual_callback_survives_legitimate_bot_edit_before_confirmation(staged: Any) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    frozen = copy.deepcopy(guest.record["message"])
+
+    def edit_after_acceptance(_effect: dict[str, Any]) -> None:
+        with World.open(Path("world")) as world:
+            world.edit_message(
+                chat_id=guest.record["chat"]["id"],
+                message_id=guest.record["message"]["id"],
+                bot_id=guest.record["chat"]["bot_id"],
+                text="Bot has already handled the exact callback",
+            )
+        # The activation still denotes the consumed original revision; the current
+        # client reports that it is no longer applied instead of mapping new content.
+        guest.files["rich-button-observation.json"].update(
+            generation=8,
+            drawn_uptime_ms=10005,
+            available=False,
+            reason="message_not_applied",
+            targets=[],
+        )
+
+    guest.after_touch = edit_after_acceptance
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "succeeded"
+    assert result["effect"]["callback"]["message"] == frozen
+
+
+def _delayed_callback(
+    guest: ExternalGuest, receipt: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> Any:
+    """External input returns before transport accepts; complete only when asked."""
+
+    def touch(*args: str, **_kwargs: Any) -> None:
+        assert args[:3] == ("shell", "input", "tap")
+        guest.touches += 1
+        guest.files["rich-button-effect.json"].update(
+            generation=7,
+            uptime_ms=10001,
+            state="consumed",
+            action="callback",
+            touch={
+                "down_uptime_ms": 10000,
+                "up_uptime_ms": 10001,
+                "path": receipt["target"]["path"],
+            },
+            requests=[
+                {
+                    "native_request_token": 19,
+                    "request_id": "http-late",
+                    "callback_id": None,
+                    "message_revision": None,
+                }
+            ],
+            clipboard=None,
+        )
+        guest.now = 10010
+        # End only the host's first bounded wait, without pretending transport completed.
+        guest.android.deadline = time.monotonic() - 1
+
+    monkeypatch.setattr(guest.android, "_adb", touch)
+
+    def complete() -> None:
+        assert "rich-button-disarm.json" not in guest.writes, (
+            "native live-arm guard would reject late completion"
+        )
+        with World.open(Path("world")) as world:
+            callback = world.create_callback(
+                user_id=guest.record["chat"]["user_id"],
+                chat_id=guest.record["chat"]["id"],
+                message_id=guest.record["message"]["id"],
+                data="same",
+                request_id="http-late",
+                version=4,
+            )
+        effect = guest.files["rich-button-effect.json"]
+        effect.update(generation=8, uptime_ms=10020, state="complete")
+        effect["requests"][0].update(
+            callback_id=callback["id"], message_revision=guest.record["revision"]
+        )
+        guest.now = 10030
+        guest.android.deadline = time.monotonic() + 5
+
+    return complete
+
+
+def test_completion_after_uncertain_receipt_reconciles_and_only_then_disarms(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    complete = _delayed_callback(guest, receipt, monkeypatch)
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "uncertain"
+    assert result["reason"] == {"code": "effect_timeout"}
+    assert "rich-button-disarm.json" not in guest.writes
+    second = copy.deepcopy(receipt)
+    second["operation_id"] = "another-operation"
+    second["target"]["target_id"] = "another-target"
+    with pytest.raises(ValueError):
+        guest.prepare(second, client_nonce="process-original")
+    assert guest.reconcile(receipt) is None
+    complete()
+    confirmed = guest.reconcile(receipt)
+    assert confirmed is not None and confirmed["status"] == "succeeded"
+    assert guest.writes[-1] == "rich-button-disarm.json"
+    assert guest.writes.count("rich-button-arm.json") == 1
+    assert guest.touches == 1
+    writes = list(guest.writes)
+    assert guest.reconcile(receipt) == confirmed
+    assert guest.writes == writes
+
+
+def test_new_observation_abandons_unresolved_arm_before_restart(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    _delayed_callback(guest, receipt, monkeypatch)
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "uncertain"
+    assert "rich-button-disarm.json" not in guest.writes
+    guest.android.deadline = time.monotonic() + 5
+    guest.observe(guest.record)
+    assert guest.writes[-2:] == ["rich-button-disarm.json", "rich-button-observe.json"]
+    assert guest.reconcile(receipt) is None
+    assert guest.dispatch(receipt, prepared) == result
+    assert guest.touches == 1
+
+
+@pytest.mark.parametrize("terminal", ["complete", "unavailable", "uncertain"])
+def test_native_terminal_effect_state_cannot_switch_to_another_terminal(
+    staged: Any, terminal: str
+) -> None:
+    guest, receipt = staged("copy")
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    original = copy.deepcopy(guest.files["rich-button-effect.json"])
+    first = original | {"generation": 7, "state": terminal}
+    second = original | {
+        "generation": 8,
+        "state": "complete" if terminal != "complete" else "uncertain",
+    }
+    state = prepared["context"]
+    # Feed independently authored protocol publications through the validator; their
+    # complete semantic effect is deliberately not claimed by these transition checks.
+    guest._effect(state, first)
+    with pytest.raises(ValueError):
+        guest._effect(state, second)
+    guest.abort_prepared(receipt, prepared)
+
+
+def test_consumed_copy_effect_cannot_remove_established_clipboard(staged: Any) -> None:
+    guest, receipt = staged("copy")
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    current = copy.deepcopy(guest.files["rich-button-effect.json"])
+    with pytest.raises(ValueError):
+        guest._effect(
+            prepared["context"], current | {"generation": 7, "state": "consumed", "clipboard": None}
+        )
+    guest.abort_prepared(receipt, prepared)
+
+
+@pytest.mark.parametrize(
+    "clipboard",
+    [
+        {"before": "mutated baseline", "after": None},
+        {"before": None, "after": "unrelated observed content"},
+    ],
+)
+def test_consumed_copy_cannot_mutate_established_baseline(staged: Any, clipboard: Any) -> None:
+    guest, receipt = staged("copy")
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    current = copy.deepcopy(guest.files["rich-button-effect.json"])
+    with pytest.raises(ValueError):
+        guest._effect(
+            prepared["context"],
+            current | {"generation": 7, "state": "consumed", "clipboard": clipboard},
+        )
+    guest.abort_prepared(receipt, prepared)
+
+
+def test_known_mismatch_on_late_poll_disarms_and_stays_unrecoverable(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    complete = _delayed_callback(guest, receipt, monkeypatch)
+    assert guest.dispatch(receipt, prepared)["status"] == "uncertain"
+    complete()
+    exact = copy.deepcopy(guest.files["rich-button-effect.json"])
+    guest.files["rich-button-effect.json"]["requests"][0]["request_id"] = "unrelated-request"
+    assert guest.reconcile(receipt) is None
+    assert guest.writes[-1] == "rich-button-disarm.json"
+    guest.files["rich-button-effect.json"] = exact | {"generation": 9}
+    assert guest.reconcile(receipt) is None
+    assert guest.touches == 1
+
+
+def test_consumed_copy_retains_baseline_until_original_handler_evidence(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged("copy")
+    guest.baseline = "initial plain text"
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    original_touch = guest.touch
+    original_read = guest._read
+    pending: dict[str, Any] | None = None
+
+    def touch(*args: str, **kwargs: Any) -> Any:
+        nonlocal pending
+        result = original_touch(*args, **kwargs)
+        pending = copy.deepcopy(guest.files["rich-button-effect.json"])
+        guest.files["rich-button-effect.json"].update(
+            state="consumed", clipboard={"before": guest.baseline, "after": guest.baseline}
+        )
+        return result
+
+    def read(name: str) -> dict[str, Any]:
+        nonlocal pending
+        result: dict[str, Any] = original_read(name)
+        if name == "rich-button-effect.json" and result["state"] == "consumed":
+            assert pending is not None
+            guest.files[name] = pending | {"generation": 8}
+            pending = None
+        return result
+
+    monkeypatch.setattr(guest.android, "_adb", touch)
+    guest._read = read
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "succeeded"
+    assert result["evidence"]["clipboard_observation"] == {
+        "before": guest.baseline,
+        "after": "برداشت / copy",
+    }
+    assert guest.touches == 1

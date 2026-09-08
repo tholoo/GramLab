@@ -340,8 +340,18 @@ class AndroidRichInput:
 
     def observe(self, record: dict[str, Any]) -> str:
         _require(self.android._bridge_version == 4)
-        _require(self._live is None)
         snapshot = self._current(record)
+        if self._live is not None:
+            previous = self._operations[self._live]
+            _require(previous["dispatched"] and previous["result"] is not None)
+            _require(previous["result"]["status"] == "uncertain" and not previous["mismatch"])
+            # A deliberate observation already authorizes a cold launch. Abandon
+            # this unresolved lifetime before disarming it; never recover its input.
+            previous["abandoned"] = True
+            self.android.observations.setdefault("rich_button_abandoned", {})[
+                previous["arm"]["operation_id"]
+            ] = {"reason": "new_observation"}
+            self._disarm(previous)
         self._record = copy.deepcopy(record)
         self._activation = {
             "schema": 1,
@@ -628,15 +638,25 @@ class AndroidRichInput:
         _require(all(value[key] == state["arm"][key] for key in _IDENTITY))
         previous = state["effect"]
         if previous is not None:
-            if previous["clipboard"] is not None and value["clipboard"] is not None:
+            if previous["clipboard"] is not None:
+                _require(value["clipboard"] is not None)
                 _require(previous["clipboard"]["before"] == value["clipboard"]["before"])
-                if previous["state"] == "complete":
+                if previous["clipboard"]["after"] != value["clipboard"]["after"]:
+                    button = state["target"]["button"]
+                    _require(previous["clipboard"]["after"] == previous["clipboard"]["before"])
+                    _require("copy_text" in button and value["action"] == "copy")
+                    _require(value["clipboard"]["after"] == button["copy_text"]["text"])
+                    _require(touch is not None and touch["up_uptime_ms"] is not None)
+                if previous["state"] in ("complete", "unavailable", "uncertain"):
                     _require(previous["clipboard"] == value["clipboard"])
             _require(value["generation"] >= previous["generation"])
             _require(value["uptime_ms"] >= previous["uptime_ms"])
             _require(value["generation"] != previous["generation"] or value == previous)
-            rank = {"armed": 0, "consumed": 1, "complete": 2, "unavailable": 2, "uncertain": 2}
-            _require(rank[value["state"]] >= rank[previous["state"]])
+            if previous["state"] in ("complete", "unavailable", "uncertain"):
+                _require(value["state"] == previous["state"])
+            elif previous["state"] == "consumed":
+                _require(value["state"] != "armed")
+            _require(previous["reason"] is None or value["reason"] == previous["reason"])
             if previous["touch"] is not None:
                 _require(touch is not None)
                 for key in ("down_uptime_ms", "up_uptime_ms"):
@@ -695,17 +715,27 @@ class AndroidRichInput:
 
     def _confirm(self, state: dict[str, Any]) -> dict[str, Any] | None:
         value = self._effect(state, self._read("rich-button-effect.json"))
-        pid, now = self._guest_state()
-        _require(pid == state["pid"])
+        # Validate the accompanying private observation against this operation's
+        # activation and frozen mapping. A bot edit may make that old revision
+        # unavailable; the accepted callback's frozen World revision is authoritative.
         observed = self._read("rich-button-observation.json")
-        _require(
-            observed.get("client_nonce") == state["arm"]["client_nonce"]
-            and observed.get("pid") == pid
-        )
+        state["candidate"] = {"source": "rich-button-observation.json", "observation": observed}
+        observed = self._observation(observed, nonce=state["arm"]["client_nonce"])
+        pid, now = self._guest_state()
+        _require(pid == observed["pid"] == state["pid"])
+        _require(self.android._persona == state["arm"]["user_id"])
+        _require(self.android._active_chat == state["arm"]["chat_id"])
         _require(
             self._read("rich-button-observe.json")
             == {key: state["arm"][key] for key in _ACTIVATION}
         )
+        previous = state.get("post_observation", state["observation"])
+        _require(observed["generation"] >= previous["generation"])
+        _require(observed["drawn_uptime_ms"] >= previous["drawn_uptime_ms"])
+        _require(observed["generation"] != previous["generation"] or observed == previous)
+        _require(0 <= now - observed["drawn_uptime_ms"] <= 5000)
+        state["post_observation"] = copy.deepcopy(observed)
+        state["candidate"] = value
         _require(value["uptime_ms"] <= now)
         _require(value["reason"] is None)
         _require(len(value["requests"]) <= 1)
@@ -824,12 +854,13 @@ class AndroidRichInput:
         except (OSError, RuntimeError, subprocess.SubprocessError):
             result = self._outcome(state, None, "dispatch_unconfirmed")
         state["result"] = result
-        self._finish(state)
+        if not state["dispatched"] or state["mismatch"]:
+            self._finish(state)
         return copy.deepcopy(result)
 
     def reconcile(self, receipt: dict[str, Any]) -> dict[str, Any] | None:
         state = self._operations.get(receipt["operation_id"])
-        if state is None or state["mismatch"] or not state["dispatched"]:
+        if state is None or state["mismatch"] or state.get("abandoned") or not state["dispatched"]:
             return None
         if state["result"] is not None and state["result"]["status"] == "succeeded":
             return dict(copy.deepcopy(state["result"]))
@@ -838,9 +869,11 @@ class AndroidRichInput:
         except (ValueError, KeyError, TypeError, UnicodeError):
             state["mismatch"] = True
             self._diagnostic(state)
+            self._finish(state)
             return None
         except (OSError, RuntimeError, subprocess.SubprocessError):
             return None
         if result is not None:
             state["result"] = result
+            self._finish(state)
         return copy.deepcopy(result)
