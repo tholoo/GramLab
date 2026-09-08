@@ -311,3 +311,59 @@ verified host success/disarm/launch flow. [Ticket98](98-native-disarm-lifetime-s
 the operation-scoped correction and independent native regression. No timeout, drawing, input or
 freshness change is justified. Native04 guest disks are retired; all failed results, screenshots
 and operation diagnostics remain. Full four-phase native acceptance remains pending the fix.
+
+## Claimed native06 popup-settling follow-up
+
+Coordinator authorizes only this ticket, the existing bootstrap and its host/native acceptance
+file. Native06 on normal28 completes all six rich actions and the first three terminal clipboard
+probes. The final row-disabled action is complete with unchanged ROW clipboard and World state,
+but its post-dispatch probe sees the exact owned popup immediately after one Back and rejects
+before paste. Eventual dismissal is not established by that run. Preserve native06 and earlier
+artifacts. Initial ownership/PID/focus validation stays unchanged; after the single Back, observe
+only the same popup until original LaunchActivity regains focus, rejecting changed PID or
+unrelated/ambiguous focus. Polling consumes the existing run deadline and32 wrapper-command bound;
+no timeout extension, extra input, redraw or target renewal is authorized. Record Back issuance
+separately, and only record popup dismissal after the postcondition is verified. Fresh native07
+and the final actual paste/clear remain coordinator-owned acceptance.
+
+The implemented loop retains the initial strict ownership and two PID/focus observations, then
+issues exactly one Back and records `popup_back_issued`. Each later observation allows only the
+same window identity or same-user original LaunchActivity; both require the original PID. A
+changed/different/ambiguous foreground rejects immediately. Same-popup persistence consumes the
+existing32-command allowance and original run deadline, without any new deadline, sleep, input or
+state modification. `popup_dismissed` is set only after verified chat focus. All subsequent original
+composer XML, actual paste/end/delete/clear, source-hash and World-state checks remain required.
+Native acceptance now verifies both bookkeeping fields whenever the single Back was issued.
+
+The native06 result (SHA256
+`bc0ad7a495e9e160254cd81668c5ebc6b44ddb92f901cf9d665f1b5f13ed9b69`)
+supplies the exact six-command focus/PID projection for a portable host regression. It is explicitly
+limited to retained observations; a scheduled later popup-to-chat transition is an independently
+authored external control, not fabricated future native evidence. Initial ownership and screenshot
+collaborators are explicitly substituted in these host controls; no PNG or native success is made.
+Ten new cases cover that prefix without paste on deadline, immediate/delayed chat return, persistent
+popup, partially consumed command allowance, exhausted deadline, changed PID despite apparent
+chat focus, unrelated/ambiguous focus and a different popup. Every failure forbids capture/paste;
+every case permits exactly one Back, and failure evidence never claims verified dismissal.
+
+All ten controls initially fail in `artifacts/ticket92-popup-red.xml`. After correction the full
+40-test host suite passes in `artifacts/ticket92-popup-green.xml`; strengthened wrong-PID and
+immediate unrelated-window rejection assertions also pass all40 in
+`artifacts/ticket92-popup-final.xml`. The existing contained four-phase simulation remains part
+of that run. Strict mypy and Ruff lint/format pass for the four existing probe/plugin/scenario/test
+files. No tracked files outside the three authorized follow-up paths changed, and no guest,
+build, network, full gate or provisioning ran. Existing native06 files remain unchanged. All
+worker commands/contained processes are terminal; fresh native07 on unchanged normal28 remains
+required for actual final row-disabled paste/clear acceptance.
+
+```sh
+tools/dev default --offline --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest -q tests/test_runner_rich_clipboard.py -m "not android" --junitxml=artifacts/ticket92-popup-final.xml'
+tools/dev default --offline --command env MYPYPATH=tests .venv/bin/mypy \
+  --strict --explicit-package-bases tests/probes/rich_native_clipboard_supervisor.py \
+  tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
+.venv/bin/ruff check --no-cache tests/probes/rich_native_clipboard_supervisor.py \
+  tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
+.venv/bin/ruff format --check --no-cache tests/probes/rich_native_clipboard_supervisor.py \
+  tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
+```

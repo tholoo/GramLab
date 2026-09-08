@@ -175,10 +175,22 @@ class ClipboardProbe:
         if re.findall(FOCUS, self.adb("shell", "dumpsys", "window", "displays")) != focused:
             raise ValueError("Original popup focus changed")
         self.adb("shell", "input", "keyevent", "4")
-        self.record["popup_dismissed"] = True
-        remaining = re.findall(FOCUS, self.adb("shell", "dumpsys", "window", "displays"))
-        if len(remaining) != 1 or remaining[0][2] != PACKAGE + "/org.telegram.ui.LaunchActivity":
-            raise ValueError("Original chat did not regain focus")
+        self.record["popup_back_issued"] = True
+        # Back returns before asynchronous window focus necessarily settles. Every read
+        # consumes the existing run deadline and command budget; never send another Back.
+        while True:
+            remaining = re.findall(FOCUS, self.adb("shell", "dumpsys", "window", "displays"))
+            original_chat = len(remaining) == 1 and remaining[0][1:] == (
+                focused[0][1],
+                PACKAGE + "/org.telegram.ui.LaunchActivity",
+            )
+            if not original_chat and remaining != focused:
+                raise ValueError("Original popup focus changed")
+            if self.adb("shell", "pidof", PACKAGE).split() != pids:
+                raise ValueError("Original popup process changed")
+            if original_chat:
+                self.record["popup_dismissed"] = True
+                return
 
     def run(self, name: str, expected: str) -> None:
         if name == "row_disabled":
