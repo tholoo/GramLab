@@ -124,6 +124,7 @@ uv run --locked mypy --strict src/gramlab/bot_api.py tests/test_multipart_upload
 uv run --locked mypy --strict src/gramlab/world.py tests/test_media_world.py tests/test_media_storage_migration.py tests/fixtures/media_storage_v7/generate.py
 uv run --locked mypy --strict src/gramlab/_document_metadata.py tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
 MYPYPATH=tests:tests/probes uv run --locked mypy --strict --explicit-package-bases tests/test_android_button_disarm.py tests/probes/android_button_disarm.py
+MYPYPATH=tests uv run --locked mypy --strict src/gramlab/documents.py tests/test_document_world.py tests/test_document_storage_migration.py tests/fixtures/document_storage_v8/generate.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

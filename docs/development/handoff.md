@@ -66,8 +66,8 @@ isolated workers and no guest. All59 documented static commands, Ruff lint/forma
 and configuration/links in252 Markdown documents pass. This includes integrated metadata97,
 multipart decoding100, native disarm98 and the final clipboard92 popup-settling correction. No
 resource warnings remain. Clipboard92 and disarm98 are resolved after actual native acceptance
-and this combined gate. Worker99's typed World/schema9 implementation and native codec101 remain
-under separate review/implementation; they are not certified by this gate. Successful temporary
+and this combined gate. World99 is subsequently integrated with102 focused checks, including high-ID allocation and
+late-grant rollback; this combined gate predates99. Native codec101 remains in progress. Successful temporary
 core fixtures are retired after retaining JUnit, logs and outcome.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
@@ -114,7 +114,7 @@ emoji IDs at reserved DC-1, including the required canonical2147483648 sentinel 
 pinned-source links and original file destination/deconfliction requirements are recorded in
 [document references](documents-references.md). Metadata97 is integrated and resolved:32 focused checks cover independently reproduced pinned
 Unicode/MIME data and filename normalization. The frozen [document implementation contract](documents-implementation-contract.md)
-guides worker99 typed World/schema9/v5 dependencies. Multipart decoding100 is integrated with
+now has integrated World99 typed storage/schema9/v5 dependencies with102 focused checks. Multipart decoding100 is integrated with
 83 focused multipart/photo/metadata checks and strict typing;
 general document API/native delivery and albums remain open.
 Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
