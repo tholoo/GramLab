@@ -36,10 +36,15 @@ the full product scope documented in the handoff.
 - [91: document source contract](issues/91-document-source-contract.md): pinned filename/MIME
   derivation and empty-upload rejection are researched; ordinary file implementation remains open.
 - [92: clipboard acceptance](issues/92-rich-button-native-clipboard-acceptance.md): row/inline copy and inline-disabled
-  paste/clear pass in native03; expired draw evidence motivates independent terminal phases.
+  paste/clear pass in native03; four-phase native05 identifies stale disarm blocking a new lifetime.
 - [94: multipart metadata](issues/94-multipart-upload-metadata.md): integrated with 12 affected
   checks passing and the 948-test combined core gate passing.
-- [95: unrelated target survival](issues/95-native-unrelated-edit-target-survival.md): integrated; first native startup failure and
-  later pre-dispatch rejection remain recorded; preparation follow-up is active.
+- [95: unrelated target survival](issues/95-native-unrelated-edit-target-survival.md): resolved: fresh normal27 native03 passes the complete
+  same-layout unrelated-edit case in95.41 seconds; earlier failures remain recorded.
 - [96: shared immutable bytes](issues/96-neutral-media-byte-storage.md): schema-8 migration accepted with 53 affected
   checks and the 968-test combined gate; ordinary document APIs remain open.
+
+- [97: pinned document metadata](issues/97-pinned-document-filename-metadata.md): exact filename
+  cleaning and extension-derived MIME implementation is assigned independently of World/HTTP.
+- [98: native disarm scope](issues/98-native-disarm-lifetime-scope.md): preserve strict validation
+  while preventing a valid old-lifetime disarm from blocking a new arm.

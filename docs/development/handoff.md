@@ -62,14 +62,13 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The current core11 checkpoint passes 968 tests at 87.36% coverage in 139.41 seconds with four
-isolated workers and no simultaneous guest. All 57 documented static commands, Ruff lint/format
-across 494 files and configuration/links in 243 Markdown documents pass. This includes92's failure
-diagnostic,94 multipart metadata,95's corrected independent acceptance and96's schema-8 migration.
-The gate exposed unclosed fixture database connections; explicit closure subsequently passes all
-23 migration/media World checks with resource and unraisable warnings treated as errors. The
-production migration is unchanged. Core08's earlier six recovery-fixture failures and correction
-remain recorded; no production timeout, rendering or recovery behavior was changed to pass them.
+The current core12 checkpoint passes980 tests at87.36% coverage in163.92 seconds with four
+isolated workers and no simultaneous guest. All57 documented static commands, Ruff lint/format
+across497 files and configuration/links in245 Markdown documents pass. This includes92's four-phase
+scenario and original prepare/freshness diagnostics,95's reduced pre-prepare work and failure
+retention, and96's fixture-connection cleanup. No resource warnings remain in this combined run.
+Successful temporary core fixtures are retired after preserving JUnit, logs and outcome. The
+in-progress document metadata97 and native disarm98 workers are not part of this checkpoint.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
 Multipart metadata94 is resolved, preserving filename/type and exact image bytes. Storage96 is
@@ -81,25 +80,38 @@ client delivery, rather than treating this migration as file support.
 
 Clipboard92's XML correction passes actual row-copy paste/clear in native02. Diagnostic native03
 also passes inline-copy and inline-disabled paste/clear with complete unchanged semantic snapshots.
-It still fails full acceptance: the row-disabled operation reads a draw sample 10,236 ms old and
-rejects at the unchanged five-second guard before dispatch. Exact source hash, failure frame and
-staged bootstrap are verified. Earlier native02's exact guard was not retained. The four-phase
-rewrite is integrated with 26 focused checks: deliberate public observation per phase, same-lifetime
-copy baseline for each disabled action, and terminal paste/clear; no expired-target renewal or input
-retry. Native04 passes row-copy but rejects the next phase's inline-copy during preparation. Its
-original observation and before-input PNG are retained, but no freshness-failure record exists;
-the precise later preparation guard remains unproven and a bounded diagnostic follow-up is active.
-The 968-test checkpoint predates this phase rewrite. The complete88 native gate remains separate
-and unchanged. Diagnosed clipboard guest disks are
-retired; their XML, screenshots, operation records, logs and source evidence remain.
+It still fails full acceptance: native03's row-disabled operation reads a draw sample10,236 ms
+old and rejects at the unchanged five-second guard before dispatch. The four-phase rewrite is
+integrated; deliberate public observation per phase, same-lifetime copy baseline for each disabled
+action, and terminal paste/clear avoid aging later targets through earlier probes. Native04 passes
+row-copy but rejects phase2 during preparation, without enough evidence to identify its exact guard.
+The integrated prepare diagnostic has30 focused checks. Fresh normal27 native05 fails in103.40
+seconds after row-copy, now retaining the exact arm-acknowledgement timeout: the new lifetime has a
+valid matching observation/arm, but the effect still belongs to the prior completed operation.
+Source review identifies retained old disarm validation preventing native polling from reaching the
+new arm. Private disarm bytes were not captured; retention follows from the verified prior success,
+host disarm and same-persona cold-launch flow. Ticket98 owns strict lifetime-scoped disarm handling
+and an actual native control probe, followed by fresh four-phase clipboard acceptance. No timeout,
+input, freshness or original drawing change is justified. The unchanged complete88 endpoint remains
+separate evidence. Earlier results and screenshots remain; obsolete guest disks are retired.
 
-Unrelated-edit95 is integrated with two focused controls and complete bot/native oracles. Native01
-fails startup before actors. Startup-instrumented native02 boots and visibly applies the unrelated
-edit, but rejects the target before input; its retained armed effect is already 4,978 ms after the
-last drawn sample. The exact failing guard is not retained, so do not label its cause proven.
-The scenario then waits for a callback that cannot arrive. A bounded follow-up removes redundant
-preparation work, uses the original operation screenshot, and retains failures promptly. Native
-unrelated-edit survival remains unproven. Startup collector processes/threads are terminal.
+Unrelated-edit95 is resolved for its bounded same-layout case. Four focused host/contained checks
+and scoped static checks pass; fresh normal27 native03 passes in95.41 seconds with startup-only
+diagnostics. Complete histories/events/API ordering, original target/lifetime/PID/geometry, exact
+input/callback, repeated receipts, related-edit rejection and APK/bootstrap provenance pass with
+zero accounts and component isolation. The original screenshot is inspected: the Confirm target
+and edited unrelated message are visible. This does not close wider placement/recovery under74.
+Earlier native01 startup failure and native02 pre-dispatch rejection retain their original results;
+native02's4,978 ms armed draw age motivates the reduced preparation work but does not prove its
+exact failed guard. Both obsolete and successful unrelated guest disks are retired.
+
+Document source review confirms signed negative ordinary IDs can coexist with positive custom
+emoji IDs at reserved DC-1, including the required canonical2147483648 sentinel boundary. Corrected
+pinned-source links and original file destination/deconfliction requirements are recorded in
+[document references](documents-references.md). Worker97 implements pinned filename/Unicode/MIME
+metadata independently; general document storage/API/version5 delivery and albums remain open.
+Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
+the local parser's different limit. Preserve this distinction and the unresolved server detector.
 
 Exact run paths, cleanup identities and current process handles stay in ignored coordinator notes.
 Successful core fixtures are retired immediately after preserving JUnit, logs and outcomes.
@@ -243,8 +255,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 917 passed at 87.07% coverage in 145.42 seconds using four isolated workers, verified primary imports and no simultaneous guest. Includes raw capture and bounded fault diagnostics; native acceptance remains separate. |
-| Latest static/workflow | The 917-test checkpoint passes 53 documented static commands, Ruff lint/format across 474 files and configuration/links in 233 Markdown documents. The unchanged pinned workflow check passed at the preceding checkpoint. Workers88/89 are not integrated. |
+| Latest core | 980 passed at 87.36% coverage in 163.92 seconds with four isolated workers and no guest. Includes integrated clipboard/unrelated acceptance helpers and storage fixture cleanup; native evidence remains separate. |
+| Latest static/workflow | Core12 checkpoint passes 57 documented static commands, Ruff lint/format across 497 files, and configuration/links in 245 Markdown documents. Workers97/98 remain unintegrated. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable

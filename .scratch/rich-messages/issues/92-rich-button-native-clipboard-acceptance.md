@@ -293,3 +293,21 @@ oversized values, secret redaction, immutable evidence and exact propagated exce
 Scoped strict typing, Ruff lint/format and diff checks pass. No phase/input/timeout/guard/APK/profile
 change occurred, and no native04 artifact was edited. All worker subprocesses are terminal; no
 guest/build/full gate or provisioning ran. Root must execute native05 to establish the cause.
+
+
+## Coordinator native05 diagnosis
+
+The prepare diagnostic is integrated with30 focused checks passing. Fresh normal27 native05 fails
+in103.40 seconds after row-copy paste/clear. The exact original prepare traceback now identifies
+the arm-acknowledgement wait: the new lifetime's observation matches its new activation/arm, while
+the pending effect remains the prior lifetime's completed row-copy operation. Source hashes match
+the staged production implementation. No new input was dispatched for the rejected operation.
+
+Source review establishes a retained old disarm is processed before the new arm. Same-persona
+cold launch preserves app data; the successful prior operation writes that disarm. Native polling
+rejects its old activation/client nonce and swallows the exception before reading the new arm.
+The private disarm bytes themselves were not captured in this run; retention follows from the
+verified host success/disarm/launch flow. [Ticket98](98-native-disarm-lifetime-scope.md) implements
+the operation-scoped correction and independent native regression. No timeout, drawing, input or
+freshness change is justified. Native04 guest disks are retired; all failed results, screenshots
+and operation diagnostics remain. Full four-phase native acceptance remains pending the fix.

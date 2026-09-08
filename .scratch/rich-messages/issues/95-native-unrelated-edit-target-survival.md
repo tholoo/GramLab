@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by `native_unrelated_target_survival` on `task/native-unrelated-edit-target-survival`
+Work state: resolved
 Blocked by: none
 
 Own this ticket and new `tests/fixtures/unrelated_target_bot.py`,
@@ -124,3 +124,19 @@ tools/dev default --offline --command env MYPYPATH=tests uv run --locked --offli
   tests/unrelated_target_scenario.py tests/fixtures/unrelated_target_bot.py \
   tests/probes/unrelated_target_supervisor.py
 ```
+
+
+## Coordinator native acceptance
+
+The corrected branch is integrated, including preserving the original preparation exception if
+diagnostic publication fails. All four focused host/contained checks and scoped strict typing,
+Ruff lint and formatting pass in the integration checkout. Fresh normal27 native03 passes in
+95.41 seconds with the startup-only collector and reduced pre-prepare guest work. The independent
+endpoint requires complete World histories/events/API ordering, unchanged lifetime/PID/geometry,
+exact original input and callback, unchanged repeated receipts, related-edit rejection, APK and
+staged-source provenance, zero accounts and component isolation. The original operation PNG is
+inspected: the unchanged Confirm target and edited unrelated message are both visible. This proves
+the bounded same-layout unrelated-edit case; broader placement/recovery remains under74. Earlier
+native01 startup and native02 pre-dispatch failures retain their original results and evidence.
+Their guest disks and the successful guest's disks are retired after portable evidence is saved.
+Combined core/static acceptance for this integration batch is tracked by the coordinator handoff.

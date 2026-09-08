@@ -70,6 +70,13 @@ milestone. The local Bot API server's separately documented 2,000 MB upload mode
 the current in-database design; neither limit changes the requirement that accepted file sizes and
 64-bit output fields be handled without integer truncation.
 
+The exact cloud interpretation of “50 MB” is not established by the inspected local source.
+TDLib's HTTP parser instead admits up to `4000 << 20` bytes per file, inclusive
+([local parser constant](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.h#L112)).
+That local parser bound and the Bot API HTTP server's file-count limit do not prove cloud byte
+admission. Record any concrete GramLab byte ceiling as its own profile value until the cloud
+boundary is independently established.
+
 Files with ordinary MIME types, extensions, or contents must remain ordinary documents. Telegram
 may classify some uploaded content as another media type when detection is enabled. The inspected
 client/server adapter contains no detector to reproduce: it sends `force_file=false` and Telegram's
@@ -97,6 +104,18 @@ but creates that temporary path from a cleaned filename and falls back to the li
 `file` when cleaning produces an empty name
 ([temporary file](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L472-L504),
 [name and write rules](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L786-L850)).
+
+The parser unescapes quoted-string backslashes before URL decoding. It explicitly disables plus
+conversion: `+` remains literal, valid `%HH` sequences decode once without regard to hex case, and
+malformed or incomplete escapes remain unchanged
+([quoted header parsing](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L345-L389),
+[URL decoder](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/misc.cpp#L172-L200)).
+After decoding, PathView treats both `/` and `\\` as separators on every platform. The extension
+begins at the last dot strictly after the first basename character; `.env` has no extension,
+whereas `.env.pdf` does
+([separators](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/PathView.h#L72-L74),
+[split](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/PathView.cpp#L14-L26)).
+Do not substitute the host platform's basename rules or form-style plus decoding.
 
 The Bot API adapter passes only `HttpFile.temp_file_name` to TDLib as `inputFileLocal`; it does not
 pass `HttpFile.name` or `HttpFile.content_type`. TDLib then takes the temporary path's basename as
