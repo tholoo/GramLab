@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/immutable-apk-artifact-storage`; coordinator review pending
 Blocked by: coordinator review and integration
 
 Own this ticket, `tools/artifact-store`, `tests/test_artifact_store.py` and
@@ -36,3 +36,33 @@ data, stale plans, symlink/path escape, preexisting collisions and interruption 
 replacement. Run focused tests, strict typing and lint/format; no guest, build or full core gate.
 Return a clean frozen branch and structured handoff. Production artifact mutation remains with
 the coordinator after code review; the earlier one-off result is not this tool's acceptance.
+
+## Worker evidence
+
+`tools/artifact-store` provides explicit create-only `plan` and confirmed-quiescent `apply`
+commands. Plans bind canonical archive/store roots to sorted regular APK paths, SHA-256 values,
+sizes and source metadata. Apply validates the entire inventory and all existing objects before
+mutation, copies and verifies distinct content, publishes mode-0444 objects without overwriting,
+then revalidates each source through directory-file-descriptor anchored paths before atomic
+hardlink replacement. Plans and complete receipts are bounded to 16 MiB before mutation; manifest
+reads are descriptor-bounded. Fsynced receipts retain original metadata and recover both published
+objects and replacements interrupted before their journal entries.
+
+Twenty real temporary-filesystem cases pass under the outer loopback-only namespace, covering
+duplicate and unique bytes, complete path preservation, idempotence, byte/mode/inode staleness,
+symlink, path escape and unmanaged-hardlink rejection, parent substitution before and during
+apply, content and create-only output collisions, quiescence confirmation, manifest/receipt bounds,
+and interruptions before/after replacement and after object publication. They also reject an
+unmanaged staged hardlink and an impossible premature completion before mutation, and exercise a
+maximum-length APK basename through bounded digest-derived staging. Retained follow-up JUnit is
+`artifacts/immutable-apk-artifact-storage-followup.xml`. Scoped Ruff lint/format, strict mypy,
+bytecode compilation and assigned-checkout import verification pass. No actual archive, guest,
+build, runtime/core API or shared configuration was changed.
+
+## Coordinator integration
+
+The reviewed tool passes all 20 integrated filesystem checks in
+`artifacts/artifact-storage-integrated-01.xml`, plus scoped Ruff/format and strict typing.
+Contributor and CI checks now include the extensionless tool. The documented archival operation
+remains explicit; integration performs no mutation of retained project artifacts. The combined
+core gate will run after the current independent changes are integrated.

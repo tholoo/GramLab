@@ -22,8 +22,8 @@ Nix and direnv changes. Store host inventory, proxy addresses and other machine-
 
 ```sh
 uv sync --locked
-uv run --locked ruff check . tools/test-timings tools/worktree-dependency
-uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency
+uv run --locked ruff check . tools/test-timings tools/worktree-dependency tools/artifact-store
+uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency tools/artifact-store
 ```
 
 Pytest checks that its imported GramLab package belongs to this checkout before running tests.
@@ -81,6 +81,7 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
   tests/probes/media_transfer_server.py tests/test_media_transfer_server.py
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tools/worktree-dependency tests/test_worktree_dependency.py
+uv run --locked mypy --strict --explicit-package-bases tools/artifact-store tests/test_artifact_store.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py tests/assets/rich-media/jpeg_generate.py tests/assets/rich-media/jpeg_verify.py
 uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py tests/assets/custom-emoji/toolchain.py
 uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
@@ -163,3 +164,7 @@ latency. The [timing command](docs/development/test-timings.md) compares retaine
 rerunning tests and keeps added cases separate from matched duration changes. Its focused CLI
 checks run with `pytest tests/test_test_timings.py`; it does not change runtime isolation or the
 meaning of suite coverage.
+
+For completed APK archives, the [artifact storage tool](docs/development/artifact-storage.md)
+retains original paths and bytes through verified read-only content objects. Review its explicit
+plan before applying it; keep generated host inventory and receipts in ignored local storage.
