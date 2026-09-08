@@ -68,8 +68,11 @@ and reconstructed row/inline object kinds before publishing any identity binding
 clears only GramLab provenance and preserves message content.
 
 Stock load-type -2 and replace-if-existing paths retain incoming destination provenance while
-merging old stock local parameters. Custom-only updates preserve the row-local provenance already
-read from SQLite and never copy caller provenance. The four adapter/TL/helper sources compile with
+merging old stock local parameters. Custom-only metadata reads defer topology binding while preserving validated row-local provenance;
+updates never copy caller provenance. Malformed GramLab extension data clears only the extension after
+already decoded stock fields, and canonical comparison treats JSON object member order as immaterial.
+Final known-container traversal enforces depth and node budgets and invalid restore removes stale
+non-armed bindings for the same reconstructed objects. The four adapter/TL/helper sources compile with
 `javac -proc:none` against normal25 and cached dependencies. Standalone `MessagesStorage` checking
 reaches the source but remains unavailable because the cached classpath exposes an unrelated
 `LinkedHashMap.Entry` visibility mismatch. No Gradle build or guest was run.

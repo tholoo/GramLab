@@ -1,4 +1,5 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+index ba6bf65..6d44f45 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 @@ -159,6 +159,7 @@ public final class GramLabBridge {
@@ -10,6 +11,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
      }
  
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+index 435214f..2b49d24 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 @@ -18,6 +18,9 @@ import org.json.JSONArray;
@@ -46,7 +48,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
              while (retainedGroups.size() > 1024) {
                  java.util.ArrayList<Binding> old = oldestEvictableGroup();
                  if (old == null)
-@@ -657,6 +663,228 @@ public final class GramLabButtonObserver {
+@@ -657,6 +663,330 @@ public final class GramLabButtonObserver {
          decoding.remove();
      }
  
@@ -98,11 +100,22 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                    || !(provenance.opt("occurrences") instanceof JSONArray))
 +                throw invalid();
 +            JSONArray occurrences = provenance.getJSONArray("occurrences");
++            for (int i = 0; i < occurrences.length(); i++) {
++                JSONObject occurrence = occurrences.getJSONObject(i);
++                exact(occurrence, "path", "button");
++                validatePath(occurrence.getJSONArray("path"));
++                validateCanonicalButton(occurrence.getJSONObject("button"));
++            }
++            if (message.rich_message == null) {
++                if (occurrences.length() == 0) return;
++                // Metadata-only SQLite reads intentionally retain validated provenance for the
++                // destination row. The complete message load performs identity restoration.
++                return;
++            }
 +            java.util.ArrayList<FinalObject> objects = new java.util.ArrayList<>();
-+            if (message.rich_message != null)
-+                collectFinalBlocks(message.rich_message.blocks, new JSONArray().put("blocks"), objects);
-+            if (objects.size() != occurrences.length())
-+                throw invalid();
++            int[] budget = new int[] {0};
++            collectFinalBlocks(message.rich_message.blocks, new JSONArray().put("blocks"), objects, 0, budget);
++            if (objects.size() != occurrences.length()) throw invalid();
 +            for (int i = 0; i < occurrences.length(); i++) {
 +                JSONObject occurrence = occurrences.getJSONObject(i);
 +                exact(occurrence, "path", "button");
@@ -136,8 +149,26 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +            }
 +        } catch (Exception failure) {
 +            for (Binding binding : staged) bindings.remove(binding.finalObject);
++            invalidateMessageBindings(message);
 +            message.gramLabRichButtonRevision = 0;
 +            message.gramLabRichButtonProvenance = null;
++        }
++    }
++
++    private static void invalidateMessageBindings(TLRPC.Message message) {
++        if (message.rich_message == null) return;
++        try {
++            java.util.ArrayList<FinalObject> objects = new java.util.ArrayList<>();
++            collectFinalBlocks(message.rich_message.blocks, new JSONArray().put("blocks"),
++                    objects, 0, new int[] {0});
++            java.util.ArrayList<Binding> live = armedBinding == null ? null : armedBinding.group;
++            for (FinalObject object : objects) {
++                Binding old = bindings.get(object.object);
++                if (old != null && old.group != live) bindings.remove(object.object);
++            }
++        } catch (Exception ignored) {
++            // Invalid or unsupported topology cannot publish new bindings. Existing live-arm
++            // evidence remains immutable; bounded group eviction handles other stale identities.
 +        }
 +    }
 +
@@ -184,10 +215,80 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                actual.put("style", style.bg_primary ? "primary" : style.bg_danger ? "danger"
 +                        : style.bg_success ? "success" : "link");
 +            }
-+            return button.toString().equals(actual.toString());
++            return jsonEqual(button, actual);
 +        } catch (Exception failure) {
 +            return false;
 +        }
++    }
++
++    private static boolean jsonEqual(Object left, Object right) throws Exception {
++        if (left == JSONObject.NULL || right == JSONObject.NULL) return left == right;
++        if (left instanceof JSONObject && right instanceof JSONObject) {
++            JSONObject a = (JSONObject) left;
++            JSONObject b = (JSONObject) right;
++            if (a.length() != b.length()) return false;
++            java.util.Iterator<String> keys = a.keys();
++            while (keys.hasNext()) {
++                String key = keys.next();
++                if (!b.has(key) || !jsonEqual(a.get(key), b.get(key))) return false;
++            }
++            return true;
++        }
++        if (left instanceof JSONArray && right instanceof JSONArray) {
++            JSONArray a = (JSONArray) left;
++            JSONArray b = (JSONArray) right;
++            if (a.length() != b.length()) return false;
++            for (int i = 0; i < a.length(); i++) if (!jsonEqual(a.get(i), b.get(i))) return false;
++            return true;
++        }
++        return left != null && left.getClass() == right.getClass() && left.equals(right);
++    }
++
++    private static void validateCanonicalButton(JSONObject button) throws Exception {
++        boolean callback = button.has("callback_data");
++        boolean copyText = button.has("copy_text");
++        boolean disabled = button.has("disabled");
++        int actions = (callback ? 1 : 0) + (copyText ? 1 : 0) + (disabled ? 1 : 0);
++        exact(button, button.has("style")
++                ? new String[] {"text", callback ? "callback_data" : copyText ? "copy_text" : "disabled", "style"}
++                : new String[] {"text", callback ? "callback_data" : copyText ? "copy_text" : "disabled"});
++        if (actions != 1) throw invalid();
++        Object text = button.get("text");
++        validateCanonicalLabel(text, 0, new int[] {0});
++        if (callback && !(button.get("callback_data") instanceof String)) throw invalid();
++        if (copyText) {
++            JSONObject copy = button.getJSONObject("copy_text");
++            exact(copy, "text");
++            if (!(copy.get("text") instanceof String)) throw invalid();
++        }
++        if (disabled) {
++            JSONObject value = button.getJSONObject("disabled");
++            if (value.length() != 0) throw invalid();
++        }
++        if (button.has("style")) {
++            String style = button.getString("style");
++            if (!("primary".equals(style) || "danger".equals(style)
++                    || "success".equals(style) || "link".equals(style))) throw invalid();
++        }
++    }
++
++    private static void validateCanonicalLabel(Object value, int depth, int[] budget) throws Exception {
++        if (depth > 64 || ++budget[0] > 4096) throw invalid();
++        if (value instanceof String) return;
++        if (value instanceof JSONArray) {
++            JSONArray array = (JSONArray) value;
++            for (int i = 0; i < array.length(); i++) validateCanonicalLabel(array.get(i), depth + 1, budget);
++            return;
++        }
++        if (value instanceof JSONObject) {
++            JSONObject emoji = (JSONObject) value;
++            exact(emoji, "type", "custom_emoji_id", "alternative_text");
++            if (!"custom_emoji".equals(emoji.getString("type"))
++                    || !(emoji.get("custom_emoji_id") instanceof String)
++                    || !(emoji.get("alternative_text") instanceof String)) throw invalid();
++            return;
++        }
++        throw invalid();
 +    }
 +
 +    private static Object canonicalButtonLabel(TL_iv.RichText text) throws Exception {
@@ -213,21 +314,24 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +    }
 +
 +    private static void collectFinalText(TL_iv.RichText text, JSONArray path,
-+            java.util.ArrayList<FinalObject> out) {
++            java.util.ArrayList<FinalObject> out, int depth, int[] budget) {
 +        if (text == null) return;
++        if (depth > 64 || ++budget[0] > 4096) throw invalid();
 +        if (text instanceof TL_iv.textButton) { out.add(new FinalObject(text, append(path, "button"))); return; }
 +        if (text instanceof TL_iv.textConcat) {
 +            for (int i = 0; i < text.texts.size(); i++)
-+                collectFinalText(text.texts.get(i), append(path, i), out);
++                collectFinalText(text.texts.get(i), append(path, i), out, depth + 1, budget);
 +        } else {
-+            collectFinalText(text.text, append(path, "text"), out);
++            collectFinalText(text.text, append(path, "text"), out, depth + 1, budget);
 +        }
 +    }
 +
 +    private static void collectFinalBlocks(java.util.List<TL_iv.PageBlock> blocks, JSONArray path,
-+            java.util.ArrayList<FinalObject> out) {
++            java.util.ArrayList<FinalObject> out, int depth, int[] budget) {
 +        if (blocks == null) return;
++        if (depth > 64) throw invalid();
 +        for (int i = 0; i < blocks.size(); i++) {
++            if (++budget[0] > 4096) throw invalid();
 +            TL_iv.PageBlock block = blocks.get(i);
 +            JSONArray current = append(path, i);
 +            if (block instanceof TL_iv.pageBlockButtonRow) {
@@ -236,38 +340,38 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                    out.add(new FinalObject(buttons.get(j), append(append(current, "buttons"), j)));
 +            } else if (block instanceof TL_iv.pageBlockBlockquoteBlocks) {
 +                TL_iv.pageBlockBlockquoteBlocks quote = (TL_iv.pageBlockBlockquoteBlocks) block;
-+                collectFinalBlocks(quote.blocks, append(current, "blocks"), out);
-+                collectFinalText(quote.caption, append(current, "credit"), out);
++                collectFinalBlocks(quote.blocks, append(current, "blocks"), out, depth + 1, budget);
++                collectFinalText(quote.caption, append(current, "credit"), out, depth + 1, budget);
 +            } else if (block instanceof TL_iv.pageBlockDetails) {
 +                TL_iv.pageBlockDetails details = (TL_iv.pageBlockDetails) block;
-+                collectFinalText(details.title, append(current, "summary"), out);
-+                collectFinalBlocks(details.blocks, append(current, "blocks"), out);
++                collectFinalText(details.title, append(current, "summary"), out, depth + 1, budget);
++                collectFinalBlocks(details.blocks, append(current, "blocks"), out, depth + 1, budget);
 +            } else if (block instanceof TL_iv.pageBlockList) {
 +                java.util.List<TL_iv.PageListItem> items = ((TL_iv.pageBlockList) block).items;
 +                for (int j = 0; j < items.size(); j++) {
 +                    TL_iv.PageListItem item = items.get(j);
 +                    if (item instanceof TL_iv.TL_pageListItemBlocks)
 +                        collectFinalBlocks(((TL_iv.TL_pageListItemBlocks) item).blocks,
-+                                append(append(append(current, "items"), j), "blocks"), out);
++                                append(append(append(current, "items"), j), "blocks"), out, depth + 1, budget);
 +                }
 +            } else if (block instanceof TL_iv.pageBlockTable) {
 +                TL_iv.pageBlockTable table = (TL_iv.pageBlockTable) block;
-+                collectFinalText(table.title, append(current, "caption"), out);
++                collectFinalText(table.title, append(current, "caption"), out, depth + 1, budget);
 +                for (int row = 0; row < table.rows.size(); row++)
 +                    for (int cell = 0; cell < table.rows.get(row).cells.size(); cell++)
 +                        collectFinalText(table.rows.get(row).cells.get(cell).text,
-+                                append(append(append(append(current, "cells"), row), cell), "text"), out);
++                                append(append(append(append(current, "cells"), row), cell), "text"), out, depth + 1, budget);
 +            } else if (block instanceof TL_iv.pageBlockPhoto) {
 +                if (block.caption != null) {
-+                    collectFinalText(block.caption.text, append(append(current, "caption"), "text"), out);
-+                    collectFinalText(block.caption.credit, append(append(current, "caption"), "credit"), out);
++                    collectFinalText(block.caption.text, append(append(current, "caption"), "text"), out, depth + 1, budget);
++                    collectFinalText(block.caption.credit, append(append(current, "caption"), "credit"), out, depth + 1, budget);
 +                }
 +            } else {
-+                collectFinalText(block.text, append(current, "text"), out);
++                collectFinalText(block.text, append(current, "text"), out, depth + 1, budget);
 +                if (block instanceof TL_iv.pageBlockBlockquote)
-+                    collectFinalText(((TL_iv.pageBlockBlockquote) block).caption, append(current, "credit"), out);
++                    collectFinalText(((TL_iv.pageBlockBlockquote) block).caption, append(current, "credit"), out, depth + 1, budget);
 +                else if (block instanceof TL_iv.pageBlockPullquote)
-+                    collectFinalText(((TL_iv.pageBlockPullquote) block).caption, append(current, "credit"), out);
++                    collectFinalText(((TL_iv.pageBlockPullquote) block).caption, append(current, "credit"), out, depth + 1, budget);
 +            }
 +        }
 +    }
@@ -276,6 +380,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
          java.util.ArrayList<Binding> live = armedBinding == null ? null : armedBinding.group;
          for (java.util.ArrayList<Binding> candidate : retainedGroups) {
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
+index 0bbc6db..1a304f2 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
 @@ -6,6 +6,7 @@ import org.telegram.tgnet.OutputSerializedData;
@@ -313,10 +418,19 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
          if (byteBuffer == null) {
              return;
          }
-@@ -70,9 +78,17 @@ public class MessageCustomParamsHelper {
+@@ -69,10 +77,25 @@ public class MessageCustomParamsHelper {
+             default:
                  throw new RuntimeException("can't read params version = " + version);
          }
-         params.readParams(byteBuffer, true);
+-        params.readParams(byteBuffer, true);
++        try {
++            params.readParams(byteBuffer, true);
++        } catch (IllegalArgumentException failure) {
++            if (!"GRAMLAB_BUTTON_PROVENANCE_INVALID".equals(failure.getMessage())) throw failure;
++            message.gramLabRichButtonRevision = 0;
++            message.gramLabRichButtonProvenance = null;
++            return;
++        }
 +        if (restoreGramLab && message.gramLabRichButtonRevision > 0) {
 +            GramLabButtonObserver.restore(message);
 +        }
@@ -331,7 +445,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
          if (isEmpty(message)) {
              return null;
          }
-@@ -91,10 +107,15 @@ public class MessageCustomParamsHelper {
+@@ -91,10 +114,15 @@ public class MessageCustomParamsHelper {
  
          private final static int VERSION = 1;
          final TLRPC.Message message;
@@ -347,7 +461,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
              flags |= message.voiceTranscription != null ? 1 : 0;
              flags |= message.voiceTranscriptionForce ? 2 : 0;
  
-@@ -114,6 +135,8 @@ public class MessageCustomParamsHelper {
+@@ -114,6 +142,8 @@ public class MessageCustomParamsHelper {
              flags = setFlag(flags, FLAG_12, message.translatedSummaryLanguage != null);
  
              flags = setFlag(flags, FLAG_13, message.translatedRichMessage != null);
@@ -356,7 +470,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
          }
  
          @Override
-@@ -166,6 +189,10 @@ public class MessageCustomParamsHelper {
+@@ -166,6 +196,10 @@ public class MessageCustomParamsHelper {
              if (hasFlag(flags, FLAG_13)) {
                  message.translatedRichMessage.serializeToStream(stream);
              }
@@ -367,7 +481,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
          }
  
          @Override
-@@ -216,6 +243,16 @@ public class MessageCustomParamsHelper {
+@@ -216,6 +250,16 @@ public class MessageCustomParamsHelper {
              if (hasFlag(flags, FLAG_13)) {
                  message.translatedRichMessage = TL_iv.RichMessage.TLdeserialize(stream, stream.readInt32(exception), exception);
              }
@@ -385,6 +499,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomPar
  
      }
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.java
+index a6a0468..b33f060 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.java
 @@ -8,6 +8,8 @@
@@ -396,6 +511,24 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.
  import static org.telegram.messenger.MessagesController.LOAD_AROUND_DATE;
  import static org.telegram.messenger.MessagesController.LOAD_AROUND_MESSAGE;
  import static org.telegram.messenger.MessagesController.LOAD_BACKWARD;
+@@ -5660,7 +5662,7 @@ public class MessagesStorage extends BaseController {
+             cursor = database.queryFinalized("SELECT custom_params FROM messages_v2 WHERE mid = ? AND uid = ?", messageId, dialogId);
+             boolean read = false;
+             if (cursor.next()) {
+-                MessageCustomParamsHelper.readLocalParams(message, cursor.byteBufferValue(0));
++                MessageCustomParamsHelper.readLocalParams(message, cursor.byteBufferValue(0), false);
+                 read = true;
+             }
+             cursor.dispose();
+@@ -5668,7 +5670,7 @@ public class MessagesStorage extends BaseController {
+             if (!read) {
+                 cursor = database.queryFinalized("SELECT custom_params FROM messages_topics WHERE mid = ? AND uid = ?", messageId, dialogId);
+                 if (cursor.next()) {
+-                    MessageCustomParamsHelper.readLocalParams(message, cursor.byteBufferValue(0));
++                    MessageCustomParamsHelper.readLocalParams(message, cursor.byteBufferValue(0), false);
+                     read = true;
+                 }
+                 cursor.dispose();
 @@ -15853,6 +15855,14 @@ public class MessagesStorage extends BaseController {
                      }
                  }
@@ -428,6 +561,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.
                                          customParams.reuse();
                                      }
 diff --git a/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java b/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java
+index 75534ac..a0c9ad5 100644
 --- a/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java
 +++ b/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java
 @@ -57500,6 +57500,8 @@ public class TLRPC {
