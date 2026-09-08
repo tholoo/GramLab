@@ -2,7 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
+Owner: task/standalone-media-edits
 Blocked by: none for World/HTTP implementation; native acceptance remains coordinator-owned
 
 Implement the next required media-edit slice within the approved media architecture and the
@@ -101,3 +102,47 @@ No full gate, Android build/guest, dependency change, upstream export or externa
 Freeze a clean exact branch tip and report source references, red/green results, terminal processes,
 shared-doc impacts and remaining native/album/classification requirements. Coordinator reviews,
 merges and runs combined verification; worker-only checks do not close this ticket.
+
+## Worker handoff
+
+Implemented the frozen standalone private-media edit slice. `World.edit_caption` preserves the
+typed photo/document while replacing caption, entities and keyboard. `World.edit_media` accepts
+exact photo/document inputs, reuses their existing resolvers, supports same-kind and cross-kind
+replacement, retains historical grants, and publishes one transactional edit revision. New upload,
+identity, grant and event work rolls back together on every failure and complete no-op.
+
+The real HTTP boundary now accepts `editMessageCaption` and `editMessageMedia`, returns the complete
+edited Message, admits JSON reuse and typed multipart uploads, and keeps the forced-document flag,
+photo/document byte limits and explicit unsupported surfaces. Caption-above, parsing modes,
+inline/business edits, grouped messages, other media kinds, external sources and default document
+classification remain unsupported.
+
+Owned acceptance covers caption replacement/removal, photo-to-photo, document-to-document and both
+cross-kind directions, same-bot reuse and multipart uploads, independent complete responses,
+callback historical dependencies, old/new media and custom-emoji grants, exact bytes, reopen,
+late-publication rollback/retry, no-op, wrong-bot/cross-kind IDs and grouped/non-media rejection.
+The final affected offline selection passes 101 cases. Scoped Ruff and strict mypy pass. Native UI,
+albums, default classification and shared documentation remain coordinator-owned follow-up.
+
+Review follow-up corrected semantic no-op comparison for legacy stored `caption: ""` without
+changing send-time storage. A current-production red fails all eight World/HTTP combinations of
+photo/document and caption/media edit because they falsely publish; the focused green passes all
+eight while real caption/keyboard changes still publish. Ignored JUnits are retained under
+`artifacts/empty-caption-red` and `artifacts/empty-caption-green`.
+
+Acceptance now also compares complete edit events, revision numbers, v5 client changes, callback
+dependency bodies and reopened snapshots; multipart cases compare complete returned messages and
+perform real HTTP getFile/exact-byte download. Added foreign-bot IDs, wrong typed uploads, malformed
+caption/entities/keyboard, missing/extra/duplicate/invalid attachments, multipart text bounds and
+sequential photo/document edit-route upload-limit controls. The retrospective base sensitivity
+remains explicitly separate from the current-production defect red.
+
+## Coordinator integration review
+
+The reviewed branch is integrated with19 focused World/HTTP cases passing under the offline
+namespace. Coordinator review replaced two subset message assertions with independently specified
+complete messages, so later full event/change/snapshot comparisons cannot accept unexpected fields.
+The photo-size control now uses otherwise valid PNG bytes and the exact size-limit error.
+Its in-process one-byte limit regression must return HTTP200 and fail the test; the original
+production source remains unchanged. A strict-typing conflict from reusing one local name for
+JSON and multipart payloads is corrected. Scoped typing and Ruff pass; combined gate remains pending.

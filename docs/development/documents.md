@@ -47,7 +47,25 @@ Rejected publications leave bytes, typed metadata, identities, grants, messages 
 New uploads with omitted or false detection return
 `GRAMLAB_UNSUPPORTED: document upload content detection`. Empty or oversized files, missing/unused
 attachments, thumbnails, parse modes, unsupported options and invalid captions/keyboards reject.
-File downloads do not support Range requests. Ordinary document edits and albums remain unsupported.
+File downloads do not support Range requests. Albums remain unsupported.
+
+## Editing standalone media
+
+`editMessageCaption` replaces a standalone photo or document caption, entities and inline keyboard.
+Omitted or empty caption removes it; omitted reply markup removes the keyboard. The media remains
+unchanged. `editMessageMedia` replaces it with an InputMediaPhoto or InputMediaDocument, including
+replacement between those two kinds, a new upload or this bot's typed file ID. New document uploads
+still require explicit `disable_content_type_detection=true` inside InputMediaDocument.
+
+Both methods return the complete edited Message, preserve its creation identity/date, and set
+`edit_date` using the World clock. A semantically unchanged request returns `MESSAGE_NOT_MODIFIED`
+without changing state, including an already-empty caption. Old media grants and historical callback
+dependencies remain available. Failed edits roll back new bytes, identities, grants and revisions.
+
+This integrated World/HTTP profile passes 19 focused behavioral cases, including complete v5
+changes/reopen state, real multipart/getFile/download requests and late-failure retry. Original
+Android edit acceptance remains pending. Grouped media, inline/business edits, parse modes,
+thumbnails, spoilers and captions above media remain unsupported.
 
 ## Client delivery and verification
 

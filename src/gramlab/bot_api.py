@@ -243,13 +243,22 @@ def _dispatch(
             "entities",
             "rich_message",
         },
+        "editmessagecaption": {
+            "chat_id",
+            "message_id",
+            "caption",
+            "caption_entities",
+            "reply_markup",
+            "show_caption_above_media",
+        },
+        "editmessagemedia": {"chat_id", "message_id", "media", "reply_markup"},
         "answercallbackquery": {"callback_query_id", "text", "show_alert", "cache_time"},
     }
     if method not in supported:
         raise LookupError("GRAMLAB_UNSUPPORTED: Bot API method")
     if parameters.keys() - supported[method]:
         raise ValueError("GRAMLAB_UNSUPPORTED: Bot API parameters")
-    for name in ("reply_markup", "entities", "caption_entities", "rich_message"):
+    for name in ("reply_markup", "entities", "caption_entities", "rich_message", "media"):
         if isinstance(parameters.get(name), str):
             parameters[name] = _json_value(parameters[name])
     if method == "getme":
@@ -303,6 +312,74 @@ def _dispatch(
         return True
     if "chat_id" not in parameters:
         raise ValueError("chat_id is required")
+    if method in ("editmessagecaption", "editmessagemedia"):
+        if "message_id" not in parameters:
+            raise ValueError("message_id is required")
+        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        message_id = _integer(parameters["message_id"], "message_id")
+        if method == "editmessagecaption":
+            if uploads:
+                raise ValueError("Caption edits do not accept uploads")
+            if _boolean(
+                parameters.get("show_caption_above_media", False),
+                "show_caption_above_media",
+            ):
+                raise ValueError("GRAMLAB_UNSUPPORTED: captions above media")
+            return _message(
+                world,
+                world.edit_caption(
+                    chat_id=chat["id"],
+                    message_id=message_id,
+                    bot_id=bot_id,
+                    caption=parameters.get("caption"),
+                    caption_entities=parameters.get("caption_entities"),
+                    reply_markup=parameters.get("reply_markup"),
+                ),
+            )
+        media = parameters.get("media")
+        if not isinstance(media, dict):
+            raise ValueError("media is required")
+        kind = media.get("type")
+        allowed_media = {"type", "media", "caption", "caption_entities"}
+        if kind == "document":
+            allowed_media.add("disable_content_type_detection")
+        if media.keys() - allowed_media:
+            raise ValueError("GRAMLAB_UNSUPPORTED: InputMedia parameters")
+        if kind not in ("photo", "document") or "media" not in media:
+            raise ValueError("GRAMLAB_UNSUPPORTED: InputMedia type")
+        selected = media["media"]
+        if not isinstance(selected, str):
+            raise ValueError("InputMedia media must be a string")
+        force_file = (
+            _boolean(
+                media.get("disable_content_type_detection", False),
+                "disable_content_type_detection",
+            )
+            if kind == "document"
+            else False
+        )
+        if selected.startswith("attach://") and kind == "document" and not force_file:
+            raise ValueError("GRAMLAB_UNSUPPORTED: document upload content detection")
+        typed_uploads: dict[str, bytes | DocumentUpload] = {}
+        for name, upload in (uploads or {}).items():
+            typed_uploads[name] = (
+                DocumentUpload(upload.data, upload.filename, upload.content_type)
+                if kind == "document"
+                else upload.data
+            )
+        return _message(
+            world,
+            world.edit_media(
+                chat_id=chat["id"],
+                message_id=message_id,
+                bot_id=bot_id,
+                media={"type": kind, "media": selected},
+                uploads=typed_uploads,
+                caption=media.get("caption"),
+                caption_entities=media.get("caption_entities"),
+                reply_markup=parameters.get("reply_markup"),
+            ),
+        )
     if method == "senddocument":
         if "document" not in parameters:
             raise ValueError("document is required")
@@ -587,7 +664,7 @@ class BotAPIServer:
                             )
                             maximum_upload = (
                                 MAX_DOCUMENT_BYTES
-                                if parts[2].lower() == "senddocument"
+                                if parts[2].lower() in ("senddocument", "editmessagemedia")
                                 else 20_000_000
                             )
                             maximum = maximum_upload + 200_000 if multipart else 65_536

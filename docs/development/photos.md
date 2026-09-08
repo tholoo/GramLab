@@ -1,8 +1,8 @@
 # Local photos
 
 The first photo profile accepts PNG and JPEG through `sendPhoto` and rich photo blocks, with
-bot-scoped reuse/download and authenticated recipient delivery. The latest combined core gate
-passes 510 tests at 81.98% coverage. The original Android codec passes four complete valid cases
+bot-scoped reuse/download and authenticated recipient delivery. Its original photo integration checkpoint
+passed 510 tests at 81.98% coverage; see the [current handoff](handoff.md) for later combined gates. The original Android codec passes four complete valid cases
 and 24 rejection cases. Four controlled faults pass original failure/cleanup and explicit cold
 restart recovery, with eight inspected captures and exact recovered JPEG bytes.
 
@@ -74,6 +74,10 @@ URLs and host paths cannot supply image bytes. The [offline boundary](offline-sa
 to the bot, simulator and client throughout execution.
 
 This batch does not add albums, general documents, animated media, custom emoji, photo spoilers,
-thumbnails, HTML parse modes or ordinary `editMessageMedia`. These remain separate requirements.
+thumbnails or HTML parse modes. These remain separate requirements.
+
+Standalone `editMessageMedia` and `editMessageCaption` now have integrated World/HTTP support for
+photo/document replacement, caption and keyboard changes, reuse and rollback. See the
+[edit profile](documents.md#editing-standalone-media) for exact scope and pending Android acceptance.
 Legacy bridge versions reject photo-bearing responses explicitly; the normal Android runner
 selects version 3. Simulation captures include caption text but provide no image-rendering proof.
