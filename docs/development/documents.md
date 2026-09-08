@@ -62,3 +62,10 @@ metadata, rejected-state preservation, exact byte limits, cross-kind/cross-perso
 and historical v5 dependencies. Uploading identical valid PNG bytes as a forced document and as a
 photo preserves distinct typed identities and exact downloads. These checks prove the local HTTP
 contract; original Android loading, rendering and recovery require the separate native gates.
+
+The integrated real-bot document scenario additionally sends a bilingual named file with a
+formatted/custom-emoji caption and callback keyboard, checks exact authenticated downloads,
+rejects cross-kind/foreign-bot reuse, then sends the same file again after a callback. All three
+scenario/evidence host cases pass in `artifacts/document-ui-integrated-01.xml`. Its original
+Android workflow remains pending; public runner v5 selection and mixed-content interaction
+coverage are tracked separately in [ticket107](../../.scratch/rich-messages/issues/107-document-runner-v5.md).
