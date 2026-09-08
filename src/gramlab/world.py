@@ -1143,6 +1143,9 @@ class World:
         comparable.pop("edit_date", None)
         current = dict(message)
         current.pop("edit_date", None)
+        for candidate in (comparable, current):
+            if candidate.get("caption") == "":
+                candidate.pop("caption")
         if comparable == current:
             raise ValueError("MESSAGE_NOT_MODIFIED")
         replacement["edit_date"] = self._connection.execute(

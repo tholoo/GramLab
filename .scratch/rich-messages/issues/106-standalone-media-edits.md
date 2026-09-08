@@ -121,5 +121,18 @@ Owned acceptance covers caption replacement/removal, photo-to-photo, document-to
 cross-kind directions, same-bot reuse and multipart uploads, independent complete responses,
 callback historical dependencies, old/new media and custom-emoji grants, exact bytes, reopen,
 late-publication rollback/retry, no-op, wrong-bot/cross-kind IDs and grouped/non-media rejection.
-The final affected offline selection passes 90 cases. Scoped Ruff and strict mypy pass. Native UI,
+The final affected offline selection passes 101 cases. Scoped Ruff and strict mypy pass. Native UI,
 albums, default classification and shared documentation remain coordinator-owned follow-up.
+
+Review follow-up corrected semantic no-op comparison for legacy stored `caption: ""` without
+changing send-time storage. A current-production red fails all eight World/HTTP combinations of
+photo/document and caption/media edit because they falsely publish; the focused green passes all
+eight while real caption/keyboard changes still publish. Ignored JUnits are retained under
+`artifacts/empty-caption-red` and `artifacts/empty-caption-green`.
+
+Acceptance now also compares complete edit events, revision numbers, v5 client changes, callback
+dependency bodies and reopened snapshots; multipart cases compare complete returned messages and
+perform real HTTP getFile/exact-byte download. Added foreign-bot IDs, wrong typed uploads, malformed
+caption/entities/keyboard, missing/extra/duplicate/invalid attachments, multipart text bounds and
+sequential photo/document edit-route upload-limit controls. The retrospective base sensitivity
+remains explicitly separate from the current-production defect red.

@@ -1,5 +1,6 @@
 """World acceptance for standalone ordinary media edits."""
 
+import hashlib
 import io
 import json
 import sqlite3
@@ -101,14 +102,74 @@ def test_caption_and_cross_kind_edits_preserve_history_grants_callback_and_reope
     assert restored["photo"] == {"asset_id": 1}
     assert not ({"document", "caption", "caption_entities", "reply_markup"} & restored.keys())
     assert world.callback_dependencies(user["id"], callback, version=5) == original_dependencies
-    assert [event["type"] for event in world.events()[-3:]] == [
-        "message.edited",
-        "message.edited",
-        "message.edited",
+    assert world.events()[-3:] == [
+        {"sequence": 9, "type": "message.edited", "data": captioned},
+        {"sequence": 10, "type": "message.edited", "data": document},
+        {"sequence": 11, "type": "message.edited", "data": restored},
     ]
+    asset = {
+        "asset_id": 1,
+        "mime_type": "image/png",
+        "file_size": len(first_bytes),
+        "sha256": hashlib.sha256(first_bytes).hexdigest(),
+        "width": 3,
+        "height": 2,
+    }
+    descriptor = {
+        "document_id": "1",
+        "file_name": "گزارش.pdf",
+        "mime_type": "application/pdf",
+        "file_size": len(document_bytes),
+        "sha256": hashlib.sha256(document_bytes).hexdigest(),
+    }
+    other = {"id": 3, "first_name": "Other", "is_bot": True}
+    users = [user, bot, other]
+    assert world.client_changes(user["id"], after=0, version=5) == {
+        "schema": 5,
+        "world_id": world.world_id,
+        "user_id": user["id"],
+        "cursor": 4,
+        "head": 4,
+        "now": 105,
+        "changes": [
+            {"position": 1, "type": "message.created", "data": original, "revision": 6},
+            {"position": 2, "type": "message.edited", "data": captioned, "revision": 9},
+            {"position": 3, "type": "message.edited", "data": document, "revision": 10},
+            {"position": 4, "type": "message.edited", "data": restored, "revision": 11},
+        ],
+        "users": users,
+        "assets": [asset],
+        "custom_emoji": [],
+        "documents": [descriptor],
+    }
+    assert original_dependencies == {
+        "users": users,
+        "assets": [asset],
+        "message_revision": 6,
+        "custom_emoji": [],
+        "documents": [],
+    }
+    snapshot = {
+        "schema": 5,
+        "world_id": world.world_id,
+        "user_id": user["id"],
+        "cursor": 11,
+        "now": 105,
+        "users": users,
+        "chats": [chat, {"id": 2, "type": "private", "user_id": 1, "bot_id": 3}],
+        "messages": [restored],
+        "message_position": 4,
+        "sends": [],
+        "assets": [asset],
+        "message_revisions": [{"chat_id": 1, "message_id": 1, "revision": 11}],
+        "custom_emoji": [],
+        "documents": [descriptor],
+    }
+    assert world.client_snapshot(user["id"], version=5) == snapshot
     world.__exit__(None, None, None)
     with World.open(directory) as reopened:
         assert reopened.get_message(1, 1) == restored
+        assert reopened.client_snapshot(user["id"], version=5) == snapshot
         assert reopened.granted_asset(user["id"], 1)[1] == first_bytes
         assert reopened.granted_document(user["id"], "1")[1] == document_bytes
 
@@ -271,4 +332,111 @@ def test_non_media_and_grouped_messages_reject_explicitly(tmp_path: Path) -> Non
         )
     with pytest.raises(ValueError, match="grouped"):
         world.edit_caption(chat_id=1, message_id=photo["id"], bot_id=bot["id"], caption="x")
+    world.__exit__(None, None, None)
+
+
+@pytest.mark.parametrize(
+    ("kind", "operation"),
+    [
+        ("photo", "caption"),
+        ("photo", "media"),
+        ("document", "caption"),
+        ("document", "media"),
+    ],
+)
+def test_empty_caption_noop_is_semantic_and_positive_edit_still_publishes(
+    tmp_path: Path, kind: str, operation: str
+) -> None:
+    world, _user, bot, _chat = setup(tmp_path / f"{kind}-{operation}")
+    if kind == "photo":
+        message = world.send_photo(
+            chat_id=1,
+            sender_id=bot["id"],
+            photo={"type": "photo", "media": "attach://item"},
+            uploads={"item": png()},
+            caption="",
+        )
+        file_id = world.photo_size(bot["id"], 1)["file_id"]
+    else:
+        message = world.send_document(
+            chat_id=1,
+            sender_id=bot["id"],
+            document={"media": "attach://item"},
+            uploads={"item": DocumentUpload(b"item", "item.pdf")},
+            caption="",
+        )
+        file_id = world.document_file(bot["id"], "1")["file_id"]
+    before = logical_database(world)
+    with pytest.raises(ValueError, match="MESSAGE_NOT_MODIFIED"):
+        if operation == "caption":
+            world.edit_caption(chat_id=1, message_id=message["id"], bot_id=bot["id"])
+        else:
+            world.edit_media(
+                chat_id=1,
+                message_id=message["id"],
+                bot_id=bot["id"],
+                media={"type": kind, "media": file_id},
+            )
+    assert logical_database(world) == before
+    changed = world.edit_caption(
+        chat_id=1,
+        message_id=message["id"],
+        bot_id=bot["id"],
+        caption="changed",
+        reply_markup={"inline_keyboard": [[{"text": "New", "callback_data": "new"}]]},
+    )
+    assert changed["caption"] == "changed" and "reply_markup" in changed
+    assert world.events()[-1]["type"] == "message.edited"
+    assert world.events()[-1]["data"] == changed
+    world.__exit__(None, None, None)
+
+
+def test_own_message_rejects_foreign_bot_media_id_and_wrong_upload_types(tmp_path: Path) -> None:
+    world, _user, bot, _chat = setup(tmp_path / "world")
+    own = world.send_photo(
+        chat_id=1,
+        sender_id=bot["id"],
+        photo={"type": "photo", "media": "attach://own"},
+        uploads={"own": png()},
+    )
+    foreign_photo = world.send_photo(
+        chat_id=2,
+        sender_id=3,
+        photo={"type": "photo", "media": "attach://foreign"},
+        uploads={"foreign": png((4, 5, 6))},
+    )
+    foreign_photo_id = world.photo_size(3, foreign_photo["photo"]["asset_id"])["file_id"]
+    foreign_document = world.send_document(
+        chat_id=2,
+        sender_id=3,
+        document={"media": "attach://foreign"},
+        uploads={"foreign": DocumentUpload(b"foreign", "foreign.pdf")},
+    )
+    foreign_document_id = world.document_file(3, foreign_document["document"]["document_id"])[
+        "file_id"
+    ]
+    for kind, file_id in (("photo", foreign_photo_id), ("document", foreign_document_id)):
+        before = logical_database(world)
+        with pytest.raises(ValueError, match="unavailable"):
+            world.edit_media(
+                chat_id=1,
+                message_id=own["id"],
+                bot_id=bot["id"],
+                media={"type": kind, "media": file_id},
+            )
+        assert logical_database(world) == before
+    for kind, upload in (
+        ("photo", DocumentUpload(b"wrong", "wrong.bin")),
+        ("document", b"wrong"),
+    ):
+        before = logical_database(world)
+        with pytest.raises(TypeError):
+            world.edit_media(
+                chat_id=1,
+                message_id=own["id"],
+                bot_id=bot["id"],
+                media={"type": kind, "media": "attach://wrong"},
+                uploads={"wrong": upload},
+            )
+        assert logical_database(world) == before
     world.__exit__(None, None, None)
