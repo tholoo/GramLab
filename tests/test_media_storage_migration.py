@@ -105,7 +105,7 @@ def test_populated_v7_preserves_public_contract_and_reopen(tmp_path: Path) -> No
     assert_legacy_outputs(directory)
     assert_legacy_outputs(directory)
     with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (8,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (9,)
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         assert [row[1] for row in connection.execute("PRAGMA table_info(assets)")] == [
@@ -217,7 +217,7 @@ def test_interrupted_migration_rolls_back_everything_and_retries(
             World.open(directory)
     assert database_state(directory) == before
     assert_legacy_outputs(directory)
-    assert database_state(directory)[0] == 8
+    assert database_state(directory)[0] == 9
 
 
 def test_concurrent_openers_recheck_version_after_writer_lock(
@@ -263,7 +263,7 @@ def test_concurrent_openers_recheck_version_after_writer_lock(
 def test_future_version_is_rejected_without_changes(tmp_path: Path) -> None:
     directory = legacy_world(tmp_path)
     with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
-        connection.execute("PRAGMA user_version=9")
+        connection.execute("PRAGMA user_version=10")
     before = database_state(directory)
     with pytest.raises(ValueError, match="Unsupported world schema"):
         World.open(directory)

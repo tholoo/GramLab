@@ -18,6 +18,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from gramlab.documents import DocumentUpload, _storage_fields, canonical_document_id
 from gramlab.entities import canonical_custom_emoji_id, formatting_entities
 from gramlab.media import ImageAsset, validate_image
 from gramlab.rich_messages import rich_message as validate_rich_message
@@ -76,6 +77,21 @@ _ASSETS_TABLE = (
     "CREATE TABLE assets (id INTEGER PRIMARY KEY, "
     "sha256 TEXT NOT NULL UNIQUE REFERENCES media_blobs(sha256), mime_type TEXT NOT NULL, "
     "extension TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL)"
+)
+_DOCUMENTS_TABLE = (
+    "CREATE TABLE documents (id INTEGER PRIMARY KEY, "
+    "sha256 TEXT NOT NULL REFERENCES media_blobs(sha256), file_name TEXT NOT NULL, "
+    "mime_type TEXT NOT NULL, file_unique_id TEXT NOT NULL UNIQUE, "
+    "UNIQUE(sha256, file_name, mime_type))"
+)
+_BOT_DOCUMENT_FILES_TABLE = (
+    "CREATE TABLE bot_document_files (bot_id INTEGER NOT NULL REFERENCES bots(id), "
+    "file_id TEXT NOT NULL UNIQUE, document_id INTEGER NOT NULL REFERENCES documents(id), "
+    "PRIMARY KEY(bot_id, document_id))"
+)
+_DOCUMENT_GRANTS_TABLE = (
+    "CREATE TABLE document_grants (user_id INTEGER NOT NULL REFERENCES users(id), "
+    "document_id INTEGER NOT NULL REFERENCES documents(id), PRIMARY KEY(user_id, document_id))"
 )
 
 
@@ -193,7 +209,10 @@ class World:
                     user_id INTEGER NOT NULL REFERENCES users(id), custom_emoji_id INTEGER NOT NULL
                     REFERENCES custom_emoji(id), PRIMARY KEY(user_id, custom_emoji_id)
                 );
-                PRAGMA user_version=8;
+                {_DOCUMENTS_TABLE};
+                {_BOT_DOCUMENT_FILES_TABLE};
+                {_DOCUMENT_GRANTS_TABLE};
+                PRAGMA user_version=9;
             """  # noqa: S608
             )
             with connection:
@@ -329,7 +348,17 @@ class World:
                         if connection.execute("PRAGMA foreign_key_check").fetchall():
                             raise ValueError("World media migration violates foreign keys")
                         connection.execute("PRAGMA user_version=8")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 8:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 8:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 8:
+                        connection.execute(_DOCUMENTS_TABLE)
+                        connection.execute(_BOT_DOCUMENT_FILES_TABLE)
+                        connection.execute(_DOCUMENT_GRANTS_TABLE)
+                        if connection.execute("PRAGMA foreign_key_check").fetchall():
+                            raise ValueError("World document migration violates foreign keys")
+                        connection.execute("PRAGMA user_version=9")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 9:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -843,7 +872,7 @@ class World:
         entities: list[dict[str, Any]] | None = None,
         version: int = 2,
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 4):
+        if type(version) is not int or version not in (2, 4, 5):
             raise ValueError("Unsupported client message version")
         if (
             not isinstance(request_id, str)
@@ -1001,6 +1030,8 @@ class World:
             message = self.get_message(chat_id, message_id)
             if "photo" in message:
                 raise ValueError("GRAMLAB_UNSUPPORTED: editing ordinary photo messages")
+            if "document" in message:
+                raise ValueError("GRAMLAB_UNSUPPORTED: editing ordinary document messages")
             if rich_message is not None:
                 used: set[str] = set()
 
@@ -1074,6 +1105,18 @@ class World:
             elif isinstance(value, list):
                 pending.extend(value)
         return assets
+
+    def _message_documents(self, message: dict[str, Any]) -> set[int]:
+        if "document" not in message:
+            return set()
+        document = message["document"]
+        if not isinstance(document, dict) or document.keys() != {"document_id"}:
+            raise ValueError("Invalid stored document reference")
+        return {canonical_document_id(document["document_id"])}
+
+    def _require_document_version(self, message: dict[str, Any], version: int) -> None:
+        if version < 5 and self._message_documents(message):
+            raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
 
     def _message_users(self, message: dict[str, Any]) -> set[int]:
         users: set[int] = set()
@@ -1220,6 +1263,186 @@ class World:
             )
             return message
 
+    def _store_document(self, upload: DocumentUpload) -> int:
+        sha256, file_name, mime_type, file_unique_id = _storage_fields(upload)
+        row = self._connection.execute(
+            "SELECT id FROM documents WHERE sha256=? AND file_name=? AND mime_type=?",
+            (sha256, file_name, mime_type),
+        ).fetchone()
+        if row is not None:
+            return int(row[0])
+        document_id = int(
+            self._connection.execute("SELECT COALESCE(MAX(id), 0)+1 FROM documents").fetchone()[0]
+        )
+        if document_id >= 2**63:
+            raise ValueError("Document identifier space is exhausted")
+        self._connection.execute(
+            "INSERT INTO media_blobs VALUES (?, ?) ON CONFLICT(sha256) DO NOTHING",
+            (sha256, upload.data),
+        )
+        self._connection.execute(
+            "INSERT INTO documents VALUES (?, ?, ?, ?, ?)",
+            (
+                document_id,
+                sha256,
+                file_name,
+                mime_type,
+                file_unique_id,
+            ),
+        )
+        return document_id
+
+    def _document_file_identity(self, bot_id: int, document_id: int) -> str:
+        row = self._connection.execute(
+            "SELECT file_id FROM bot_document_files WHERE bot_id=? AND document_id=?",
+            (bot_id, document_id),
+        ).fetchone()
+        if row is not None:
+            return str(row[0])
+        file_id = "gramlab_document_" + secrets.token_urlsafe(24)
+        self._connection.execute(
+            "INSERT INTO bot_document_files VALUES (?, ?, ?)", (bot_id, file_id, document_id)
+        )
+        return file_id
+
+    def _resolve_document(
+        self,
+        bot_id: int,
+        value: Any,
+        uploads: Mapping[str, DocumentUpload] | None,
+    ) -> dict[str, str]:
+        if not isinstance(value, dict) or value.keys() != {"media"}:
+            raise ValueError("Document input requires exactly media")
+        media = value["media"]
+        if not isinstance(media, str):
+            raise ValueError("Document media must be a string")
+        if media.startswith("attach://"):
+            name = media.removeprefix("attach://")
+            if not name or uploads is None or name not in uploads:
+                raise ValueError("Document attachment is unavailable")
+            upload = uploads[name]
+            if type(upload) is not DocumentUpload:
+                raise TypeError("Document attachment must be a DocumentUpload")
+            document_id = self._store_document(upload)
+        else:
+            row = self._connection.execute(
+                "SELECT document_id FROM bot_document_files WHERE bot_id=? AND file_id=?",
+                (bot_id, media),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Document file identifier is unavailable")
+            document_id = int(row[0])
+        self._document_file_identity(bot_id, document_id)
+        return {"document_id": str(document_id)}
+
+    def send_document(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        document: Any,
+        uploads: Mapping[str, DocumentUpload] | None = None,
+        caption: str | None = None,
+        caption_entities: list[dict[str, Any]] | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if caption is not None:
+            if not isinstance(caption, str) or len(caption) > 1024:
+                raise ValueError("Caption must contain 0 to 1024 characters")
+            caption.encode("utf-8", errors="strict")
+        formatting = formatting_entities(caption or "", caption_entities)
+        keyboard = _inline_keyboard(reply_markup)
+        if uploads is not None and not isinstance(uploads, Mapping):
+            raise TypeError("Document uploads must be a mapping")
+        media = document.get("media") if isinstance(document, dict) else None
+        expected = (
+            {media.removeprefix("attach://")}
+            if isinstance(media, str) and media.startswith("attach://")
+            else set()
+        )
+        if set(uploads or {}) != expected:
+            raise ValueError("Document uploads must exactly match the attachment")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat = self.get_chat(chat_id)
+            if sender_id != chat["bot_id"]:
+                raise ValueError("Only chat bots can send documents")
+            resolved = self._resolve_document(sender_id, document, uploads)
+            message = self._insert_message(
+                chat_id=chat_id, sender_id=sender_id, text="", keyboard=keyboard, formatting=None
+            )
+            message["document"] = resolved
+            if caption is not None:
+                message["caption"] = caption
+            if formatting:
+                message["caption_entities"] = formatting
+            self._grant_custom_emoji(chat["user_id"], message)
+            self._connection.execute(
+                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
+                (json.dumps(message), chat_id, message["id"]),
+            )
+            revision = self._connection.execute(
+                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+                (chat_id, message["id"]),
+            ).fetchone()[0]
+            self._connection.execute(
+                "UPDATE events SET body=? WHERE sequence=?", (json.dumps(message), revision)
+            )
+            self._connection.execute(
+                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
+                (chat["user_id"], canonical_document_id(resolved["document_id"])),
+            )
+            return message
+
+    def document_descriptor(self, document_id: Any) -> dict[str, Any]:
+        identifier = canonical_document_id(document_id)
+        row = self._connection.execute(
+            "SELECT d.file_name, d.mime_type, length(b.body), d.sha256 "
+            "FROM documents d JOIN media_blobs b ON b.sha256=d.sha256 WHERE d.id=?",
+            (identifier,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Document is unavailable")
+        return {
+            "document_id": str(identifier),
+            "file_name": row[0],
+            "mime_type": row[1],
+            "file_size": row[2],
+            "sha256": row[3],
+        }
+
+    def document_file(self, bot_id: int, document_id: Any) -> dict[str, Any]:
+        identifier = canonical_document_id(document_id)
+        descriptor = self.document_descriptor(str(identifier))
+        row = self._connection.execute(
+            "SELECT file_id, file_unique_id FROM bot_document_files f "
+            "JOIN documents d ON d.id=f.document_id WHERE f.bot_id=? AND f.document_id=?",
+            (bot_id, identifier),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Document file identifier is unavailable")
+        result = {
+            "file_id": row[0],
+            "file_unique_id": row[1],
+            "file_size": descriptor["file_size"],
+        }
+        if descriptor["file_name"]:
+            result["file_name"] = descriptor["file_name"]
+        if descriptor["mime_type"]:
+            result["mime_type"] = descriptor["mime_type"]
+        return result
+
+    def granted_document(self, user_id: int, document_id: Any) -> tuple[dict[str, Any], bytes]:
+        identifier = canonical_document_id(document_id)
+        row = self._connection.execute(
+            "SELECT b.body FROM document_grants g JOIN documents d ON d.id=g.document_id "
+            "JOIN media_blobs b ON b.sha256=d.sha256 WHERE g.user_id=? AND g.document_id=?",
+            (user_id, identifier),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Document is unavailable")
+        return self.document_descriptor(str(identifier)), bytes(row[0])
+
     def asset_descriptor(self, asset_id: int) -> dict[str, Any]:
         row = self._connection.execute(
             "SELECT a.mime_type, length(b.body), a.sha256, a.width, a.height "
@@ -1260,16 +1483,33 @@ class World:
             "WHERE f.bot_id=? AND f.file_id=?",
             (bot_id, file_id),
         ).fetchone()
-        if row is None:
+        if row is not None:
+            info = {
+                "file_id": file_id,
+                "file_unique_id": row[1],
+                "file_size": len(row[4]),
+                "file_path": f"{'stickers' if row[3] in ('image/webp', 'video/webm') else 'photos'}/{file_id}.{row[2]}",  # noqa: E501
+                "mime_type": row[3],
+            }
+            return info, bytes(row[4])
+        document = self._connection.execute(
+            "SELECT d.file_unique_id, d.file_name, d.mime_type, b.body "
+            "FROM bot_document_files f JOIN documents d ON d.id=f.document_id "
+            "JOIN media_blobs b ON b.sha256=d.sha256 WHERE f.bot_id=? AND f.file_id=?",
+            (bot_id, file_id),
+        ).fetchone()
+        if document is None:
             raise ValueError("File is unavailable")
         info = {
             "file_id": file_id,
-            "file_unique_id": row[1],
-            "file_size": len(row[4]),
-            "file_path": f"{'stickers' if row[3] in ('image/webp', 'video/webm') else 'photos'}/{file_id}.{row[2]}",  # noqa: E501
-            "mime_type": row[3],
+            "file_unique_id": document[0],
+            "file_size": len(document[3]),
+            "file_path": f"documents/{file_id}",
+            "mime_type": document[2],
         }
-        return info, bytes(row[4])
+        if document[1]:
+            info["file_name"] = document[1]
+        return info, bytes(document[3])
 
     def granted_asset(self, user_id: int, asset_id: int) -> tuple[dict[str, Any], bytes]:
         row = self._connection.execute(
@@ -1338,7 +1578,7 @@ class World:
     ) -> dict[str, Any]:
         if not self._connection.in_transaction:
             raise RuntimeError("Callback effect requires an active World transaction")
-        if type(version) is not int or version not in (1, 3, 4):
+        if type(version) is not int or version not in (1, 3, 4, 5):
             raise ValueError("Unsupported client callback version")
         if (
             not isinstance(request_id, str)
@@ -1365,6 +1605,7 @@ class World:
             if previous[1] != command:
                 raise ValueError("Request ID already identifies another callback")
             stored = self.get_callback(user_id=user_id, callback_id=previous[0])
+            self._require_document_version(stored["message"], version)
             if version < 3 and self._message_assets(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if version < 3 and self._message_users(stored["message"]):
@@ -1372,6 +1613,7 @@ class World:
             if version < 4 and self._message_custom_emoji(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
             return stored
+        self._require_document_version(message, version)
         if version < 3 and self._message_assets(message):
             raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
         if version < 3 and self._message_users(message):
@@ -1543,7 +1785,7 @@ class World:
         }
 
     def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 2, 3, 4):
+        if type(version) is not int or version not in (1, 2, 3, 4, 5):
             raise ValueError("Unsupported client snapshot version")
         with self._connection:
             # Pin one SQLite read snapshot before reading either data or its journal cursor.
@@ -1574,6 +1816,10 @@ class World:
                 "chats": chats,
                 "messages": [message for chat in chats for message in self.history(chat["id"])],
             }
+            if version < 5 and any(
+                self._message_documents(message) for message in result["messages"]
+            ):
+                raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
             if version < 3 and any(self._message_assets(message) for message in result["messages"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
             if version < 3 and any(self._message_users(message) for message in result["messages"]):
@@ -1611,7 +1857,7 @@ class World:
                 result["assets"] = [
                     descriptor
                     for descriptor in granted_assets
-                    if version == 4 or descriptor["mime_type"] in ("image/png", "image/jpeg")
+                    if version >= 4 or descriptor["mime_type"] in ("image/png", "image/jpeg")
                 ]
                 result["message_revisions"] = [
                     {
@@ -1625,11 +1871,20 @@ class World:
                     }
                     for message in result["messages"]
                 ]
-            if version == 4:
+            if version >= 4:
                 result["custom_emoji"] = [
                     self.custom_emoji_descriptor(row[0])
                     for row in self._connection.execute(
                         "SELECT custom_emoji_id FROM custom_emoji_grants WHERE user_id=? ORDER BY custom_emoji_id",  # noqa: E501
+                        (user_id,),
+                    )
+                ]
+            if version == 5:
+                result["documents"] = [
+                    self.document_descriptor(str(row[0]))
+                    for row in self._connection.execute(
+                        "SELECT document_id FROM document_grants "
+                        "WHERE user_id=? ORDER BY document_id",
                         (user_id,),
                     )
                 ]
@@ -1638,7 +1893,7 @@ class World:
     def client_changes(
         self, user_id: int, *, after: int, limit: int = 100, version: int = 2
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 3, 4):
+        if type(version) is not int or version not in (2, 3, 4, 5):
             raise ValueError("Unsupported client changes version")
         if type(after) is not int or not 0 <= after < 2**63:
             raise ValueError("Invalid client message position")
@@ -1665,10 +1920,14 @@ class World:
             ).fetchall()
             changes = []
             asset_ids: set[int] = set()
+            document_ids: set[int] = set()
             mentioned_ids: set[int] = set()
             emoji_ids: set[int] = set()
             for position, kind, body, request_id in rows:
                 change = {"position": position, "type": kind, "data": json.loads(body)}
+                documents = self._message_documents(change["data"])
+                if version < 5 and documents:
+                    raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
                 media = self._message_assets(change["data"])
                 if version < 3 and media:
                     raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
@@ -1680,6 +1939,7 @@ class World:
                     raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
                 emoji_ids.update(emojis)
                 asset_ids.update(media)
+                document_ids.update(documents)
                 mentioned_ids.update(mentions)
                 if version >= 3:
                     change["revision"] = self._connection.execute(
@@ -1702,7 +1962,7 @@ class World:
                 identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
                 identifiers.update(mentioned_ids)
                 result["users"] = [self.get_user(identifier) for identifier in sorted(identifiers)]
-                if version == 4:
+                if version >= 4:
                     for identifier in emoji_ids:
                         descriptor = self.custom_emoji_descriptor(identifier)
                         asset_ids.update(
@@ -1711,16 +1971,34 @@ class World:
                 result["assets"] = [
                     self.asset_descriptor(asset_id) for asset_id in sorted(asset_ids)
                 ]
-            if version == 4:
+            if version >= 4:
                 result["custom_emoji"] = [
                     self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
+                ]
+            if version == 5:
+                result["documents"] = [
+                    self.document_descriptor(str(identifier)) for identifier in sorted(document_ids)
                 ]
             return result
 
     def callback_dependencies(
         self, user_id: int, callback: dict[str, Any], *, version: int = 3
     ) -> dict[str, Any]:
+        if self._connection.in_transaction:
+            return self._callback_dependencies(user_id, callback, version=version)
+        self._connection.execute("BEGIN")
+        try:
+            return self._callback_dependencies(user_id, callback, version=version)
+        finally:
+            self._connection.rollback()
+
+    def _callback_dependencies(
+        self, user_id: int, callback: dict[str, Any], *, version: int = 3
+    ) -> dict[str, Any]:
+        if type(version) is not int or version not in (3, 4, 5):
+            raise ValueError("Unsupported client callback version")
         message = callback["message"]
+        self._require_document_version(message, version)
         assets = [
             self.asset_descriptor(asset_id) for asset_id in sorted(self._message_assets(message))
         ]
@@ -1733,7 +2011,7 @@ class World:
         emoji_ids = self._message_custom_emoji(message)
         if version < 4 and emoji_ids:
             raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-        if version == 4:
+        if version >= 4:
             for identifier in emoji_ids:
                 descriptor = self.custom_emoji_descriptor(identifier)
                 for asset_id in (descriptor["main_asset_id"], descriptor["thumbnail_asset_id"]):
@@ -1745,9 +2023,14 @@ class World:
             "assets": assets,
             "message_revision": int(row[0]),
         }
-        if version == 4:
+        if version >= 4:
             result["custom_emoji"] = [
                 self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
+            ]
+        if version == 5:
+            result["documents"] = [
+                self.document_descriptor(str(identifier))
+                for identifier in sorted(self._message_documents(message))
             ]
         return result
 
@@ -1782,6 +2065,8 @@ class World:
                 data = json.loads(body)
                 if kind in ("message.created", "message.edited"):
                     visible = data["chat_id"] in chats
+                    if visible and self._message_documents(data):
+                        raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
                     if visible and self._message_assets(data):
                         raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
                     if visible and self._message_users(data):
@@ -1800,6 +2085,8 @@ class World:
                     visible = True
                 elif kind in ("callback.created", "callback.answered"):
                     visible = data["user_id"] == user_id
+                    if visible and self._message_documents(data.get("message", {})):
+                        raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
                     if visible and self._message_custom_emoji(data.get("message", {})):
                         raise ValueError(
                             "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
