@@ -239,7 +239,7 @@ def assert_android_document_observation(
     digest = hashlib.sha256(DOCUMENT_BYTES).hexdigest()
     destination = (
         "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
-        f"Telegram Documents/{SCENE['file_name']}"
+        f"Telegram Files/{SCENE['file_name']}"
     )
     assert set(client["cache"]) == {"downloaded", "reused", "restart"}
     for name, value in client["cache"].items():

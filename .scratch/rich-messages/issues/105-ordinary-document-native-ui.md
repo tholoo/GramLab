@@ -89,3 +89,12 @@ namespace. Coordinator execution needs the standard `android-gate` lock plus
 `GRAMLAB_RUNTIME_PROFILE`, `GRAMLAB_ANDROID_RUNTIME_PROFILE`, `GRAMLAB_ANDROID_PROBE_APK`, readable
 KVM, and `pytest -m android tests/test_android_document_ui.py` inside the documented private network
 guard. Keep this ticket claimed until that reviewed104 native run and screenshot inspection pass.
+
+Review corrected the independently derived final-path oracle before native execution. Pinned
+`FileLoader.java:1176-1183` sends named documents whose `MessageObject` passes
+`canSaveAsFile` to `MEDIA_DIR_FILES`, while retaining a `PathData` key whose type is the original
+`MEDIA_DIR_DOCUMENT`; `ImageLoader.java:2544-2550` maps that destination to `Telegram Files`.
+Worker104's patch lines 612-627 preserves the same split. The expected presentation destination is
+therefore `Telegram/Telegram Files/گزارش-English.pdf`; `Telegram Documents` was incorrect. The
+attachment trace/cache identity remains `-1_-1.pdf`, and production destination selection is
+unchanged.
