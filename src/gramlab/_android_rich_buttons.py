@@ -170,9 +170,12 @@ class AndroidRichInput:
 
     def _read(self, name: str) -> dict[str, Any]:
         _require(name in _FILES)
+        # Shell v2 preserves remote exit status and separates stderr; exec-out
+        # escapes the quoted script again and cannot report the missing-file status.
         # Base64 preserves strict original UTF-8 despite Android._adb's text decoder.
         result = self.android._adb(
-            "exec-out",
+            "shell",
+            "-T",
             "run-as",
             _PACKAGE,
             "sh",
@@ -227,7 +230,7 @@ class AndroidRichInput:
         _require(bool(uptime))
         seconds = float(uptime[0])
         _require(math.isfinite(seconds) and seconds >= 0)
-        windows = self.android._adb("shell", "dumpsys", "window", "windows").stdout
+        windows = self.android._adb("shell", "dumpsys", "window", "displays").stdout
         focused = re.findall(r"mCurrentFocus=Window\{[^\n]*\bu\d+ ([^\s}]+)", windows)
         _require(len(focused) == 1 and focused[0].startswith(_PACKAGE + "/"))
         return int(pids[0]), int(seconds * 1000)

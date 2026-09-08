@@ -189,3 +189,51 @@ The full focused suite used the guarded journal/traversal dependency receipt
 `70248cdd4b0c98bb37fadb562eede545ea9e9b44`, including the three actual journal preflight tests.
 Borrowed helpers remain coordinator-owned and are restored before this worker commit. There is
 no guest/build/full-gate/external-network or native-acceptance claim.
+
+
+### Native startup boundary correction
+
+Native diagnostic02 established that initial observation failed in `_read` base64 decoding,
+before any guest focus check. Diagnostic03 retained the exact private-file command output:
+`sh: if [ -f ... ]; then ...; else exit 44; fi: inaccessible or not found`, with exit status
+zero and empty stderr. The already quoted `sh -c` script had passed through `exec-out`'s
+additional argument escaping, becoming one literal command name. That transport also cannot
+report the remote missing-file exit status. The private read now uses shell v2 with `-T`,
+matching the existing write transport; this preserves the intended quoting, separate stderr,
+and exit status 44. Strict base64, original UTF-8 validation, bounded reads and JSON checks
+remain in force.
+
+The same diagnostic confirmed a second startup blocker: `dumpsys window windows` contains
+window inventory but no current-focus field. Both full window and display dumps included the
+actual app's `mCurrentFocus`. The host now requests `dumpsys window displays` and retains the
+existing strict single-focus/package check. The native diagnostic is retained in the primary
+checkout at `artifacts/rich-button-native-diagnostic-03-work/test_public_rich_targets_prepa0/`
+`headless-android-run/rich-button-startup-diagnostic.json`. The original screenshot and parsed
+failure details were collected by the coordinator's test-only supervisor wrapper; this change
+adds no production diagnostics or artifacts containing raw shell output.
+
+The argument/exit behavior is also documented in AOSP's
+[ADB command implementation](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/client/commandline.cpp)
+(`exec-out` escapes each argument and returns zero after copying the stream), and focus is
+emitted by Android 16's
+[DisplayContent dump](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android-16.0.0_r1/services/core/java/com/android/server/wm/DisplayContent.java).
+No upstream implementation was copied or adapted.
+
+- `artifacts/rich-button-host-adb-transport-red.xml`: two failing independently authored
+  replays execute the actual local POSIX shell behind ADB's argument/stream/status boundary.
+  Present and absent private files both reproduce the same base64 failure as native02.
+- `artifacts/rich-button-host-window-replay-red.xml`: the actual inventory-output boundary
+  fails to establish focus; four absent/null/wrong-app/duplicate-focus controls pass.
+- `artifacts/rich-button-host-startup-green.xml`: **86 passed**, including all prior host
+  controls, actual journal preflight, both real-shell replays and strict display-focus checks.
+  Command: `tools/dev default --offline --command unshare --user --map-root-user --net
+  .venv/bin/pytest tests/test_android_rich_button_host.py
+  --junitxml=artifacts/rich-button-host-startup-green.xml`.
+- Scoped strict mypy passes all three Python files. Ruff lint/format and whitespace checks
+  pass. The final edits after pytest only annotate the replay safety and evidence provenance.
+
+The complete host suite used guarded temporary primitive loan
+`rich-button-host-primitives-03` from coordinator commit `e1a9f8c`; those borrowed helpers are
+restored before freezing this worker commit. No guest, build, full gate or runtime network
+was used here. The coordinator owns rerunning the original native acceptance scenario; host
+replay success does not establish native success.
