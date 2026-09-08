@@ -72,6 +72,11 @@ not establish the cause of an unrelated earlier failure.
    the worker is correcting these before integration. Its named-file destination oracle is now
    corrected to the original MEDIA_DIR_FILES path, distinct from the database/attachment key.
 
+Independent [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
+is ready for a separate World/HTTP worker. Its frozen slice covers photo/document replacement and
+caption-only edits through both methods; original native acceptance, albums and other unsupported
+forms remain separate. It owns World/bot_api edit seams and new tests, avoiding104/105 ownership.
+
 After this batch, required operational work still includes default upload classification,
 media/document edits, albums, approved automatic rich detection, wider rich-button placement/
 recovery and representative combined workflow/current-APK regression. Preserve the full inventory;
