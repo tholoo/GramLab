@@ -258,8 +258,10 @@ def test_allocation_is_atomic_and_bounded(tmp_path: Path) -> None:
     journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
     path = tmp_path / "rich-button-journal.jsonl"
     initial = path.read_bytes()
+    journal.preflight_allocation(observation("preflight"), user_id=2, client_nonce="0" * 128)
+    assert path.read_bytes() == initial
     with pytest.raises(ValueError, match="Duplicate rich-button target"):
-        journal.allocate(observation("same", "same"), user_id=2, client_nonce=CLIENT)
+        journal.preflight_allocation(observation("same", "same"), user_id=2, client_nonce="0" * 128)
     with pytest.raises(ValueError, match="64"):
         journal.allocate(
             observation(*(f"target_{index}" for index in range(65))),
@@ -269,7 +271,7 @@ def test_allocation_is_atomic_and_bounded(tmp_path: Path) -> None:
     oversized = observation("large")
     oversized["targets"][0]["label"] = "x" * (128 * 1024)
     with pytest.raises(ValueError, match="128 KiB"):
-        journal.allocate(oversized, user_id=2, client_nonce=CLIENT)
+        journal.preflight_allocation(oversized, user_id=2, client_nonce="0" * 128)
     assert path.read_bytes() == initial
     journal.allocate(
         observation(*(f"target_{index}" for index in range(64))),
@@ -277,7 +279,8 @@ def test_allocation_is_atomic_and_bounded(tmp_path: Path) -> None:
         client_nonce=CLIENT,
     )
     with pytest.raises(ValueError, match="64"):
-        journal.allocate(observation("extra"), user_id=2, client_nonce=CLIENT)
+        journal.preflight_allocation(observation("extra"), user_id=2, client_nonce="0" * 128)
+    assert len(path.read_bytes()) > len(initial)
     journal.close()
 
 
@@ -307,6 +310,8 @@ def test_preflight_uses_final_record_encoding_without_mutating_the_journal(tmp_p
     assert path.read_bytes() == before
     large_observed = observation("large_target")
     large_observed["targets"][0]["button"] = {"text": "Large", "callback_data": "large"}
+    large_observed["targets"][0]["label"] = "Large"
+    large_observed["targets"][0]["path"] = ["blocks", 1, "buttons", 0]
     oversized = receipt(large_observed, 0, "large_operation") | {
         "status": "succeeded",
         "dispatch": "dispatched",
@@ -319,15 +324,18 @@ def test_preflight_uses_final_record_encoding_without_mutating_the_journal(tmp_p
                 "message": {
                     "id": 5,
                     "chat_id": 3,
+                    "sender_id": 2,
+                    "date": 1,
+                    "text": "",
                     "rich_message": {
                         "blocks": [
+                            {"type": "paragraph", "text": "x" * (128 * 1024)},
                             {
                                 "type": "buttons",
                                 "buttons": [{"text": "Large", "callback_data": "large"}],
-                            }
+                            },
                         ]
                     },
-                    "retained_optional_field": "x" * (128 * 1024),
                 },
                 "data": "large",
                 "chat_instance": "0" * 64,
@@ -454,6 +462,7 @@ def test_evidence_advances_monotonically_for_actions_and_native_artifacts(tmp_pa
 def test_callback_effect_binds_complete_actual_world_callback_and_target(tmp_path: Path) -> None:
     world_directory = tmp_path / "world"
     with World.create(world_directory, seed=71, now=100) as world:
+        actual_world_id = world.world_id
         user = world.create_user(first_name="Human")
         bot = world.create_user(first_name="Bot", is_bot=True)
         chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
@@ -495,7 +504,7 @@ def test_callback_effect_binds_complete_actual_world_callback_and_target(tmp_pat
     }
     journal_directory = tmp_path / "journal"
     journal_directory.mkdir()
-    journal = Journal(journal_directory, run_id=RUN_ID, world_id=WORLD_ID)
+    journal = Journal(journal_directory, run_id=RUN_ID, world_id=actual_world_id)
     journal.allocate(observed, user_id=user["id"], client_nonce=CLIENT)
     claimed = receipt(observed, 0, "operation_actual")
     journal.transition("claim", claimed, client_nonce=CLIENT)
@@ -521,9 +530,35 @@ def test_callback_effect_binds_complete_actual_world_callback_and_target(tmp_pat
         ("data", "wrong"),
         ("answer", {"text": "too late"}),
         ("user_id", user["id"] + 1),
+        ("chat_instance", "f" * 64),
     ):
         malformed = copy.deepcopy(succeeded)
         malformed["effect"]["callback"][field] = changed
+        with pytest.raises(ValueError):
+            journal.transition("receipt", malformed, client_nonce=CLIENT)
+    actual_message = succeeded["effect"]["callback"]["message"]
+    malformed_messages: list[dict[str, Any]] = []
+    missing = copy.deepcopy(actual_message)
+    missing.pop("sender_id")
+    malformed_messages.append(missing)
+    unknown = copy.deepcopy(actual_message)
+    unknown["unexpected"] = True
+    malformed_messages.append(unknown)
+    bad_date = copy.deepcopy(actual_message)
+    bad_date["date"] = True
+    malformed_messages.append(bad_date)
+    bad_text = copy.deepcopy(actual_message)
+    bad_text["text"] = "not a rich message"
+    malformed_messages.append(bad_text)
+    bad_edit = copy.deepcopy(actual_message)
+    bad_edit["edit_date"] = -1
+    malformed_messages.append(bad_edit)
+    bad_markup = copy.deepcopy(actual_message)
+    bad_markup["reply_markup"] = []
+    malformed_messages.append(bad_markup)
+    for malformed_message in malformed_messages:
+        malformed = copy.deepcopy(succeeded)
+        malformed["effect"]["callback"]["message"] = malformed_message
         with pytest.raises(ValueError):
             journal.transition("receipt", malformed, client_nonce=CLIENT)
     wrong_occurrence = copy.deepcopy(succeeded)

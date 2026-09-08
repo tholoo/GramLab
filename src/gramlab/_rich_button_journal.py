@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import math
 import os
@@ -50,7 +51,13 @@ def _identifier(value: Any, context: str) -> str:
 
 
 def _positive(value: Any, context: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 < value < 2**63:
+        raise ValueError(f"Invalid rich-button {context}")
+    return int(value)
+
+
+def _timestamp(value: Any, context: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < 2**63:
         raise ValueError(f"Invalid rich-button {context}")
     return int(value)
 
@@ -309,10 +316,23 @@ def _callback(value: Any) -> dict[str, Any]:
     message = callback["message"]
     if not isinstance(message, dict):
         raise ValueError("Invalid rich-button callback message")
-    _positive(message.get("id"), "callback message identifier")
-    _positive(message.get("chat_id"), "callback message chat")
+    required = {"id", "chat_id", "sender_id", "date", "text", "rich_message"}
+    allowed = required | {"edit_date", "reply_markup"}
+    if required - set(message) or set(message) - allowed:
+        raise ValueError("Invalid rich-button callback message fields")
+    _positive(message["id"], "callback message identifier")
+    message_chat = _positive(message["chat_id"], "callback message chat")
+    _positive(message["sender_id"], "callback message sender")
+    message_date = _timestamp(message["date"], "callback message date")
+    if message_chat != chat_id or message["text"] != "":
+        raise ValueError("Invalid rich-button callback message identity")
     if not isinstance(message.get("rich_message"), dict):
         raise ValueError("Invalid rich-button callback message")
+    if "edit_date" in message:
+        if _timestamp(message["edit_date"], "callback message edit date") < message_date:
+            raise ValueError("Invalid rich-button callback message edit date")
+    if "reply_markup" in message and not isinstance(message["reply_markup"], dict):
+        raise ValueError("Invalid rich-button callback reply markup")
     return {
         "id": callback_id,
         "user_id": user_id,
@@ -411,7 +431,7 @@ class _OperationState:
     terminal: bool = False
 
 
-def _receipt_semantics(receipt: dict[str, Any], target: _TargetState) -> None:
+def _receipt_semantics(receipt: dict[str, Any], target: _TargetState, *, world_id: str) -> None:
     effect = receipt["effect"]
     if effect is None:
         return
@@ -439,6 +459,11 @@ def _receipt_semantics(receipt: dict[str, Any], target: _TargetState) -> None:
         or callback["data"] != button["callback_data"]
     ):
         raise ValueError("Rich-button callback identity does not match target")
+    expected_instance = hashlib.sha256(
+        f"{world_id}:{target.target['chat_id']}".encode()
+    ).hexdigest()
+    if callback["chat_instance"] != expected_instance:
+        raise ValueError("Rich-button callback chat instance does not match World")
     if effect["event_sequence"] not in receipt["evidence"]["world_event_sequences"]:
         raise ValueError("Rich-button callback effect does not match evidence")
     message = callback["message"]
@@ -459,6 +484,7 @@ def _receipt_semantics(receipt: dict[str, Any], target: _TargetState) -> None:
 
 @dataclass
 class _Ledger:
+    world_id: str = ""
     targets: dict[str, _TargetState] = field(default_factory=dict)
     target_order: list[str] = field(default_factory=list)
     operations: dict[str, _OperationState] = field(default_factory=dict)
@@ -499,7 +525,7 @@ class _Ledger:
             raise ValueError("Rich-button client lifetime does not match allocation")
         if current["target"] != target.target:
             raise ValueError("Rich-button target identity does not match allocation")
-        _receipt_semantics(current, target)
+        _receipt_semantics(current, target, world_id=self.world_id)
         operation = self.operations.get(operation_id)
         if kind == "claim":
             if operation is not None:
@@ -601,7 +627,7 @@ class Journal:
         self._run_id = _identifier(run_id, "run identifier")
         self._world_id = _identifier(world_id, "World identifier")
         self._sequence = 0
-        self._ledger = _Ledger()
+        self._ledger = _Ledger(world_id=self._world_id)
         self._reservations: dict[str, int] = {}
         self._size = 0
         self._poisoned = False
@@ -664,22 +690,53 @@ class Journal:
         self._write(encoded)
         return len(encoded)
 
-    def allocate(self, observation: dict[str, Any], *, user_id: int, client_nonce: str) -> None:
-        self._ensure_live()
+    def _prepare_allocation(
+        self,
+        observation: dict[str, Any],
+        *,
+        user_id: int,
+        client_nonce: str,
+        sequence: int,
+    ) -> tuple[_Ledger, list[str], bytes | None]:
         candidate = copy.deepcopy(self._ledger)
         target_ids = candidate.allocate(observation, user_id=user_id, client_nonce=client_nonce)
         if not target_ids:
-            return
+            return candidate, target_ids, None
         payload = {
             "observation": copy.deepcopy(observation),
             "user_id": user_id,
             "client_nonce": client_nonce,
         }
-        encoded = _encode(self._record("observation", payload))
+        encoded = _encode(self._record_at_sequence("observation", payload, sequence))
         projected = self._size + sum(self._reservations.values()) + len(encoded)
         projected += len(target_ids) * _TARGET_RESERVATION
         if projected > _MAX_JOURNAL:
             raise ValueError("Rich-button journal exceeds its 80 MiB capacity")
+        return candidate, target_ids, encoded
+
+    def preflight_allocation(
+        self, observation: dict[str, Any], *, user_id: int, client_nonce: str
+    ) -> None:
+        """Validate a prospective whole allocation without changing journal or state."""
+
+        self._ensure_live()
+        self._prepare_allocation(
+            observation,
+            user_id=user_id,
+            client_nonce=client_nonce,
+            sequence=_MAX_SEQUENCE,
+        )
+
+    def allocate(self, observation: dict[str, Any], *, user_id: int, client_nonce: str) -> None:
+        self._ensure_live()
+        candidate, target_ids, encoded = self._prepare_allocation(
+            observation,
+            user_id=user_id,
+            client_nonce=client_nonce,
+            sequence=self._sequence,
+        )
+        if encoded is None:
+            return
         self._write(encoded)
         self._ledger = candidate
         for target_id in target_ids:
@@ -834,6 +891,7 @@ def recover_journal(path: Path) -> dict[str, Any]:
             record_world = _identifier(record["world_id"], "World identifier")
             if sequence == 0:
                 run_id, world_id = record_run, record_world
+                ledger.world_id = world_id
                 if record["kind"] != "start" or record["payload"] != {}:
                     raise ValueError("invalid start record")
                 continue

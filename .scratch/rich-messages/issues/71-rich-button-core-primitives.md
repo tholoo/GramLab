@@ -21,7 +21,10 @@ Implement these independent interfaces exactly; report any required change befor
 - `_rich_button_journal.Journal(directory: Path, *, run_id: str, world_id: str)`: exclusively
   create the named journal and durable start record. `allocate(observation, *, user_id,
   client_nonce) -> None` validates and atomically journals the complete allocation, reserving its
-  future record budget. `transition(kind, receipt, *, client_nonce) -> None` accepts only claim,
+  future record budget. `preflight_allocation(observation, *, user_id, client_nonce) -> None`
+  validates the same whole allocation and conservative future-sequence framing without changing
+  state, so a dummy bounded nonce can be used before native launch. `transition(kind, receipt, *,
+  client_nonce) -> None` accepts only claim,
   intent or receipt and verifies progression. `evidence(operation_id, evidence, *, client_nonce)
   -> None` appends a changed bounded evidence record. `preflight_receipt(receipt, *, client_nonce)
   -> None` validates a prospective final receipt with exact record encoding and a conservative
@@ -79,3 +82,17 @@ remain structural sizing inputs until transition. Recovery recursively rejects p
 floats and rejects an incomplete tail over 128 KiB before discarding it. The retained state red is
 `artifacts/ticket71/journal-state-red.xml`; final evidence is
 `artifacts/ticket71/core-primitives-six-fixes.xml`.
+
+Callback-message review verifies the exact required World fields `id`, `chat_id`, `sender_id`,
+`date`, `text` and `rich_message`; only `edit_date` and `reply_markup` may additionally appear.
+Identifiers use positive signed-64 integers, timestamps use nonnegative signed-64 integers, rich
+text is empty, and edit time cannot precede creation. Ledger validation also recomputes the exact
+World/chat `chat_instance`; it does not invent unavailable revision or snapshot proof. Actual World
+positive and malformed message evidence is retained in `artifacts/ticket71/callback-message-red.xml`
+and `artifacts/ticket71/callback-message-green.xml`.
+
+Allocation preflight shares the actual allocation's candidate-ledger validation, exact encoder,
+80 MiB reservation arithmetic and 128 KiB record cap. It neither writes nor reserves targets and
+accepts a valid dummy nonce before native observation establishes the process nonce. The final
+guarded traversal/journal report is `artifacts/ticket71/core-primitives-final-followup.xml` with 22
+passing cases.
