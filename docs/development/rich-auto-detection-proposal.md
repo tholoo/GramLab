@@ -42,13 +42,15 @@ Detection would recognize these candidate classes:
 | Hashtag | `#`, then 1–64 Unicode letters, marks, numbers or underscores | No separate metadata |
 | Cashtag | `$`, then 1–8 uppercase ASCII letters | No separate metadata |
 | Bot command | `/`, then 1–64 ASCII letters, digits or underscores, optionally followed by a valid `@username` | No separate metadata |
-| Bank card | 13–19 ASCII digits, with single spaces or hyphens permitted, and a valid Luhn checksum | Digits only |
+| Bank card | 13–19 ASCII digits, with single spaces or hyphens permitted, and a valid Luhn checksum | No separate metadata |
 
 URL, email and phone would use the existing `url`, `email_address` and `phone_number` shapes.
 The other five candidates would use recursive `mention`, `hashtag`, `cashtag`, `bot_command` and
 `bank_card_number` nodes containing `text`. These are proposed public output shapes; their native
-projection must use the original corresponding RichText types. Accepting a candidate while
-flattening it back to plain text would not implement this policy.
+projection must use the original corresponding RichText types. Their exact public and native
+schema names require source verification before implementation; this proposal does not treat the
+names as pinned facts. Accepting a candidate while flattening it back to plain text would not
+implement this policy.
 
 A candidate must begin at the start of its string leaf or after a character that is not a Unicode
 letter, mark, number or underscore, and must end before the same boundary. Sentence punctuation
@@ -151,14 +153,18 @@ library supplies parsers and Unicode data, not this scanner. Android `Linkify` b
 separate GPL client boundary. Adapting TDLib's entity detector would require its own provenance and
 [licensing review](licensing.md), and would still not prove server-side rich-block scope.
 
-Three paths remain available:
+Two fidelity choices remain available:
 
 1. **Approve this local policy.** It is deterministic, offline and reviewable, but intentionally
    diverges wherever Telegram behavior is unknown.
 2. **Wait for independently supplied server observations.** This best preserves the fidelity goal,
    while the operational milestone remains blocked.
-3. **Review a permissively licensed scanner.** This may reduce parser work, but adds a dependency
-   and its behavior still would not establish Telegram parity.
+
+If the local policy is approved, implementation should prefer reviewed, reusable, permissively
+licensed scanner components wherever their behavior satisfies this contract. That can accelerate
+delivery, but it does not create a third fidelity policy: the selected component remains subordinate
+to these rules and needs dependency, provenance and licensing review. No dependency or source
+adaptation is approved or performed by this proposal.
 
 Accepting omitted or false as a no-op is not a valid alternative because it contradicts the known
 flag semantics.
