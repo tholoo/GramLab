@@ -83,3 +83,16 @@ Cancellation is unproven: no final native media trace was retained. Original Ima
 receivers by URL before filtered keys; its global cancellation must not be changed on speculation.
 The adapter read timeout during the deliberate partial-response hold is another hypothesis that
 needs timestamps and native terminal trace evidence.
+
+## Isolated held-transfer control
+
+A coordinator-only local HTTP control uses the actual World, fault peer and NativeAssetProxy,
+with the same 70-byte shared thumbnail and no Android client or message edit. A one-second
+partial-response hold delivers all 70 bytes; a six-second hold fails after 5.003 seconds with
+`IncompleteRead`, while the proxy records zero delivered bytes and `transport_error`. The peer
+still records a 200 response and 70 intended bytes. Evidence is retained in the dedicated
+`held-thumbnail-transport-control` artifact. This proves that the proxy's five-second timeout
+can defeat the held-transfer fixture without any native cancellation. It does not establish
+the first native run's actual hold duration or terminal event; the fresh checkpointed native
+run remains necessary to distinguish that failure. Do not change loader ownership or timeouts
+from this control alone.
