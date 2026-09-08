@@ -33,11 +33,12 @@ after trees, creates private parents for declared new files, invokes the system 
 zero fuzz, and verifies the complete expected postimage set. The generated `stage.json` contains
 machine paths and stays in the caller's ignored output.
 
-Eleven real temporary-filesystem cases execute the actual patch subprocess and cover an existing
+Thirteen real temporary-filesystem cases execute the actual patch subprocess and cover an existing
 edit plus a new file, stale preimages, wrong postimages, undeclared changes, nonapplying/offset
 input, binary/rename/delete markers, symlinked source paths, duplicate manifest fields, output
-collisions, manifest traversal and a traversing patch header. Every failure control compares the
+collisions, manifest traversal, a traversing patch header, an unframed create/delete prefix and
+runtime enforcement of the command-output bound. Every failure control compares the
 live source or the relevant outside target unchanged and retains a failed stage when output was
-created. Focused JUnit is retained at `artifacts/android-patch-staging.xml`; scoped Ruff,
+created. Follow-up JUnit is retained at `artifacts/android-patch-staging-followup.xml`; scoped Ruff,
 formatting, strict mypy and bytecode compilation pass. No live Android source, APK, build, guest,
 network or shared configuration was changed.

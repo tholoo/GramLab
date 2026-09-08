@@ -26,9 +26,12 @@ ignored because those paths are machine-specific.
 The tool accepts at most 128 textual file diffs, 4 MiB per patch or manifest, 8 MiB per affected
 source file and 64 MiB of declared source data. It invokes the system `patch` command for at most
 30 seconds with `--batch --fuzz=0 -p1`, and rejects any reported fuzz or offset. Paths must match
-the after manifest exactly. Symlinks, traversal, stale preimages, unexpected postimages, binary
-patches, renames, deletes, mode-only changes and output collisions fail. A created output retains
-`status: failed` diagnostics, while the source tree remains unchanged.
+the after manifest exactly, and executable patch content before the first `diff --git` header is
+rejected before invocation. Stdout and stderr are drained while the command runs; exceeding the
+1 MiB bound stops that process and retains only the bounded prefixes. Symlinks, traversal, stale
+preimages, unexpected postimages, binary patches, renames, deletes, mode-only changes and output
+collisions fail. A created output retains `status: failed` diagnostics, while the source tree
+remains unchanged.
 
 This stage is preparation evidence. It does not apply anything to the live cached source, extend
 the patch series, build an APK, verify source provenance outside the declared affected files, or

@@ -3,15 +3,28 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.machinery
+import importlib.util
 import json
 import stat
 import subprocess
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 TOOL = Path(__file__).resolve().parents[1] / "tools/android-patch-stage"
+
+
+def load_tool() -> types.ModuleType:
+    loader = importlib.machinery.SourceFileLoader("android_patch_stage", str(TOOL))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
 
 
 def sha(value: bytes) -> str:
@@ -210,3 +223,41 @@ def test_rejects_a_traversing_patch_header_without_changing_source(tmp_path: Pat
     assert "unsafe new path" in result.stderr
     assert source_snapshot(source) == unchanged
     assert not (tmp_path / "outside.java").exists()
+
+
+def test_rejects_unframed_create_delete_prefix_before_patch_execution(tmp_path: Path) -> None:
+    source, patch, before, after, _expected = fixture(tmp_path)
+    prefix = """--- /dev/null
++++ b/undeclared
+@@ -0,0 +1 @@
++temporary
+--- a/undeclared
++++ /dev/null
+@@ -1 +0,0 @@
+-temporary
+"""
+    patch.write_text(prefix + patch.read_text())
+    unchanged = source_snapshot(source)
+    output = tmp_path / "stage"
+
+    result = invoke(source, patch, before, after, output)
+    assert result.returncode == 2
+    assert "before its first file diff" in result.stderr
+    assert source_snapshot(source) == unchanged
+    assert not (output / "after").exists()
+    assert not (output / "patch.stdout").exists()
+    assert json.loads((output / "stage.json").read_text())["status"] == "failed"
+
+
+def test_patch_output_is_stopped_and_retained_at_the_runtime_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helper = load_tool()
+    monkeypatch.setattr(helper, "MAX_COMMAND_BYTES", 32)
+
+    _returncode, stdout, stderr, failure = helper.run_patch(
+        [sys.executable, "-c", "import sys; sys.stdout.write('x' * 1000000)"], tmp_path
+    )
+    assert failure == "output"
+    assert stdout == b"x" * 32
+    assert stderr == b""
