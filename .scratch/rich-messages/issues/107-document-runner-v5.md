@@ -2,7 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
+Owner: task/document-runner-v5
 Blocked by: implementation may proceed independently; integration requires verified native delivery104
 
 The approved v5 document bridge exists in World and HTTP, but the public runner/CLI and Android
