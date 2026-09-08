@@ -29,7 +29,7 @@ Patch 0027 captures the Canvas matrix at each exact `ChatMessageCell` rich-layou
 The observer maps each button through the current matrix and the inverse entry matrix, producing a
 cell-local axis-aligned bound before adding `getLocationOnScreen` exactly once. Contexts are
 thread-local, nested, cell-identity checked and scoped with `finally`; missing, mismatched,
-noninvertible, nonfinite or empty geometry fails closed and makes that binding stale. Outgoing and
+noninvertible, any nonfinite mapped coordinate or empty geometry fails closed and makes that binding stale. Outgoing and
 current crossfade layouts have separate contexts. Original drawing, button hit testing and disabled
 row propagation are unchanged.
 
@@ -41,3 +41,8 @@ types (33 errors, none at patch hunks). No Gradle build or guest was run. Coordi
 should exercise row and inline rectangles under identity and translated/scaled outer matrices,
 assert equal cell-local results plus one cell-origin offset, and reject missing, mismatched and
 noninvertible contexts. The public guest must verify stable bounds across redraws and actual taps.
+
+The capture occurs after `layoutTextXY(false)`, which computes layout fields without mutating the
+Canvas, and immediately after the cell-owned save/saveLayer. It precedes the explicit
+`canvas.translate(textX, textY)` and every rich block/button translation, so the saved entry matrix
+contains only the caller's outer basis.

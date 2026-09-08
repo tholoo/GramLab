@@ -1,5 +1,5 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
-index 7d95603..79fc2f4 100644
+index 7d95603..1c09598 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 @@ -5,6 +5,7 @@ import android.content.ClipData;
@@ -30,7 +30,7 @@ index 7d95603..79fc2f4 100644
      private static final java.util.concurrent.ExecutorService writer =
              java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "GramLabButtonObservation"));
      private static final class RequestEvidence {
-@@ -1002,6 +1016,42 @@ public final class GramLabButtonObserver {
+@@ -1002,6 +1016,44 @@ public final class GramLabButtonObserver {
          return null;
      }
  
@@ -58,22 +58,24 @@ index 7d95603..79fc2f4 100644
 +        };
 +        canvas.getMatrix().mapPoints(points);
 +        context.inverseEntry.mapPoints(points);
++        for (float coordinate : points) {
++            if (!Float.isFinite(coordinate)) return null;
++        }
 +        float left = points[0], top = points[1], right = points[0], bottom = points[1];
 +        for (int i = 2; i < points.length; i += 2) {
-+            if (!Float.isFinite(points[i]) || !Float.isFinite(points[i + 1])) return null;
 +            left = Math.min(left, points[i]);
 +            top = Math.min(top, points[i + 1]);
 +            right = Math.max(right, points[i]);
 +            bottom = Math.max(bottom, points[i + 1]);
 +        }
-+        if (!Float.isFinite(left) || !Float.isFinite(top) || right <= left || bottom <= top) return null;
++        if (right <= left || bottom <= top) return null;
 +        return new RectF(left, top, right, bottom);
 +    }
 +
      public static synchronized void drawn(
              MessageObject message, ChatMessageCell cell, Object object, String label, Canvas canvas, RectF local) {
          Binding binding = bindings.get(object);
-@@ -1011,8 +1061,13 @@ public final class GramLabButtonObserver {
+@@ -1011,8 +1063,13 @@ public final class GramLabButtonObserver {
              if (activation.optLong("message_id") != message.getId()
                      || positive(activation, "revision") != binding.revision)
                  return;
