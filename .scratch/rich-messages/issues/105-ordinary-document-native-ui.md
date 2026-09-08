@@ -2,7 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: unassigned
+Work state: claimed
+Owner: task/ordinary-document-native-ui
 Blocked by: native execution requires reviewed delivery104 APK; core scenario preparation is independent
 
 Prepare complete real-bot and original Android acceptance for the integrated typed document
