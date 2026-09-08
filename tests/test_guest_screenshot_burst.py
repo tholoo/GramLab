@@ -37,14 +37,20 @@ PIXELS = bytes(
 RAW = struct.pack("<4I", 320, 640, 1, 1) + PIXELS
 
 
+def authored_frame(index: int, value: bytes = RAW) -> bytes:
+    # Each sample has a unique opaque first pixel; the remaining spatial pattern persists.
+    return value[:16] + bytes((index, 255 - index, index * 7, 255)) + value[20:]
+
+
 def manifest(token: str = TOKEN, value: bytes = RAW) -> str:
-    digest = hashlib.sha256(value).hexdigest()
     lines = [f"GRAMLAB_SCREENSHOT_BURST 2 RAW_RGBA_8888_SRGB {token} 24"]
     for index in range(24):
+        raw = authored_frame(index, value)
+        digest = hashlib.sha256(raw).hexdigest()
         tick = 12345 + index * 20
         start = f"{tick // 100}.{tick % 100:02d}"
         end = f"{(tick + 7) // 100}.{(tick + 7) % 100:02d}"
-        lines.append(f"FRAME {index:02d} {start} {end} {len(value)} {digest}")
+        lines.append(f"FRAME {index:02d} {start} {end} {len(raw)} {digest}")
     return "\n".join([*lines, "END 24", ""])
 
 
@@ -164,21 +170,27 @@ class TransferredGuest:
         assert arguments[0] == "pull" and len(arguments) == 3
         directory = Path(arguments[2])
         directory.mkdir()
-        fixture = directory.parent / "external-fixture.raw"
-        fixture.write_bytes(self.value)
         for index in range(24):
-            os.link(fixture, directory / f"edited-burst-{index:02d}.raw")
+            (directory / f"edited-burst-{index:02d}.raw").write_bytes(
+                authored_frame(index, self.value)
+            )
         first = directory / "edited-burst-00.raw"
         if self.fault == "missing":
             first.unlink()
         elif self.fault == "extra":
             (directory / "extra.raw").write_bytes(RAW)
         elif self.fault == "symlink":
-            first.unlink()
+            fixture = directory.parent / "external-fixture.raw"
+            first.rename(fixture)
             first.symlink_to(fixture)
+        elif self.fault == "permuted":
+            last = directory / "edited-burst-23.raw"
+            first_bytes, last_bytes = first.read_bytes(), last.read_bytes()
+            first.write_bytes(last_bytes)
+            last.write_bytes(first_bytes)
         elif self.fault == "changed":
             data = bytearray(first.read_bytes())
-            data[-1] ^= 1
+            data[-4] ^= 1
             first.write_bytes(data)
         return subprocess.CompletedProcess(arguments, 1 if self.fault == "pull" else 0, "", "")
 
@@ -190,28 +202,42 @@ def test_one_guest_capture_session_then_one_transfer_retains_original_bytes(tmp_
     assert ends == [123_530_000_000 + index * 200_000_000 for index in range(24)]
     assert [command[0] for command in guest.calls] == ["shell", "pull"]
     assert len(list(tmp_path.glob("edited-burst-*.png"))) == 24
-    for path in tmp_path.glob("*.png"):
-        with Image.open(path) as decoded:
-            assert decoded.mode == "RGBA" and decoded.size == (320, 640)
-            assert decoded.tobytes() == PIXELS
     metadata = json.loads((tmp_path / "edited-burst-derivation.json").read_text())
     assert metadata["input_format"] == "android-screencap-raw"
     assert metadata["derivation"] == "lossless-png-rgba8"
     assert len(metadata["frames"]) == 24
+    assert len({frame["raw_sha256"] for frame in metadata["frames"]}) == 24
+    assert len({(tmp_path / frame["raw_path"]).stat().st_ino for frame in metadata["frames"]}) == 24
+    manifest_bytes = (tmp_path / "edited-burst-manifest.txt").read_bytes()
+    assert metadata["manifest_sha256"] == hashlib.sha256(manifest_bytes).hexdigest()
+    records = manifest_bytes.decode().splitlines()[1:-1]
     for index, frame in enumerate(metadata["frames"]):
         raw = tmp_path / frame["raw_path"]
         png = tmp_path / frame["png_path"]
         assert raw.name == f"edited-burst-{index:02d}.raw"
-        assert raw.read_bytes() == RAW
-        assert frame["raw_size"] == len(RAW)
-        assert frame["raw_sha256"] == hashlib.sha256(raw.read_bytes()).hexdigest()
+        expected = authored_frame(index)
+        assert raw.read_bytes() == expected
+        assert png.name == f"edited-burst-{index:02d}.png"
+        assert frame["raw_size"] == len(expected)
+        assert frame["raw_sha256"] == hashlib.sha256(expected).hexdigest()
+        assert frame["png_size"] == png.stat().st_size
         assert frame["png_sha256"] == hashlib.sha256(png.read_bytes()).hexdigest()
-        assert frame["rgba_sha256"] == hashlib.sha256(PIXELS).hexdigest()
+        assert frame["rgba_sha256"] == hashlib.sha256(expected[16:]).hexdigest()
+        assert frame["start_ns"] == starts[index] == 123_450_000_000 + index * 200_000_000
+        assert frame["end_ns"] == ends[index] == 123_530_000_000 + index * 200_000_000
+        record = records[index].split()
+        assert record[:2] == ["FRAME", f"{index:02d}"]
+        assert record[4:] == [str(len(expected)), hashlib.sha256(expected).hexdigest()]
+        with Image.open(png) as decoded:
+            assert decoded.mode == "RGBA" and decoded.size == (320, 640)
+            assert decoded.tobytes() == expected[16:]
     assert (tmp_path / "edited-burst-manifest.txt").is_file()
     assert (tmp_path / "edited-burst-stderr.txt").read_text() == ""
 
 
-@pytest.mark.parametrize("fault", ["capture", "pull", "missing", "extra", "symlink", "changed"])
+@pytest.mark.parametrize(
+    "fault", ["capture", "pull", "missing", "extra", "symlink", "changed", "permuted"]
+)
 def test_failed_capture_or_transfer_never_publishes_a_successful_subset(
     tmp_path: Path, fault: str
 ) -> None:
@@ -220,6 +246,12 @@ def test_failed_capture_or_transfer_never_publishes_a_successful_subset(
         capture_burst(guest, tmp_path)
     assert not list(tmp_path.glob("edited-burst-*.png"))
     assert len(guest.calls) == (1 if fault == "capture" else 2)
+    if fault == "changed":
+        staged = sorted(tmp_path.glob("custom-emoji-burst-*/*.raw"))
+        assert len(staged) == 24
+        assert staged[0].read_bytes() != authored_frame(0)
+        for index, path in enumerate(staged[1:], 1):
+            assert path.read_bytes() == authored_frame(index)
     assert (tmp_path / "edited-burst-manifest.txt").is_file()
 
 
@@ -251,7 +283,8 @@ def test_publication_failure_removes_only_its_new_links_and_keeps_transferred_or
     staged = list(tmp_path.glob("custom-emoji-burst-*"))
     assert len(staged) == 1
     assert len(list(staged[0].glob("*.raw"))) == 24
-    assert all(path.read_bytes() == RAW for path in staged[0].glob("*.raw"))
+    for index in range(24):
+        assert (staged[0] / f"edited-burst-{index:02d}.raw").read_bytes() == authored_frame(index)
 
 
 def test_lossless_png_preserves_every_independently_authored_pixel() -> None:
@@ -318,7 +351,9 @@ def test_digest_matching_but_unsupported_raw_pixels_never_publish(tmp_path: Path
     assert not list(tmp_path.glob("edited-burst-*.png"))
     assert not (tmp_path / "edited-burst-derivation.json").exists()
     staged = list(tmp_path.glob("custom-emoji-burst-*/*.raw"))
-    assert len(staged) == 24 and all(path.read_bytes() == bad for path in staged)
+    assert len(staged) == 24
+    for index, path in enumerate(sorted(staged)):
+        assert path.read_bytes() == authored_frame(index, bad)
 
 
 def test_existing_derivation_metadata_is_preserved(tmp_path: Path) -> None:

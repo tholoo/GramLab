@@ -88,10 +88,10 @@ original PNG `00` decoded pixels, whose PNG SHA-256 is
 UI08 timing failures remain unchanged. This is encoding evidence from a system-display benchmark,
 not fresh custom-emoji acceptance.
 
-Final-source verification: all 46 focused controls pass under network isolation; scoped Ruff
+Final-source verification: all 47 focused controls pass under network isolation; scoped Ruff
 lint/format and strict mypy pass. Commands and evidence:
 
-- `tools/dev default --offline --command unshare --user --map-root-user --net .venv/bin/pytest -q tests/test_guest_screenshot_burst.py --junitxml=artifacts/custom-emoji-raw-capture-final.xml`
+- `tools/dev default --offline --command unshare --user --map-root-user --net .venv/bin/pytest -q tests/test_guest_screenshot_burst.py --junitxml=artifacts/custom-emoji-raw-capture-distinct-final.xml`
 - `tools/dev default --offline --command uv run --locked --offline ruff check tests/probes/guest_screenshot_burst.py tests/test_guest_screenshot_burst.py`
 - `tools/dev default --offline --command uv run --locked --offline ruff format --check tests/probes/guest_screenshot_burst.py tests/test_guest_screenshot_burst.py`
 - `tools/dev default --offline --command env MYPYPATH=tests uv run --locked --offline mypy --strict --explicit-package-bases tests/probes/guest_screenshot_burst.py tests/test_guest_screenshot_burst.py`
@@ -102,3 +102,17 @@ pixels, retain the derivation JSON/raw directory, and run fresh native acceptanc
 500 ms temporal oracle. Guest dependencies remain original `screencap` (without `-p`), shell,
 `/proc/uptime`, `toybox wc`, `toybox sha256sum`, fractional sleep and one directory pull. No guest,
 APK build, fixture/profile/oracle change or full gate ran for this worker task.
+
+
+### Independent ordered-frame review correction
+
+The initial transfer fixture reused identical hardlinked bytes. A new first/last content-permutation
+control reproduced its coverage gap: the expected rejection did not occur, retained in
+`artifacts/custom-emoji-raw-capture-permutation-red.xml`. The transfer fixture now writes 24 separate
+files with independently distinguishable opaque RGB identifiers and digests. The success control
+requires all 24 unique hashes/inodes and checks each index's exact original bytes, independently
+decoded PNG pixels, manifest record, metadata raw/PNG/RGBA hashes and sizes, and acquisition bounds.
+The changed-file fault mutates only one RGB byte in frame 00 and verifies frames 01–23 remain intact.
+The permutation control now passes. All 47 isolated controls pass in
+`artifacts/custom-emoji-raw-capture-distinct-final.xml`; scoped Ruff lint/format and strict mypy pass.
+The capture helper and its source-backed format/encoding behavior are unchanged by this correction.
