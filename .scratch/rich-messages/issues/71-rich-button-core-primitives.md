@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: in progress; claimed by `task/rich-button-core-primitives`
 Blocked by: frozen contract70; no production integration dependency
 
 Own this ticket, new `src/gramlab/_rich_buttons.py`, new
