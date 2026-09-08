@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "basis": "Reviewed literal derivation from pinned filesystem/PathView source; Unicode kinds independently executed in C++ reference. No production Python function generated these expected names.",
+  "cases": [
+    {
+      "case": "forbidden_ascii",
+      "input": "A<>:\"|?*&`'B.txt",
+      "expected": "A          B.txt"
+    },
+    {
+      "case": "persian_rtl_marks",
+      "input": "\u06af\u0632\u0627\u0631\u0634\u200c\u200f\u064e\u06f1\u06f2\u06f3.pdf",
+      "expected": "\u06af\u0632\u0627\u0631\u0634\u06f1\u06f2\u06f3.pdf"
+    },
+    {
+      "case": "combining_not_composed",
+      "input": "e\u0301.txt",
+      "expected": "e.txt"
+    },
+    {
+      "case": "emoji_replaced",
+      "input": "a\ud83d\ude00b.txt",
+      "expected": "a b.txt"
+    },
+    {
+      "case": "astral_letter",
+      "input": "a\ud801\udc00b.txt",
+      "expected": "a\ud801\udc00b.txt"
+    },
+    {
+      "case": "pinned_new_letter",
+      "input": "a\ud801\uddc0b.txt",
+      "expected": "a\ud801\uddc0b.txt"
+    },
+    {
+      "case": "pinned_new_cyrillic",
+      "input": "a\u1c89b.txt",
+      "expected": "a\u1c89b.txt"
+    },
+    {
+      "case": "non_decimal_number",
+      "input": "a\u2165\u00b2b.txt",
+      "expected": "a\u2165\u00b2b.txt"
+    },
+    {
+      "case": "astral_digit",
+      "input": "a\ud835\udfceb.txt",
+      "expected": "a\ud835\udfceb.txt"
+    },
+    {
+      "case": "formatting_skipped",
+      "input": "a\u00ad\ufeff\u202e\u034f\u061cb.txt",
+      "expected": "ab.txt"
+    },
+    {
+      "case": "letterlike_symbol",
+      "input": "a\u2118b.txt",
+      "expected": "a b.txt"
+    },
+    {
+      "case": "mark_category",
+      "input": "a\u1885b.txt",
+      "expected": "ab.txt"
+    },
+    {
+      "case": "nul_skipped",
+      "input": "a\u0000b.txt",
+      "expected": "ab.txt"
+    },
+    {
+      "case": "unassigned",
+      "input": "a\u0378b.txt",
+      "expected": "a b.txt"
+    },
+    {
+      "case": "private_use",
+      "input": "a\ue000b.txt",
+      "expected": "a b.txt"
+    },
+    {
+      "case": "noncharacter",
+      "input": "a\udbff\udfffb.txt",
+      "expected": "a b.txt"
+    },
+    {
+      "case": "leading_replacements_do_not_count",
+      "input": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00x.txt",
+      "expected": "x.txt"
+    },
+    {
+      "case": "replacement_counts_before_trim",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00b.txt",
+      "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt"
+    },
+    {
+      "case": "skipped_marks_do_not_count",
+      "input": "a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301a\u0301b.c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301c\u0301d",
+      "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.cccccccccccccccc"
+    },
+    {
+      "case": "astral_limit",
+      "input": "\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00.txt",
+      "expected": "\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00\ud801\udc00.txt"
+    },
+    {
+      "case": "empty_stem_extension_only",
+      "input": "?.pdf",
+      "expected": "pdf"
+    },
+    {
+      "case": "dotfile_clean_then_no_mime",
+      "input": ".pdf",
+      "expected": "pdf"
+    },
+    {
+      "case": "slashes_after_dots",
+      "input": "dir.tar\\name.PDF",
+      "expected": "name.PDF"
+    },
+    {
+      "case": "no_second_percent_decode",
+      "input": "name%2Fpart.pdf",
+      "expected": "name%2Fpart.pdf"
+    },
+    {
+      "case": "literal_plus",
+      "input": "a+b.txt",
+      "expected": "a+b.txt"
+    },
+    {
+      "case": "case_preserved",
+      "input": "Report.PdF",
+      "expected": "Report.PdF"
+    }
+  ]
+}

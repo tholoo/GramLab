@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/pinned-document-filename-metadata`; coordinator review/integration pending
 Blocked by: none
 
 Implement the pure metadata prerequisite for ordinary document uploads under the approved media
@@ -54,3 +54,65 @@ and machine paths ignored. Do not clone/export Android, run a guest/build/full g
 limits or implement file classification. Keep outputs bounded, retire disposable reference-build
 outputs after preserving source hashes and oracle results, and freeze a clean commit with exact
 Git hash and terminal process state for coordinator review.
+
+Claimed scope remains the five listed paths. First verify exact pinned Unicode and MIME dependencies;
+retain a bounded independent reference corpus and reproducible data-generation provenance before
+implementing the two pure helpers. No HTTP/World/native or shared-source edits are authorized.
+
+
+## Implemented boundary
+
+The two pure functions now implement pinned PathView splitting, emitted stem/extension bounds,
+Unicode character preservation/skipping/replacement, trim and literal `file` fallback; extension
+MIME lookup uses the original generator's ASCII case-insensitive mapping and empty unknown result.
+Non-string arguments raise TypeError. UTF-8 encoding failure (including a surrogate after the
+truncation boundary) falls back before cleaning. The pinned `utf8.cpp` validator independently
+confirms surrogate rejection and acceptance of valid scalar/embedded-NUL UTF8. No HTTP decoding,
+byte sniffing, declared MIME input, host MIME/Unicode database, filesystem lookup or image decoder
+is used. The standalone22.9KB module retains original attribution and the complete BSL-1.0 text.
+
+The original C++ Unicode predicates and filesystem admission lambda were executed over every
+code point to derive1,957 compact character-kind boundaries. The unchanged original C++ MIME
+generator supplied all1,005 aliases and duplicate-resolution choices. This is a host source oracle,
+not native UI/server evidence or execution of the whole filename pipeline. Whole filename
+behavior has a separately reviewed literal corpus. Raw13 source/license inputs are individually
+hash-verified; exact pins, source URLs, generation inputs, outputs, limits and reproduction live
+in the owned provenance manifest and fixture README. Upstream's original Unicode table-generation
+inputs/version remain unspecified; no reconstruction of them or host-Unicode substitution is
+claimed. Temporary oracle translation units and binaries were automatically removed, with no
+remaining reference-build directory. Raw reference inputs and run logs remain ignored.
+
+## Verification and handoff
+
+Initial independent literal tests fail collection because the module is absent
+(`artifacts/ticket97-red.xml`). The implemented suite passes30 focused tests in
+`artifacts/ticket97-final.xml`, including1,112,062 valid non-separator scalar probes against the
+independent C++ digest, all1,005 MIME aliases plus uppercase forms,26 reviewed filename cases,
+empty/dot/backslash/invalid-string and non-string controls. Surrogates and separators have explicit
+whole-filename controls outside the scalar digest. Counterexamples retain combining-mark removal,
+pinned newer letters absent from Python3.13's Unicode15.1 table, ordinary emoji replacement,
+ASCII-only case lookup, and MIME duplicate/unknown choices. A second actual source regeneration
+is byte-identical (`artifacts/ticket97-reference-repeat.json`, `artifacts/ticket97-oracle.log`).
+Scoped strict mypy, Ruff lint/format, all13 source-hash checks and diff checks pass.
+
+Reproduction from this assigned checkout after ordinary offline environment provisioning:
+
+```sh
+tools/dev default --offline --command .venv/bin/pytest -q tests/test_document_metadata.py \
+  --junitxml=artifacts/ticket97-final.xml
+tools/dev default --offline --command .venv/bin/mypy --strict \
+  src/gramlab/_document_metadata.py tests/test_document_metadata.py \
+  tests/fixtures/document_metadata/regenerate.py
+.venv/bin/ruff check --no-cache src/gramlab/_document_metadata.py \
+  tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
+.venv/bin/ruff format --check --no-cache src/gramlab/_document_metadata.py \
+  tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
+```
+
+The environment was provisioned offline from an idle task cache, with immutable package archives
+hardlinked and writable cache metadata separate. The editable import resolves to this checkout.
+All worker subprocesses are terminal. No guest, Android build, full gate, runtime networking,
+upstream export, HTTP/World/native/shared-doc edit or dependency change ran. Narrow pinned primary
+source acquisition was separate and authorized. Coordinator owns integration and shared-document
+updates. Remaining document API, service classification, upload ceilings and albums stay open;
+these metadata functions do not close those milestones.

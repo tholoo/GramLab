@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/tdlib/td",
+  "revision": "bc9c263e2bfee06aaab41e82db51a103376030bc",
+  "license": "BSL-1.0",
+  "copyright": "Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2026",
+  "sources": [
+    {
+      "path": "tdutils/td/utils/unicode.h",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/unicode.h",
+      "sha256": "8682c267767f0e7bff59b25967638018efd2d75a98dc3aa475d23ac20f7c961e",
+      "bytes": 901
+    },
+    {
+      "path": "tdutils/td/utils/unicode.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/unicode.cpp",
+      "sha256": "523b23ed0b245ac278b7e295051e4b7a0bbc20c921b7da1f1e401b28ab86d8ee",
+      "bytes": 141372
+    },
+    {
+      "path": "tdutils/td/utils/MimeType.h",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/MimeType.h",
+      "sha256": "87d23932ab9ba10705277d02d6a9fe0c7d15adc23286c6e53d72a1e3ac906f01",
+      "bytes": 554
+    },
+    {
+      "path": "tdutils/td/utils/MimeType.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/MimeType.cpp",
+      "sha256": "96db4dfcca61794f0995530d62e85b5add4b7f571ca3c8d34dc89c66e03f8a16",
+      "bytes": 1276
+    },
+    {
+      "path": "tdutils/generate/mime_types.txt",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/generate/mime_types.txt",
+      "sha256": "cf624424122258b7f58815207fcdd79769a1d3397ac2a1cbbe42124553af8244",
+      "bytes": 26466
+    },
+    {
+      "path": "tdutils/generate/generate_mime_types_gperf.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/generate/generate_mime_types_gperf.cpp",
+      "sha256": "26cafccc6cc22b0920bf83e63ea7a0362cce00d8710977eccf6c0ee9d4005e13",
+      "bytes": 5699
+    },
+    {
+      "path": "tdutils/td/utils/filesystem.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/filesystem.cpp",
+      "sha256": "c94404486342da8dd4fd913d08ccfce362bed31f507bdd5b652f031c86d43f5a",
+      "bytes": 5160
+    },
+    {
+      "path": "tdutils/td/utils/PathView.h",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/PathView.h",
+      "sha256": "f292641e49314a643e5bddc719e419b0f50471ef3e1906080ccd9e60eb56eab6",
+      "bytes": 1715
+    },
+    {
+      "path": "tdutils/td/utils/PathView.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/PathView.cpp",
+      "sha256": "83d9d4fb5974b4d9680909bbba6a3b0b224ae85f7dffa084c4678fc07048e1bf",
+      "bytes": 1620
+    },
+    {
+      "path": "tdnet/td/net/HttpReader.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp",
+      "sha256": "f3d1105301d90eab61b7977f66140941fceec956372d63700f815c1231018aca",
+      "bytes": 33157
+    },
+    {
+      "path": "tdutils/td/utils/utf8.h",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/utf8.h",
+      "sha256": "f9123b2b584bafd7fdb9e268b731a2419e89b91e30c393e22baea631a9e36d1e",
+      "bytes": 3758
+    },
+    {
+      "path": "tdutils/td/utils/utf8.cpp",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/utf8.cpp",
+      "sha256": "ec502ac6f0429cabee0c51af7b3222c90c3b875c7acf2a79a2c6187b47504030",
+      "bytes": 5078
+    },
+    {
+      "path": "LICENSE_1_0.txt",
+      "url": "https://raw.githubusercontent.com/tdlib/td/bc9c263e2bfee06aaab41e82db51a103376030bc/LICENSE_1_0.txt",
+      "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+      "bytes": 1338
+    }
+  ],
+  "scope": "Filename sanitizer/PathView semantics, pinned Unicode filename predicates and extension-to-MIME data only; no server classification, multipart decoding, or Android-derived code.",
+  "generator": {
+    "path": "tests/fixtures/document_metadata/regenerate.py",
+    "sha256": "bbc3e53eef7227df408d0b740a69f60e66514192d93718330404715e7d43f20d",
+    "command": "tools/dev default --offline --command .venv/bin/python tests/fixtures/document_metadata/regenerate.py RAW_SOURCE_DIRECTORY OUTPUT_JSON",
+    "network": "none; acquire exact source URLs separately and verify hashes",
+    "compiler": "c++ -std=c++17 -O2",
+    "compiler_observed": "clang version 21.1.8",
+    "reference_boundary": "Original unicode.cpp tables/functions with only includes removed, standard fixed-width integer aliases, original enum, fatal-log abort shim, and original filesystem.cpp is_ok lambda. Original generate_mime_types_gperf.cpp is compiled unchanged. No Python production helper supplies expected values.",
+    "temporary_outputs": "TemporaryDirectory removes both executables and assembled translation unit after reference output is preserved."
+  },
+  "derived_data": {
+    "module": "src/gramlab/_document_metadata.py",
+    "unicode_boundaries": 1957,
+    "mime_entries": 1005,
+    "packed_ascii_bytes": 17253,
+    "uncompressed_json_bytes": 45576,
+    "unicode_kind_sha256": "9f1141aba92c0ef8c1b2c8472e8472a21fc4b6081ec0f00032c3694cee9f5170",
+    "unicode_public_probe_sha256": "fd478ed963310f5fe88c751730b87538ad41b1ad621cc4a73e52cec9e0dd73cd",
+    "unicode_translation_unit_sha256": "743324c24222f6351013aa21fd221a92cde120e02e92eb8c5d36e56901f4cec0",
+    "extension_gperf_sha256": "22c7d277afe66c6e727780466cfc286c15f89d1c438a0f75cbbe155713432a65",
+    "reference_fixture": "tests/fixtures/document_metadata/reference.json",
+    "reference_sha256": "9847422bd2aa270530a7ea1fd756492e18ecff8dc815285da03fc9f1e5c45070",
+    "literal_filename_corpus": "tests/fixtures/document_metadata/filenames.json",
+    "literal_corpus_sha256": "16ff8210c881059af6cb03173bc1aed1d49dec44663504f268cc963b1d265eb7"
+  },
+  "verification": {
+    "unicode_reference_code_points": 1114112,
+    "public_helper_scalar_probes": 1112062,
+    "omitted_from_scalar_digest": "Surrogates cannot encode as UTF-8; slash/backslash trigger basename semantics. Separate literal controls cover these.",
+    "mime_reference": "All 1005 aliases and ASCII uppercase variants; duplicate choices wmz/sub and public-over-private stl remain pinned.",
+    "regeneration": "Byte-identical independent repeat verified; not run as part of ordinary pytest.",
+    "behavior_limit": "Client-local filename and MIME derivation only; no remote server rewriting/classification or HTTP multipart-decoding behavior."
+  },
+  "generation_limit": "Upstream unicode.cpp pregenerated Unicode tables are pinned and executed exactly. This does not claim regeneration of upstream tables from unidentified original Unicode-data inputs or infer a normative Unicode version from the separate emoji table."
+}
