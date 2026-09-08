@@ -11,7 +11,7 @@ index ba6bf65..6d44f45 100644
      }
  
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
-index 435214f..2b49d24 100644
+index 435214f..7d95603 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 @@ -18,6 +18,9 @@ import org.json.JSONArray;
@@ -48,7 +48,7 @@ index 435214f..2b49d24 100644
              while (retainedGroups.size() > 1024) {
                  java.util.ArrayList<Binding> old = oldestEvictableGroup();
                  if (old == null)
-@@ -657,6 +663,330 @@ public final class GramLabButtonObserver {
+@@ -657,6 +663,336 @@ public final class GramLabButtonObserver {
          decoding.remove();
      }
  
@@ -77,6 +77,12 @@ index 435214f..2b49d24 100644
 +        } finally {
 +            completedDecode.remove();
 +        }
++    }
++
++    public static synchronized void invalidate(TLRPC.Message message) {
++        invalidateMessageBindings(message);
++        message.gramLabRichButtonRevision = 0;
++        message.gramLabRichButtonProvenance = null;
 +    }
 +
 +    public static synchronized void restore(TLRPC.Message message) {
@@ -380,7 +386,7 @@ index 435214f..2b49d24 100644
          java.util.ArrayList<Binding> live = armedBinding == null ? null : armedBinding.group;
          for (java.util.ArrayList<Binding> candidate : retainedGroups) {
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
-index 0bbc6db..1a304f2 100644
+index 0bbc6db..f1eb752 100644
 --- a/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
 +++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessageCustomParamsHelper.java
 @@ -6,6 +6,7 @@ import org.telegram.tgnet.OutputSerializedData;
@@ -402,7 +408,7 @@ index 0bbc6db..1a304f2 100644
          );
      }
  
-@@ -53,10 +56,15 @@ public class MessageCustomParamsHelper {
+@@ -53,13 +56,22 @@ public class MessageCustomParamsHelper {
          toMessage.summaryText = fromMessage.summaryText;
          toMessage.translatedSummaryText = fromMessage.translatedSummaryText;
          toMessage.translatedSummaryLanguage = fromMessage.translatedSummaryLanguage;
@@ -418,7 +424,14 @@ index 0bbc6db..1a304f2 100644
          if (byteBuffer == null) {
              return;
          }
-@@ -69,10 +77,25 @@ public class MessageCustomParamsHelper {
++        long authoritativeRevision = message.gramLabRichButtonRevision;
++        byte[] authoritativeProvenance = message.gramLabRichButtonProvenance == null
++                ? null : message.gramLabRichButtonProvenance.clone();
++        boolean hasAuthoritativeProvenance = authoritativeRevision > 0 && authoritativeProvenance != null;
+         int version = byteBuffer.readInt32(true);
+         TLObject params;
+         switch (version) {
+@@ -69,10 +81,34 @@ public class MessageCustomParamsHelper {
              default:
                  throw new RuntimeException("can't read params version = " + version);
          }
@@ -427,9 +440,18 @@ index 0bbc6db..1a304f2 100644
 +            params.readParams(byteBuffer, true);
 +        } catch (IllegalArgumentException failure) {
 +            if (!"GRAMLAB_BUTTON_PROVENANCE_INVALID".equals(failure.getMessage())) throw failure;
-+            message.gramLabRichButtonRevision = 0;
-+            message.gramLabRichButtonProvenance = null;
++            if (hasAuthoritativeProvenance) {
++                message.gramLabRichButtonRevision = authoritativeRevision;
++                message.gramLabRichButtonProvenance = authoritativeProvenance;
++            } else {
++                GramLabButtonObserver.invalidate(message);
++            }
++            if (restoreGramLab && hasAuthoritativeProvenance) GramLabButtonObserver.restore(message);
 +            return;
++        }
++        if (hasAuthoritativeProvenance) {
++            message.gramLabRichButtonRevision = authoritativeRevision;
++            message.gramLabRichButtonProvenance = authoritativeProvenance;
 +        }
 +        if (restoreGramLab && message.gramLabRichButtonRevision > 0) {
 +            GramLabButtonObserver.restore(message);
@@ -445,7 +467,7 @@ index 0bbc6db..1a304f2 100644
          if (isEmpty(message)) {
              return null;
          }
-@@ -91,10 +114,15 @@ public class MessageCustomParamsHelper {
+@@ -91,10 +127,15 @@ public class MessageCustomParamsHelper {
  
          private final static int VERSION = 1;
          final TLRPC.Message message;
@@ -461,7 +483,7 @@ index 0bbc6db..1a304f2 100644
              flags |= message.voiceTranscription != null ? 1 : 0;
              flags |= message.voiceTranscriptionForce ? 2 : 0;
  
-@@ -114,6 +142,8 @@ public class MessageCustomParamsHelper {
+@@ -114,6 +155,8 @@ public class MessageCustomParamsHelper {
              flags = setFlag(flags, FLAG_12, message.translatedSummaryLanguage != null);
  
              flags = setFlag(flags, FLAG_13, message.translatedRichMessage != null);
@@ -470,7 +492,7 @@ index 0bbc6db..1a304f2 100644
          }
  
          @Override
-@@ -166,6 +196,10 @@ public class MessageCustomParamsHelper {
+@@ -166,6 +209,10 @@ public class MessageCustomParamsHelper {
              if (hasFlag(flags, FLAG_13)) {
                  message.translatedRichMessage.serializeToStream(stream);
              }
@@ -481,18 +503,22 @@ index 0bbc6db..1a304f2 100644
          }
  
          @Override
-@@ -216,6 +250,16 @@ public class MessageCustomParamsHelper {
+@@ -216,6 +263,20 @@ public class MessageCustomParamsHelper {
              if (hasFlag(flags, FLAG_13)) {
                  message.translatedRichMessage = TL_iv.RichMessage.TLdeserialize(stream, stream.readInt32(exception), exception);
              }
 +            if (hasFlag(flags, FLAG_14)) {
-+                message.gramLabRichButtonRevision = stream.readInt64(exception);
-+                if (message.gramLabRichButtonRevision <= 0 || stream.remaining() > 1024 * 1024 + 4) {
-+                    throw new IllegalArgumentException("GRAMLAB_BUTTON_PROVENANCE_INVALID");
-+                }
-+                message.gramLabRichButtonProvenance = stream.readByteArray(exception);
-+                if (message.gramLabRichButtonProvenance.length > 1024 * 1024 || stream.remaining() != 0) {
-+                    throw new IllegalArgumentException("GRAMLAB_BUTTON_PROVENANCE_INVALID");
++                try {
++                    message.gramLabRichButtonRevision = stream.readInt64(exception);
++                    if (message.gramLabRichButtonRevision <= 0 || stream.remaining() > 1024 * 1024 + 4) {
++                        throw new IllegalArgumentException("GRAMLAB_BUTTON_PROVENANCE_INVALID");
++                    }
++                    message.gramLabRichButtonProvenance = stream.readByteArray(exception);
++                    if (message.gramLabRichButtonProvenance.length > 1024 * 1024 || stream.remaining() != 0) {
++                        throw new IllegalArgumentException("GRAMLAB_BUTTON_PROVENANCE_INVALID");
++                    }
++                } catch (RuntimeException failure) {
++                    throw new IllegalArgumentException("GRAMLAB_BUTTON_PROVENANCE_INVALID", failure);
 +                }
 +            }
          }

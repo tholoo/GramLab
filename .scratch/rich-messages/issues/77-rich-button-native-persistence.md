@@ -69,8 +69,9 @@ clears only GramLab provenance and preserves message content.
 
 Stock load-type -2 and replace-if-existing paths retain incoming destination provenance while
 merging old stock local parameters. Custom-only metadata reads defer topology binding while preserving validated row-local provenance;
-updates never copy caller provenance. Malformed GramLab extension data clears only the extension after
-already decoded stock fields, and canonical comparison treats JSON object member order as immaterial.
+updates never copy caller provenance. Malformed or truncated GramLab extension data clears only the extension after
+already decoded stock fields; an authoritative destination provenance pair wins over every old
+local-parameter blob, and canonical comparison treats JSON object member order as immaterial.
 Final known-container traversal enforces depth and node budgets and invalid restore removes stale
 non-armed bindings for the same reconstructed objects. The four adapter/TL/helper sources compile with
 `javac -proc:none` against normal25 and cached dependencies. Standalone `MessagesStorage` checking
