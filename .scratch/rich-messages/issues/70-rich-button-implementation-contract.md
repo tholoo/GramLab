@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: no new user approval; implementation workers wait for the shared contract
 
 Coordinator owns the shared contract, task split, handoff and compatibility records. Translate
@@ -20,3 +20,12 @@ single-use and uncertain outcomes, bounded records, client lifetime/clipboard ru
 freshness and correlation, plus independent worker scopes and observable acceptance gates.
 Do not treat a contract review as runtime or fidelity evidence. Native emoji acceptance and
 current host regression integration continue independently.
+
+## Answer
+
+The [shared contract](../../../docs/development/rich-button-implementation-contract.md) is frozen
+within the approved proposal. Independent SDK/recovery and GPL/source reviews closed the
+observation mutation, capacity reservation, crash journal, mixed availability, exact native arm
+and copy/disabled evidence gaps. The journal cap includes allocation/framing overhead.
+No semantic v5 is needed: the private observation schema links existing v4 request/response
+identities. Implementation and native acceptance remain separate work.

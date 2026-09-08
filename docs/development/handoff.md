@@ -96,7 +96,7 @@ offline safety, licensing and completion requirements before the corresponding a
   original source predicate has pinned BSL provenance. Seven catalog isolation regressions and eight dropped-response/
   contained-runner tests are integrated and pass focused checks. The observed integer-ID document-route
   admission mismatch is corrected under ticket64, with its original red preserved. The combined
-  gate now passes all 647 core tests at 82.90% coverage in 86.79 seconds. A prior overlapping
+  gate now passes all 652 core tests at 85.44% coverage in 87.04 seconds. A prior overlapping
   core/Android run passed 614 and timed out during the existing large-report scenario; that
   unchanged case passes alone in 3.09 seconds. Preserve the red; contention is not yet proven
   causal. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
@@ -113,9 +113,11 @@ offline safety, licensing and completion requirements before the corresponding a
   two callback controls pass focused checks and the combined core gate. Two
   Android host defects (composer snapshot version and photo caption matching) are corrected
   under ticket69. Seven integrated host/capture/callback controls and scoped static checks pass;
-  combined core verification follows. The collected native scenario remains unexecuted.
-  The rich-button shared implementation contract is being reviewed under ticket70; it preserves
-  strict v4 payloads and adds a separately versioned app-private observation interface.
+  the combined core gate also passes. The collected native scenario remains unexecuted.
+  The [rich-button implementation contract](rich-button-implementation-contract.md) is frozen
+  under ticket70 after independent source/recovery review. It preserves strict v4 payloads and
+  specifies a separate app-private observation protocol. Tickets71/72/74 divide core primitives,
+  GPL observation and independent public acceptance; the coordinator owns integration73.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
@@ -145,8 +147,9 @@ offline safety, licensing and completion requirements before the corresponding a
 - Public rich-button targeting now has a [concrete proposal](rich-button-targeting-proposal.md):
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
   outcomes and client-local copy effects. Independent review and a guarded same-clock edit
-  experiment inform the approved contract. The permanent GPL observation seam and public effects
-  remain unimplemented; the experiments do not establish a stable public geometry API.
+  experiment inform the approved contract. The shared [implementation contract](rich-button-implementation-contract.md) is now frozen.
+  The permanent GPL observation seam and public effects remain unimplemented; the experiments
+  do not establish a stable public geometry API.
 
 Preserve the full scope while pursuing independent work during a pending decision. No external
 runtime egress or remote publication is authorized. Provisioning and primary-source research are
@@ -160,8 +163,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 647 passed at 82.90% coverage in 86.79 seconds using four isolated workers and verified primary imports, with Android excluded and no simultaneous guest. The earlier overlapping run had one large-report timeout; the unchanged focused case passes. No production performance or causal contention conclusion follows. |
-| Latest static/workflow | Full Ruff lint/format pass across 378 files; production mypy passes all 20 source files, with strict checks for affected media/proxy modules. CI and contributor scopes cover new probes/tests. Configuration and local Markdown links are checked at each integration. Earlier complete workflow evidence remains in the linked historical checkpoint. |
+| Latest core | 652 passed at 85.44% coverage in 87.04 seconds using four isolated workers and verified primary imports, with Android excluded and no simultaneous guest. The earlier overlapping run had one large-report timeout; the unchanged focused case passes. No production performance or causal contention conclusion follows. |
+| Latest static/workflow | Full Ruff lint/format pass across 427 files; production mypy passes all 22 source files, with strict checks for affected media/proxy modules. CI and contributor scopes cover new probes/tests. Configuration and local Markdown links are checked at each integration. Earlier complete workflow evidence remains in the linked historical checkpoint. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable

@@ -78,7 +78,7 @@ Scoped strict mypy reports 3 source files clean; scoped Ruff lint and format pas
 Frozen worker tip `4659dc288a255398c53abfeb4c3cd096ce9b650b` is integrated. The five
 host regressions and public capture/callback controls pass seven tests in 4.01 seconds, with
 one Android case explicitly deselected. Scoped Ruff/format and strict typing pass all three
-Python files. Combined core verification follows; the required original native case remains
+Python files. The combined core gate passes 652 tests at 85.44% coverage in 87.04 seconds; the required original native case remains
 unexecuted, so this ticket stays claimed. The independent review caught the empty-text history
 ambiguity guard and fixture deadline/oracle defects before integration; their corrected worker
 evidence is retained.
