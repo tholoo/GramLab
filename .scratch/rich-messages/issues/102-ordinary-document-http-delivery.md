@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed — coordinator Bot API slice; client bridge remains unassigned
+Work state: Bot API slice frozen for coordinator integration; client bridge assigned separately in103
 Blocked by: 99
 
 Complete the HTTP layer of the [frozen document contract](../../../docs/development/documents-implementation-contract.md)
@@ -55,3 +55,24 @@ Follow TESTING.md, offline safety and parallel workflow. Run focused affected HT
 checks, strict typing and Ruff before coordinator combined verification. No guest/build/network,
 new dependencies or upstream exports. First forced-file HTTP support does not complete default
 classification, document edits, albums, Android loading or the operational milestone.
+
+## Bot API implementation and acceptance
+
+The Bot API slice implements explicit forced-file multipart uploads, named attachments and typed
+file-ID reuse, complete Message/Document/callback projection, official getFile fields and exact
+authenticated downloads. The local inclusive50,000,000-byte document bound is exercised with real
+upload/download bytes while oversized photos retain their old request bound. Default/false uploads
+return the exact unsupported detection envelope. Original PNG bytes can independently become a
+forced document or photo without identity, route or reuse crossover. Custom emoji survive caption
+HTTP projection, retained recipient grants and reopening; an unknown emoji rejects atomically.
+
+Initial four real HTTP cases failed on unsupported sendDocument. The expanded affected run passed
+49 cases and exposed one test expectation error: a mismatched download route correctly returns404,
+not400. After correcting that assertion and adding exact unsupported envelopes, the changed test
+passes separately; the other49 results remain valid. Earlier boundary-test BrokenPipe was caused
+by sending a full body after the server correctly rejected its declared photo length; the corrected
+header-only request verifies the original early rejection. Ruff lint/format and strict Mypy pass.
+Retained JUnits: document-http-red-01, document-http-acceptance-03 and document-http-review-04.
+
+Coordinator integration and combined verification remain. This does not establish default file
+classification, document edits/albums or original Android file loading.
