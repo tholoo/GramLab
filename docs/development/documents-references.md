@@ -26,22 +26,24 @@ decision, not part of ordinary local document support.
 The pinned server makes the same request distinction. It obtains `document`, rejects its absence,
 loads an optional upload-only thumbnail, parses the normal caption, and passes the detection flag
 to TDLib's `inputDocument`
-([send entry point](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L13168-L13181)).
+([send entry point](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L14057-L14070)).
 `attach://NAME` resolves the multipart part named `NAME`; otherwise a string becomes a remote file
 identity or URL. Multipart parts reach TDLib through their temporary local file path
-([input-file resolution](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L10138-L10178)).
-The source at this layer does not freeze all downstream filename, MIME-sniffing, or malformed-file
-rules, so the public documentation must not be read as a complete validation algorithm.
+([input-file resolution](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L10778-L10801)).
+The `Client.cpp` layer alone does not show filename/MIME handling, but the pinned TDLib path below
+does. Only Telegram-server behavior after `force_file=false` remains outside the public source.
 
 The returned `Message.document` is a `Document`, not a photo-size array. It contains required
 `file_id` and `file_unique_id`, plus optional `thumbnail`, `file_name`, `mime_type`, and
 `file_size`; `file_size` may exceed 32 bits. The unique ID cannot download or resend the file
 ([Document](https://core.telegram.org/bots/api#document)). The pinned serializer omits empty
 filename and MIME strings, then emits the optional thumbnail and common file identity/size fields
-([projection](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L2152-L2166)).
-The containing message carries the caption, caption entities and keyboard in their ordinary
-locations
-([message projection](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L4615-L4618)).
+([projection](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L2265-L2279)).
+The containing message projects the document and caption together, caption entities through the
+shared caption serializer, and the keyboard through the ordinary message `reply_markup`
+([document message](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L4875-L4879),
+[caption](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L1531-L1545),
+[keyboard](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L5378-L5380)).
 
 Bot-scoped reuse and download have the same authority split as photos. `file_id` can resend or be
 passed to `getFile`; `file_unique_id` is comparison metadata only. Public documentation explicitly
@@ -69,53 +71,91 @@ the current in-database design; neither limit changes the requirement that accep
 64-bit output fields be handled without integer truncation.
 
 Files with ordinary MIME types, extensions, or contents must remain ordinary documents. Telegram
-may classify some uploaded content as another media type when detection is enabled; the
-implementation must either reproduce the pinned detector or record conformance evidence for its
-chosen equivalent. It must not apply the photo PNG/JPEG decoder, invent dimensions, or manufacture
-specialized Android document attributes. Thumbnails, empty files, missing filenames, and
-malformed/mismatched MIME metadata require explicit tested outcomes rather than silent acceptance
-or omission.
+may classify some uploaded content as another media type when detection is enabled. The inspected
+client/server adapter contains no detector to reproduce: it sends `force_file=false` and Telegram's
+server chooses the returned media attributes. That specialized-classification edge remains a
+conformance gap. It must not cause GramLab to apply the photo PNG/JPEG decoder, invent dimensions,
+or manufacture specialized Android document attributes for ordinary files.
 
 ## Filename, MIME type, size, empty files, and thumbnails
 
 A multipart document has three distinct values: bytes, the `filename` parameter in
 `Content-Disposition`, and the part `Content-Type`. GramLab's current multipart decoder uses the
 presence of `filename` only to classify a part as an upload, then returns only its bytes. It drops
-both the filename and part content type. That was sufficient for byte-detected PNG/JPEG photos,
-but it cannot produce the source-visible document metadata described above.
+both filename and part content type, so it cannot reproduce the pinned path.
 
-The filename is untrusted presentation metadata, not a host path or storage name. The pinned
-Android client reads `documentAttributeFilename`, removes control characters and characters such
-as `/`, `\\`, `:`, `?`, and `*`, and uses the remaining extension when creating the cache filename
+The pinned TDLib HTTP parser supplies more metadata than the Bot API adapter ultimately uses. It
+defaults a missing part content type to `application/octet-stream`, URL-decodes disposition values,
+and treats the presence of a `filename` parameter as a file even when its value is empty
+([multipart headers](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L296-L423)).
+It records the original decoded name, declared/default content type, byte size, and temporary path
+in `HttpFile`
+([record](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpFile.h#L14-L28)),
+but creates that temporary path from a cleaned filename and falls back to the literal basename
+`file` when cleaning produces an empty name
+([temporary file](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L472-L504),
+[name and write rules](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdnet/td/net/HttpReader.cpp#L786-L850)).
+
+The Bot API adapter passes only `HttpFile.temp_file_name` to TDLib as `inputFileLocal`; it does not
+pass `HttpFile.name` or `HttpFile.content_type`. TDLib then takes the temporary path's basename as
+`file_name` and derives MIME solely from its extension
+([local metadata](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageContent.cpp#L4771-L4786)).
+`MimeType::from_extension` returns an empty string for a missing or unknown extension, rather than
+defaulting to `application/octet-stream`
+([helper](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/MimeType.cpp#L16-L41),
+[defaults](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/MimeType.h#L14-L18)).
+The generated pinned mapping includes `bin` to `application/octet-stream`, `pdf` to
+`application/pdf`, and `txt`/`text` to `text/plain`
+([mapping](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/generate/mime_types.txt#L51-L59),
+[plain text](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/generate/mime_types.txt#L709)).
+Therefore multipart `Content-Type` has no semantic precedence in this pinned upload route, for
+either value of `disable_content_type_detection`.
+
+The upload sanitizer requires valid UTF-8, keeps only the path basename, limits the stem to 64 and
+the extension to 16 Unicode characters, filters control/path/shell punctuation, and trims leading
+or trailing spaces and dots
+([exact algorithm](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/filesystem.cpp#L102-L175)).
+This filename is untrusted presentation metadata, not a host path or storage name. The pinned
+Android client separately reads `documentAttributeFilename`, removes control characters and
+characters such as `/`, `\\`, `:`, `?`, and `*`, and uses the remaining extension when creating
+the cache filename
 ([filename extraction and sanitization](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1450-L1482),
 [cache key](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1524-L1555)).
-The Bot API output makes both filename and MIME type optional. The request contract makes automatic
-content-type detection the default and permits disabling it only for multipart uploads. Neither the
-public documentation nor the inspected pinned `Client.cpp` layer specifies the detector, its
-precedence among filename/part content type/bytes, or the exact normalization of the returned
-metadata. Exact behavior for an absent/empty filename, absent part content type, mismatched declared
-type and bytes, or an empty uploaded file therefore remains unknown without inspecting the pinned
-TDLib path further or running a contained server conformance experiment.
+The request flag maps exactly: `true` selects TDLib `DocumentAsFile`; false or omitted selects
+`Document`
+([selection](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageContent.cpp#L5202-L5212)).
+The upload emits the cleaned filename attribute when nonempty, the extension-derived MIME string,
+and Telegram API `force_file=true` only for `DocumentAsFile`
+([outbound media](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/DocumentsManager.cpp#L689-L721)).
+No byte sniffer runs in this local route. With `force_file=false`, the inaccessible Telegram server
+can return specialized attributes; TDLib classifies those returned attributes as animation, audio,
+video, voice, sticker/custom emoji, or a general document
+([returned classification](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/DocumentsManager.cpp#L96-L284)).
+The exact server detector and any server rewrite of filename/MIME remain unknowable from these
+public sources.
+
+Zero-byte admission is not an open question for this pinned route. Multipart parsing can create a
+zero-sized temporary file, but TDLib stats the ready local file and fails with `Can't upload empty
+file` before issuing an upload request
+([uploader](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/files/FileUploader.cpp#L187-L193)).
 
 Implementation guidance and temporary proof boundaries:
 
-- Preserve decoded multipart `filename` and part `Content-Type` as bounded UTF-8 metadata alongside
-  the bytes. Never resolve the filename, expose it as a local path, or use it as the HTTP storage
-  path. Normalize a separate Android display/cache filename with an independently specified
-  basename/control-character policy; preserve the admitted public filename for Bot API output.
-- A 10,000,000-byte nonempty opaque upload with a required filename and no sniffing is a useful
-  implementation probe because it fits the existing asset bound. It is not the general-file
-  contract: it exercises only `disable_content_type_detection=true`, excludes source-permitted
-  optional output metadata, and is narrower than the 50 MB public cloud limit.
-- Preserve a syntactically valid declared part content type when detection is disabled. Defaulting
-  an absent value to `application/octet-stream` is a possible deterministic local rule, but the
-  sources inspected here do not prove it matches Telegram. When detection is enabled, implement and
-  test the pinned detector or mark the behavior incomplete.
-- Bound and sanitize filenames as untrusted metadata. Requiring a nonempty filename, choosing a
-  byte/code-point limit, or rejecting a name that sanitizes empty are defensive GramLab rules until
-  source or conformance evidence establishes Telegram's exact result.
-- Zero-byte acceptance remains a source gap. Rejecting it is safe for an early probe, but does not
-  establish compatibility and needs a recorded conformance case before the milestone closes.
+- Extend the multipart result to retain filename presence/value and declared content type alongside
+  bytes, so parsing remains inspectable. For semantic document projection, apply the pinned filename
+  sanitizer and fallback, then derive MIME from the pinned extension table; do not use the declared
+  part content type as authority or as a filesystem path.
+- A 10,000,000-byte nonempty forced-file corpus is a useful implementation probe because it fits
+  the existing asset bound. It is not the general-file contract: it exercises only
+  `disable_content_type_detection=true` and is narrower than the 50 MB public cloud limit.
+- Treat a present empty, invalid-UTF-8, or fully stripped filename as a file named `file`; do not
+  require a nonempty admitted filename. Keep stem/extension limits and filtering exact.
+- Reject zero-byte uploads before publication with no message, event, asset, identity or grant
+  allocation.
+- Preserve the distinction between default/false detection and forced-file `true`. Ordinary cases
+  can share filename/MIME projection, but potentially specialized inputs under false need a pinned
+  simulator classification table or must remain an explicit fidelity gap. Do not silently implement
+  false as true.
 - Reject `thumbnail` and legacy `thumb` explicitly in the first implementation. If added later,
   use a new JPEG upload only, under 200 kB and at most 320×320, and do not permit thumbnail reuse,
   matching the published method contract. Do not synthesize a thumbnail or silently ignore one.
@@ -217,13 +257,15 @@ contract.
 may be grouped only with documents, and an album forces content-type detection disabled for every
 `InputMediaDocument`
 ([public method](https://core.telegram.org/bots/api#sendmediagroup),
-[pinned document parsing](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L12074-L12083),
-[pinned send path](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L13577-L13633)).
+[pinned document parsing](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L12849-L12854),
+[pinned send path](https://github.com/tdlib/telegram-bot-api/blob/2efabc722e9493b9cac450233198d09e5cea0573/telegram-bot-api/Client.cpp#L14505-L14570)).
 Each returned `Message` has its own message identity and document, plus one shared
-`media_group_id` inside the chat. A faithful implementation therefore needs one atomic validation
+`media_group_id` inside the chat. The proposed GramLab contract needs one atomic validation
 and publication operation, one stable group identity, contiguous deterministic message ordering,
 per-item captions/entities, and complete rollback of messages, events, assets, identities and
-grants on any member failure. Repeating `sendDocument` cannot supply those guarantees.
+grants on any member failure. These are proposed simulator guarantees; the inspected sources do
+not prove the exact server rollback/allocation algorithm. Repeating `sendDocument` cannot supply
+those guarantees.
 
 Android carries the group ID on each message. `GroupedMessages.calculate` marks groups beginning
 with a document/music item as document groups and changes caption/layout behavior
@@ -239,13 +281,11 @@ than optional follow-up compatibility.
 
 The consequential unresolved source/behavior choices are:
 
-1. the exact automatic content-type detector and precedence among filename, multipart content type
-   and bytes, including when content becomes specialized media;
-2. Telegram behavior for missing/empty/path-like filenames, missing or malformed MIME metadata,
-   zero-byte files, mismatches, and cloud-limit boundaries;
-3. the supported operational upload ceiling and storage representation needed to reach it while
+1. the Telegram-server detector used when `force_file=false`, including specialized media
+   classification and any returned filename/MIME rewrite;
+2. the supported operational upload ceiling and storage representation needed to reach it while
    retaining ADR 0005 atomicity and lifetime grants; and
-4. exact album failure/rollback and group-identity allocation semantics where public documentation
+3. exact album failure/rollback and group-identity allocation semantics where public documentation
    does not expose server internals.
 
 Schema table layout, successor version number, descriptor field encoding and synthetic ID allocation
