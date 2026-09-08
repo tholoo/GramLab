@@ -385,6 +385,35 @@ class Scenario:
             ),
         )
 
+    def rich_buttons(
+        self, *, chat_id: int, message_id: int, timeout: float = 180
+    ) -> dict[str, Any]:
+        """Issue canonical targets bound to this run, message revision and client lifetime.
+
+        A fresh observation allocates new IDs. A lost response may consume observation capacity
+        or change the selected native client lifetime; the SDK never retries automatically.
+        """
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Rich observation timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request(
+                "rich_buttons", {"chat_id": chat_id, "message_id": message_id}, timeout=timeout
+            ),
+        )
+
+    def tap_rich_button(self, *, target_id: str, timeout: float = 180) -> dict[str, Any]:
+        """Consume an issued rich target; repeat the same ID to observe its existing receipt.
+
+        Repeated calls never send another tap. A new intentional action requires a fresh target.
+        """
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Rich input timeout must be finite and positive")
+        return cast(
+            dict[str, Any],
+            self._request("tap_rich_button", {"target_id": target_id}, timeout=timeout),
+        )
+
     def type_message(self, *, chat_id: int, text: str, timeout: float = 180) -> dict[str, Any]:
         """Compose and send text, retaining raw input and accepted send receipts.
 

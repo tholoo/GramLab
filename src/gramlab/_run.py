@@ -13,6 +13,7 @@ from gramlab._captures import Captures
 from gramlab._control import WorldControl
 from gramlab._interactions import Interactions
 from gramlab._processes import Processes, Program
+from gramlab._rich_interactions import RichInteractions
 from gramlab.bot_api import BotAPIServer
 from gramlab.reports import _Redactor
 from gramlab.runtime import RuntimeProfile, Sandbox
@@ -53,7 +54,16 @@ def execute() -> None:
         compose=android.type_message if android is not None else None,
         start_chat=android.start_bot_chat if android is not None else None,
     )
+    rich = None
     try:
+        native_rich = None
+        if android is not None:
+            from gramlab._android_rich_buttons import AndroidRichInput
+
+            native_rich = AndroidRichInput(android)
+        rich = RichInteractions(
+            Path("world"), lock=renderer_lock, interactions=interactions, native=native_rich
+        )
         # Namespace processes belong to this persistent owner, never a short-lived HTTP thread.
         if android is not None:
             android.start()
@@ -63,6 +73,8 @@ def execute() -> None:
                 bots=bots,
                 capture_chat=captures.capture_chat,
                 tap_inline_button=interactions.tap_inline_button,
+                rich_buttons=rich.rich_buttons,
+                tap_rich_button=rich.tap_rich_button,
                 type_message=interactions.type_message,
                 start_bot_chat=interactions.start_bot_chat,
                 bot_status=processes.bot_status,
@@ -97,6 +109,11 @@ def execute() -> None:
         failure = "component_startup_failed"
     finally:
         processes.close()
+        if rich is not None:
+            try:
+                rich.close()
+            except OSError:
+                failure = failure or "rich_button_journal_failed"
         if android is not None:
             try:
                 android.close()
@@ -104,6 +121,8 @@ def execute() -> None:
                 failure = failure or "android_cleanup_failed"
     if interactions.failed:
         failure = failure or "interaction_failed"
+    if rich is not None and rich.failed:
+        failure = failure or rich.failure or "rich_button_component_failed"
     if captures.failed:
         failure = failure or "capture_failed"
     observation = _Redactor(secrets).clean(

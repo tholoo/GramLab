@@ -113,6 +113,10 @@ Exit codes are `0` for passed, `1` for an executed failed/incomplete run, and `2
 configuration or preparation errors. Invalid input does not create an output directory. Later
 setup/storage errors can leave a partial output directory; use a fresh destination for a retry.
 
+Rich-button runs retain a separate [durable interaction recovery artifact](scenario-rich-buttons.md#lost-replies-and-recovery).
+It remains available after abrupt supervisor termination; malformed journals fail visibly and are
+never replayed. The recovery descriptor is included in `result.json` and `report.html`.
+
 After normal execution, scenario/bot failure, timeout or unavailable runtime startup, the runner
 retains `result.json` and `report.html`, with world state/history/events when world creation
 succeeded. Process logs are redacted before the supervisor stores `observation.json`; the final

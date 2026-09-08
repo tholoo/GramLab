@@ -12,7 +12,8 @@ import re
 import secrets
 import sqlite3
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
@@ -875,6 +876,73 @@ class World:
             raise ValueError("Unknown message")
         return dict(json.loads(row[0]))
 
+    def _rich_button_record(self, *, user_id: int, chat_id: int, message_id: int) -> dict[str, Any]:
+        if type(user_id) is not int or not 0 < user_id < 2**63:
+            raise ValueError("access_denied")
+        chat = self.get_chat(chat_id)
+        if chat["user_id"] != user_id:
+            raise ValueError("access_denied")
+        message = self.get_message(chat_id, message_id)
+        if message["sender_id"] != chat["bot_id"]:
+            raise ValueError("target_unavailable")
+        revision = self._connection.execute(
+            "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+            (chat_id, message_id),
+        ).fetchone()
+        if revision is None:
+            raise RuntimeError("Bot message has no journal revision")
+        return {"chat": chat, "message": message, "revision": revision[0]}
+
+    def rich_button_snapshot(
+        self, *, user_id: int, chat_id: int, message_id: int
+    ) -> dict[str, Any]:
+        """Read authorized canonical content and its actual journal revision atomically."""
+        with self._connection:
+            self._connection.execute("BEGIN")
+            result = self._rich_button_record(
+                user_id=user_id, chat_id=chat_id, message_id=message_id
+            )
+            if "rich_message" not in result["message"]:
+                raise ValueError("target_unavailable")
+            return result
+
+    @contextmanager
+    def rich_button_transaction(
+        self,
+        *,
+        user_id: int,
+        chat_id: int,
+        message_id: int,
+        revision: int,
+        path: list[str | int],
+        button: dict[str, Any],
+    ) -> Iterator[dict[str, Any]]:
+        """Keep target validation and a trusted client effect in one World transaction."""
+        if (
+            type(revision) is not int
+            or not 0 < revision < 2**63
+            or not isinstance(path, list)
+            or not path
+            or any(type(part) not in (str, int) for part in path)
+        ):
+            raise ValueError("target_unavailable")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            result = self._rich_button_record(
+                user_id=user_id, chat_id=chat_id, message_id=message_id
+            )
+            if result["revision"] != revision:
+                raise ValueError("message_revision_changed")
+            # The independently implemented canonical traversal is shared with observation.
+            from gramlab._rich_buttons import occurrences
+
+            content = result["message"].get("rich_message")
+            if content is None or not any(
+                item["path"] == path and item["button"] == button for item in occurrences(content)
+            ):
+                raise ValueError("target_unavailable")
+            yield result
+
     def edit_message(
         self,
         *,
@@ -1216,6 +1284,29 @@ class World:
         request_id: str,
         version: int = 1,
     ) -> dict[str, Any]:
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            return self._create_callback_locked(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                data=data,
+                request_id=request_id,
+                version=version,
+            )
+
+    def _create_callback_locked(
+        self,
+        *,
+        user_id: int,
+        chat_id: int,
+        message_id: int,
+        data: str,
+        request_id: str,
+        version: int = 1,
+    ) -> dict[str, Any]:
+        if not self._connection.in_transaction:
+            raise RuntimeError("Callback effect requires an active World transaction")
         if type(version) is not int or version not in (1, 3, 4):
             raise ValueError("Unsupported client callback version")
         if (
@@ -1225,69 +1316,67 @@ class World:
             raise ValueError("Callback request_id must be 1 to 128 ASCII identifier characters")
         if not isinstance(data, str) or not 1 <= len(data.encode("utf-8")) <= 64:
             raise ValueError("Callback data must contain 1 to 64 UTF-8 bytes")
-        with self._connection:
-            self._connection.execute("BEGIN IMMEDIATE")
-            self.get_user(user_id)
-            chat = self.get_chat(chat_id)
-            if chat["user_id"] != user_id:
-                raise ValueError("Callback chat is not available to this persona")
-            message = self.get_message(chat_id, message_id)
-            if message["sender_id"] != chat["bot_id"]:
-                raise ValueError("Callbacks require a message sent by the chat bot")
-            command = json.dumps(
-                {"chat_id": chat_id, "message_id": message_id, "data": data}, sort_keys=True
-            )
-            previous = self._connection.execute(
-                "SELECT id, request_body FROM callbacks WHERE user_id=? AND request_id=?",
-                (user_id, request_id),
-            ).fetchone()
-            if previous is not None:
-                if previous[1] != command:
-                    raise ValueError("Request ID already identifies another callback")
-                stored = self.get_callback(user_id=user_id, callback_id=previous[0])
-                if version < 3 and self._message_assets(stored["message"]):
-                    raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-                if version < 3 and self._message_users(stored["message"]):
-                    raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-                if version < 4 and self._message_custom_emoji(stored["message"]):
-                    raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-                return stored
-            if version < 3 and self._message_assets(message):
+        self.get_user(user_id)
+        chat = self.get_chat(chat_id)
+        if chat["user_id"] != user_id:
+            raise ValueError("Callback chat is not available to this persona")
+        message = self.get_message(chat_id, message_id)
+        if message["sender_id"] != chat["bot_id"]:
+            raise ValueError("Callbacks require a message sent by the chat bot")
+        command = json.dumps(
+            {"chat_id": chat_id, "message_id": message_id, "data": data}, sort_keys=True
+        )
+        previous = self._connection.execute(
+            "SELECT id, request_body FROM callbacks WHERE user_id=? AND request_id=?",
+            (user_id, request_id),
+        ).fetchone()
+        if previous is not None:
+            if previous[1] != command:
+                raise ValueError("Request ID already identifies another callback")
+            stored = self.get_callback(user_id=user_id, callback_id=previous[0])
+            if version < 3 and self._message_assets(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-            if version < 3 and self._message_users(message):
+            if version < 3 and self._message_users(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-            if version < 4 and self._message_custom_emoji(message):
+            if version < 4 and self._message_custom_emoji(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-            world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
-            callback = {
-                "id": str(uuid.uuid4()),
-                "user_id": user_id,
-                "chat_id": chat_id,
-                "message": message,
-                "data": data,
-                "chat_instance": hashlib.sha256(f"{world_id}:{chat_id}".encode()).hexdigest(),
-            }
-            self._connection.execute(
-                "INSERT INTO callbacks VALUES (?, ?, ?, ?, ?, ?, NULL)",
-                (
-                    callback["id"],
-                    user_id,
-                    chat["bot_id"],
-                    request_id,
-                    command,
-                    json.dumps(callback),
-                ),
-            )
-            revision = self._connection.execute(
-                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
-                (chat_id, message_id),
-            ).fetchone()[0]
-            self._connection.execute(
-                "INSERT INTO callback_revisions VALUES (?, ?)", (callback["id"], revision)
-            )
-            self._enqueue_update(chat["bot_id"], "callback_query", callback)
-            self._emit("callback.created", callback)
-            return callback | {"answer": None}
+            return stored
+        if version < 3 and self._message_assets(message):
+            raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
+        if version < 3 and self._message_users(message):
+            raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
+        if version < 4 and self._message_custom_emoji(message):
+            raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
+        world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
+        callback = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "message": message,
+            "data": data,
+            "chat_instance": hashlib.sha256(f"{world_id}:{chat_id}".encode()).hexdigest(),
+        }
+        self._connection.execute(
+            "INSERT INTO callbacks VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            (
+                callback["id"],
+                user_id,
+                chat["bot_id"],
+                request_id,
+                command,
+                json.dumps(callback),
+            ),
+        )
+        revision = self._connection.execute(
+            "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+            (chat_id, message_id),
+        ).fetchone()[0]
+        self._connection.execute(
+            "INSERT INTO callback_revisions VALUES (?, ?)", (callback["id"], revision)
+        )
+        self._enqueue_update(chat["bot_id"], "callback_query", callback)
+        self._emit("callback.created", callback)
+        return callback | {"answer": None}
 
     def get_callback(self, *, user_id: int, callback_id: str) -> dict[str, Any]:
         self.get_user(user_id)

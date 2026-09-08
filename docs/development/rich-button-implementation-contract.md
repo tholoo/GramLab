@@ -201,6 +201,13 @@ and one intent per target. Evidence follows intent; receipts follow the correspo
 intent. Legal progression and identities must validate as well as JSON syntax. Fsync each record
 before acting on its transition. Unchanged polls write nothing.
 
+The durable start and known allocation/receipt size checks precede native observation startup.
+Native observation then supplies the actual process nonce; validate it and fsync the complete
+allocation before returning target IDs or performing any target action. A prepared native arm
+is disarmed without input if receipt preflight or durable intent fails. An unresolved dispatched
+arm remains available for read-only completion until resolved or deliberately abandoned by a
+new observation that establishes another client lifetime.
+
 Recovery runs only after the supervisor has terminated and writes a separate
 `rich-button-recovery.json`; it never modifies the journal or restores a live registry. The
 report has `schema`, `run_id`, `world_id`, `incomplete_tail`, `receipts` and `unclaimed_target_ids`.

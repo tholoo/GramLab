@@ -55,6 +55,8 @@ class WorldControl:
         bots: Mapping[str, int] | None = None,
         capture_chat: Callable[..., dict[str, Any]] | None = None,
         tap_inline_button: Callable[..., dict[str, Any]] | None = None,
+        rich_buttons: Callable[..., dict[str, Any]] | None = None,
+        tap_rich_button: Callable[..., dict[str, Any]] | None = None,
         type_message: Callable[..., dict[str, Any]] | None = None,
         start_bot_chat: Callable[..., dict[str, Any]] | None = None,
         bot_status: Callable[..., dict[str, Any]] | None = None,
@@ -181,6 +183,10 @@ class WorldControl:
                             operations["capture_chat"] = capture_chat
                         if tap_inline_button is not None:
                             operations["tap_inline_button"] = tap_inline_button
+                        if rich_buttons is not None:
+                            operations["rich_buttons"] = rich_buttons
+                        if tap_rich_button is not None:
+                            operations["tap_rich_button"] = tap_rich_button
                         if type_message is not None:
                             operations["type_message"] = type_message
                         if start_bot_chat is not None:

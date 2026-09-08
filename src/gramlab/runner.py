@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
 from gramlab._android import IMAGE_PACKAGE
+from gramlab._rich_button_journal import recover_journal
 from gramlab.reports import Report, Screenshot, _Redactor, write_report
 from gramlab.runtime import RuntimeProfile, Sandbox, _data_directory
 from gramlab.world import World
@@ -30,6 +31,7 @@ def _report_sections(evidence: dict[str, Any]) -> dict[str, Any]:
         "Process logs": evidence["processes"],
         "Scenario captures": evidence["captures"],
         "Scenario interactions": evidence["interactions"],
+        "Rich-button recovery": evidence.get("rich_button_recovery"),
         "Bot lifecycle": evidence["lifecycle"],
         "Android runtime": evidence["android"],
         "World state": evidence.get("world", {}),
@@ -205,6 +207,18 @@ def run(
         observation["failure"] = "supervisor_timeout"
     except (OSError, RuntimeError):
         observation["failure"] = "supervisor_startup_failed"
+    recovery: dict[str, Any] | None = None
+    journal_path = output / "rich-button-journal.jsonl"
+    if journal_path.exists():
+        try:
+            recovered = recover_journal(journal_path)
+            (output / "rich-button-recovery.json").write_text(
+                json.dumps(recovered, ensure_ascii=True, indent=2)
+            )
+            recovery = {"artifact": "rich-button-recovery.json", "failure": None}
+        except (OSError, ValueError):
+            recovery = {"artifact": None, "failure": "invalid_or_unreadable_journal"}
+            observation["failure"] = observation["failure"] or "rich_button_recovery_failed"
     failure = observation["failure"]
     outcome: Literal["passed", "failed", "incomplete"] = "failed" if failure else "passed"
     evidence: dict[str, Any] = {
@@ -215,6 +229,7 @@ def run(
         "processes": observation["processes"],
         "captures": observation.get("captures", []),
         "interactions": observation.get("interactions", []),
+        "rich_button_recovery": recovery,
         "lifecycle": observation.get("lifecycle", []),
         "android": observation.get("android", {}),
         "sources": config["sources"],

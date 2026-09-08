@@ -113,6 +113,8 @@ uv run --locked mypy --strict tests/fixtures/custom_emoji_bot.py tests/probes/cu
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/custom_emoji_fault_server.py tests/test_custom_emoji_fault_server.py
 MYPYPATH=tests/probes uv run --locked mypy --strict --explicit-package-bases tests/probes/android_custom_emoji_faults.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/test_android_custom_emoji_faults.py
+uv run --locked mypy --strict src/gramlab/_rich_buttons.py src/gramlab/_rich_button_journal.py src/gramlab/_rich_interactions.py src/gramlab/_android_rich_buttons.py tests/test_rich_button_occurrences.py tests/test_rich_button_journal.py tests/test_rich_button_world_transactions.py tests/test_rich_interactions.py tests/test_android_rich_button_host.py tests/test_runner_rich_button_recovery.py tests/probes/rich_button_interruption.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/rich_targets_bot.py tests/rich_targets_scenario.py tests/test_runner_rich_targets.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

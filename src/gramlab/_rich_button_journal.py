@@ -958,7 +958,7 @@ def recover_journal(path: Path) -> dict[str, Any]:
             "receipts": receipts,
             "unclaimed_target_ids": unclaimed,
         }
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, RecursionError) as error:
         if isinstance(error, OSError):
             raise
         if isinstance(error, ValueError) and str(error).startswith("Journal is corrupt"):

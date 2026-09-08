@@ -28,7 +28,7 @@ integration harness or consumer runner starts that separate process. With the ru
 `scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes eighteen operations:
+The interface exposes twenty operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -44,6 +44,8 @@ The interface exposes eighteen operations:
 | `create_callback` | Create a synthetic callback with an explicit durable request ID |
 | `get_callback` | Observe that callback and its answer |
 | `capture_chat` | Retain semantic evidence and original screenshots in headless Android mode |
+| `rich_buttons` | Allocate canonical single-use rich-message targets for the current client lifetime |
+| `tap_rich_button` | Consume one rich target and retain its callback, copy or disabled receipt |
 | `tap_inline_button` | Select a callback keyboard cell, using actual input in Android mode |
 | `start_bot_chat` | Press Start Bot in a new conversation and retain its `/start` send receipt |
 | `type_message` | Compose supported text through the native editor or its semantic simulation |
@@ -63,6 +65,10 @@ effects even though the operation does not create a simulated message.
 
 `tap_inline_button` also requires the consumer runner. Its row/column selection, native targeting,
 uncertain outcomes and runnable example are described in [scenario input](scenario-input.md).
+
+`rich_buttons` and `tap_rich_button` use the runner’s [rich-button service](scenario-rich-buttons.md).
+Observing can change the client lifetime and allocate targets, so it has write uncertainty despite
+its observational name. Repeating a known target never dispatches a second input.
 
 `start_bot_chat` and `type_message` use the runner's [composer service](scenario-composer.md).
 That document specifies raw input versus accepted messages, formatting limits, new-chat state,

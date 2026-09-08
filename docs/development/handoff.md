@@ -118,6 +118,17 @@ offline safety, licensing and completion requirements before the corresponding a
   under ticket70 after independent source/recovery review. It preserves strict v4 payloads and
   specifies a separate app-private observation protocol. Tickets71/72/74 divide core primitives,
   GPL observation and independent public acceptance; the coordinator owns integration73.
+  The [public rich-button operations](scenario-rich-buttons.md) are now implemented: independent
+  simulation and actual abrupt supervisor recovery pass together, and the integrated Android host
+  passes 101 boundary/integration checks. Subsequent review fixes pass 41 registry/journal/recovery
+  checks, including malformed lifetime and deeply nested corruption. The combined core gate
+  passes 780 tests at 86.71% coverage in 99.12 seconds; full lint/format, scoped strict typing,
+  213-document link validation and the pinned offline workflow check pass. These host tests substitute
+  external guest files. Patch25 has passed independent source review and exact zero-fuzz/offset
+  application; the complete normal25 offline APK build passed in 3 minutes 1 second with strict dependency
+  verification and a verified APK signature. Native targeting, original
+  clipboard paste and wider placement/regression acceptance remain pending. The existing normal24
+  custom-emoji APK/provenance and exact changed source preimages are retained separately.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
