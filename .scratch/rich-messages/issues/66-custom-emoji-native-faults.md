@@ -110,3 +110,14 @@ ticket89 corrects the test stimulus/transparent proxy while preserving native ti
 Evidence: `artifacts/custom-emoji-faults-native-02.xml`, the dedicated run's failure/checkpoint
 JSON, native trace and `document-checkpoint-acceptance.json`. Whole-run isolation-result acceptance
 is still unavailable because the failing probe did not return its final result.
+
+## Third native run: earlier reopen failure
+
+After integrating89's host-tested progressive fixture, the third full run fails in 117.16 seconds
+before the shared case or any completed document checkpoint. The single-404 same-process reopen
+reports `Status: timeout` / unknown launch state; UIAutomator then returns zero with a null-root
+error and creates no XML, causing the subsequent cat to fail. The phase checkpoint survives.
+This is an earlier UI/lifecycle observation failure, not evidence that89's shared correction failed.
+Ticket90 adds a separate exact shared-case native gate and extends failure-only diagnostics to
+document phases. The original four-case acceptance remains required. Evidence:
+`artifacts/custom-emoji-faults-native-03.xml` and its dedicated run's reopen command/failure JSON.
