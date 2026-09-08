@@ -431,7 +431,16 @@ def test_public_android_runner_interacts_with_current_photo_mention_and_custom_e
         "callback.created",
         "callback.answered",
     ]
-    assert callback_events[0]["data"] == callback_interaction["callback"]
+    expected_callback = {
+        "id": callback_interaction["callback"]["id"],
+        "user_id": 2,
+        "chat_id": 1,
+        "message": expected_history[1],
+        "data": "inspect-current",
+        "chat_instance": callback_interaction["callback"]["chat_instance"],
+    }
+    assert callback_interaction["callback"] == expected_callback | {"answer": None}
+    assert callback_events[0]["data"] == expected_callback
     assert callback_events[1]["data"] == {
         "id": callback_interaction["callback"]["id"],
         "user_id": 2,
