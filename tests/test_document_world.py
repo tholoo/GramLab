@@ -5,6 +5,7 @@ import sqlite3
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,28 @@ def send(
         uploads={"file": item},
         **keywords,
     )
+
+
+def seed_document(
+    world: World, document_id: int, item: DocumentUpload, *, user_id: int | None = None
+) -> None:
+    with world._connection:
+        world._connection.execute(
+            "INSERT INTO media_blobs VALUES (?, ?) ON CONFLICT(sha256) DO NOTHING",
+            (item.sha256, item.data),
+        )
+        world._connection.execute(
+            "INSERT INTO documents VALUES (?, ?, ?, ?, ?)",
+            (document_id, item.sha256, item.file_name, item.mime_type, item.file_unique_id),
+        )
+        if user_id is not None:
+            world._connection.execute(
+                "INSERT INTO document_grants VALUES (?, ?)", (user_id, document_id)
+            )
+
+
+def logical_database(world: World) -> list[str]:
+    return list(world._connection.iterdump())
 
 
 def test_upload_metadata_is_immutable_and_uses_pinned_semantic_identity() -> None:
@@ -415,7 +438,7 @@ def test_callback_dependencies_use_one_sqlite_read_snapshot(
 
     def writer() -> None:
         assert ready.wait(timeout=10)
-        with sqlite3.connect(directory / "world.sqlite3") as connection:
+        with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
             connection.execute("UPDATE documents SET file_name='changed.txt' WHERE id=1")
         written.set()
 
@@ -648,6 +671,126 @@ def test_public_document_ids_require_canonical_positive_decimal_strings(
     world.__exit__(None, None, None)
 
 
+@pytest.mark.parametrize("document_id", [10, 2_147_483_648, 9_007_199_254_740_993, 2**63 - 1])
+def test_signed_64_bit_allocations_preserve_complete_public_contract(
+    tmp_path: Path, document_id: int
+) -> None:
+    directory = tmp_path / str(document_id)
+    world, user, bot, chat = setup_world(directory)
+    small = upload(b"small seed", "small.txt")
+    sentinel = upload(f"sentinel {document_id}".encode(), "sentinel.bin")
+    seed_document(world, 2, small, user_id=user["id"])
+    seed_document(world, document_id - 1, sentinel)
+    keyboard = {"inline_keyboard": [[{"text": "Open", "callback_data": "open"}]]}
+    item = upload(f"public {document_id}".encode(), "public.pdf")
+    message = send(world, chat, bot, item, caption="Public", reply_markup=keyboard)
+    assert message == {
+        "id": 1,
+        "chat_id": chat["id"],
+        "sender_id": bot["id"],
+        "date": 1_700_000_000,
+        "text": "",
+        "reply_markup": keyboard,
+        "document": {"document_id": str(document_id)},
+        "caption": "Public",
+    }
+    small_descriptor = world.document_descriptor("2")
+    descriptor = {
+        "document_id": str(document_id),
+        "file_name": "public.pdf",
+        "mime_type": "application/pdf",
+        "file_size": len(item.data),
+        "sha256": item.sha256,
+    }
+    assert world.document_descriptor(str(document_id)) == descriptor
+    file = world.document_file(bot["id"], str(document_id))
+    assert file == {
+        "file_id": file["file_id"],
+        "file_unique_id": item.file_unique_id,
+        "file_size": len(item.data),
+        "file_name": "public.pdf",
+        "mime_type": "application/pdf",
+    }
+    assert file["file_id"].startswith("gramlab_document_")
+    assert world.bot_file(bot["id"], file["file_id"]) == (
+        file | {"file_path": f"documents/{file['file_id']}"},
+        item.data,
+    )
+    assert world.granted_document(user["id"], str(document_id)) == (descriptor, item.data)
+    callback = world.create_callback(
+        user_id=user["id"],
+        chat_id=chat["id"],
+        message_id=message["id"],
+        data="open",
+        request_id="high-document",
+        version=5,
+    )
+    snapshot = {
+        "schema": 5,
+        "world_id": world.world_id,
+        "user_id": user["id"],
+        "cursor": 5,
+        "now": 1_700_000_000,
+        "users": [user, bot],
+        "chats": [chat],
+        "messages": [message],
+        "message_position": 1,
+        "sends": [],
+        "assets": [],
+        "message_revisions": [{"chat_id": 1, "message_id": 1, "revision": 4}],
+        "custom_emoji": [],
+        "documents": [small_descriptor, descriptor],
+    }
+    changes = {
+        "schema": 5,
+        "world_id": world.world_id,
+        "user_id": user["id"],
+        "cursor": 1,
+        "head": 1,
+        "now": 1_700_000_000,
+        "changes": [{"position": 1, "type": "message.created", "data": message, "revision": 4}],
+        "users": [user, bot],
+        "assets": [],
+        "custom_emoji": [],
+        "documents": [descriptor],
+    }
+    dependencies = {
+        "users": [user, bot],
+        "assets": [],
+        "message_revision": 4,
+        "custom_emoji": [],
+        "documents": [descriptor],
+    }
+    assert world.client_snapshot(user["id"], version=5) == snapshot
+    assert world.client_changes(user["id"], after=0, version=5) == changes
+    assert world.callback_dependencies(user["id"], callback, version=5) == dependencies
+    callback_id = callback["id"]
+    world.__exit__(None, None, None)
+    with World.open(directory) as reopened:
+        assert reopened.client_snapshot(user["id"], version=5) == snapshot
+        assert reopened.client_changes(user["id"], after=0, version=5) == changes
+        stored = reopened.get_callback(user_id=user["id"], callback_id=callback_id)
+        assert stored == callback
+        assert reopened.callback_dependencies(user["id"], stored, version=5) == dependencies
+        assert reopened.document_descriptor(str(document_id)) == descriptor
+        assert reopened.document_file(bot["id"], str(document_id)) == file
+        assert reopened.granted_document(user["id"], str(document_id)) == (descriptor, item.data)
+        assert reopened.bot_file(bot["id"], file["file_id"]) == (
+            file | {"file_path": f"documents/{file['file_id']}"},
+            item.data,
+        )
+
+
+def test_exhausted_signed_64_bit_document_ids_roll_back_all_state(tmp_path: Path) -> None:
+    world, _user, bot, chat = setup_world(tmp_path / "world")
+    seed_document(world, 2**63 - 1, upload(b"last", "last.bin"))
+    before = logical_database(world)
+    with pytest.raises(ValueError, match="identifier space is exhausted"):
+        send(world, chat, bot, upload(b"overflow", "overflow.bin"))
+    assert logical_database(world) == before
+    world.__exit__(None, None, None)
+
+
 def test_empty_and_unknown_mime_are_valid_metadata(tmp_path: Path) -> None:
     world, _user, bot, chat = setup_world(tmp_path / "world")
     no_mime = send(world, chat, bot, upload(b"one", "README"))
@@ -712,6 +855,27 @@ def test_failed_publication_rolls_back_every_typed_row_and_retries(
     monkeypatch.setattr(world, "_insert_message", original)
     message = send(world, chat, bot, upload())
     assert message["id"] == 1 and message["document"] == {"document_id": "1"}
+    world.__exit__(None, None, None)
+
+
+def test_failure_after_document_grant_rolls_back_complete_database_and_retries(
+    tmp_path: Path,
+) -> None:
+    world, _user, bot, chat = setup_world(tmp_path / "world")
+    with world._connection:
+        world._connection.execute(
+            "CREATE TRIGGER interrupt_document_publication AFTER INSERT ON document_grants "
+            "BEGIN SELECT RAISE(ABORT, 'publication interruption'); END"
+        )
+    before = logical_database(world)
+    with pytest.raises(sqlite3.IntegrityError, match="publication interruption"):
+        send(world, chat, bot, upload())
+    assert logical_database(world) == before
+    with world._connection:
+        world._connection.execute("DROP TRIGGER interrupt_document_publication")
+    message = send(world, chat, bot, upload())
+    assert message["id"] == 1 and message["document"] == {"document_id": "1"}
+    assert world.document_descriptor("1")["file_name"] == "report.PDF"
     world.__exit__(None, None, None)
 
 

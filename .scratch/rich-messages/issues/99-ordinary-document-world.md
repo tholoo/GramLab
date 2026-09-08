@@ -100,6 +100,13 @@ batch does not silently add that unsupported formatting kind.
   client bridge, custom-emoji and rich-mention bridge cases in the outer local network namespace.
   This includes the actual inclusive 50,000,000-byte input, sequential oversized rejection,
   rollback/retry, concurrent openers, full v5 projections and typed isolation.
+- Follow-up review closed the concurrent writer connection explicitly and added seeded, persisted
+  allocation controls for IDs 10, 2,147,483,648, 9,007,199,254,740,993 and signed-64-bit maximum.
+  Exact file/download, grant, v5 snapshot/change/callback and reopen results pass, including numeric
+  dependency sorting. Exhaustion and an `AFTER INSERT` document-grant interruption preserve the
+  complete logical database; retry after the interruption receives message/document ID 1.
+  `artifacts/ticket99-focused-followup.xml` retains all 102 focused cases passing with
+  `ResourceWarning` promoted to an error.
 - Scoped Ruff check and format pass seven owned/affected Python files. Strict mypy passes the same
   seven files with the tests path explicitly available. No Android guest/build, full gate, network,
   dependency or upstream source operation ran. Remote/cloud admission and operational document
@@ -110,8 +117,8 @@ environment:
 
 ```sh
 tools/dev default --offline --command unshare --user --map-root-user --net bash -eu -c \
-  'ip link set lo up; .venv/bin/python -m pytest -q \
-  --junitxml=artifacts/ticket99-focused.xml tests/test_document_world.py \
+  'ip link set lo up; .venv/bin/python -m pytest -q -W error::ResourceWarning \
+  --junitxml=artifacts/ticket99-focused-followup.xml tests/test_document_world.py \
   tests/test_document_storage_migration.py tests/test_media_world.py \
   tests/test_media_storage_migration.py tests/test_callbacks.py tests/test_client_bridge.py \
   tests/test_media_bridge.py tests/test_custom_emoji_world.py tests/test_custom_emoji_bridge.py \
