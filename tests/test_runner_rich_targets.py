@@ -412,7 +412,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     assert recorded["histories"] == {"1": expected_history}
     assert scenario["history"] == expected_history
 
-    bot = process_json(recorded, "targets")
+    bot = process_json(recorded, "bot:targets")
     assert [entry["event"] for entry in bot] == ["published", "finished"]
     assert [callback["data"] for callback in bot[-1]["callbacks"]] == [
         "same:payload",
@@ -424,7 +424,18 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     callback_events = [event for event in scenario["events"] if event["type"] == "callback.created"]
     answer_events = [event for event in scenario["events"] if event["type"] == "callback.answered"]
     assert len(callback_events) == len(answer_events) == 5
-    assert all(event["data"]["answer"] is None for event in callback_events)
+    callback_snapshots = [
+        receipts["row_callback"]["effect"]["callback"],
+        receipts["inline_callback"]["effect"]["callback"],
+        receipts["hidden"]["effect"]["callback"],
+        receipts["offscreen"]["effect"]["callback"],
+        scenario["unrelated"]["effect"]["callback"],
+    ]
+    assert all(callback["answer"] is None for callback in callback_snapshots)
+    assert [event["data"] for event in callback_events] == [
+        {key: value for key, value in callback.items() if key != "answer"}
+        for callback in callback_snapshots
+    ]
     assert all(
         event["data"]["answer"]
         == {"text": "Observed / مشاهده شد", "show_alert": False, "cache_time": 0}

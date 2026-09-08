@@ -46,3 +46,7 @@ resolve native acceptance or the operational milestone.
 - Focused collection finds two tests. Ruff check/format and strict mypy with explicit package bases
   pass for all three new files. Green behavioral execution remains blocked on the reviewed core
   implementation and journal dependency; the Android-marked case is prepared but has not been run.
+- The first integrated public run reached and passed the complete receipt/history assertions. A
+  bounded fixture follow-up now reads the runner's namespaced `bot:targets` process key and compares
+  `callback.created` event payloads without the receipt-only `answer` member. Scoped collection and
+  static checks pass; the coordinator retains the integrated behavioral artifact.
