@@ -376,6 +376,11 @@ class AndroidRichInput:
                 pid, now = self._guest_state()
                 _require(pid == sample["pid"], "client_restarted")
                 _require(0 <= now - sample["drawn_uptime_ms"] <= 5000)
+                # WindowManager can already report this app while its retained
+                # draw still predates focus. Wait for native focus publication;
+                # genuinely hidden/offscreen targets remain explicitly unavailable.
+                _require(sample["reason"] != "window_unfocused")
+                _require(all(t["reason"] != "window_unfocused" for t in sample["targets"]))
                 self._current(record)
                 self._nonce = str(sample["client_nonce"])
                 return self._nonce
@@ -480,7 +485,9 @@ class AndroidRichInput:
             "effect": None,
             "quiet_since": None,
         }
-        self._fresh(state)
+        sample = self._fresh(state)
+        state["observation"] = sample
+        arm["observation_generation"] = sample["generation"]
         selected = next(t for t in sample["targets"] if t["path"] == target["path"])
         state["geometry"] = {
             key: selected[key] for key in ("local_bounds", "origin", "screen_bounds")

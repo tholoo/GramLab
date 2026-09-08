@@ -18,3 +18,14 @@ Investigate bounded initial focus readiness separately from post-input confirmat
 relax foreground clipboard or lifetime requirements to make retained effects pass. Preserve
 the original native failure, and obtain new native evidence after any correction. Focused
 host tests substitute the guest boundary and cannot establish original Android acceptance.
+
+## Coordinator checkpoint
+
+Both independently authored host regressions fail before the fix, retained in
+`artifacts/rich-button-readiness-red-01.xml`. Observation now waits within its existing deadline
+for a native focused draw; hidden/offscreen reasons remain valid unavailable observations.
+Preparation freezes the newly validated draw and uses its generation in the arm. Checks after
+capture and before input remain strict. The focused suite passes all 88 tests in
+`artifacts/rich-button-readiness-green-03.xml`; scoped strict typing and Ruff checks pass.
+An intermediate test mistakenly read a sizing placeholder as an artifact path; that diagnostic
+failure remains in `artifacts/rich-button-readiness-green-01.xml`. No native pass is claimed.

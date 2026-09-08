@@ -233,6 +233,62 @@ def staged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     return make
 
 
+def test_prepare_freezes_the_validated_newer_draw(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    read = guest._read
+    observations = 0
+
+    def progressing_read(name: str) -> dict[str, Any]:
+        nonlocal observations
+        sample: dict[str, Any] = read(name)
+        if name == "rich-button-observation.json":
+            observations += 1
+            if observations >= 2:
+                sample["generation"] = 6
+                sample["drawn_uptime_ms"] = 9999
+                target = sample["targets"][0]
+                target["screen_bounds"] = [20.5, 111.25, 100.5, 141.25]
+        return sample
+
+    monkeypatch.setattr(guest, "_read", progressing_read)
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    observations_on_disk = list(Path("rich-buttons/operation-one").glob("observation-*.json"))
+    assert len(observations_on_disk) == 1
+    retained = json.loads(observations_on_disk[0].read_text())
+    assert retained["generation"] == 6
+    assert retained["targets"][0]["screen_bounds"] == [20.5, 111.25, 100.5, 141.25]
+    assert guest.files["rich-button-arm.json"]["observation_generation"] == 6
+    assert guest.touches == 0
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "succeeded"
+    assert guest.touches == 1
+
+
+def test_observe_waits_for_the_native_window_focus_draw(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, _ = staged()
+    read = guest._read
+    observations = 0
+
+    def progressing_read(name: str) -> dict[str, Any]:
+        nonlocal observations
+        sample: dict[str, Any] = read(name)
+        if name == "rich-button-observation.json":
+            observations += 1
+            if observations == 1:
+                sample["targets"][0].update(available=False, reason="window_unfocused")
+        return sample
+
+    monkeypatch.setattr(guest, "_read", progressing_read)
+    assert guest.observe(guest.record) == "process-original"
+    assert observations == 2
+    assert guest.touches == 0
+    assert "rich-button-arm.json" not in guest.writes
+
+
 def test_exact_original_callback_and_frozen_world_message(staged: Any) -> None:
     guest, receipt = staged()
     original = copy.deepcopy(receipt)
