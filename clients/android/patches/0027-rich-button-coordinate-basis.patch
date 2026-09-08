@@ -1,0 +1,142 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+index 7d95603..1c09598 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+@@ -5,6 +5,7 @@ import android.content.ClipData;
+ import android.content.ClipboardManager;
+ import android.content.Context;
+ import android.graphics.Canvas;
++import android.graphics.Matrix;
+ import android.graphics.RectF;
+ import android.os.SystemClock;
+ import java.io.File;
+@@ -48,6 +49,19 @@ public final class GramLabButtonObserver {
+     private static String lastConflictKey, lastPublishedOperation;
+     private static JSONObject lastConflictEffect;
+     private static java.util.ArrayList<Binding> pendingGroup;
++    private static final ThreadLocal<java.util.ArrayDeque<DrawContext>> drawContexts =
++            ThreadLocal.withInitial(java.util.ArrayDeque::new);
++
++    private static final class DrawContext {
++        final ChatMessageCell cell;
++        final Matrix inverseEntry = new Matrix();
++        final boolean invertible;
++
++        DrawContext(ChatMessageCell cell, Canvas canvas) {
++            this.cell = cell;
++            invertible = canvas.getMatrix().invert(inverseEntry);
++        }
++    }
+     private static final java.util.concurrent.ExecutorService writer =
+             java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "GramLabButtonObservation"));
+     private static final class RequestEvidence {
+@@ -1002,6 +1016,44 @@ public final class GramLabButtonObserver {
+         return null;
+     }
+ 
++    public static void beginCellDraw(ChatMessageCell cell, Canvas canvas) {
++        if (cell == null || canvas == null) return;
++        drawContexts.get().addLast(new DrawContext(cell, canvas));
++    }
++
++    public static void endCellDraw(ChatMessageCell cell) {
++        java.util.ArrayDeque<DrawContext> contexts = drawContexts.get();
++        if (contexts.isEmpty()) return;
++        DrawContext context = contexts.peekLast();
++        if (context.cell == cell) contexts.removeLast();
++        else contexts.clear();
++        if (contexts.isEmpty()) drawContexts.remove();
++    }
++
++    private static RectF cellLocalBounds(ChatMessageCell cell, Canvas canvas, RectF local) {
++        java.util.ArrayDeque<DrawContext> contexts = drawContexts.get();
++        DrawContext context = contexts.peekLast();
++        if (context == null || context.cell != cell || !context.invertible) return null;
++        float[] points = {
++                local.left, local.top, local.right, local.top,
++                local.right, local.bottom, local.left, local.bottom
++        };
++        canvas.getMatrix().mapPoints(points);
++        context.inverseEntry.mapPoints(points);
++        for (float coordinate : points) {
++            if (!Float.isFinite(coordinate)) return null;
++        }
++        float left = points[0], top = points[1], right = points[0], bottom = points[1];
++        for (int i = 2; i < points.length; i += 2) {
++            left = Math.min(left, points[i]);
++            top = Math.min(top, points[i + 1]);
++            right = Math.max(right, points[i]);
++            bottom = Math.max(bottom, points[i + 1]);
++        }
++        if (right <= left || bottom <= top) return null;
++        return new RectF(left, top, right, bottom);
++    }
++
+     public static synchronized void drawn(
+             MessageObject message, ChatMessageCell cell, Object object, String label, Canvas canvas, RectF local) {
+         Binding binding = bindings.get(object);
+@@ -1011,8 +1063,13 @@ public final class GramLabButtonObserver {
+             if (activation.optLong("message_id") != message.getId()
+                     || positive(activation, "revision") != binding.revision)
+                 return;
+-            RectF measured = new RectF(local);
+-            canvas.getMatrix().mapRect(measured);
++            RectF measured = cellLocalBounds(cell, canvas, local);
++            if (measured == null) {
++                binding.drawnAt = 0;
++                binding.focused = false;
++                binding.visible = false;
++                return;
++            }
+             int[] location = new int[2];
+             cell.getLocationOnScreen(location);
+             binding.local = new RectF(measured);
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java b/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
+index ece0e39..eafa2d6 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java
+@@ -131,6 +131,7 @@ import org.telegram.messenger.MessagesController;
+ import org.telegram.messenger.NotificationCenter;
+ import org.telegram.messenger.R;
+ import org.telegram.messenger.RichMessageLayout;
++import org.telegram.gramlab.GramLabButtonObserver;
+ import org.telegram.messenger.SendMessagesHelper;
+ import org.telegram.messenger.SharedConfig;
+ import org.telegram.messenger.SvgHelper;
+@@ -14352,8 +14353,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+                 final int padRight = Math.max(0, right - (textX + layout.getMinWidth()));
+ 
+                 canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(), (int) (0xFF * transitionParams.oldProgress), Canvas.ALL_SAVE_FLAG);
+-                canvas.translate(textX, textY);
+-                layout.draw(canvas, padLeft, padRight, null);
++                GramLabButtonObserver.beginCellDraw(this, canvas);
++                try {
++                    canvas.translate(textX, textY);
++                    layout.draw(canvas, padLeft, padRight, null);
++                } finally {
++                    GramLabButtonObserver.endCellDraw(this);
++                }
+                 canvas.restore();
+ 
+                 alpha = transitionParams.newProgress;
+@@ -14372,11 +14378,16 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
+                 } else {
+                     canvas.save();
+                 }
+-                canvas.translate(textX, textY);
+-                if (delegate != null && delegate.getTextSelectionHelper() != null) {
+-                    delegate.getTextSelectionHelper().drawRich(currentMessageObject, layout, canvas);
++                GramLabButtonObserver.beginCellDraw(this, canvas);
++                try {
++                    canvas.translate(textX, textY);
++                    if (delegate != null && delegate.getTextSelectionHelper() != null) {
++                        delegate.getTextSelectionHelper().drawRich(currentMessageObject, layout, canvas);
++                    }
++                    layout.draw(canvas, padLeft, padRight, transitionParams);
++                } finally {
++                    GramLabButtonObserver.endCellDraw(this);
+                 }
+-                layout.draw(canvas, padLeft, padRight, transitionParams);
+                 canvas.restore();
+ 
+                 if (botDraftTypingAnimator != null && botDraftTypingAnimator.isRunning()) {

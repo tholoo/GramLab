@@ -1,8 +1,8 @@
 # Normalize observed button bounds to the original cell coordinate system
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: ready-for-review
+Work state: frozen on task/rich-button-coordinate-basis
 Blocked by: coordinator source review, compilation and native acceptance
 
 Own this ticket, one new GPL patch `clients/android/patches/0027-rich-button-coordinate-basis.patch`
@@ -22,3 +22,27 @@ Use the frozen observation contract. Keep the normal patch self-contained and ap
 matrix regression plan covering different outer translations/scales, cell origin, missing context,
 noninvertible matrices and row/inline carriers. No guest/build/full gate is assigned. Coordinator
 will compile and run the original public scenario with screenshots and actual effect correlation.
+
+## Worker evidence
+
+Patch 0027 captures the Canvas matrix at each exact `ChatMessageCell` rich-layout draw boundary.
+The observer maps each button through the current matrix and the inverse entry matrix, producing a
+cell-local axis-aligned bound before adding `getLocationOnScreen` exactly once. Contexts are
+thread-local, nested, cell-identity checked and scoped with `finally`; missing, mismatched,
+noninvertible, any nonfinite mapped coordinate or empty geometry fails closed and makes that binding stale. Outgoing and
+current crossfade layouts have separate contexts. Original drawing, button hit testing and disabled
+row propagation are unchanged.
+
+Zero-fuzz/offset dry application against verified normal26 passed for both source files. The
+modified observer compiles against the pinned Android 36 SDK and normal26 cached classes with eight
+missing-Kotlin-annotation warnings only. A standalone full `ChatMessageCell` javac check remains
+unavailable because its cached partial classpath lacks unrelated AndroidX `ColorUtils`/`MathUtils`
+types (33 errors, none at patch hunks). No Gradle build or guest was run. Coordinator regression
+should exercise row and inline rectangles under identity and translated/scaled outer matrices,
+assert equal cell-local results plus one cell-origin offset, and reject missing, mismatched and
+noninvertible contexts. The public guest must verify stable bounds across redraws and actual taps.
+
+The capture occurs after `layoutTextXY(false)`, which computes layout fields without mutating the
+Canvas, and immediately after the cell-owned save/saveLayer. It precedes the explicit
+`canvas.translate(textX, textY)` and every rich block/button translation, so the saved entry matrix
+contains only the caller's outer basis.
