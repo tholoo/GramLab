@@ -27,7 +27,7 @@ commands for coordinator execution against normal26 and normal27 where applicabl
 
 The probe compiles and dexes against the reviewed normal27 APK and exact cached normal27 classes.
 It reflectively invokes the production helper while using Android's real Canvas, Matrix and RectF.
-Seven independently specified cases cover outer-basis invariance with an explicit cell origin, missing
+Seven independently specified cases cover outer-basis invariance with an expected-only reference cell origin, missing
 and mismatched contexts, nested restoration, mismatched-end cleanup, singular entry, empty bounds and
 a projective nonfinite first corner. Cell identities are constructor-free; rendering and touch remain
 for the public native gate. No guest was run.
@@ -37,3 +37,9 @@ worker compile output and complete input hashes are retained under the ignored
 `.cache/rich-button-matrix-probe-02/`; compilation used javac 17.0.20.1, Android API/build tools 36,
 normal27 classes SHA-256 `f52d2fdff65e5c9bd59689bf0c00d30742dacb5d7d057001ee388cdf4bad5b46`
 and normal27 APK SHA-256 `141415076e8727cfbffc6eacfe759f339e3640fa363ba5932e95cd7dc4a52375`.
+
+The probe does not invoke production `getLocationOnScreen`; its expected screen bounds are explicitly
+labeled `reference_only`. The projective negative records Android's raw eight mapped coordinates and
+requires the first corner itself to be nonfinite before testing helper rejection. A failed premise is
+a fixture/precondition failure, not a helper regression. Public native09 separately covers stable
+production screen bounds across the popup redraw.

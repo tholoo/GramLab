@@ -94,6 +94,7 @@ public final class RichButtonMatrixProbe {
         System.out.println(record);
     }
 
+    @SuppressWarnings("deprecation")
     public static void main(String[] arguments) throws Exception {
         if (arguments.length != 1) throw new IllegalArgumentException("OUTPUT_DIRECTORY");
         output = new File(arguments[0]);
@@ -115,8 +116,9 @@ public final class RichButtonMatrixProbe {
             assertRect(translated, 13, 23, 21, 38);
             assertRect(scaled, 13, 23, 21, 38);
             JSONObject evidence = new JSONObject().put("cell_local", rect(identity))
-                    .put("screen_origin", new JSONArray().put(29).put(41))
-                    .put("screen_bounds", new JSONArray().put(42).put(64).put(50).put(79));
+                    .put("reference_only", true)
+                    .put("expected_screen_origin", new JSONArray().put(29).put(41))
+                    .put("expected_screen_bounds", new JSONArray().put(42).put(64).put(50).put(79));
             write("outer-basis-evidence.json", evidence);
         });
         run("missing_and_mismatched_context", () -> {
@@ -167,6 +169,20 @@ public final class RichButtonMatrixProbe {
                 Matrix projective = new Matrix();
                 projective.setValues(new float[] {1, 0, 1, 0, 1, 1, 1, 1, 0});
                 canvas.setMatrix(projective);
+                float[] mapped = {0, 0, 2, 0, 2, 2, 0, 2};
+                canvas.getMatrix().mapPoints(mapped);
+                JSONArray actual = new JSONArray();
+                boolean nonfinite = false;
+                for (float coordinate : mapped) {
+                    actual.put(Float.isFinite(coordinate) ? coordinate : Double.toString(coordinate));
+                    nonfinite |= !Float.isFinite(coordinate);
+                }
+                write("nonfinite-first-corner-premise.json", new JSONObject()
+                        .put("schema", 1).put("mapped_corners", actual)
+                        .put("first_corner_nonfinite", !Float.isFinite(mapped[0]) || !Float.isFinite(mapped[1])));
+                require(nonfinite, "fixture_did_not_produce_nonfinite");
+                require(!Float.isFinite(mapped[0]) || !Float.isFinite(mapped[1]),
+                        "fixture_nonfinite_not_in_first_corner");
                 require(normalized(cellA, canvas, new RectF(0, 0, 2, 2)) == null,
                         "accepted_nonfinite_first_corner");
             } finally { end.invoke(null, cellA); }
