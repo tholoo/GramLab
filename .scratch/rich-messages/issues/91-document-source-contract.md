@@ -2,7 +2,7 @@
 
 Type: research
 Status: ready-for-agent
-Work state: open
+Work state: resolved
 Blocked by: source review and later interface decisions
 
 Own this ticket and one new `docs/development/documents-references.md` only. Read the research
@@ -26,3 +26,17 @@ albums with repeated single sends. No implementation, ADR changes, fixtures, new
 credentials, external runtime execution, Android build/guest or full gate. Source research may use
 primary web documentation separately from runtime. Return a reviewed factual note, exact sources,
 open decisions and suggested independent implementation scopes on a clean frozen branch.
+
+## Answer
+
+Pinned findings and bounded recommendations are recorded in
+[`docs/development/documents-references.md`](../../../docs/development/documents-references.md).
+Ordinary documents can reuse the immutable-byte, bot-file, recipient-grant, authenticated download
+and original loader lifecycle concepts, but the current image-only storage/descriptors and
+bytes-only multipart output cannot represent document filename/MIME metadata. ADR 0005 already
+governs World ownership, grants, bot identity, retention, versioned dependencies and original
+loading. The remaining compatibility gaps are Telegram's automatic MIME detection and metadata
+precedence, filename/empty-file/limit behavior, and exact album failure/group identity semantics.
+A 10 MB no-sniff path is identified only as an incomplete implementation probe. General files and
+atomic 2–10 document albums remain required, including normal detection defaults, reuse/download,
+ordered shared group identity and native document-group layout.
