@@ -155,3 +155,17 @@ cancellation and cache lifecycle. The independent scenario worker authors a real
 and complete semantic expectations; the coordinator owns source preparation/APKs, native guests,
 original visual inspection, merges/conflicts and the combined gate. All runs use the existing
 outer network guard and shared build/guest locks. Source/data/UI proof remain separate claims.
+
+## Internal byte storage
+
+World schema 8 separates shared immutable `media_blobs` from typed image `assets`. Its atomic
+schema-7 migration retains every existing asset/file identity, grant, message, callback and revision.
+Byte reads still require the existing bot ownership or persona grant; a digest grants no access.
+Fresh and migrated schema/FK definitions agree. This internal change does not change v3/v4 delivery,
+image admission, public methods or Android cache IDs, and does not implement ordinary documents.
+
+The populated legacy fixture and complete public outputs come from the untouched schema-7
+implementation. Integrated migration, concurrent opening, six rollback points, denied access,
+publication atomicity and HTTP/real-bot media checks pass together: 53 tests. See
+[ticket 96](../../.scratch/rich-messages/issues/96-neutral-media-byte-storage.md) for provenance
+and the pending combined checkpoint.

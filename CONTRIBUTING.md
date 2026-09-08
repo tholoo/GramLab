@@ -120,6 +120,7 @@ uv run --locked mypy --strict src/gramlab/_rich_buttons.py src/gramlab/_rich_but
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/rich_targets_bot.py tests/rich_targets_scenario.py tests/test_runner_rich_targets.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/rich_native_clipboard_supervisor.py tests/rich_native_clipboard_plugin.py tests/test_runner_rich_clipboard.py
 uv run --locked mypy --strict tests/test_multipart_uploads.py
+uv run --locked mypy --strict src/gramlab/world.py tests/test_media_world.py tests/test_media_storage_migration.py tests/fixtures/media_storage_v7/generate.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

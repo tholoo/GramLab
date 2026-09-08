@@ -2,6 +2,7 @@ import io
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
 from PIL import Image
@@ -15,7 +16,7 @@ def image_bytes(format: str = "PNG", size: tuple[int, int] = (3, 2)) -> bytes:
     return output.getvalue()
 
 
-def setup_world(path: Path) -> tuple[World, dict, dict, dict]:
+def setup_world(path: Path) -> tuple[World, dict[str, Any], dict[str, Any], dict[str, Any]]:
     world = World.create(path, seed=9, now=100)
     user = world.create_user(first_name="Ada")
     bot = world.create_user(first_name="Media", is_bot=True)
@@ -158,6 +159,7 @@ def test_failed_rich_upload_is_atomic(tmp_path: Path) -> None:
 
 def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Path) -> None:
     directory = tmp_path / "world"
+    # A synthetic empty schema-5 fixture: remove every table introduced after v5.
     with World.create(directory, seed=1, now=1):
         pass
     connection = sqlite3.connect(directory / "world.sqlite3")
@@ -172,6 +174,7 @@ def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Pat
             "asset_grants",
             "bot_files",
             "assets",
+            "media_blobs",
         ):
             connection.execute(f"DROP TABLE {table}")
         connection.execute("PRAGMA user_version=5")
@@ -187,7 +190,7 @@ def test_schema_five_migration_is_atomic_across_concurrent_openers(tmp_path: Pat
             check.close()
 
     with ThreadPoolExecutor(max_workers=2) as workers:
-        assert list(workers.map(open_version, range(2))) == [7, 7]
+        assert list(workers.map(open_version, range(2))) == [8, 8]
     check = sqlite3.connect(directory / "world.sqlite3")
     try:
         assert (
@@ -265,3 +268,39 @@ def test_callback_revision_survives_same_clock_aba_and_restart(tmp_path: Path) -
             reopened.callback_dependencies(user["id"], stored)["message_revision"]
             == original_revision
         )
+
+
+def test_failed_publication_rolls_back_stored_bytes_grants_and_identifiers(tmp_path: Path) -> None:
+    world, user, bot, chat = setup_world(tmp_path / "world")
+    with world:
+        before = world.snapshot(), world.events(), world.client_snapshot(user["id"], version=4)
+        # The first block stores valid bytes; resolution of the second block then fails.
+        with pytest.raises(ValueError, match="unavailable"):
+            world.send_rich_message(
+                chat_id=chat["id"],
+                sender_id=bot["id"],
+                uploads={"one": image_bytes()},
+                rich_message={
+                    "skip_entity_detection": True,
+                    "blocks": [
+                        {"type": "photo", "photo": {"type": "photo", "media": "attach://one"}},
+                        {"type": "photo", "photo": {"type": "photo", "media": "unavailable"}},
+                    ],
+                },
+            )
+        assert (
+            world.snapshot(),
+            world.events(),
+            world.client_snapshot(user["id"], version=4),
+        ) == before
+        for table in ("media_blobs", "assets", "bot_files", "asset_grants"):
+            assert world._connection.execute(f"SELECT count(*) FROM {table}").fetchone() == (0,)  # noqa: S608
+        sent = world.send_photo(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            uploads={"one": image_bytes()},
+            photo={"type": "photo", "media": "attach://one"},
+        )
+        assert (sent["id"], sent["photo"]["asset_id"]) == (1, 1)
+        assert world.granted_asset(user["id"], 1)[1] == image_bytes()
+        assert world._connection.execute("SELECT count(*) FROM media_blobs").fetchone() == (1,)
