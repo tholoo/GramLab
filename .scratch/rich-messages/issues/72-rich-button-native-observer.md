@@ -50,5 +50,6 @@ including object-shaped `copy_text` and `disabled` members.
 The patch dry-applies with `patch --dry-run -p1` to the selected normal24 inputs. Their SHA-256s
 are `9a2aafbc...5721a` (GramLabBridge), `fa0d15a2...57dc` (GramLabRichMessage),
 `a240f8db...e4a` (GramLabRuntime), `f231ba1c...1ffa9` (RichMessageLayout) and
-`54511290...25b5` (ChatActivityEnterView). Compilation and native behavior remain coordinator
+`de93c9d8...6968b` (SendMessagesHelper), and `54511290...25b5`
+(ChatActivityEnterView). Compilation and native behavior remain coordinator
 acceptance work; this worker did not run Gradle or a guest.

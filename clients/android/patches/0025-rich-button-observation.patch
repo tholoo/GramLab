@@ -1,6 +1,6 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
---- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java	2026-09-08 04:09:27.954925954 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java	2026-09-08 04:23:37.698141670 +0330
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 @@ -100,7 +100,7 @@
          return peer;
      }
@@ -87,9 +87,9 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
              if (SystemClock.elapsedRealtime() >= deadline) {
                  throw new IllegalStateException("GRAMLAB_CALLBACK_ANSWER_TIMEOUT");
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
---- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java	1970-01-01 03:30:00.000000000 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java	2026-09-08 04:24:42.199850639 +0330
-@@ -0,0 +1,231 @@
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+@@ -0,0 +1,245 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +package org.telegram.gramlab;
 +
@@ -111,27 +111,36 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +import java.nio.file.Files;
 +import java.nio.file.StandardCopyOption;
 +import java.util.IdentityHashMap;
-+import java.util.ArrayDeque;
 +import java.util.Iterator;
 +import java.util.UUID;
 +
 +/** Private, opt-in evidence for original rich-button objects and actions. */
 +public final class GramLabButtonObserver {
-+    private static final IdentityHashMap<Object, Binding> bindings = new IdentityHashMap<>();
++    private static final java.util.WeakHashMap<Object, Binding> bindings = new java.util.WeakHashMap<>();
 +    private static final String clientNonce = UUID.randomUUID().toString();
 +    private static File directory;
 +    private static JSONObject activation;
 +    private static JSONObject arm;
 +    private static String armEncoded;
 +    private static String disarmedOperation;
++    private static final java.util.HashSet<String> consumedOperations=new java.util.HashSet<>();
++    private static long downTime=-1,upTime=-1;
++    private static JSONArray requestChains=new JSONArray();
 +    private static long generation;
 +    private static Binding dispatched;
++    private static JSONObject currentEffect;
++    private static java.util.ArrayList<Binding> pendingGroup;
++    private static final java.util.concurrent.ExecutorService writer=java.util.concurrent.Executors.newSingleThreadExecutor(r->new Thread(r,"GramLabButtonObservation"));
 +    private static final IdentityHashMap<Object, JSONObject> requests = new IdentityHashMap<>();
-+    private static final ThreadLocal<ArrayDeque<Binding>> decoding = new ThreadLocal<>();
-+    private static final java.util.ArrayList<java.util.ArrayList<Binding>> groups = new java.util.ArrayList<>();
++    private static final IdentityHashMap<Object, Binding> callbackQueries = new IdentityHashMap<>();
++    private static final class Decode {
++        final IdentityHashMap<JSONObject, Binding> bySource = new IdentityHashMap<>();
++        final java.util.ArrayList<Binding> group = new java.util.ArrayList<>();
++    }
++    private static final ThreadLocal<Decode> decoding = new ThreadLocal<>();
 +
 +    private static final class Binding {
-+        final JSONArray path; final JSONObject button; final long revision; java.util.ArrayList<Binding> group; RectF local, screen; JSONArray origin; String label; int messageId;
++        final JSONArray path; final JSONObject button; final long revision; java.util.ArrayList<Binding> group; RectF local, screen; JSONArray origin; String label; int messageId; long drawnAt; boolean focused, visible;
 +        Binding(JSONArray path, JSONObject button, long revision) { this.path = path; this.button = button; this.revision=revision; }
 +    }
 +
@@ -167,14 +176,16 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                ||positive(candidate,"user_id")!=positive(activation,"user_id")||positive(candidate,"chat_id")!=positive(activation,"chat_id")
 +                ||positive(candidate,"message_id")!=positive(activation,"message_id")||positive(candidate,"revision")!=positive(activation,"revision")
 +                ||!(candidate.opt("path") instanceof JSONArray)||nonnegative(candidate,"observation_generation")>generation)throw invalid();
-+        String operation=token(candidate,"operation_id"); if(operation.equals(disarmedOperation))return; String encoded=candidate.toString();
-+        if(arm!=null&&!encoded.equals(armEncoded))throw invalid();
-+        if(arm==null){arm=candidate;armEncoded=encoded; Binding binding=find(candidate.getJSONArray("path")); if(binding==null)throw invalid(); effect(binding,"armed",null,false,false,null);}
++        String operation=token(candidate,"operation_id"); if(operation.equals(disarmedOperation)||consumedOperations.contains(operation))return; String encoded=candidate.toString();
++        if(arm!=null&&!sameArm(arm,candidate)){publishConflict();return;}
++        if(arm==null){arm=candidate;armEncoded=encoded;downTime=-1;upTime=-1;requestChains=new JSONArray();dispatched=null; Binding binding=find(candidate.getJSONArray("path")); if(binding==null)throw invalid(); effect(binding,"armed",null,false,false,null);}
 +    }
++    private static boolean sameArm(JSONObject a,JSONObject b){try{return a.getInt("schema")==b.getInt("schema")&&a.getString("nonce").equals(b.getString("nonce"))&&a.getString("client_nonce").equals(b.getString("client_nonce"))&&a.getString("operation_id").equals(b.getString("operation_id"))&&a.getString("world_id").equals(b.getString("world_id"))&&a.getLong("user_id")==b.getLong("user_id")&&a.getLong("chat_id")==b.getLong("chat_id")&&a.getLong("message_id")==b.getLong("message_id")&&a.getLong("revision")==b.getLong("revision")&&a.getLong("observation_generation")==b.getLong("observation_generation")&&a.getJSONArray("path").toString().equals(b.getJSONArray("path").toString());}catch(Exception failure){return false;}}
++    private static void publishConflict(){try{JSONObject result=currentEffect==null?new JSONObject():copy(currentEffect);result.put("state","unavailable").put("reason","arm_conflict").put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);}catch(Exception ignored){}}
 +    private static Binding find(JSONArray path){for(Binding b:bindings.values())if(b.path.toString().equals(path.toString())&&b.revision==positive(activation,"revision")&&b.messageId==positive(activation,"message_id"))return b;return null;}
 +
 +    private static final class DuplicateScanner {
-+        final String text; int offset;
++        final String text; int offset; int depth;
 +        DuplicateScanner(String text) { this.text = text; }
 +        void scan() { value(); whitespace(); if (offset != text.length()) throw invalid(); }
 +        void whitespace() { while (offset < text.length() && Character.isWhitespace(text.charAt(offset))) offset++; }
@@ -184,17 +195,17 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +        }
 +        String string() {
 +            whitespace(); int start=offset; if(offset>=text.length()||text.charAt(offset++)!='\"') throw invalid();
-+            while(offset<text.length()){char c=text.charAt(offset++); if(c=='\"'){try{return (String)new JSONTokener(text.substring(start,offset)).nextValue();}catch(Exception failure){throw invalid();}} if(c=='\\'){if(offset>=text.length())throw invalid();char e=text.charAt(offset++);if(e=='u'){if(offset+4>text.length())throw invalid();offset+=4;}}} throw invalid();
++            while(offset<text.length()){char c=text.charAt(offset++); if(c=='\"'){try{return (String)new JSONTokener(text.substring(start,offset)).nextValue();}catch(Exception failure){throw invalid();}} if(c<0x20)throw invalid();if(c=='\\'){if(offset>=text.length())throw invalid();char e=text.charAt(offset++);if("\"\\/bfnrtu".indexOf(e)<0)throw invalid();if(e=='u'){if(offset+4>text.length())throw invalid();for(int i=0;i<4;i++)if(Character.digit(text.charAt(offset+i),16)<0)throw invalid();offset+=4;}}} throw invalid();
 +        }
-+        void object(){offset++; java.util.HashSet<String> keys=new java.util.HashSet<>(); whitespace(); if(offset<text.length()&&text.charAt(offset)=='}'){offset++;return;} while(true){String key=string(); if(!keys.add(key))throw invalid(); whitespace();if(offset>=text.length()||text.charAt(offset++)!=':')throw invalid();value();whitespace();if(offset>=text.length())throw invalid();char c=text.charAt(offset++);if(c=='}')return;if(c!=',')throw invalid();}}
-+        void array(){offset++;whitespace();if(offset<text.length()&&text.charAt(offset)==']'){offset++;return;}while(true){value();whitespace();if(offset>=text.length())throw invalid();char c=text.charAt(offset++);if(c==']')return;if(c!=',')throw invalid();}}
-+        void primitive(){while(offset<text.length()&&",]} \t\r\n".indexOf(text.charAt(offset))<0)offset++;}
++        void object(){if(++depth>32)throw invalid();offset++; java.util.HashSet<String> keys=new java.util.HashSet<>(); whitespace(); if(offset<text.length()&&text.charAt(offset)=='}'){offset++;depth--;return;} while(true){String key=string(); if(!keys.add(key))throw invalid(); whitespace();if(offset>=text.length()||text.charAt(offset++)!=':')throw invalid();value();whitespace();if(offset>=text.length())throw invalid();char c=text.charAt(offset++);if(c=='}'){depth--;return;}if(c!=',')throw invalid();}}
++        void array(){if(++depth>32)throw invalid();offset++;whitespace();if(offset<text.length()&&text.charAt(offset)==']'){offset++;depth--;return;}while(true){value();whitespace();if(offset>=text.length())throw invalid();char c=text.charAt(offset++);if(c==']'){depth--;return;}if(c!=',')throw invalid();}}
++        void primitive(){int start=offset;while(offset<text.length()&&",]} \t\r\n".indexOf(text.charAt(offset))<0)offset++;String value=text.substring(start,offset);if(!(value.equals("true")||value.equals("false")||value.equals("null")||value.matches("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")))throw invalid();}
 +    }
 +    private static IllegalArgumentException invalid() { return new IllegalArgumentException("invalid_rich_button_observation"); }
 +    private static JSONObject strict(File file) {
 +        try {
 +            if (!file.isFile() || file.length() > 1024 * 1024) throw invalid();
-+            byte[] bytes=Files.readAllBytes(file.toPath()); String encoded=new String(bytes,StandardCharsets.UTF_8);
++            java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();try(java.io.FileInputStream input=new java.io.FileInputStream(file)){byte[] buffer=new byte[4096];int count;while((count=input.read(buffer))!=-1){if(output.size()+count>1024*1024)throw invalid();output.write(buffer,0,count);}}byte[] bytes=output.toByteArray(); String encoded=new String(bytes,StandardCharsets.UTF_8);
 +            if(!java.util.Arrays.equals(bytes,encoded.getBytes(StandardCharsets.UTF_8)))throw invalid();
 +            new DuplicateScanner(encoded).scan(); JSONTokener parser=new JSONTokener(encoded); Object value=parser.nextValue();
 +            if(!(value instanceof JSONObject)||parser.nextClean()!=0)throw invalid(); return (JSONObject)value;
@@ -218,61 +229,61 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +
 +
 +    public static void beginDecode(JSONObject rich, long revision) {
-+        ArrayDeque<Binding> queue = new ArrayDeque<>();
-+        collect(rich, new JSONArray(), queue, revision);
-+        java.util.ArrayList<Binding> group=new java.util.ArrayList<>(queue); for(Binding binding:group)binding.group=group; groups.add(group);
-+        decoding.set(queue);
++        Decode decode = new Decode(); collect(rich, new JSONArray(), decode, revision); decoding.set(decode);
 +    }
 +
-+    private static void collect(Object value, JSONArray path, ArrayDeque<Binding> queue, long revision) {
++    private static void collect(Object value, JSONArray path, Decode decode, long revision) {
 +        if (value instanceof JSONObject) {
 +            JSONObject object = (JSONObject) value;
 +            if ("button".equals(object.optString("type")) && object.opt("button") instanceof JSONObject)
-+                queue.add(new Binding(append(path, "button"), object.optJSONObject("button"), revision));
++                add(decode, object.optJSONObject("button"), append(path, "button"), revision);
 +            if ("buttons".equals(object.optString("type")) && object.opt("buttons") instanceof JSONArray) {
 +                JSONArray values = object.optJSONArray("buttons");
-+                for (int i = 0; i < values.length(); i++) queue.add(new Binding(append(append(path, "buttons"), i), values.optJSONObject(i), revision));
++                for (int i = 0; i < values.length(); i++) add(decode, values.optJSONObject(i), append(append(path, "buttons"), i), revision);
 +            }
 +            Iterator<String> keys = object.keys();
-+            while (keys.hasNext()) { String key=keys.next(); if (!"button".equals(key) && !"buttons".equals(key)) collect(object.opt(key), append(path,key), queue, revision); }
++            while (keys.hasNext()) { String key=keys.next(); if (!"button".equals(key) && !"buttons".equals(key)) collect(object.opt(key), append(path,key), decode, revision); }
 +        } else if (value instanceof JSONArray) {
-+            JSONArray array=(JSONArray)value; for(int i=0;i<array.length();i++) collect(array.opt(i),append(path,i),queue,revision);
++            JSONArray array=(JSONArray)value; for(int i=0;i<array.length();i++) collect(array.opt(i),append(path,i),decode,revision);
 +        }
 +    }
++    private static void add(Decode decode, JSONObject source, JSONArray path, long revision) { Binding binding=new Binding(path,source,revision); decode.bySource.put(source,binding); decode.group.add(binding); }
 +    private static JSONArray append(JSONArray base,Object part) { JSONArray out=new JSONArray(); for(int i=0;i<base.length();i++) out.put(base.opt(i)); out.put(part); return out; }
-+    public static void bindDecoded(Object object) { ArrayDeque<Binding> q=decoding.get(); if(q!=null&&!q.isEmpty()) bindings.put(object,q.remove()); }
++    public static void bindDecoded(JSONObject source,Object object) { Decode decode=decoding.get(); Binding binding=decode==null?null:decode.bySource.get(source); if(binding!=null) bindings.put(object,binding); }
 +    public static void transfer(Object from,Object to) { Binding b=bindings.get(from); if(b!=null) bindings.put(to,b); }
-+    public static void endDecode() { decoding.remove(); }
++    public static void endDecode(boolean success) { Decode decode=decoding.get(); if(success){for(Binding binding:decode.group)binding.group=decode.group;}else{bindings.entrySet().removeIf(entry->decode.group.contains(entry.getValue()));} decoding.remove(); }
 +
 +    public static synchronized void bind(Object object, JSONArray path, JSONObject button) {
 +        bindings.put(object, new Binding(path, button, 0));
 +    }
 +
 +    public static synchronized void drawn(MessageObject message, ChatMessageCell cell, Object object, String label, Canvas canvas, RectF local) {
-+        Binding binding = bindings.get(object);
-+        if (activation == null || binding == null || message == null || cell == null) return;
-+        try {
-+            if (activation.optInt("schema") != 1 || activation.optLong("message_id") != message.getId() || positive(activation,"revision") != binding.revision) return;
-+            RectF measured = new RectF(local); canvas.getMatrix().mapRect(measured); int[] location=new int[2]; cell.getLocationOnScreen(location);
-+            binding.local=new RectF(measured); binding.screen=new RectF(measured); binding.screen.offset(location[0],location[1]); binding.origin=new JSONArray().put(measured.left-local.left).put(measured.top-local.top); binding.label=label; binding.messageId=message.getId();
-+            JSONArray targets=new JSONArray(); for(Binding candidate:binding.group){JSONObject target=new JSONObject().put("path",candidate.path).put("button",candidate.button)
-+                    .put("label",candidate.label==null?"":candidate.label).put("available",candidate.local!=null).put("reason",candidate.local==null?"message_not_drawn":JSONObject.NULL);
-+                if(candidate.local!=null)target.put("local_bounds",rect(candidate.local)).put("origin",candidate.origin).put("screen_bounds",rect(candidate.screen)); targets.put(target);}
-+            JSONObject result = copy(activation).put("client_nonce", clientNonce).put("pid", android.os.Process.myPid())
-+                    .put("generation", ++generation).put("drawn_uptime_ms", SystemClock.uptimeMillis())
-+                    .put("available", true).put("reason", JSONObject.NULL).put("targets", targets);
-+            write("rich-button-observation.json", result);
-+        } catch (Exception ignored) { }
++        Binding binding=bindings.get(object); if(activation==null||binding==null||message==null||cell==null)return;
++        try { if(activation.optLong("message_id")!=message.getId()||positive(activation,"revision")!=binding.revision)return;
++            RectF measured=new RectF(local);canvas.getMatrix().mapRect(measured);int[] location=new int[2];cell.getLocationOnScreen(location);
++            binding.local=new RectF(measured);binding.screen=new RectF(measured);binding.screen.offset(location[0],location[1]);binding.origin=new JSONArray().put(measured.left-local.left).put(measured.top-local.top);binding.label=label;binding.messageId=message.getId();binding.drawnAt=SystemClock.uptimeMillis();binding.focused=cell.hasWindowFocus();android.graphics.Rect visibleRect=new android.graphics.Rect();binding.visible=cell.getGlobalVisibleRect(visibleRect)&&visibleRect.left<=binding.screen.left&&visibleRect.top<=binding.screen.top&&visibleRect.right>=binding.screen.right&&visibleRect.bottom>=binding.screen.bottom;
++            if(pendingGroup!=binding.group){pendingGroup=binding.group;android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());handler.post(()->publishGroup(binding.group));}
++        } catch(Exception ignored){}
 +    }
++    private static synchronized void publishGroup(java.util.ArrayList<Binding> group){
++        if(pendingGroup==group)pendingGroup=null; try{long now=SystemClock.uptimeMillis();JSONArray targets=new JSONArray();boolean mapped=true;
++            for(Binding b:group){boolean fresh=b.messageId==positive(activation,"message_id")&&b.drawnAt>0&&now-b.drawnAt<=5000;boolean available=fresh&&b.focused&&b.visible;String reason=available?null:!fresh?"message_not_drawn":!b.focused?"window_unfocused":"clipped";
++                JSONObject target=new JSONObject().put("path",b.path).put("button",b.button).put("label",b.label==null?canonicalLabel(b.button.opt("text")):b.label).put("available",available).put("reason",reason==null?JSONObject.NULL:reason);
++                if(fresh)target.put("local_bounds",rect(b.local)).put("origin",b.origin).put("screen_bounds",rect(b.screen));targets.put(target);mapped&=fresh;}
++            JSONObject result=copy(activation).put("client_nonce",clientNonce).put("pid",android.os.Process.myPid()).put("generation",++generation).put("drawn_uptime_ms",now).put("available",mapped).put("reason",mapped?JSONObject.NULL:"message_not_drawn").put("targets",targets);write("rich-button-observation.json",result);
++        }catch(Exception ignored){}
++    }
++    private static String canonicalLabel(Object value){if(value instanceof String)return(String)value;if(value instanceof JSONObject)return((JSONObject)value).optString("alternative_text","");if(value instanceof JSONArray){StringBuilder out=new StringBuilder();JSONArray a=(JSONArray)value;for(int i=0;i<a.length();i++)out.append(canonicalLabel(a.opt(i)));return out.toString();}return "";}
 +
 +    public static synchronized void down(Object object, boolean disabled) {
 +        try { reload(); } catch (Exception failure) { return; } Binding binding = bindings.get(object);
 +        if (binding == null || arm == null || !binding.path.toString().equals(arm.optJSONArray("path").toString())) return;
++        if(downTime>=0)return;downTime=SystemClock.uptimeMillis();consumedOperations.add(token(arm,"operation_id"));
 +        effect(binding, disabled ? "complete" : "consumed", disabled ? "disabled_suppressed" : null, true, false, null);
 +    }
 +
 +    public static synchronized void action(Object object, String action) {
-+        Binding binding = bindings.get(object); if (binding != null) { dispatched = binding; effect(binding, "consumed", action, true, true, null); }
++        Binding binding = bindings.get(object); if(binding!=null&&upTime>=0){uncertain("multiple_dispatches");return;} if (binding != null && downTime>=0) { upTime=SystemClock.uptimeMillis(); dispatched = binding; String actual=binding.button.has("callback_data")?"callback":binding.button.has("copy_text")?"copy":action; effect(binding, "consumed", actual, true, true, null); }
 +    }
 +
 +    public static synchronized void copied(Object object, CharSequence before, CharSequence after) {
@@ -281,23 +292,27 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +    }
 +
 +
++    public static synchronized void callbackQuery(Object button,Object query){Binding binding=bindings.get(button);if(binding==null||binding!=dispatched){if(dispatched!=null)effect(dispatched,"uncertain","callback",true,true,null);return;}callbackQueries.put(query,binding);}
++
 +    public static synchronized void nativeRequest(Object query, int token) {
-+        if (dispatched == null || arm == null) return;
++        Binding linked=callbackQueries.get(query); if (linked == null || linked != dispatched || arm == null) return;
 +        JSONObject chain; try { chain = new JSONObject().put("native_request_token", token).put("request_id", JSONObject.NULL)
 +                .put("callback_id", JSONObject.NULL).put("message_revision", JSONObject.NULL); } catch(Exception failure) { return; }
-+        requests.put(query, chain);
++        if(requestChains.length()>=2){uncertain("multiple_dispatches");return;} requests.put(query, chain);requestChains.put(chain);
 +        effect(dispatched, "consumed", "callback", true, true, null);
 +    }
 +    public static synchronized void httpRequest(Object query, String requestId) { JSONObject c=requests.get(query); if(c!=null)try{c.put("request_id",requestId);}catch(Exception ignored){} }
 +    public static synchronized void callbackResponse(Object query, String callbackId, long revision) {
 +        JSONObject c=requests.remove(query); if(c==null||dispatched==null)return;
-+        try { c.put("callback_id",callbackId).put("message_revision",revision); JSONObject result=read("rich-button-effect.json"); if(result!=null){result.put("requests",new JSONArray().put(c)).put("state","complete");write("rich-button-effect.json",result);} } catch(Exception ignored){}
++        try { c.put("callback_id",callbackId).put("message_revision",revision); JSONObject result=currentEffect==null?null:copy(currentEffect); if(result!=null){result.put("requests",new JSONArray().put(c)).put("state","complete").put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);} } catch(Exception ignored){}
 +    }
 +
 +    public static CharSequence clipboard(Context context) {
 +        ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-+        ClipData clip = manager.getPrimaryClip(); return clip == null || clip.getItemCount() == 0 ? null : clip.getItemAt(0).coerceToText(context);
++        ClipData clip=manager.getPrimaryClip();if(clip==null||clip.getItemCount()==0)return null;CharSequence text=clip.getItemAt(0).getText();if(text==null)return null;String value=text.toString();return value.getBytes(StandardCharsets.UTF_8).length<=4096?value:null;
 +    }
++
++    private static void uncertain(String reason){try{if(currentEffect==null)return;JSONObject result=copy(currentEffect).put("state","uncertain").put("reason",reason).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);}catch(Exception ignored){}}
 +
 +    private static void effect(Binding binding, String state, String action, boolean down, boolean up, JSONObject clipboard) {
 +        try {
@@ -306,25 +321,24 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                    .put("world_id",arm.get("world_id")).put("user_id",arm.get("user_id")).put("chat_id",arm.get("chat_id")).put("message_id",arm.get("message_id"))
 +                    .put("revision",arm.get("revision")).put("path",arm.get("path")).put("generation", ++generation).put("uptime_ms", SystemClock.uptimeMillis())
 +                    .put("state", state).put("reason", JSONObject.NULL)
-+                    .put("touch", new JSONObject().put("down_uptime_ms", down ? SystemClock.uptimeMillis() : JSONObject.NULL)
-+                            .put("up_uptime_ms", up ? SystemClock.uptimeMillis() : JSONObject.NULL).put("path", binding.path))
-+                    .put("action", action == null ? JSONObject.NULL : action).put("requests", new JSONArray())
++                    .put("touch", new JSONObject().put("down_uptime_ms", downTime < 0 ? JSONObject.NULL : downTime)
++                            .put("up_uptime_ms", upTime < 0 ? JSONObject.NULL : upTime).put("path", binding.path))
++                    .put("action", action == null ? JSONObject.NULL : action).put("requests", requestChains)
 +                    .put("clipboard", clipboard == null ? JSONObject.NULL : clipboard);
-+            write("rich-button-effect.json", result);
++            currentEffect=result; write("rich-button-effect.json", result);
 +        } catch (Exception ignored) { }
 +    }
 +
 +    private static JSONArray rect(RectF r) { return new JSONArray().put(r.left).put(r.top).put(r.right).put(r.bottom); }
 +    private static JSONObject copy(JSONObject value) throws Exception { return new JSONObject(value.toString()); }
-+    private static void write(String name, JSONObject value) throws Exception {
-+        File temporary = new File(directory, name + ".tmp"); Files.write(temporary.toPath(), value.toString().getBytes(StandardCharsets.UTF_8));
-+        Files.move(temporary.toPath(), new File(directory, name).toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
++    private static void write(String name, JSONObject value) {
++        byte[] bytes=value.toString().getBytes(StandardCharsets.UTF_8);writer.execute(()->{File temporary=new File(directory,name+".tmp");try{Files.write(temporary.toPath(),bytes);Files.move(temporary.toPath(),new File(directory,name).toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(Exception ignored){}finally{temporary.delete();}});
 +    }
 +}
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
---- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java	2026-09-08 04:09:27.956309032 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java	2026-09-08 04:23:13.921697971 +0330
-@@ -83,11 +83,15 @@
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -83,11 +83,16 @@
      }
  
      public static TL_iv.RichMessage decode(JSONObject record) throws JSONException {
@@ -338,20 +352,21 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage
 +
 +    public static TL_iv.RichMessage decode(JSONObject record, java.util.Set<Long> mentionUsers, long revision) throws JSONException {
 +        GramLabButtonObserver.beginDecode(record, revision);
-+        try { return new GramLabRichMessage(mentionUsers).decodeValue(record); }
-+        finally { GramLabButtonObserver.endDecode(); }
++        boolean success=false;
++        try { TL_iv.RichMessage result=new GramLabRichMessage(mentionUsers).decodeValue(record); success=true; return result; }
++        finally { GramLabButtonObserver.endDecode(success); }
      }
  
      private TL_iv.RichMessage decodeValue(JSONObject record) throws JSONException {
-@@ -178,6 +182,7 @@
+@@ -178,6 +183,7 @@
              }
              result.style = style;
          }
-+        GramLabButtonObserver.bindDecoded(result);
++        GramLabButtonObserver.bindDecoded(record, result);
          return result;
      }
  
-@@ -245,6 +250,7 @@
+@@ -245,6 +251,7 @@
              result.text = button.text;
              result.type = button.type;
              result.style = button.style;
@@ -360,8 +375,8 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage
          }
          String type = string(record, "type");
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
---- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java	2026-09-08 04:09:27.953686261 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java	2026-09-08 04:22:31.839266057 +0330
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
 @@ -95,6 +95,7 @@
                          java.nio.file.StandardCopyOption.ATOMIC_MOVE);
              }
@@ -387,8 +402,8 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.jav
              TLObject response = null;
              TLRPC.TL_error error = null;
 diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
---- a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java	2026-09-08 04:09:27.957552077 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java	2026-09-08 04:21:13.644703603 +0330
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayout.java
 @@ -70,6 +70,7 @@
  import androidx.annotation.NonNull;
  import androidx.core.content.ContextCompat;
@@ -445,9 +460,28 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/RichMessageLayou
                  delegate.didPressBotButton(cell, textButton);
              }
          }
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java b/TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java
+@@ -52,6 +52,7 @@
+ import androidx.core.view.inputmethod.InputContentInfoCompat;
+ 
+ import org.json.JSONObject;
++import org.telegram.gramlab.GramLabButtonObserver;
+ import org.telegram.messenger.audioinfo.AudioInfo;
+ import org.telegram.messenger.support.SparseLongArray;
+ import org.telegram.messenger.utils.EphemeralMessagesHelper;
+@@ -4178,6 +4179,7 @@
+                         req.flags |= 1;
+                         req.data = button.getData();
+                     }
++                    GramLabButtonObserver.callbackQuery(button, req);
+                     getConnectionsManager().sendRequest(req, requestDelegate, ConnectionsManager.RequestFlagFailOnServerErrors);
+                 }
+             }
 diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
---- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java	2026-09-08 04:09:27.959209075 +0330
-+++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java	2026-09-08 04:13:12.547801578 +0330
+--- a/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java
 @@ -114,6 +114,7 @@
  import androidx.dynamicanimation.animation.SpringAnimation;
  import androidx.dynamicanimation.animation.SpringForce;
