@@ -83,10 +83,14 @@ Clipboard92's XML correction passes actual row-copy paste/clear in native02. Dia
 also passes inline-copy and inline-disabled paste/clear with complete unchanged semantic snapshots.
 It still fails full acceptance: the row-disabled operation reads a draw sample 10,236 ms old and
 rejects at the unchanged five-second guard before dispatch. Exact source hash, failure frame and
-staged bootstrap are verified. Earlier native02's exact guard was not retained. A four-phase
-acceptance rewrite is active: deliberate public observation per phase, same-lifetime copy baseline
-for each disabled action, and terminal paste/clear; no expired-target renewal or input retry.
-The complete88 native gate remains separate and unchanged. Diagnosed clipboard guest disks are
+staged bootstrap are verified. Earlier native02's exact guard was not retained. The four-phase
+rewrite is integrated with 26 focused checks: deliberate public observation per phase, same-lifetime
+copy baseline for each disabled action, and terminal paste/clear; no expired-target renewal or input
+retry. Native04 passes row-copy but rejects the next phase's inline-copy during preparation. Its
+original observation and before-input PNG are retained, but no freshness-failure record exists;
+the precise later preparation guard remains unproven and a bounded diagnostic follow-up is active.
+The 968-test checkpoint predates this phase rewrite. The complete88 native gate remains separate
+and unchanged. Diagnosed clipboard guest disks are
 retired; their XML, screenshots, operation records, logs and source evidence remain.
 
 Unrelated-edit95 is integrated with two focused controls and complete bot/native oracles. Native01
