@@ -122,8 +122,8 @@ jobs:
         run: uv run --locked mypy tests/probes/android_rich_button_codec.py tests/test_android_rich_button_codec.py tests/test_runner_rich_action_captures.py
       - name: Lint and formatting
         run: |
-          uv run --locked ruff check . tools/test-timings tools/worktree-dependency tools/artifact-store
-          uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency tools/artifact-store
+          uv run --locked ruff check . tools/test-timings tools/worktree-dependency tools/artifact-store tools/android-patch-stage
+          uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency tools/artifact-store tools/android-patch-stage
       - name: Strict Python type checking
         run: >-
           uv run --locked mypy src/gramlab tests/probes/android_guest.py tests/probes/android_native_guard.py
@@ -173,6 +173,8 @@ jobs:
         run: uv run --locked mypy --strict tools/worktree-dependency tests/test_worktree_dependency.py
       - name: Type check archived APK storage
         run: uv run --locked mypy --strict --explicit-package-bases tools/artifact-store tests/test_artifact_store.py
+      - name: Type check private Android patch staging
+        run: uv run --locked mypy --strict --explicit-package-bases tools/android-patch-stage tests/test_android_patch_stage.py
       - name: Type check rich-link acceptance
         run: uv run --locked mypy tests/test_rich_links_round_trip.py tests/test_android_rich_links.py tests/test_runner_rich_link_captures.py tests/probes/rich_links_round_trip.py tests/probes/android_rich_links.py tests/probes/android_message_codec.py
       - name: Type check public rich-button contracts and recovery

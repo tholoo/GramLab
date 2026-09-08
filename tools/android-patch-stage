@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+"""Stage one reviewed Android patch in a private, verified file tree."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import selectors
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import time
+from pathlib import Path, PurePosixPath
+from typing import Any, NoReturn
+
+MAX_INPUT_BYTES = 4 * 1024 * 1024
+MAX_FILES = 128
+MAX_FILE_BYTES = 8 * 1024 * 1024
+MAX_TOTAL_BYTES = 64 * 1024 * 1024
+MAX_COMMAND_BYTES = 1024 * 1024
+PATCH_TIMEOUT_SECONDS = 30
+SHA256 = re.compile(r"[0-9a-f]{64}")
+DIFF_HEADER = re.compile(rb"^diff --git a/([^\s]+) b/([^\s]+)$", re.MULTILINE)
+
+
+class Refusal(Exception):
+    """The requested private staging operation is invalid or unsafe."""
+
+
+def fail(message: str) -> NoReturn:
+    raise Refusal(message)
+
+
+def json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            fail(f"JSON contains duplicate field {key!r}.")
+        result[key] = value
+    return result
+
+
+def read_input(path: Path, label: str) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        fail(f"Cannot open {label}: {exc}")
+    with os.fdopen(descriptor, "rb") as stream:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_INPUT_BYTES:
+            fail(f"{label} must be a bounded regular file.")
+        value = stream.read(MAX_INPUT_BYTES + 1)
+        after = os.fstat(descriptor)
+    if len(value) > MAX_INPUT_BYTES or any(
+        getattr(before, f"st_{key}") != getattr(after, f"st_{key}")
+        for key in ("dev", "ino", "size", "mtime_ns", "ctime_ns")
+    ):
+        fail(f"{label} changed or exceeds {MAX_INPUT_BYTES} bytes.")
+    return value
+
+
+def relative_path(value: Any) -> str:
+    if not isinstance(value, str):
+        fail("Manifest paths must be strings.")
+    path = PurePosixPath(value)
+    if (
+        not value
+        or len(value.encode()) > 4096
+        or path.is_absolute()
+        or "\\" in value
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.as_posix() != value
+    ):
+        fail(f"Unsupported source-relative path: {value!r}")
+    return value
+
+
+def parse_manifest(raw: bytes, label: str, *, allow_empty: bool = False) -> dict[str, str]:
+    try:
+        parsed = json.loads(raw, object_pairs_hook=json_object)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"Cannot parse {label}: {exc}")
+    minimum = 0 if allow_empty else 1
+    if not isinstance(parsed, dict) or len(parsed) < minimum or len(parsed) > MAX_FILES:
+        fail(f"{label} must contain between {minimum} and {MAX_FILES} path digests.")
+    result: dict[str, str] = {}
+    for supplied, digest in parsed.items():
+        path = relative_path(supplied)
+        if not isinstance(digest, str) or SHA256.fullmatch(digest) is None:
+            fail(f"{label} has an invalid SHA-256 for {path}.")
+        result[path] = digest
+    return result
+
+
+def parse_patch(raw: bytes) -> tuple[set[str], set[str]]:
+    forbidden = (
+        b"GIT binary patch",
+        b"Binary files ",
+        b"\nrename from ",
+        b"\nrename to ",
+        b"\ndeleted file mode ",
+        b"\nold mode ",
+        b"\nnew mode ",
+    )
+    if any(marker in raw for marker in forbidden):
+        fail("PATCH contains a binary, rename, delete, or mode-only operation.")
+    sections = list(DIFF_HEADER.finditer(raw))
+    matches = [match.groups() for match in sections]
+    if not matches or len(matches) > MAX_FILES:
+        fail(f"PATCH must contain between 1 and {MAX_FILES} textual file diffs.")
+    if raw[: sections[0].start()].strip():
+        fail("PATCH contains executable or unsupported content before its first file diff.")
+    paths: list[str] = []
+    new_files: set[str] = set()
+    for index, (encoded_before, encoded_after) in enumerate(matches):
+        try:
+            before = relative_path(encoded_before.decode())
+            after = relative_path(encoded_after.decode())
+        except UnicodeDecodeError as exc:
+            fail(f"PATCH path is not UTF-8: {exc}")
+        if before != after:
+            fail("PATCH cannot rename files.")
+        start = sections[index].end()
+        end = sections[index + 1].start() if index + 1 < len(sections) else len(raw)
+        section = raw[start:end]
+        old_headers = re.findall(rb"^--- ([^\t\r\n]+)", section, re.MULTILINE)
+        new_headers = re.findall(rb"^\+\+\+ ([^\t\r\n]+)", section, re.MULTILINE)
+        if len(old_headers) != 1 or len(new_headers) != 1:
+            fail(f"PATCH has malformed file headers for {after}.")
+        expected_old = b"a/" + encoded_before
+        expected_new = b"b/" + encoded_after
+        if old_headers[0] == b"/dev/null":
+            new_files.add(after)
+        elif old_headers[0] != expected_old:
+            fail(f"PATCH has an unsafe old path for {after}.")
+        if new_headers[0] != expected_new:
+            fail(f"PATCH has an unsafe new path for {after}.")
+        paths.append(after)
+    if len(set(paths)) != len(paths):
+        fail("PATCH contains duplicate file sections.")
+    return set(paths), new_files
+
+
+def source_file(root: Path, relative: str, *, required: bool) -> Path | None:
+    current = root
+    for part in PurePosixPath(relative).parts:
+        candidate = current / part
+        try:
+            status = candidate.lstat()
+        except FileNotFoundError:
+            if required:
+                fail(f"Declared source path is missing: {relative}")
+            return None
+        if stat.S_ISLNK(status.st_mode):
+            fail(f"Declared source path contains a symlink: {relative}")
+        current = candidate
+    status = current.stat()
+    if not stat.S_ISREG(status.st_mode):
+        fail(f"Declared source path is not a regular file: {relative}")
+    if status.st_size > MAX_FILE_BYTES:
+        fail(f"Declared source file exceeds {MAX_FILE_BYTES} bytes: {relative}")
+    return current
+
+
+def digest(path: Path) -> tuple[str, int]:
+    value = hashlib.sha256()
+    size = 0
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            value.update(chunk)
+            size += len(chunk)
+            if size > MAX_FILE_BYTES:
+                fail(f"Source file exceeds {MAX_FILE_BYTES} bytes: {path.name}")
+    return value.hexdigest(), size
+
+
+def write_bytes(path: Path, value: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as stream:
+        stream.write(value)
+
+
+def write_json(path: Path, value: dict[str, Any]) -> None:
+    write_bytes(path, (json.dumps(value, indent=2, sort_keys=True) + "\n").encode())
+
+
+def run_patch(command: list[str], directory: Path) -> tuple[int, bytes, bytes, str | None]:
+    process = subprocess.Popen(  # noqa: S603
+        command,
+        cwd=directory,
+        env={**os.environ, "LC_ALL": "C"},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    if process.stdout is None or process.stderr is None:
+        process.kill()
+        process.wait()
+        fail("PATCH command did not provide bounded output streams.")
+    streams = {"stdout": process.stdout, "stderr": process.stderr}
+    buffers = {name: bytearray() for name in streams}
+    selector = selectors.DefaultSelector()
+    for name, stream in streams.items():
+        os.set_blocking(stream.fileno(), False)
+        selector.register(stream, selectors.EVENT_READ, name)
+    deadline = time.monotonic() + PATCH_TIMEOUT_SECONDS
+    drain_deadline: float | None = None
+    failure: str | None = None
+
+    def terminate_group() -> None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+    try:
+        while selector.get_map():
+            now = time.monotonic()
+            if now >= deadline and failure is None:
+                failure = "timeout"
+                drain_deadline = now + 1
+                terminate_group()
+            active_deadline = drain_deadline if drain_deadline is not None else deadline
+            if now >= active_deadline:
+                break
+            ready = selector.select(timeout=min(0.1, active_deadline - now))
+            for key, _events in ready:
+                name = str(key.data)
+                remaining_bytes = MAX_COMMAND_BYTES - len(buffers[name])
+                chunk = os.read(key.fd, min(64 * 1024, remaining_bytes + 1))
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                buffers[name].extend(chunk[:remaining_bytes])
+                if len(chunk) > remaining_bytes and failure is None:
+                    failure = "output"
+                    drain_deadline = time.monotonic() + 1
+                    terminate_group()
+        if process.poll() is None:
+            try:
+                process.wait(timeout=max(0.0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                failure = "timeout"
+                terminate_group()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+    finally:
+        if failure is not None or process.poll() is None:
+            terminate_group()
+        selector.close()
+        for stream in streams.values():
+            stream.close()
+        if process.poll() is None:
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                pass
+    returncode = process.returncode if process.returncode is not None else -signal.SIGKILL
+    return returncode, bytes(buffers["stdout"]), bytes(buffers["stderr"]), failure
+
+
+def stage(
+    source_value: str | Path,
+    patch_value: str | Path,
+    before_value: str | Path,
+    after_value: str | Path,
+    output_value: str | Path,
+) -> dict[str, Any]:
+    source_input = Path(source_value)
+    if source_input.is_symlink():
+        fail("SOURCE must be a real directory, not a symlink.")
+    try:
+        source = source_input.resolve(strict=True)
+    except OSError as exc:
+        fail(f"SOURCE is unavailable: {exc}")
+    if not source.is_dir():
+        fail("SOURCE must be a directory.")
+
+    patch_path = Path(patch_value)
+    before_path = Path(before_value)
+    after_path = Path(after_value)
+    patch_raw = read_input(patch_path, "PATCH")
+    before_raw = read_input(before_path, "BEFORE manifest")
+    after_raw = read_input(after_path, "AFTER manifest")
+
+    output = Path(output_value)
+    if output.exists() or output.is_symlink():
+        fail(f"OUTPUT must be fresh: {output}")
+    output_parent = output.parent.resolve(strict=True)
+    output = output_parent / output.name
+    if output == source or source in output.parents:
+        fail("OUTPUT must be outside SOURCE.")
+    output.mkdir()
+    inputs = output / "inputs"
+    inputs.mkdir()
+    write_bytes(inputs / "patch.diff", patch_raw)
+    write_bytes(inputs / "before-sha256.json", before_raw)
+    write_bytes(inputs / "after-sha256.json", after_raw)
+
+    status: dict[str, Any] = {
+        "schema": 1,
+        "status": "failed",
+        "source": str(source),
+        "output": str(output),
+        "patch": str(patch_path.resolve()),
+        "before_manifest": str(before_path.resolve()),
+        "after_manifest": str(after_path.resolve()),
+    }
+    try:
+        before = parse_manifest(before_raw, "BEFORE manifest", allow_empty=True)
+        after = parse_manifest(after_raw, "AFTER manifest")
+        affected, patch_new_files = parse_patch(patch_raw)
+        if affected != set(after) or not set(before) <= affected:
+            fail("PATCH paths and declared BEFORE/AFTER paths do not match exactly.")
+        new_files = affected - set(before)
+        if new_files != patch_new_files:
+            fail("BEFORE manifest does not declare new files exactly as PATCH does.")
+        total = 0
+        sources: dict[str, Path] = {}
+        for relative in sorted(affected):
+            current = source_file(source, relative, required=relative not in new_files)
+            if relative in new_files:
+                if current is not None:
+                    fail(f"Declared new file already exists: {relative}")
+                continue
+            if current is None:
+                fail(f"Declared source path is missing: {relative}")
+            observed, size = digest(current)
+            total += size
+            if total > MAX_TOTAL_BYTES:
+                fail(f"Declared source files exceed {MAX_TOTAL_BYTES} bytes in total.")
+            if observed != before[relative]:
+                fail(f"Stale source preimage: {relative}")
+            sources[relative] = current
+
+        before_tree = output / "before"
+        after_tree = output / "after"
+        before_tree.mkdir()
+        after_tree.mkdir()
+        for relative in new_files:
+            (after_tree / PurePosixPath(relative)).parent.mkdir(parents=True, exist_ok=True)
+        for relative, current in sources.items():
+            for tree in (before_tree, after_tree):
+                destination = tree / PurePosixPath(relative)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(current, destination, follow_symlinks=False)
+                copied, _size = digest(destination)
+                if copied != before[relative]:
+                    fail(f"Source changed while copying its preimage: {relative}")
+
+        executable = shutil.which("patch")
+        if executable is None:
+            fail("Required patch executable is unavailable.")
+        returncode, stdout, stderr, command_failure = run_patch(
+            [executable, "--batch", "--fuzz=0", "-p1", "-i", str(inputs / "patch.diff")],
+            after_tree,
+        )
+        write_bytes(output / "patch.stdout", stdout)
+        write_bytes(output / "patch.stderr", stderr)
+        if command_failure == "timeout":
+            fail(f"PATCH command exceeded {PATCH_TIMEOUT_SECONDS} seconds.")
+        if command_failure == "output":
+            fail("PATCH command output exceeded its retained bound.")
+        if returncode != 0:
+            fail(f"PATCH command failed with status {returncode}.")
+        command_output = stdout + stderr
+        lowered = command_output.lower()
+        if b"fuzz" in lowered or b"offset" in lowered:
+            fail("PATCH applied with fuzz or an offset.")
+
+        produced = {
+            path.relative_to(after_tree).as_posix()
+            for path in after_tree.rglob("*")
+            if path.is_file()
+        }
+        if produced != affected:
+            fail("PATCH produced undeclared or missing files in the private tree.")
+        for relative in sorted(affected):
+            staged = source_file(after_tree, relative, required=True)
+            if staged is None:
+                fail(f"PATCH did not create its declared path: {relative}")
+            observed, _size = digest(staged)
+            if observed != after[relative]:
+                fail(f"Unexpected staged postimage: {relative}")
+        status.update(
+            {
+                "status": "ready",
+                "affected": sorted(affected),
+                "new_files": sorted(new_files),
+                "before_sha256": before,
+                "after_sha256": after,
+                "patch_sha256": hashlib.sha256(patch_raw).hexdigest(),
+            }
+        )
+        return status
+    finally:
+        write_json(output / "stage.json", status)
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("--source", required=True)
+    result.add_argument("--patch", required=True)
+    result.add_argument("--before-sha256", required=True)
+    result.add_argument("--after-sha256", required=True)
+    result.add_argument("--output", required=True)
+    return result
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    try:
+        result = stage(
+            arguments.source,
+            arguments.patch,
+            arguments.before_sha256,
+            arguments.after_sha256,
+            arguments.output,
+        )
+    except (OSError, Refusal) as exc:
+        print(f"android-patch-stage: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

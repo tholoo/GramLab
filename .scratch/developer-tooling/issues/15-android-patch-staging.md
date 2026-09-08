@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Blocked by: coordinator integration
+Work state: resolved
+Blocked by: none
 
 Own this ticket, `tools/android-patch-stage`, focused `tests/test_android_patch_stage.py` and
 `docs/development/android-patch-staging.md`. Coordinator owns live source mutation, builds,
@@ -24,3 +24,29 @@ Do not build a general cleanup, recovery or live-source mutation framework. Keep
 only in generated ignored manifests. Focused tests should use real patch execution and temporary
 files, including failure cases that prove live source bytes are unchanged. No guest/build/full
 gate, archive mutation or external traffic. Return a clean frozen branch and focused checks.
+
+## Worker evidence
+
+`tools/android-patch-stage` accepts explicit source, patch, before/after SHA-256 manifest and fresh
+output paths. It retains exact inputs, copies only declared existing paths into private before and
+after trees, creates private parents for declared new files, invokes the system patch tool with
+zero fuzz, and verifies the complete expected postimage set. The generated `stage.json` contains
+machine paths and stays in the caller's ignored output.
+
+Fifteen real temporary-filesystem cases execute the actual patch subprocess and cover an existing
+edit plus a new file, stale preimages, wrong postimages, undeclared changes, nonapplying/offset
+input, binary/rename/delete markers, symlinked source paths, duplicate manifest fields, output
+collisions, manifest traversal, a traversing patch header, an unframed create/delete prefix and
+runtime enforcement of the command-output bound, an empty before manifest for an all-new patch,
+and bounded termination of an owned descendant holding the output pipe. Every failure control compares the
+live source or the relevant outside target unchanged and retains a failed stage when output was
+created. Final JUnit is retained at `artifacts/android-patch-staging-final.xml`; scoped Ruff,
+formatting, strict mypy and bytecode compilation pass. No live Android source, APK, build, guest,
+network or shared configuration was changed.
+
+## Coordinator integration
+
+All 15 focused checks pass from the primary checkout under the outer network guard in
+`artifacts/android-patch-staging-integrated-01.xml`. Scoped Ruff lint/format and strict typing
+pass. Contributor and CI checks now include the extensionless tool explicitly. The helper is
+ready for private patch preparation; applying live source and native acceptance remain separate.

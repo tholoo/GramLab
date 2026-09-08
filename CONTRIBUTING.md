@@ -22,8 +22,8 @@ Nix and direnv changes. Store host inventory, proxy addresses and other machine-
 
 ```sh
 uv sync --locked
-uv run --locked ruff check . tools/test-timings tools/worktree-dependency tools/artifact-store
-uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency tools/artifact-store
+uv run --locked ruff check . tools/test-timings tools/worktree-dependency tools/artifact-store tools/android-patch-stage
+uv run --locked ruff format --check . tools/test-timings tools/worktree-dependency tools/artifact-store tools/android-patch-stage
 ```
 
 Pytest checks that its imported GramLab package belongs to this checkout before running tests.
@@ -82,6 +82,7 @@ MYPYPATH=tests uv run --locked mypy --explicit-package-bases \
 uv run --locked mypy tools/test-timings tests/test_test_timings.py
 uv run --locked mypy --strict tools/worktree-dependency tests/test_worktree_dependency.py
 uv run --locked mypy --strict --explicit-package-bases tools/artifact-store tests/test_artifact_store.py
+uv run --locked mypy --strict --explicit-package-bases tools/android-patch-stage tests/test_android_patch_stage.py
 uv run --locked mypy --strict tests/assets/rich-media/generate.py tests/assets/rich-media/verify.py tests/assets/rich-media/jpeg_generate.py tests/assets/rich-media/jpeg_verify.py
 uv run --locked mypy --strict tests/assets/custom-emoji/generate.py tests/assets/custom-emoji/verify.py tests/assets/custom-emoji/toolchain.py
 uv run --locked mypy tests/test_quoted_code_entities.py tests/test_quoted_code_round_trip.py \
@@ -169,3 +170,6 @@ meaning of suite coverage.
 For completed APK archives, the [artifact storage tool](docs/development/artifact-storage.md)
 retains original paths and bytes through verified read-only content objects. Review its explicit
 plan before applying it; keep generated host inventory and receipts in ignored local storage.
+
+Use [private Android patch staging](docs/development/android-patch-staging.md) to verify a new
+patch against independent before/after hashes before applying it to cached Android source.
