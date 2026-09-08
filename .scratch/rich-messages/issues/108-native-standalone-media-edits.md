@@ -2,7 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed
+Owner: task/native-media-edit-acceptance
 Blocked by: host work may proceed independently; native execution requires verified104 delivery
 
 Extend the existing105 real-bot document scenario with the merged106 media operations. This is
@@ -75,3 +76,13 @@ full suite, new upstream export or dependency changes. Coordinator runs actual n
 on the reviewed delivery APK after104 passes and will assign any evidenced adapter defect separately.
 Freeze a clean commit and report exact red/green scope, provenance, terminal processes, shared-doc
 impact and remaining native acceptance; do not resolve this ticket from host-only results.
+
+## Comments
+
+- Retrospective pre-extension host red retained at `/tmp/gramlab-108-red/host-red.xml` against
+  base `69fb7348bc20da4a1564c8b0e39534ff55e3ddfd`: the independently added four-operation scene
+  inventory failed with `KeyError: 'edit_sequence'`. This is missing acceptance coverage, not a
+  production defect claim.
+- The contained real-bot/HTTP/World scenario and focused host controls pass after extension. Native
+  rendering remains unexecuted and this ticket remains claimed pending coordinator review and the
+  actual reviewed-APK run after ticket104 succeeds.

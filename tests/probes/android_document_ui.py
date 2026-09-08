@@ -19,7 +19,7 @@ from typing import Any, NoReturn, Self, cast
 from urllib.parse import urlsplit
 
 from android_guest import main
-from document_round_trip import DOCUMENT_BYTES, SCENE, run
+from document_round_trip import DOCUMENT_BYTES, PHOTO_PATH, REPLACEMENT_DOCUMENT_BYTES, SCENE, run
 
 PACKAGE = "org.gramlab.android"
 CONFIG = "files/gramlab/config.json"
@@ -448,7 +448,12 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         ]
         copies: list[dict[str, str | int]] = []
         for path, internal in paths:
-            if Path(path).name not in (SCENE["file_name"], "-1_-1.pdf"):
+            if Path(path).name not in (
+                SCENE["file_name"],
+                SCENE["replacement_file_name"],
+                "-1_-1.pdf",
+                "3_1.jpg",
+            ):
                 continue
             quoted = shlex.quote(path)
             command = ("shell", "run-as", PACKAGE) if internal else ("shell",)
@@ -493,10 +498,52 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             time.sleep(0.2)
         fail("download", "Original document download did not complete")
 
+    def wait_for_media(
+        name: str, kind: str, identifier: str, size: int, request_start: int
+    ) -> None:
+        deadline = time.monotonic() + 45
+        key = "document_id" if kind == "document" else "asset_id"
+        expected = int(identifier) if kind == "asset" else identifier
+        while time.monotonic() < deadline:
+            rows = trace(name)
+            current = proxy.requests()[request_start:] if proxy is not None else []
+            if any(
+                row["kind"] == kind
+                and row["identifier"] == identifier
+                and row["status"] == 200
+                and row["bytes"] == size
+                and row["error"] is None
+                for row in current
+            ) and any(
+                row.get("event") == "media_load_success"
+                and row.get(key) == expected
+                and row.get("digest_ok") is True
+                for row in rows
+            ):
+                return
+            time.sleep(0.2)
+        fail(name, f"Original {kind} transfer did not complete")
+
+    def wait_for_photo_cleanup(name: str) -> None:
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            value = cache_files(name)
+            if not any(Path(str(row["path"])).name == "3_1.jpg" for row in value["copies"]):
+                return
+            time.sleep(0.2)
+        fail(name, "Replaced P1 selected destination survived D2 application")
+
     def show(configuration: dict[str, Any]) -> str:
         nonlocal proxy
         name = str(configuration["stage"])
-        if name not in ("initial", "reused", "restart"):
+        if name not in (
+            "initial",
+            "document_caption",
+            "photo",
+            "photo_caption",
+            "document_final",
+            "restart",
+        ):
             raise RuntimeError("Unexpected document UI phase")
         if proxy is None:
             adb("install", "--no-streaming", "/work/client.apk", timeout=60)
@@ -509,7 +556,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 "initial",
                 (SCENE["file_name"], SCENE["caption"], SCENE["button_text"]),
             )
-            before = len(proxy.requests())
+            before = phases[name]["request_start"]
             if any(row["kind"] == "document" for row in proxy.requests()):
                 fail(
                     "download-preload",
@@ -537,10 +584,66 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             )
             return ui
 
-        if name == "reused":
+        if name == "document_caption":
             proxy.retarget(configuration["endpoint"])
-            ui = screen("reused", (SCENE["file_name"], SCENE["reuse_caption"]), applied=True)
-            cache_files("reused")
+            step = SCENE["edit_sequence"][0]
+            ui = screen(
+                name, (SCENE["file_name"], step["caption"], step["button_text"]), applied=True
+            )
+            cache_files(name)
+            return ui
+
+        if name == "photo":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][1]
+            before = phases[name]["request_start"]
+            ui = screen(name, (step["caption"], step["button_text"]), applied=True)
+            wait_for_media(name, "asset", "3", PHOTO_PATH.stat().st_size, before)
+            cache_files(name)
+            return ui
+
+        if name == "photo_caption":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][2]
+            ui = screen(name, (step["caption"], step["button_text"]), applied=True)
+            cache_files(name)
+            return ui
+
+        if name == "document_final":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][3]
+            ui = screen(
+                name,
+                (SCENE["replacement_file_name"], step["caption"], step["button_text"]),
+                applied=True,
+            )
+            before = len(proxy.requests())
+            if any(
+                row["kind"] == "document" and row["identifier"] == "2" for row in proxy.requests()
+            ):
+                fail("replacement-download-preload", "D2 transferred before its filename tap", ui)
+            bounds = target(ui, SCENE["replacement_file_name"])
+            taps["replacement-download"] = {
+                "label": SCENE["replacement_file_name"],
+                "bounds": bounds,
+                "requests_before": before,
+            }
+            adb(
+                "shell",
+                "input",
+                "tap",
+                str((bounds[0] + bounds[2]) // 2),
+                str((bounds[1] + bounds[3]) // 2),
+            )
+            wait_for_media(
+                "document-final-downloaded",
+                "document",
+                "2",
+                len(REPLACEMENT_DOCUMENT_BYTES),
+                before,
+            )
+            taps["replacement-download"]["requests_after"] = len(proxy.requests())
+            wait_for_photo_cleanup(name)
             return ui
 
         adb("shell", "am", "force-stop", PACKAGE)
@@ -548,18 +651,22 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         write_config(configuration)
         begin_phase("restart")
         launch("restart")
-        ui = screen("restart-bottom", (SCENE["file_name"], SCENE["reuse_caption"]))
+        final = SCENE["edit_sequence"][3]
+        ui = screen(
+            "restart-bottom",
+            (SCENE["replacement_file_name"], final["caption"], final["button_text"]),
+        )
         for attempt in range(5):
             adb("shell", "uiautomator", "dump", "/data/local/tmp/document-ui.xml", timeout=15)
             older = adb("shell", "cat", "/data/local/tmp/document-ui.xml").stdout
-            if SCENE["caption"] in older and SCENE["button_text"] in older:
+            if SCENE["reuse_caption"] in older and SCENE["file_name"] in older:
                 captures["restart-top"] = retain("restart-top.xml", older)
                 screenshot("restart-top")
                 break
             if attempt == 4:
                 fail(
                     "restart-top",
-                    "Cold restart did not retain the original document and keyboard",
+                    "Cold restart did not retain unchanged D1 reuse above final D2",
                     older,
                 )
             adb("shell", "input", "swipe", "160", "220", "160", "520", "300")
@@ -568,12 +675,35 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return ui
 
     def tap(name: str, label: str) -> None:
-        if name != "initial" or label != SCENE["button_text"] or proxy is None:
+        if proxy is None:
             raise RuntimeError("Unexpected document callback target")
-        begin_phase("reused")
-        ui = captures["downloaded"]
+        phase = "document_caption" if name == "initial" else name
+        expected = (
+            SCENE["button_text"]
+            if name == "initial"
+            else next(
+                step["button_text"]
+                for step in SCENE["edit_sequence"]
+                if step["button_text"] == label
+            )
+        )
+        if label != expected:
+            raise RuntimeError("Unexpected document callback label")
+        begin_phase(phase)
+        source = (
+            "downloaded"
+            if name == "initial"
+            else (
+                "document_caption"
+                if name == "photo"
+                else "photo"
+                if name == "photo_caption"
+                else "photo_caption"
+            )
+        )
+        ui = captures[source]
         bounds = target(ui, label)
-        taps["callback"] = {"label": label, "bounds": bounds}
+        taps[phase] = {"label": label, "bounds": bounds}
         adb(
             "shell",
             "input",
