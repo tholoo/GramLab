@@ -347,3 +347,80 @@ def test_capture_redaction_preserves_xml_and_native_password_flag(
     assert len(commands) == 2 and commands[0][:3] == ("shell", "uiautomator", "dump")
     assert captures == [directory / "empty.png"]
     assert record["ui_representation"] == "xml_with_redacted_attribute_and_text_values"
+
+
+@pytest.mark.parametrize("mode", ["returned", "raised", "missing", "oversized"])
+def test_fresh_diagnostic_preserves_actual_frame_return_exception_and_existing_evidence(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    from probes.rich_native_clipboard_supervisor import install_fresh_diagnostic
+
+    directory = Path("rich-buttons") / ("5" * 32)
+    directory.mkdir(parents=True)
+    state: dict[str, Any] = {
+        "directory": directory,
+        "arm": {"operation_id": "5" * 32, "chat_id": 1, "message_id": 2},
+        "target": {"path": ["blocks", 16, "buttons", 1], "label": SECRET},
+        "pid": 4321,
+        "record": {"never_retained_world": "private World record"},
+    }
+    returned = {"original": "same object"}
+    failure = ValueError("original failure " + SECRET)
+    calls = 0
+
+    def original(self: AndroidRichInput, actual: dict[str, Any]) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        assert actual is state
+        if mode == "missing":
+            raise failure
+        sample: dict[str, Any] = {"generation": 37, "drawn_uptime_ms": 82603, "label": SECRET}
+        if mode == "oversized":
+            sample["padding"] = "x" * (256 * 1024)
+        pid, now = 4321, 103000
+        if mode == "returned":
+            return returned
+        assert pid == state["pid"] and now - int(sample["drawn_uptime_ms"]) > 5000
+        raise failure
+
+    monkeypatch.setattr(AndroidRichInput, "_fresh", original)
+    install_fresh_diagnostic()
+    path = directory / "fresh-failure.json"
+    if mode == "returned":
+        assert native_host._fresh(state) is returned
+        assert calls == 1 and not path.exists()
+        return
+    with pytest.raises(ValueError) as caught:
+        native_host._fresh(state)
+    assert caught.value is failure and calls == 1
+    raw = path.read_bytes()
+    evidence = json.loads(raw)
+    assert len(raw) <= 128 * 1024
+    assert SECRET.encode() not in raw and b"private World record" not in raw
+    assert evidence["operation_id"] == "5" * 32
+    assert evidence["exception_class"] == "ValueError"
+    assert evidence["source"] == {
+        "file": Path(original.__code__.co_filename).name,
+        "sha256": hashlib.sha256(Path(original.__code__.co_filename).read_bytes()).hexdigest(),
+    }
+    traceback = caught.value.__traceback__
+    while traceback is not None and traceback.tb_frame.f_code is not original.__code__:
+        traceback = traceback.tb_next
+    assert traceback is not None and evidence["line"] == traceback.tb_lineno
+    if mode == "oversized":
+        assert evidence["details_omitted"] == "record_exceeds_bound"
+    elif mode == "missing":
+        assert evidence["locals"] == {}
+        assert evidence["missing_locals"] == ["sample", "pid", "now"]
+    else:
+        assert evidence["locals"] == {
+            "sample": {"generation": 37, "drawn_uptime_ms": 82603, "label": "[REDACTED]"},
+            "pid": 4321,
+            "now": 103000,
+        }
+        assert evidence["missing_locals"] == []
+        assert evidence["state"]["target"]["label"] == "[REDACTED]"
+        assert "record" not in evidence["state"]
+    with pytest.raises(ValueError) as repeated:
+        native_host._fresh(state)
+    assert repeated.value is failure and calls == 2 and path.read_bytes() == raw
