@@ -1,8 +1,8 @@
 # Preserve exact rich-button provenance through original message storage
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: ready-for-review
+Work state: frozen on task/rich-button-native-persistence
 Blocked by: coordinator integration and native acceptance
 
 Own this ticket and new `clients/android/patches/0026-rich-button-local-provenance.patch`.
@@ -58,3 +58,18 @@ shows row and inline controls in the intended viewport, and the private activati
 successfully while the observation file is absent. The standalone actual Android serialization
 diagnostic reports both original objects mapped, both identities changed, and both rebuilt objects
 unmapped, followed by the expected failing assertion. These are retained failures, not acceptance.
+
+## Worker evidence
+
+Patch 0026 stores immutable schema-1 UTF-8 occurrence provenance and its exact applied revision in
+stock message `custom_params` under unused v1 flag 14. Authoritative empty records clear prior
+button metadata. Restore validates strict JSON, exact canonical paths, complete canonical buttons
+and reconstructed row/inline object kinds before publishing any identity binding. Invalid metadata
+clears only GramLab provenance and preserves message content.
+
+Stock load-type -2 and replace-if-existing paths retain incoming destination provenance while
+merging old stock local parameters. Custom-only updates preserve the row-local provenance already
+read from SQLite and never copy caller provenance. The four adapter/TL/helper sources compile with
+`javac -proc:none` against normal25 and cached dependencies. Standalone `MessagesStorage` checking
+reaches the source but remains unavailable because the cached classpath exposes an unrelated
+`LinkedHashMap.Entry` visibility mismatch. No Gradle build or guest was run.
