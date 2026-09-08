@@ -71,6 +71,14 @@ _CLIENT_SENDS_TABLE = """
 """
 
 
+_MEDIA_BLOBS_TABLE = "CREATE TABLE media_blobs (sha256 TEXT PRIMARY KEY, body BLOB NOT NULL)"
+_ASSETS_TABLE = (
+    "CREATE TABLE assets (id INTEGER PRIMARY KEY, "
+    "sha256 TEXT NOT NULL UNIQUE REFERENCES media_blobs(sha256), mime_type TEXT NOT NULL, "
+    "extension TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL)"
+)
+
+
 def _inline_keyboard(markup: dict[str, Any] | None) -> dict[str, Any] | None:
     if markup is None:
         return None
@@ -146,11 +154,8 @@ class World:
                 {_CALLBACK_TABLE};
                 {_CLIENT_CHANGES_TABLE};
                 {_CLIENT_SENDS_TABLE};
-                CREATE TABLE assets (
-                    id INTEGER PRIMARY KEY, sha256 TEXT NOT NULL UNIQUE, mime_type TEXT NOT NULL,
-                    extension TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
-                    body BLOB NOT NULL
-                );
+                {_MEDIA_BLOBS_TABLE};
+                {_ASSETS_TABLE};
                 CREATE TABLE bot_files (
                     bot_id INTEGER NOT NULL REFERENCES bots(id), file_id TEXT NOT NULL UNIQUE,
                     asset_id INTEGER NOT NULL REFERENCES assets(id), PRIMARY KEY(bot_id, asset_id)
@@ -188,7 +193,7 @@ class World:
                     user_id INTEGER NOT NULL REFERENCES users(id), custom_emoji_id INTEGER NOT NULL
                     REFERENCES custom_emoji(id), PRIMARY KEY(user_id, custom_emoji_id)
                 );
-                PRAGMA user_version=7;
+                PRAGMA user_version=8;
             """  # noqa: S608
             )
             with connection:
@@ -303,7 +308,28 @@ class World:
                             "CREATE TABLE IF NOT EXISTS custom_emoji_grants (user_id INTEGER NOT NULL REFERENCES users(id), custom_emoji_id INTEGER NOT NULL REFERENCES custom_emoji(id), PRIMARY KEY(user_id, custom_emoji_id))"  # noqa: E501
                         )
                         connection.execute("PRAGMA user_version=7")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 7:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 7:
+                # Table replacement must not delete grants or rewrite their FK targets.
+                # This fresh connection has no caller transaction; restore enforcement in cls.
+                connection.execute("PRAGMA foreign_keys=OFF")
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 7:
+                        connection.execute(_MEDIA_BLOBS_TABLE)
+                        connection.execute(
+                            "INSERT INTO media_blobs SELECT sha256, body FROM assets"
+                        )
+                        connection.execute(_ASSETS_TABLE.replace("assets (", "assets_next ("))
+                        connection.execute(
+                            "INSERT INTO assets_next SELECT id, sha256, mime_type, extension, "
+                            "width, height FROM assets"
+                        )
+                        connection.execute("DROP TABLE assets")
+                        connection.execute("ALTER TABLE assets_next RENAME TO assets")
+                        if connection.execute("PRAGMA foreign_key_check").fetchall():
+                            raise ValueError("World media migration violates foreign keys")
+                        connection.execute("PRAGMA user_version=8")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 8:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -1080,7 +1106,11 @@ class World:
             self._connection.execute("SELECT COALESCE(MAX(id), 0)+1 FROM assets").fetchone()[0]
         )
         self._connection.execute(
-            "INSERT INTO assets VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO media_blobs VALUES (?, ?) ON CONFLICT(sha256) DO NOTHING",
+            (image.sha256, image.data),
+        )
+        self._connection.execute(
+            "INSERT INTO assets VALUES (?, ?, ?, ?, ?, ?)",
             (
                 asset_id,
                 image.sha256,
@@ -1088,7 +1118,6 @@ class World:
                 image.extension,
                 image.width,
                 image.height,
-                image.data,
             ),
         )
         return asset_id
@@ -1193,7 +1222,8 @@ class World:
 
     def asset_descriptor(self, asset_id: int) -> dict[str, Any]:
         row = self._connection.execute(
-            "SELECT mime_type, length(body), sha256, width, height FROM assets WHERE id=?",
+            "SELECT a.mime_type, length(b.body), a.sha256, a.width, a.height "
+            "FROM assets a JOIN media_blobs b ON b.sha256=a.sha256 WHERE a.id=?",
             (asset_id,),
         ).fetchone()
         if row is None:
@@ -1225,8 +1255,9 @@ class World:
 
     def bot_file(self, bot_id: int, file_id: str) -> tuple[dict[str, Any], bytes]:
         row = self._connection.execute(
-            "SELECT a.id, a.sha256, a.extension, a.mime_type, a.body FROM bot_files f "
-            "JOIN assets a ON a.id=f.asset_id WHERE f.bot_id=? AND f.file_id=?",
+            "SELECT a.id, a.sha256, a.extension, a.mime_type, b.body FROM bot_files f "
+            "JOIN assets a ON a.id=f.asset_id JOIN media_blobs b ON b.sha256=a.sha256 "
+            "WHERE f.bot_id=? AND f.file_id=?",
             (bot_id, file_id),
         ).fetchone()
         if row is None:
@@ -1242,8 +1273,8 @@ class World:
 
     def granted_asset(self, user_id: int, asset_id: int) -> tuple[dict[str, Any], bytes]:
         row = self._connection.execute(
-            "SELECT a.body FROM asset_grants g JOIN assets a ON a.id=g.asset_id "
-            "WHERE g.user_id=? AND g.asset_id=?",
+            "SELECT b.body FROM asset_grants g JOIN assets a ON a.id=g.asset_id "
+            "JOIN media_blobs b ON b.sha256=a.sha256 WHERE g.user_id=? AND g.asset_id=?",
             (user_id, asset_id),
         ).fetchone()
         if row is None:
