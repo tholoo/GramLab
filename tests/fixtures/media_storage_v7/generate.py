@@ -7,6 +7,7 @@ import json
 import sqlite3
 import sys
 import tempfile
+from contextlib import closing
 from pathlib import Path
 
 from PIL import Image
@@ -119,7 +120,7 @@ def main() -> None:
                 "file_ids": [world.photo_size(2, asset)["file_id"] for asset in range(1, 5)],
             }
             expected = observe(world, identities)
-        with sqlite3.connect(directory / "world.sqlite3") as connection:
+        with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
             if connection.execute("PRAGMA user_version").fetchone() != (7,):
                 raise SystemExit("Expected a genuine schema-7 source database")
             sql = "\n".join(connection.iterdump()) + "\nPRAGMA user_version=7;\n"

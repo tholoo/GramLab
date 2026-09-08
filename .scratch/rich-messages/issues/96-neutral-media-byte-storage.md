@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by neutral-media-byte-storage; implementation complete, awaiting coordinator review
+Work state: resolved
 Blocked by: none
 
 Prepare the approved World-owned file support by separating immutable bytes from existing
@@ -113,3 +113,13 @@ assigned scope. All 53 selected World/migration/media HTTP/bridge/contained-bot 
 including the worker's previously loopback-blocked case and document HTTP. Scoped strict typing,
 lint and formatting pass. Evidence: `artifacts/media-storage-integrated-01.xml`. Contributor/CI
 strict scopes include the four files. Combined gate and shared checkpoint remain pending.
+
+## Answer
+
+Core11 passes 968 tests at 87.36% coverage in 139.41 seconds, including this migration; all 57
+static commands pass. The gate also exposed 41 ResourceWarnings from fixture connections: SQLite's
+transaction context does not close its connection. Explicit `closing` now releases these test and
+manual-generator connections; all 23 migration/media World checks pass with ResourceWarning and
+PytestUnraisableExceptionWarning treated as errors, and scoped typing/lint/format pass. This fixes
+test-resource cleanup without changing migration behavior or retained legacy fixture bytes.
+Evidence: `artifacts/media-storage-resource-cleanup-01.xml`. Ordinary file APIs remain open.

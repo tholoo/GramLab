@@ -4,6 +4,7 @@ import json
 import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +86,7 @@ def observe(world: World, identities: dict[str, Any]) -> dict[str, Any]:
 def legacy_world(tmp_path: Path) -> Path:
     directory = tmp_path / "world"
     directory.mkdir(mode=0o700)
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.executescript((FIXTURE / "world.sql").read_text())
         assert connection.execute("PRAGMA user_version").fetchone() == (7,)
@@ -103,7 +104,7 @@ def test_populated_v7_preserves_public_contract_and_reopen(tmp_path: Path) -> No
     directory = legacy_world(tmp_path)
     assert_legacy_outputs(directory)
     assert_legacy_outputs(directory)
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         assert connection.execute("PRAGMA user_version").fetchone() == (8,)
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
@@ -119,7 +120,7 @@ def test_populated_v7_preserves_public_contract_and_reopen(tmp_path: Path) -> No
 
 
 def database_state(directory: Path) -> tuple[int, list[str]]:
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         return connection.execute("PRAGMA user_version").fetchone()[0], list(connection.iterdump())
 
 
@@ -142,7 +143,7 @@ def schema(connection: sqlite3.Connection) -> dict[str, Any]:
 
 def test_migration_retains_every_row_byte_and_foreign_key(tmp_path: Path) -> None:
     directory = legacy_world(tmp_path)
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         assets = connection.execute("SELECT * FROM assets ORDER BY id").fetchall()
         tables = [
             row[0]
@@ -156,7 +157,7 @@ def test_migration_retains_every_row_byte_and_foreign_key(tmp_path: Path) -> Non
             for table in tables
         }
     with World.open(directory) as world:
-        with sqlite3.connect(directory / "world.sqlite3") as connection:
+        with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
             assert connection.execute("SELECT * FROM assets ORDER BY id").fetchall() == [
                 row[:-1] for row in assets
             ]
@@ -261,7 +262,7 @@ def test_concurrent_openers_recheck_version_after_writer_lock(
 
 def test_future_version_is_rejected_without_changes(tmp_path: Path) -> None:
     directory = legacy_world(tmp_path)
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         connection.execute("PRAGMA user_version=9")
     before = database_state(directory)
     with pytest.raises(ValueError, match="Unsupported world schema"):
@@ -271,13 +272,13 @@ def test_future_version_is_rejected_without_changes(tmp_path: Path) -> None:
 
 def test_invalid_legacy_foreign_key_aborts_without_partial_migration(tmp_path: Path) -> None:
     directory = legacy_world(tmp_path)
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         connection.execute("INSERT INTO asset_grants VALUES (4, 999)")
     before = database_state(directory)
     with pytest.raises(ValueError, match="foreign keys"):
         World.open(directory)
     assert database_state(directory) == before
-    with sqlite3.connect(directory / "world.sqlite3") as connection:
+    with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
         connection.execute("DELETE FROM asset_grants WHERE asset_id=999")
     assert_legacy_outputs(directory)
 
