@@ -76,3 +76,16 @@ Worker verification:
 
 No guest or full APK build ran in this worker. Coordinator acceptance remains the normal27 red,
 normal28 green, unchanged four-phase clipboard endpoint and combined checks specified above.
+
+## Coordinator native evidence
+
+Patch0028 is integrated and normal28 builds offline with unchanged original drawing/input. The
+same immutable reflection probe ran against both APKs: normal27 failed exactly stale activation
+and stale client, with the other eight controls passing (62.51 seconds); normal28 passed all ten
+controls (52.67 seconds). Two focused host checks and the documented strict typing scope pass.
+These runs prove the native disarm lifetime correction, not full clipboard interaction.
+
+Unchanged four-phase clipboard92 on normal28 reaches all six clipboard probe records but fails
+its acceptance assertion in137.30 seconds. That failure remains under investigation; this ticket
+stays open pending clipboard and combined acceptance. The original red/green results, probe APK,
+source/APK provenance and diagnostics are retained; completed control guest disks are retired.

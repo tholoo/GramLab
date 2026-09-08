@@ -67,8 +67,8 @@ isolated workers and no simultaneous guest. All57 documented static commands, Ru
 across497 files and configuration/links in245 Markdown documents pass. This includes92's four-phase
 scenario and original prepare/freshness diagnostics,95's reduced pre-prepare work and failure
 retention, and96's fixture-connection cleanup. No resource warnings remain in this combined run.
-Successful temporary core fixtures are retired after preserving JUnit, logs and outcome. The
-in-progress document metadata97 and native disarm98 workers are not part of this checkpoint.
+Successful temporary core fixtures are retired after preserving JUnit, logs and outcome. This core checkpoint predates integrated document metadata97 and native disarm98. A later
+static12 run passes all59 documented static commands; combined runtime verification is pending.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
 Multipart metadata94 is resolved, preserving filename/type and exact image bytes. Storage96 is
@@ -90,8 +90,10 @@ seconds after row-copy, now retaining the exact arm-acknowledgement timeout: the
 valid matching observation/arm, but the effect still belongs to the prior completed operation.
 Source review identifies retained old disarm validation preventing native polling from reaching the
 new arm. Private disarm bytes were not captured; retention follows from the verified prior success,
-host disarm and same-persona cold-launch flow. Ticket98 owns strict lifetime-scoped disarm handling
-and an actual native control probe, followed by fresh four-phase clipboard acceptance. No timeout,
+host disarm and same-persona cold-launch flow. Ticket98 is integrated: the same actual native probe fails exactly two stale-lifetime controls
+on normal27 (eight pass), then passes all ten on normal28. The unchanged four-phase clipboard
+endpoint reaches all six probe records on normal28 but fails final acceptance in137.30 seconds;
+the new failure is under investigation. Full clipboard acceptance remains open. No timeout,
 input, freshness or original drawing change is justified. The unchanged complete88 endpoint remains
 separate evidence. Earlier results and screenshots remain; obsolete guest disks are retired.
 
@@ -108,8 +110,10 @@ exact failed guard. Both obsolete and successful unrelated guest disks are retir
 Document source review confirms signed negative ordinary IDs can coexist with positive custom
 emoji IDs at reserved DC-1, including the required canonical2147483648 sentinel boundary. Corrected
 pinned-source links and original file destination/deconfliction requirements are recorded in
-[document references](documents-references.md). Worker97 implements pinned filename/Unicode/MIME
-metadata independently; general document storage/API/version5 delivery and albums remain open.
+[document references](documents-references.md). Metadata97 is integrated and resolved:32 focused checks cover independently reproduced pinned
+Unicode/MIME data and filename normalization. The frozen [document implementation contract](documents-implementation-contract.md)
+guides worker99 typed World/schema9/v5 dependencies and worker100 multipart metadata decoding;
+general document API/native delivery and albums remain open.
 Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
 the local parser's different limit. Preserve this distinction and the unresolved server detector.
 
@@ -256,7 +260,7 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 980 passed at 87.36% coverage in 163.92 seconds with four isolated workers and no guest. Includes integrated clipboard/unrelated acceptance helpers and storage fixture cleanup; native evidence remains separate. |
-| Latest static/workflow | Core12 checkpoint passes 57 documented static commands, Ruff lint/format across 497 files, and configuration/links in 245 Markdown documents. Workers97/98 remain unintegrated. |
+| Latest static/workflow | Core12 checkpoint passes 57 documented static commands, Ruff lint/format across 497 files, and configuration/links in 245 Markdown documents. Later static12 passes59 commands including integrated97/98; their combined core gate is pending. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
