@@ -179,3 +179,13 @@ output matches. Scoped Python checks and collection pass for the independently a
 codec matrix; APK compilation, the actual codec results, rendering, transfer faults and original
 resolver cold-restart recovery remain coordinator-owned acceptance. See
 [ticket 58](../../../.scratch/rich-messages/issues/58-custom-emoji-native.md).
+
+`0025-rich-button-observation.patch` adds private, bounded observations of canonical rich
+buttons, their original drawn geometry and the original touch/callback/copy/disabled paths.
+It correlates a single armed operation with its exact decoded object, process lifetime and
+HTTP callback identity. It preserves upstream rendering and action handlers; the observer
+does not synthesize a click or execute a callback. See the
+[frozen interaction contract](../../../docs/development/rich-button-implementation-contract.md).
+Source review, exact patch application and the complete contained offline APK build pass
+(3 minutes 1 second, strict dependency verification and verified signature). Native acceptance
+remains required before this patch establishes runtime behavior.
