@@ -511,7 +511,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         clear(name)
         with ClientBridge(Path(case["world"])) as bridge:
             with CustomEmojiFaultServer(bridge.base_url, case["capability"]) as peer:
-                hold = peer.hold_asset(2)
+                hold = peer.hold_asset(2, progress_interval=1.0)
                 peer.phase("shared")
                 with NativeAssetProxy(peer.base_url, case["capability"]) as proxy:
                     proxy.phase("shared")

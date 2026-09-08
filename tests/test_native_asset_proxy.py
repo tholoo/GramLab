@@ -562,6 +562,118 @@ def test_v4_document_journal_preserves_missing_and_interrupted_responses() -> No
             worker.join(timeout=5)
 
 
+def test_proxy_forwards_available_asset_bytes_before_upstream_completion() -> None:
+    prefix_sent = threading.Event()
+    release = threading.Event()
+    body = b"available-before-release"
+
+    class Upstream(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Type", "application/octet-stream")
+            self.end_headers()
+            self.wfile.write(body[:8])
+            self.wfile.flush()
+            prefix_sent.set()
+            assert release.wait(timeout=5)
+            self.wfile.write(body[8:])
+            self.wfile.flush()
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Upstream) as upstream:
+        worker = threading.Thread(target=upstream.serve_forever, daemon=True)
+        worker.start()
+        try:
+            with NativeAssetProxy(f"http://127.0.0.1:{upstream.server_port}", CAPABILITY) as proxy:
+                connection = http.client.HTTPConnection(
+                    "127.0.0.1", urlsplit(proxy.base_url).port, timeout=5
+                )
+                try:
+                    connection.request(
+                        "GET",
+                        "/v4/assets/2",
+                        headers={"Authorization": "Bearer " + CAPABILITY},
+                    )
+                    response = connection.getresponse()
+                    assert prefix_sent.wait(timeout=1)
+                    assert response.read1(8) == body[:8]
+                    deadline = time.monotonic() + 1
+                    record = proxy.requests()[0]
+                    while record["bytes"] != 8 and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                        record = proxy.requests()[0]
+                    assert record["bytes"] == 8 and record["finished_ns"] is None
+                    release.set()
+                    assert body[:8] + response.read() == body
+                finally:
+                    release.set()
+                    connection.close()
+                deadline = time.monotonic() + 5
+                while proxy.requests()[0]["finished_ns"] is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                record = proxy.requests()[0]
+                assert (record["status"], record["bytes"], record["error"]) == (
+                    200,
+                    len(body),
+                    None,
+                )
+        finally:
+            release.set()
+            upstream.shutdown()
+            worker.join(timeout=5)
+
+
+def test_proxy_rejects_short_asset_body_after_forwarding_its_exact_prefix() -> None:
+    class Upstream(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", "20")
+            self.end_headers()
+            self.wfile.write(b"partial")
+            self.wfile.flush()
+            self.connection.shutdown(socket.SHUT_RDWR)
+            self.connection.close()
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Upstream) as upstream:
+        worker = threading.Thread(target=upstream.serve_forever, daemon=True)
+        worker.start()
+        try:
+            with NativeAssetProxy(f"http://127.0.0.1:{upstream.server_port}", CAPABILITY) as proxy:
+                connection = http.client.HTTPConnection(
+                    "127.0.0.1", urlsplit(proxy.base_url).port, timeout=5
+                )
+                try:
+                    connection.request(
+                        "GET",
+                        "/v4/assets/2",
+                        headers={"Authorization": "Bearer " + CAPABILITY},
+                    )
+                    response = connection.getresponse()
+                    with pytest.raises(http.client.IncompleteRead) as interrupted:
+                        response.read()
+                    assert interrupted.value.partial == b"partial"
+                finally:
+                    connection.close()
+                deadline = time.monotonic() + 5
+                while proxy.requests()[0]["finished_ns"] is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                record = proxy.requests()[0]
+                assert (record["status"], record["bytes"], record["error"]) == (
+                    200,
+                    7,
+                    "transport_error",
+                )
+        finally:
+            upstream.shutdown()
+            worker.join(timeout=5)
+
+
 def test_v4_document_inflight_request_keeps_start_phase_and_target() -> None:
     first_started = threading.Event()
     release_first = threading.Event()
