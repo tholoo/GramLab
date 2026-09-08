@@ -312,7 +312,7 @@ class AndroidRichInput:
         _require(isinstance(chat, dict) and isinstance(message, dict), "access_denied")
         _require(_integer(record["revision"], 1), "message_revision_changed")
         with World.open(Path("world")) as world:
-            snapshot = world.client_snapshot(chat["user_id"], version=4)
+            snapshot = world.client_snapshot(chat["user_id"], version=self.android._bridge_version)
         _require(chat in snapshot["chats"], "access_denied")
         _require(
             message["sender_id"] == chat["bot_id"] and message["chat_id"] == chat["id"],
@@ -395,7 +395,7 @@ class AndroidRichInput:
         return sample
 
     def observe(self, record: dict[str, Any]) -> str:
-        _require(self.android._bridge_version == 4)
+        _require(self.android._bridge_version in (4, 5))
         snapshot = self._current(record)
         if self._live is not None:
             previous = self._operations[self._live]
@@ -575,7 +575,9 @@ class AndroidRichInput:
             state["baseline"] = effect["clipboard"]
             state["observation"] = self._fresh(state)
             with World.open(Path("world")) as world:
-                state["world_before"] = world.client_snapshot(arm["user_id"], version=4)
+                state["world_before"] = world.client_snapshot(
+                    arm["user_id"], version=self.android._bridge_version
+                )
             # A prospective receipt is only a conservative journal-size reservation.
             prospective = copy.deepcopy(receipt)
             prospective.update(
@@ -824,7 +826,9 @@ class AndroidRichInput:
                 callback = world.get_callback(
                     user_id=arm["user_id"], callback_id=chain["callback_id"]
                 )
-                dependencies = world.callback_dependencies(arm["user_id"], callback, version=4)
+                dependencies = world.callback_dependencies(
+                    arm["user_id"], callback, version=self.android._bridge_version
+                )
                 _require(
                     dependencies["message_revision"] == chain["message_revision"] == arm["revision"]
                 )
@@ -851,7 +855,7 @@ class AndroidRichInput:
             _require(not value["requests"])
             _clipboard(value["clipboard"])
             _require(value["clipboard"]["before"] == state["baseline"]["before"])
-            current = world.client_snapshot(arm["user_id"], version=4)
+            current = world.client_snapshot(arm["user_id"], version=self.android._bridge_version)
             _require(current == state["world_before"] and not events)
         if "copy_text" in target["button"]:
             _require(value["action"] == "copy" and touch["up_uptime_ms"] is not None)

@@ -15,9 +15,10 @@ that consumer scenarios can use documents through the library.
 
 Own this ticket, necessary version-selection changes in `src/gramlab/runner.py`,
 `src/gramlab/__main__.py`, `src/gramlab/_android.py`, `src/gramlab/_android_rich_buttons.py`,
-`src/gramlab/_interactions.py`, and new `tests/test_document_runner_v5.py`. Existing test changes
-require coordinator agreement. Do not change World, Bot API, Android patches, shared docs, lockfiles,
-public defaults or transport schemas. Coordinator owns integration and real Android execution.
+`src/gramlab/_interactions.py`, new `tests/test_document_runner_v5.py`, and the two stale v5
+rejection expectations in `tests/test_emoji_runtime_selection.py`. No other existing test changes
+are owned. Do not change World, Bot API, Android patches, shared docs, lockfiles, public defaults or
+transport schemas. Coordinator owns integration and real Android execution.
 
 Add explicit5 to runner, CLI and Android selection, retaining existing default3 and explicit3/4
 behavior. Preserve strict rejection of booleans, nonintegers and unsupported versions. Never
@@ -57,3 +58,27 @@ APK build, full suite, dependencies or upstream export. Freeze a clean task bran
 red/green scope, source identities, terminal processes, required shared-doc updates and remaining
 native acceptance. This task does not complete classification, albums, all button placements or
 the operational milestone.
+
+## Worker handoff
+
+Implemented on `task/document-runner-v5` from
+`5be733f1cab852869439dbdf2c43ce278dd9bcc4`. Explicit bridge v5 now reaches the runner, CLI and
+Android host, while default3 and explicit3/4 remain unchanged. Simulation creates ordinary
+document callbacks through World v5. Rich-button observation accepts selected v4/v5 and uses that
+same version for its current snapshot, pre-effect snapshot, callback dependencies and post-effect
+comparison; v3 rich input still rejects and the native button files remain schema1.
+
+The retained pre-production run at `artifacts/document-runner-v5-red.xml` has two failures: the
+runner rejects explicit5 before opening a missing manifest, and an ordinary-document simulated
+callback reaches World as v4 and fails its v5 document requirement. After implementation,
+`artifacts/document-runner-v5-green-02.xml` records 22 passes for the new acceptance, including the
+contained public CLI/Bot API workflow. `artifacts/document-runner-v5-affected-01.xml` records 176
+passes across the new test and affected runner, interaction, version-selection and rich-button host
+controls under an isolated loopback namespace with fatal `ResourceWarning`. Scoped strict mypy and
+Ruff check/format checks pass for every owned Python file.
+
+No guest, APK build, full suite, dependency change or upstream export was run. The host rich-input
+tests are boundary substitutes and make no native rendering or input claim. Coordinator acceptance
+still requires the reviewed v5 delivery APK from task104 and the public native workflow named above.
+Any public selector/compatibility documentation should be updated only after that native gate is
+green. All worker commands completed without a retained terminal process.

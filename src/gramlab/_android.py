@@ -27,7 +27,11 @@ def _inline_fragments(message: dict[str, Any]) -> list[str]:
     if "rich_message" not in message:
         if message["text"]:
             return [message["text"]]
-        return [message["caption"]] if "photo" in message and message.get("caption") else []
+        return (
+            [message["caption"]]
+            if ("photo" in message or "document" in message) and message.get("caption")
+            else []
+        )
     fragments: list[str] = []
 
     def visit(blocks: list[dict[str, Any]]) -> None:
@@ -64,9 +68,14 @@ def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
     if "rich_message" not in message:
         if message["text"]:
             return native_text.startswith(message["text"] + "\n")
-        if "photo" not in message or not message.get("caption"):
+        if not message.get("caption"):
             return False
-        match = re.fullmatch(r"Photo\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+        if "photo" in message:
+            match = re.fullmatch(r"Photo\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+        elif "document" in message:
+            match = re.fullmatch(r"[^\n]+\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+        else:
+            return False
         return match is not None and match[1] == message["caption"]
     # The pinned English host appends receipt metadata after a separate paragraph.
     # Do not let timestamps or status words supply otherwise absent message content.
@@ -94,8 +103,8 @@ class Android:
         secrets: list[str],
         bridge_version: int = 3,
     ) -> None:
-        if type(bridge_version) is not int or bridge_version not in (3, 4):
-            raise ValueError("Android bridge version must be 3 or 4")
+        if type(bridge_version) is not int or bridge_version not in (3, 4, 5):
+            raise ValueError("Android bridge version must be 3, 4 or 5")
         self._bridge_version = bridge_version
         self.profile = profile
         self.deadline = deadline
