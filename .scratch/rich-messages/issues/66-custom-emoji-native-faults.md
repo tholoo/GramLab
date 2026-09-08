@@ -96,3 +96,17 @@ can defeat the held-transfer fixture without any native cancellation. It does no
 the first native run's actual hold duration or terminal event; the fresh checkpointed native
 run remains necessary to distinguish that failure. Do not change loader ownership or timeouts
 from this control alone.
+
+## Checkpointed native rerun
+
+The second normal24 run fails in 244.62 seconds at shared cache settlement. It durably retains all
+three complete document results; replaying the unchanged original document-case assertion loop
+passes all three cases and validates six original failed/recovered captures. The whole JUnit stays
+failed. The shared failure record measures a 5.4607-second hold, while the proxy terminates after
+5.0038 seconds with zero delivered bytes and `transport_error`, before release. The actual trace
+contains media_load_start followed by media_load_failure and no media_load_cancel. Trace, cache,
+logcat and peer/proxy journals survive. This confirms the transport-stall mechanism in the rerun;
+ticket89 corrects the test stimulus/transparent proxy while preserving native timeouts and behavior.
+Evidence: `artifacts/custom-emoji-faults-native-02.xml`, the dedicated run's failure/checkpoint
+JSON, native trace and `document-checkpoint-acceptance.json`. Whole-run isolation-result acceptance
+is still unavailable because the failing probe did not return its final result.

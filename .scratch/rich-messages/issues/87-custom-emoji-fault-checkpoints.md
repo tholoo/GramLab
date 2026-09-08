@@ -1,7 +1,7 @@
 # Preserve completed emoji fault cases when a later case fails
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Work state: implemented on `task/custom-emoji-fault-checkpoints`; coordinator review pending
 Blocked by: coordinator integration and native execution
 
@@ -63,3 +63,12 @@ raw-artifact redaction and failure-call deadline review findings. The merged foc
 checkpoint and staging/visual controls pass nine tests with one Android case deselected in
 `artifacts/custom-emoji-fault-checkpoints-integrated-01.xml`; scoped lint, format and typing pass.
 Actual native failure-path retention is the next gate, using unchanged normal24 and fault scheduling.
+
+## Native diagnostic acceptance
+
+The fresh normal24 native66 rerun fails at the same shared-cache phase and preserves all three
+completed document result objects, exact phase/class, peer/proxy journals and hold timings, plus
+actual native trace/cache/logcat within the failure-only budget. Original document assertions pass
+against the checkpoints. The retained terminal media_load_failure and proxy transport_error now
+distinguish timeout from the earlier unproven cancellation hypothesis. Ticket87 is resolved; the
+shared-transfer behavior remains failed under66/89. No timeout or runtime correction was made here.
