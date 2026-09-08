@@ -17,13 +17,20 @@ original_dispatch = AndroidRichInput.dispatch
 barrier_used = False
 prepared_guest_calls: int | None = None
 guest_calls = 0
-record: dict[str, Any] = {"schema": 1, "events": []}
+input_taps: list[dict[str, Any]] = []
+record: dict[str, Any] = {
+    "schema": 1,
+    "bootstrap_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    "events": [],
+}
 original_native_observation: dict[str, Any] | None = None
 
 
 def counted_adb(self: Any, *arguments: str, **keywords: Any) -> Any:
     global guest_calls
     guest_calls += 1
+    if len(arguments) == 5 and arguments[:3] == ("shell", "input", "tap"):
+        input_taps.append({"guest_call": guest_calls, "arguments": list(arguments)})
     return self.__class__._unrelated_original_adb(self, *arguments, **keywords)
 
 
@@ -42,9 +49,11 @@ def observe(self: AndroidRichInput, message: dict[str, Any]) -> str:
             "chat_id": sample["chat_id"],
             "message_id": sample["message_id"],
             "revision": sample["revision"],
+            "activation_nonce": sample["nonce"],
             "client_nonce": nonce,
             "pid": sample["pid"],
             "generation": sample["generation"],
+            "drawn_uptime_ms": sample["drawn_uptime_ms"],
             "geometry": {key: selected[key] for key in ("local_bounds", "origin", "screen_bounds")},
             "guest_calls": guest_calls,
         }
@@ -58,6 +67,9 @@ def prepare(
     global barrier_used, prepared_guest_calls
     if not barrier_used:
         barrier_used = True
+        original = original_native_observation
+        if original is None:
+            raise RuntimeError("Original native observation was not retained")
         before_persona = self.android._persona
         before_chat = self.android._active_chat
         ui = self.android._wait_ui(["Unrelated bravo / حالت ب"])
@@ -92,7 +104,10 @@ def prepare(
                 "persona": before_persona,
                 "chat_id": before_chat,
                 "target_id": receipt["target"]["target_id"],
+                "world_id": original["world_id"],
                 "client_nonce": client_nonce,
+                "pid": original["pid"],
+                "generation": original["generation"],
                 "xml_sha256": hashlib.sha256(ui.encode()).hexdigest(),
                 "png_sha256": hashlib.sha256(screenshot).hexdigest(),
                 "accounts": "Accounts: 0",
@@ -114,10 +129,17 @@ def prepare(
         {
             "kind": "prepare_complete",
             "target_id": receipt["target"]["target_id"],
+            "world_id": state["arm"]["world_id"],
+            "persona": state["arm"]["user_id"],
+            "chat_id": state["arm"]["chat_id"],
+            "message_id": state["arm"]["message_id"],
+            "revision": state["arm"]["revision"],
+            "activation_nonce": state["arm"]["nonce"],
             "client_nonce": client_nonce,
             "pid": state["pid"],
             "geometry": state["geometry"],
             "observation_generation": state["observation"]["generation"],
+            "drawn_uptime_ms": state["observation"]["drawn_uptime_ms"],
             "guest_calls": guest_calls,
         }
     )
@@ -133,9 +155,16 @@ def dispatch(
         {
             "kind": "dispatch_started",
             "target_id": receipt["target"]["target_id"],
+            "world_id": prepared["context"]["arm"]["world_id"],
+            "persona": prepared["context"]["arm"]["user_id"],
+            "chat_id": prepared["context"]["arm"]["chat_id"],
+            "message_id": prepared["context"]["arm"]["message_id"],
+            "revision": prepared["context"]["arm"]["revision"],
+            "activation_nonce": prepared["context"]["arm"]["nonce"],
             "client_nonce": prepared["context"]["arm"]["client_nonce"],
             "pid": prepared["context"]["pid"],
             "geometry": prepared["context"]["geometry"],
+            "observation_generation": prepared["context"]["arm"]["observation_generation"],
             "guest_calls": guest_calls,
         }
     )
@@ -145,6 +174,7 @@ def dispatch(
             "kind": "dispatch_complete",
             "status": outcome["status"],
             "dispatch": outcome["dispatch"],
+            "input_taps": input_taps,
         }
     )
     Path("unrelated-target-barrier.json").write_text(json.dumps(record, indent=2))

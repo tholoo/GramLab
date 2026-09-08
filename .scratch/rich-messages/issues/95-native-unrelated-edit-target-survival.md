@@ -66,6 +66,16 @@ an ADB call counter rejects any guest call between prepare's return and dispatch
 control pins this supervisor as the sole native entry override and rejects a scenario re-observation
 between the unrelated edit request and original target tap.
 
+The review follow-up shares one complete contained-bot transcript oracle between simulation and
+native expectations. It compares both publication results, all command/callback updates, every
+edit/acknowledgement/answer response, causal polling offsets and the final empty drain. Only empty
+long-poll results are variable inside the four causally separated phases; unknown updates, writes
+or reordered writes reject. The native oracle now validates exact retained JSON schemas and hashed
+paths, full message/process/lifetime/generation/timing/geometry/touch/request identity, callback
+request ID/body/revision against SQLite and both original PNGs. The executed bootstrap records a
+hash of its own staged bytes. Its ADB wrapper records every `shell input tap`; acceptance requires
+exactly one tap at the retained target center while preserving the zero-call prepare/dispatch gap.
+
 ## Worker verification
 
 - `artifacts/ticket95-final.xml`: two focused non-Android cases pass in the isolated local network:
@@ -74,6 +84,10 @@ between the unrelated edit request and original target tap.
 - Scoped Ruff check/format and strict mypy with explicit package bases pass for all four new files.
 - Android-only collection selects exactly one case. Original Android execution is coordinator-owned
   and remains pending; no guest, APK build, profile, timeout or existing test ran or changed here.
+- The review follow-up reran the canonical contained non-Android command: both focused cases pass.
+  Scoped Ruff check/format and strict mypy again pass all four files. The expanded Android case was
+  collected only; its stronger native/API/provenance expectations remain pending coordinator guest
+  execution.
 - Early `ticket95-simulation-red.xml` and `ticket95-simulation-green.xml` retain two test-oracle
   projection failures discovered while authoring the independent expected state. They are not
   claimed as behavioral reds; no production behavior changed in this test-only task.

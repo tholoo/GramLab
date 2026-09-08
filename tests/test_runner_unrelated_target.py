@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -64,6 +65,22 @@ def message(chat: int, identifier: int, sender: int, text: str) -> dict[str, Any
     }
 
 
+def api_message(value: dict[str, Any]) -> dict[str, Any]:
+    chat = SNAPSHOT["chats"][value["chat_id"] - 1]
+    peer = SNAPSHOT["users"][chat["user_id"] - 1]
+    result = {
+        "message_id": value["id"],
+        "from": SNAPSHOT["users"][value["sender_id"] - 1],
+        "chat": {"id": peer["id"], "type": "private", "first_name": peer["first_name"]},
+        "date": value["date"],
+    }
+    field = "rich_message" if "rich_message" in value else "text"
+    result[field] = value[field]
+    if "edit_date" in value:
+        result["edit_date"] = value["edit_date"]
+    return result
+
+
 INITIAL_TARGET = {
     "id": 2,
     "chat_id": 1,
@@ -85,6 +102,139 @@ EDITED_UNRELATED = INITIAL_UNRELATED | {
     "edit_date": 1700000000,
     "rich_message": UNRELATED_BRAVO,
 }
+
+
+def api_write(method: str, parameters: dict[str, Any], result: Any) -> dict[str, Any]:
+    return {
+        "method": method,
+        "parameters": parameters,
+        "status": 200,
+        "body": {"ok": True, "result": result},
+    }
+
+
+def assert_bot_exchange(
+    api: list[dict[str, Any]], updates: list[dict[str, Any]], writes: list[list[dict[str, Any]]]
+) -> None:
+    """Preserve causal phases while allowing only empty long-poll races."""
+
+    def poll(parameters: dict[str, int], batch: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "method": "getUpdates",
+            "parameters": parameters,
+            "status": 200,
+            "body": {"ok": True, "result": batch},
+        }
+
+    assert api[0] == poll({"timeout": 10}, [updates[0]])
+    position = 1
+
+    def consume(expected: list[dict[str, Any]]) -> None:
+        nonlocal position
+        assert api[position : position + len(expected)] == expected
+        position += len(expected)
+
+    consume(writes[0])
+    offset = 2
+    for update, phase_writes in zip(updates[1:], writes[1:], strict=True):
+        while True:
+            assert position < len(api)
+            entry = api[position]
+            position += 1
+            batch = entry.get("body", {}).get("result")
+            assert type(batch) is list
+            assert entry == poll({"offset": offset, "timeout": 10}, batch)
+            assert batch in ([], [update])
+            if batch:
+                offset = update["update_id"] + 1
+                consume(phase_writes)
+                break
+    consume([poll({"offset": offset}, [])])
+    assert position == len(api)
+
+
+def assert_complete_bot(recorded: dict[str, Any], callback: dict[str, Any]) -> None:
+    bot = process_json(recorded, "bot:unrelated")
+    assert len(bot) == 2
+    assert bot[0] == {
+        "event": "published",
+        "target": api_message(INITIAL_TARGET),
+        "unrelated": api_message(INITIAL_UNRELATED),
+    }
+    api_callback = {
+        "id": callback["id"],
+        "from": SNAPSHOT["users"][1],
+        "message": api_message(INITIAL_TARGET),
+        "chat_instance": callback["chat_instance"],
+        "data": "stable:confirm",
+    }
+    assert bot[1].keys() == {"event", "callbacks", "api"}
+    assert bot[1]["event"] == "finished" and bot[1]["callbacks"] == [api_callback]
+    updates = [
+        {"update_id": 1, "message": api_message(message(1, 1, 2, "publish stable target"))},
+        {"update_id": 2, "message": api_message(message(2, 1, 3, "edit unrelated"))},
+        {"update_id": 3, "callback_query": api_callback},
+        {"update_id": 4, "message": api_message(message(2, 3, 3, "edit target"))},
+        {"update_id": 5, "message": api_message(message(2, 5, 3, "finish proof"))},
+    ]
+    writes = [
+        [
+            api_write(
+                "sendRichMessage",
+                {"chat_id": 2, "rich_message": TARGET | {"skip_entity_detection": True}},
+                api_message(INITIAL_TARGET),
+            ),
+            api_write(
+                "sendRichMessage",
+                {
+                    "chat_id": 2,
+                    "rich_message": UNRELATED_ALPHA | {"skip_entity_detection": True},
+                },
+                api_message(INITIAL_UNRELATED),
+            ),
+        ],
+        [
+            api_write(
+                "editMessageText",
+                {
+                    "chat_id": 2,
+                    "message_id": 3,
+                    "rich_message": UNRELATED_BRAVO | {"skip_entity_detection": True},
+                },
+                api_message(EDITED_UNRELATED),
+            ),
+            api_write(
+                "sendMessage",
+                {"chat_id": 3, "text": "unrelated edit acknowledged"},
+                api_message(message(2, 2, 1, "unrelated edit acknowledged")),
+            ),
+        ],
+        [
+            api_write(
+                "answerCallbackQuery",
+                {"callback_query_id": callback["id"], "text": "Confirmed / تأیید شد"},
+                True,
+            )
+        ],
+        [
+            api_write(
+                "editMessageText",
+                {
+                    "chat_id": 2,
+                    "message_id": 2,
+                    "rich_message": CHANGED_TARGET | {"skip_entity_detection": True},
+                },
+                api_message(EDITED_TARGET),
+            ),
+            api_write(
+                "sendMessage",
+                {"chat_id": 3, "text": "target edit acknowledged"},
+                api_message(message(2, 4, 1, "target edit acknowledged")),
+            ),
+        ],
+        [],
+    ]
+    assert_bot_exchange(bot[1]["api"], updates, writes)
 
 
 def project(directory: Path, *, mode: str) -> Path:
@@ -162,6 +312,36 @@ def assert_token(value: Any) -> None:
     assert type(value) is str and re.fullmatch(r"[A-Za-z0-9_-]{1,128}", value)
 
 
+def assert_counter(value: Any, *, minimum: int = 0) -> None:
+    assert type(value) is int and minimum <= value <= 2**63 - 1
+
+
+def native_file(root: Path, relative: str, operation: str) -> Path:
+    path = Path(relative)
+    assert not path.is_absolute() and path.parts[:2] == ("rich-buttons", operation)
+    assert len(path.parts) == 3 and path.name not in (".", "..")
+    resolved = root / path
+    assert not any((root / Path(*path.parts[:index])).is_symlink() for index in range(1, 4))
+    assert resolved.is_file()
+    return resolved
+
+
+def read_native_json(root: Path, relative: str, operation: str, kind: str) -> dict[str, Any]:
+    path = native_file(root, relative, operation)
+    match = re.fullmatch(rf"{kind}-([0-9]+)-([0-9a-f]{{16}})\.json", path.name)
+    assert match is not None and path.stat().st_size <= 1024 * 1024
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest()[:16] == match[2]
+
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        assert len({key for key, _ in pairs}) == len(pairs)
+        return dict(pairs)
+
+    record = json.loads(raw, object_pairs_hook=unique)
+    assert type(record) is dict and record["generation"] == int(match[1])
+    return cast(dict[str, Any], record)
+
+
 def expected_target(observation: dict[str, Any]) -> dict[str, Any]:
     target = observation["targets"][0]
     assert observation == {
@@ -212,7 +392,25 @@ def base_events() -> list[dict[str, Any]]:
 def assert_scenario(
     recorded: dict[str, Any], *, mode: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    assert recorded["outcome"] == "passed" and recorded["failure"] is None
     scenario = process_json(recorded, "scenario")[-1]
+    assert scenario.keys() == {
+        "initial_rendered",
+        "observation",
+        "original_target_id",
+        "success",
+        "success_repeat",
+        "before_success",
+        "after_success",
+        "related_observation",
+        "rejected",
+        "rejected_repeat",
+        "before_rejection",
+        "after_rejection",
+        "rendered_history",
+        "control_history",
+        "events",
+    }
     target = expected_target(scenario["observation"])
     callback = scenario["success"]["effect"]["callback"]
     assert_token(scenario["success"]["operation_id"])
@@ -329,6 +527,7 @@ def assert_scenario(
     assert scenario["events"] == recorded["events"] == events
     assert recorded["histories"] == {"1": rendered, "2": control}
     assert recorded["world"] == SNAPSHOT
+    assert_complete_bot(recorded, callback)
     return scenario, callback
 
 
@@ -337,24 +536,8 @@ def test_public_target_survives_unrelated_real_bot_edit_in_simulation(
 ) -> None:
     recorded, _ = execute(tmp_path / "project", mode="simulation-only")
     scenario, callback = assert_scenario(recorded, mode="simulation")
-    bot = process_json(recorded, "bot:unrelated")
-    assert [entry["event"] for entry in bot] == ["published", "finished"]
-    assert bot[-1]["callbacks"] == [
-        {
-            "id": callback["id"],
-            "from": SNAPSHOT["users"][1],
-            "message": {
-                "message_id": 2,
-                "from": SNAPSHOT["users"][0],
-                "chat": {"id": 2, "type": "private", "first_name": "Sara"},
-                "date": 1700000000,
-                "rich_message": TARGET,
-            },
-            "chat_instance": callback["chat_instance"],
-            "data": "stable:confirm",
-        }
-    ]
     assert len([event for event in scenario["events"] if event["type"] == "callback.created"]) == 1
+    assert callback["answer"] is None
 
 
 def test_supervisor_source_is_staged_as_the_only_native_entry_override(
@@ -386,6 +569,8 @@ def test_supervisor_source_is_staged_as_the_only_native_entry_override(
     source = staged.read_text()
     assert '._wait_ui(["Unrelated bravo / حالت ب"])' in source
     assert "._open_chat(" not in source and "._capture(" not in source
+    assert "hashlib.sha256(Path(__file__).read_bytes()).hexdigest()" in source
+    assert 'arguments[:3] == ("shell", "input", "tap")' in source
     assert source.index("observation_complete") < source.index("ui_barrier_before_prepare")
     assert source.index("ui_barrier_before_prepare") < source.index("original_prepare(")
     assert source.index("prepare_complete") < source.index("dispatch_started")
@@ -405,6 +590,14 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     )
     scenario, callback = assert_scenario(recorded, mode="headless-android")
     barrier = json.loads((output / "unrelated-target-barrier.json").read_text())
+    assert barrier.keys() == {"schema", "bootstrap_sha256", "events"}
+    assert barrier["schema"] == 1 and type(barrier["schema"]) is int
+    assert (
+        barrier["bootstrap_sha256"]
+        == hashlib.sha256(
+            Path("tests/probes/unrelated_target_supervisor.py").read_bytes()
+        ).hexdigest()
+    )
     assert [event["kind"] for event in barrier["events"]] == [
         "observation_complete",
         "ui_barrier_before_prepare",
@@ -413,6 +606,52 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         "dispatch_complete",
     ]
     observed, ui, prepared, dispatched, complete = barrier["events"]
+    assert observed.keys() == {
+        "kind",
+        "world_id",
+        "persona",
+        "chat_id",
+        "message_id",
+        "revision",
+        "activation_nonce",
+        "client_nonce",
+        "pid",
+        "generation",
+        "drawn_uptime_ms",
+        "geometry",
+        "guest_calls",
+    }
+    assert ui.keys() == {
+        "kind",
+        "persona",
+        "chat_id",
+        "target_id",
+        "world_id",
+        "client_nonce",
+        "pid",
+        "generation",
+        "xml_sha256",
+        "png_sha256",
+        "accounts",
+        "guest_calls",
+    }
+    prepared_fields = {
+        "kind",
+        "target_id",
+        "world_id",
+        "persona",
+        "chat_id",
+        "message_id",
+        "revision",
+        "activation_nonce",
+        "client_nonce",
+        "pid",
+        "geometry",
+        "observation_generation",
+        "guest_calls",
+    }
+    assert prepared.keys() == prepared_fields | {"drawn_uptime_ms"}
+    assert dispatched.keys() == prepared_fields
     assert (
         ui["target_id"]
         == prepared["target_id"]
@@ -421,17 +660,64 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     )
     assert ui["client_nonce"] == prepared["client_nonce"] == dispatched["client_nonce"]
     assert observed["client_nonce"] == ui["client_nonce"]
+    assert_token(observed["activation_nonce"])
+    assert_token(observed["client_nonce"])
+    assert (
+        observed["activation_nonce"]
+        == prepared["activation_nonce"]
+        == dispatched["activation_nonce"]
+    )
     assert observed["pid"] == prepared["pid"] == dispatched["pid"]
     assert observed["geometry"] == prepared["geometry"] == dispatched["geometry"]
     assert observed["persona"] == 2 and observed["chat_id"] == 1
     assert observed["message_id"] == 2 and observed["revision"] == 7
-    assert observed["world_id"] == recorded["run_id"]
+    assert (
+        observed["world_id"]
+        == ui["world_id"]
+        == prepared["world_id"]
+        == dispatched["world_id"]
+        == recorded["run_id"]
+    )
+    assert [prepared[key] for key in ("persona", "chat_id", "message_id", "revision")] == [
+        2,
+        1,
+        2,
+        7,
+    ]
+    assert [dispatched[key] for key in ("persona", "chat_id", "message_id", "revision")] == [
+        2,
+        1,
+        2,
+        7,
+    ]
+    assert_counter(observed["pid"], minimum=1)
+    assert_counter(observed["generation"], minimum=1)
+    assert_counter(observed["drawn_uptime_ms"], minimum=1)
+    assert ui["generation"] == observed["generation"]
+    assert_counter(prepared["observation_generation"], minimum=observed["generation"])
+    assert_counter(dispatched["observation_generation"], minimum=observed["generation"])
+    assert dispatched["observation_generation"] <= prepared["observation_generation"]
+    assert_counter(prepared["drawn_uptime_ms"], minimum=observed["drawn_uptime_ms"])
     assert prepared["guest_calls"] == dispatched["guest_calls"]
+    assert_counter(prepared["guest_calls"], minimum=ui["guest_calls"])
+    left, top, right, bottom = prepared["geometry"]["screen_bounds"]
+    tap = {
+        "guest_call": complete["input_taps"][0]["guest_call"],
+        "arguments": [
+            "shell",
+            "input",
+            "tap",
+            str((left + right) / 2),
+            str((top + bottom) / 2),
+        ],
+    }
     assert complete == {
         "kind": "dispatch_complete",
         "status": "succeeded",
         "dispatch": "dispatched",
+        "input_taps": [tap],
     }
+    assert_counter(tap["guest_call"], minimum=dispatched["guest_calls"] + 1)
     assert ui["persona"] == 2 and ui["chat_id"] == 1 and ui["accounts"] == "Accounts: 0"
     xml = (output / "unrelated-target-ui.xml").read_text()
     png = output / "unrelated-target-ui.png"
@@ -452,9 +738,29 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     }
     native = scenario["success"]["evidence"]["native"]
     operation = scenario["success"]["operation_id"]
+    assert native.keys() == {"observation", "effect", "captures"}
     assert native["captures"] == [f"rich-buttons/{operation}/before.png"]
-    observation = json.loads((output / native["observation"]).read_text())
-    effect = json.loads((output / native["effect"]).read_text())
+    observation = read_native_json(output, native["observation"], operation, "observation")
+    effect = read_native_json(output, native["effect"], operation, "effect")
+    common = {
+        "schema",
+        "nonce",
+        "client_nonce",
+        "world_id",
+        "user_id",
+        "chat_id",
+        "message_id",
+        "revision",
+    }
+    assert observation.keys() == common | {
+        "pid",
+        "generation",
+        "drawn_uptime_ms",
+        "available",
+        "reason",
+        "targets",
+    }
+    assert observation["schema"] == 1 and type(observation["schema"]) is int
     assert observation["world_id"] == recorded["run_id"]
     assert [observation[key] for key in ("user_id", "chat_id", "message_id", "revision")] == [
         2,
@@ -462,27 +768,103 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         2,
         7,
     ]
+    for key in ("user_id", "chat_id", "message_id", "revision", "pid"):
+        assert_counter(observation[key], minimum=1)
+    assert_token(observation["nonce"])
+    assert_token(observation["client_nonce"])
+    assert observation["nonce"] == observed["activation_nonce"]
     assert observation["client_nonce"] == ui["client_nonce"]
     assert observation["pid"] == prepared["pid"]
-    selected = next(
-        item for item in observation["targets"] if item["path"] == ["blocks", 1, "buttons", 0]
-    )
+    assert_counter(observation["generation"], minimum=observed["generation"])
+    assert_counter(observation["drawn_uptime_ms"], minimum=observed["drawn_uptime_ms"])
+    assert observation["generation"] <= prepared["observation_generation"]
+    assert observation["available"] is True and observation["reason"] is None
+    assert type(observation["targets"]) is list and len(observation["targets"]) == 1
+    selected = observation["targets"][0]
+    assert selected.keys() == {
+        "path",
+        "button",
+        "label",
+        "available",
+        "reason",
+        "local_bounds",
+        "origin",
+        "screen_bounds",
+    }
+    assert {key: selected[key] for key in ("path", "button", "label")} == {
+        "path": ["blocks", 1, "buttons", 0],
+        "button": {"text": "Confirm / تأیید", "callback_data": "stable:confirm"},
+        "label": "Confirm / تأیید",
+    }
+    assert selected["available"] is True and selected["reason"] is None
     assert {key: selected[key] for key in ("local_bounds", "origin", "screen_bounds")} == prepared[
         "geometry"
     ]
-    assert effect["operation_id"] == operation and effect["state"] == "complete"
-    assert effect["action"] == "callback" and effect["touch"]["up_uptime_ms"] is not None
-    assert len(effect["requests"]) == 1 and effect["requests"][0]["callback_id"] == callback["id"]
+    for field, size in (("local_bounds", 4), ("origin", 2), ("screen_bounds", 4)):
+        assert type(selected[field]) is list and len(selected[field]) == size
+        assert all(
+            type(number) in (int, float) and math.isfinite(number) and abs(number) <= 1_000_000
+            for number in selected[field]
+        )
+    assert 0 <= left < right <= 320 and 0 <= top < bottom <= 640
+    assert effect.keys() == common | {
+        "operation_id",
+        "path",
+        "generation",
+        "uptime_ms",
+        "state",
+        "reason",
+        "touch",
+        "action",
+        "requests",
+        "clipboard",
+    }
+    assert {key: effect[key] for key in common} == {key: observation[key] for key in common}
+    assert effect["operation_id"] == operation
+    assert effect["path"] == ["blocks", 1, "buttons", 0]
+    assert_counter(effect["generation"], minimum=observation["generation"])
+    assert_counter(effect["uptime_ms"], minimum=observation["drawn_uptime_ms"])
+    assert effect["state"] == "complete" and effect["reason"] is None
+    assert effect["action"] == "callback" and effect["clipboard"] is None
+    touch = effect["touch"]
+    assert touch.keys() == {"down_uptime_ms", "up_uptime_ms", "path"}
+    assert touch["path"] == effect["path"]
+    assert_counter(touch["down_uptime_ms"], minimum=observation["drawn_uptime_ms"])
+    assert_counter(touch["up_uptime_ms"], minimum=touch["down_uptime_ms"])
+    assert touch["up_uptime_ms"] <= effect["uptime_ms"]
+    assert len(effect["requests"]) == 1
+    request = effect["requests"][0]
+    assert request.keys() == {
+        "native_request_token",
+        "request_id",
+        "callback_id",
+        "message_revision",
+    }
+    assert_counter(request["native_request_token"], minimum=1)
+    assert_token(request["request_id"])
+    assert request["callback_id"] == callback["id"] and request["message_revision"] == 7
+    capture = native_file(output, native["captures"][0], operation)
+    with Image.open(capture) as image:
+        assert image.format == "PNG" and image.size == (320, 640)
+        image.verify()
     database = sqlite3.connect((output / "world/world.sqlite3").as_uri() + "?mode=ro", uri=True)
     try:
-        row = database.execute(
-            "SELECT user_id,bot_id,body,answer FROM callbacks WHERE id=?", (callback["id"],)
-        ).fetchone()
+        rows = database.execute(
+            "SELECT user_id,bot_id,request_id,request_body,body,answer FROM callbacks WHERE id=?",
+            (callback["id"],),
+        ).fetchall()
     finally:
         database.close()
-    assert row[:2] == (2, 1)
-    assert json.loads(row[2]) == {key: value for key, value in callback.items() if key != "answer"}
-    assert json.loads(row[3]) == {
+    assert len(rows) == 1 and rows[0][:3] == (2, 1, request["request_id"])
+    assert json.loads(rows[0][3]) == {
+        "chat_id": 1,
+        "data": "stable:confirm",
+        "message_id": 2,
+    }
+    assert json.loads(rows[0][4]) == {
+        key: value for key, value in callback.items() if key != "answer"
+    }
+    assert json.loads(rows[0][5]) == {
         "text": "Confirmed / تأیید شد",
         "show_alert": False,
         "cache_time": 0,
