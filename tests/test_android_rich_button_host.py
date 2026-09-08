@@ -750,3 +750,103 @@ def test_offscreen_duplicate_does_not_disable_visible_occurrence(staged: Any) ->
     with pytest.raises(ValueError, match="target_unavailable"):
         guest.prepare(second, client_nonce="process-original")
     assert guest.touches == 1
+
+
+def test_edit_during_journal_preflight_leaves_intent_uncertain_without_input(staged: Any) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    with World.open(Path("world")) as world:
+        world.edit_message(
+            chat_id=guest.record["chat"]["id"],
+            message_id=guest.record["message"]["id"],
+            bot_id=guest.record["chat"]["bot_id"],
+            rich_message={
+                "skip_entity_detection": True,
+                "blocks": [
+                    {
+                        "type": "buttons",
+                        "buttons": [{"text": "After intent", "callback_data": "same"}],
+                    }
+                ],
+            },
+        )
+        before = world.events()
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "uncertain"
+    assert result["dispatch"] == "intent_recorded"
+    assert result["effect"] is None
+    assert guest.touches == 0
+    assert guest.reconcile(receipt) is None
+    assert guest.dispatch(receipt, prepared) == result
+    assert guest.writes[-1] == "rich-button-disarm.json"
+    with World.open(Path("world")) as world:
+        assert world.events() == before
+
+
+@pytest.mark.parametrize(
+    "change", ["uptime", "geometry", "pid", "nonce", "arm_command", "consumed", "down"]
+)
+def test_post_intent_client_or_arm_change_never_sends_input(staged: Any, change: str) -> None:
+    guest, receipt = staged()
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    if change == "uptime":
+        guest.now = 16000
+    elif change == "geometry":
+        guest.files["rich-button-observation.json"]["targets"][0]["screen_bounds"][0] += 1
+    elif change == "pid":
+        guest.pid += 1
+    elif change == "nonce":
+        guest.files["rich-button-observation.json"]["client_nonce"] = "new-process"
+    elif change == "arm_command":
+        guest.files["rich-button-arm.json"]["operation_id"] = "different-operation"
+    elif change == "consumed":
+        guest.files["rich-button-effect.json"].update(state="consumed", generation=7)
+    else:
+        guest.files["rich-button-effect.json"].update(
+            generation=7,
+            touch={
+                "down_uptime_ms": 10000,
+                "up_uptime_ms": None,
+                "path": receipt["target"]["path"],
+            },
+        )
+    result = guest.dispatch(receipt, prepared)
+    assert result["status"] == "uncertain"
+    assert result["dispatch"] == "intent_recorded"
+    assert result["effect"] is None
+    assert guest.touches == 0
+    assert guest.reconcile(receipt) is None
+    assert guest.writes[-1] == "rich-button-disarm.json"
+
+
+@pytest.mark.parametrize("kind", ["callback", "copy", "disabled"])
+def test_prospective_receipt_passes_real_journal_preflight(staged: Any, kind: str) -> None:
+    from gramlab._rich_button_journal import Journal
+
+    guest, receipt = staged(kind)
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    directory = Path("journal")
+    directory.mkdir()
+    journal = Journal(directory, run_id="host-preflight", world_id=guest.world_id)
+    try:
+        target = receipt["target"]
+        journal.allocate(
+            {
+                "chat_id": target["chat_id"],
+                "message_id": target["message_id"],
+                "message_revision": target["message_revision"],
+                "targets": [{key: target[key] for key in ("target_id", "path", "button", "label")}],
+            },
+            user_id=guest.record["chat"]["user_id"],
+            client_nonce="process-original",
+        )
+        journal.transition("claim", receipt, client_nonce="process-original")
+        before = journal.path.read_bytes()
+        journal.preflight_receipt(
+            prepared["receipt_for_size_check"], client_nonce="process-original"
+        )
+        assert journal.path.read_bytes() == before
+        assert guest.touches == 0
+    finally:
+        journal.close()
+        guest.abort_prepared(receipt, prepared)

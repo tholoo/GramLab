@@ -494,18 +494,7 @@ class AndroidRichInput:
                     time.sleep(0.05)
                     continue
                 effect = self._effect(state, pending)
-                _require(effect["state"] == "armed" and effect["reason"] is None)
-                _require(effect["action"] is None and not effect["requests"])
-                _require(
-                    effect["touch"] is None
-                    or (
-                        effect["touch"]["down_uptime_ms"] is None
-                        and effect["touch"]["up_uptime_ms"] is None
-                    )
-                )
-                if "callback_data" not in target["button"]:
-                    _clipboard(effect["clipboard"])
-                    _require(effect["clipboard"]["before"] == effect["clipboard"]["after"])
+                self._ready(state, effect)
                 if effect["generation"] >= arm["observation_generation"]:
                     break
                 _require(time.monotonic() < end)
@@ -529,7 +518,7 @@ class AndroidRichInput:
                     "chat_id": arm["chat_id"],
                     "message": record["message"],
                     "data": target["button"]["callback_data"],
-                    "chat_instance": "x" * 64,
+                    "chat_instance": "0" * 64,
                     "answer": None,
                 }
                 prospective["effect"] = {
@@ -565,6 +554,19 @@ class AndroidRichInput:
         _require(not state["dispatched"])
         state["aborted"] = True
         self._disarm(state)
+
+    def _ready(self, state: dict[str, Any], effect: dict[str, Any]) -> None:
+        _require(effect["state"] == "armed" and effect["reason"] is None)
+        _require(effect["action"] is None and not effect["requests"])
+        touch = effect["touch"]
+        _require(
+            touch is None or (touch["down_uptime_ms"] is None and touch["up_uptime_ms"] is None)
+        )
+        if "callback_data" not in state["target"]["button"]:
+            _clipboard(effect["clipboard"])
+            _require(effect["clipboard"]["before"] == effect["clipboard"]["after"])
+            if "baseline" in state:
+                _require(effect["clipboard"] == state["baseline"])
 
     def _effect(self, state: dict[str, Any], value: dict[str, Any]) -> dict[str, Any]:
         state["candidate"] = copy.deepcopy(value)
@@ -781,11 +783,25 @@ class AndroidRichInput:
             return dict(copy.deepcopy(state["result"]))
         if state["dispatched"]:
             return self._outcome(state, None, "dispatch_unconfirmed")
-        # Durable intent belongs to the caller. Mark handoff before the sole ADB command.
-        state["dispatched"] = True
-        state["armed_uptime"] = state["effect"]["uptime_ms"]
-        left, top, right, bottom = state["geometry"]["screen_bounds"]
+        # The caller has recorded durable intent. Its receipt preflight and fsync
+        # can take time; validate the exact arm and repeat freshness after that gap.
+        # A failed check is uncertainty with intent_recorded, never a rejection.
         try:
+            armed = self._read("rich-button-arm.json")
+            _fields(armed, set(state["arm"]))
+            for field in ("schema", "user_id", "chat_id", "message_id", "revision"):
+                _require(_integer(armed[field], 1))
+            _require(_path(armed["path"]) and _integer(armed["observation_generation"]))
+            _require(armed == state["arm"])
+            effect = self._effect(state, self._read("rich-button-effect.json"))
+            self._ready(state, effect)
+            _require(effect["generation"] >= armed["observation_generation"])
+            state["observation"] = self._fresh(state)
+            _require(effect["uptime_ms"] <= state["now"])
+            state["armed_uptime"] = effect["uptime_ms"]
+            left, top, right, bottom = state["geometry"]["screen_bounds"]
+            # Mark handoff immediately before the sole ordinary input command.
+            state["dispatched"] = True
             self.android._adb(
                 "shell", "input", "tap", str((left + right) / 2), str((top + bottom) / 2)
             )

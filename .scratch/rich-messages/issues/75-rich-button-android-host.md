@@ -115,3 +115,34 @@ coordinator and observer reviewer. No guest, build, full gate or network executi
 
 Work remains claimed until coordinator review/integration and required native acceptance. Shared
 contributor/CI typing scopes, compatibility and handoff updates remain coordinator-owned.
+
+### Coordinator review correction
+
+The reviewed follow-up closes the interval between preparation and the coordinator's durable
+intent. Dispatch now rereads the exact arm command and its strict acknowledgement, requires
+`armed` with no original DOWN/UP, action or request, preserves a local-effect clipboard baseline,
+and calls the current World/lifetime/window/geometry freshness check immediately before marking
+the sole ordinary input handoff. A failed check after intent returns `uncertain` with
+`dispatch: intent_recorded`, disarms the exact operation, and sends no touch. Repeat dispatch
+returns that same result; readonly reconciliation cannot invent an input for this state.
+
+The callback sizing placeholder is now 64 lowercase hexadecimal zeros, preserving its encoded
+size while satisfying the actual journal's callback framing contract. Three new checks exercise
+`Journal.allocate`, `transition("claim")` and `preflight_receipt` on actual callback/copy/disabled
+prospective receipts and verify preflight leaves the durable journal unchanged. These checks used
+the guarded temporary dependency receipt `rich-button-host-primitives-01`, source commit
+`56dc9880c8c6385904f3c24be644c53f4c80a601`, for the reviewed journal/traversal helpers.
+Those helpers are coordinator-owned integration dependencies, not additions to this worker commit.
+
+- `artifacts/rich-button-host-final-check-red.xml`: eight meaningful failures for a World edit,
+  stale guest uptime, changed geometry/PID/nonce, changed arm command and consumed/touched arm
+  between preparation and dispatch. Each now returns uncertainty without input.
+- `artifacts/rich-button-host-journal-red.xml`: the actual journal rejects the original callback
+  sizing placeholder; copy and disabled preflight controls pass.
+- `artifacts/rich-button-host-review-green.xml`: **61 passed**, using the same isolated focused
+  pytest command above with this JUnit output path and the guarded frozen helper loan.
+- Scoped strict mypy still passes all three owned Python files; final Ruff lint/format and
+  whitespace checks pass. Cleanup/reconciliation preserve one input handoff, exact disarm,
+  terminal results and the distinction between retained evidence and a dispatch attempt.
+
+No native, guest, build, full-gate or external-network evidence is added by this correction.
