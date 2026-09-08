@@ -72,7 +72,8 @@ recovery checks. No production timeout, rendering or recovery behavior changed.
 
 Ordinary document source research is integrated under91; files/albums remain unimplemented.
 Ticket92 owns actual public native clipboard paste/clear acceptance in a separate worktree.
-Ticket93 prepares a concrete offline rich auto-detection policy for user consultation; changing
+Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
+for user consultation; changing
 the fidelity target remains unapproved and implementation must not start on that assumption.
 Native unrelated-edit survival and the wider operational inventory remain required. Exact local
 paths, process handles, cleanup receipts and active worker state stay in ignored coordinator notes.
