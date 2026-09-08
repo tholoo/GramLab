@@ -109,7 +109,10 @@ offline safety, licensing and completion requirements before the corresponding a
   tests and an original-settings diagnostic; its next guest could not start because of disk space.
   Ticket66 has seven integrated HTTP/staging/diamond tests for static resolver faults and shared
   delivery. Both native acceptance gates remain pending. Public semantic capture and virtual
-  callback compatibility regressions are assigned separately under tickets67/68.
+  callback compatibility fixes are integrated under tickets67/68: eight capture controls and
+  two callback controls pass focused checks. The next combined gate will include them. Two
+  Android host defects (composer snapshot version and rich-photo caption matching) are assigned
+  under ticket69; native acceptance and the disk-space blocker remain separate.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
