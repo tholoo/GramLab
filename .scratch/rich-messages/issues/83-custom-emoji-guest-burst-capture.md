@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/custom-emoji-guest-burst-capture`; coordinator review pending
 Blocked by: coordinator integration and fresh native acceptance
 
 Own this ticket, the burst capture portion of `tests/probes/android_custom_emoji.py`, a small
@@ -26,3 +26,46 @@ Focused tests should exercise the real host shell/record parser with independent
 command outputs, including malformed, incomplete and failed captures. They are not native
 animation evidence. Preserve UI07's failed JUnit and all retained images. No guest, build or
 full gate is assigned; return a clean frozen branch and exact focused evidence.
+
+## Implementation and focused evidence
+
+The edited-stage probe now calls the test-only `guest_screenshot_burst.py` helper. One correctly
+quoted `adb shell -T sh -c` session captures all 24 original PNGs with the existing 80 ms delay
+following every capture. Each screencap is bracketed by guest `/proc/uptime` reads. The parser
+requires the observed two-decimal format and converts the start to its centisecond floor and the
+end to the next centisecond, explicitly retaining clock-resolution uncertainty. Host command and
+transfer duration do not enter these acquisition bounds.
+
+The session emits a token-bound header, 24 ordered records and a terminal count. Records include
+original byte size and SHA-256. A single directory pull follows successful capture and framing;
+its exact regular-file inventory, sizes, PNG signatures and hashes must all match before output
+publication. Publication creates links without overwriting prior captures. A caught publication
+failure removes only links created by that attempt, preserving all transferred originals in the
+unique staging directory. This does not claim atomic publication across abrupt process death;
+a failed probe or incomplete frame set cannot establish native acceptance. Dedicated guest staging
+also remains available for diagnosis until ordinary run teardown.
+
+Bounded slow captures are deliberately retained with their actual conservative intervals. The
+existing oracle still rejects acquisition intervals of 500 ms or greater, checks one shared spatial
+transform, and requires the same authored temporal phase. No oracle, PNG, fixture, profile, APK or
+rendering behavior changed. UI07's original failure and all retained images remain untouched.
+
+Focused verification uses the assigned pinned offline environment and real temporary files:
+
+- `artifacts/custom-emoji-guest-burst-initial.xml`: 25 initial framing/transfer controls pass.
+- `artifacts/custom-emoji-guest-burst-publication-red.xml`: the independent mid-publication failure
+  control fails because 13 final paths remain. The fix preserves all 24 staged originals and removes
+  the newly published prefix on the injected exception.
+- `artifacts/custom-emoji-guest-burst-verified.xml` and the final-source
+  `artifacts/custom-emoji-guest-burst-final.xml`: all 26 focused controls pass under
+  `tools/dev default --offline --command unshare --user --map-root-user --net .venv/bin/pytest -q
+  tests/test_guest_screenshot_burst.py`. Three controls execute the actual POSIX shell loop,
+  `/proc/uptime`, sleep, `wc` and SHA-256 commands. Only the external screencap result is replaced
+  with an existing authored PNG fixture. These checks are not native animation evidence.
+- Scoped Ruff lint/format and strict mypy pass for the helper, its tests and the edited probe.
+
+Coordinator integration must stage `guest_screenshot_burst.py` beside `android_custom_emoji.py`
+in the native test's existing probe-file copy list. Guest dependencies are `sh`, `mkdir`, shell
+`read`/`printf`, `/proc/uptime`, original `screencap`, `toybox wc`, `toybox sha256sum`, fractional
+`sleep 0.08`, and directory `adb pull`. No guest, APK build, full gate or archived-artifact mutation
+ran for this ticket. Fresh native execution remains required before resolving it.
