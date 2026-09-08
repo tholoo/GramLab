@@ -215,10 +215,12 @@ def test_bot_failure_fails_run_and_stops_scenario(tmp_path: Path):
 def test_timeout_stops_detached_descendants_and_retains_report(tmp_path: Path):
     manifest = project(
         tmp_path / "project",
-        """import os, time
+        """import json, os, time
 from pathlib import Path
 if os.fork() == 0:
     os.setsid()
+    Path("ready.tmp").write_text(json.dumps({"pid": os.getpid(), "sid": os.getsid(0)}))
+    Path("ready.tmp").replace("ready.json")
     while True:
         with Path("heartbeat").open("a") as stream:
             stream.write("alive\\n")
@@ -226,13 +228,51 @@ if os.fork() == 0:
 time.sleep(30)
 """,
     )
-    manifest.write_text(manifest.read_text().replace("timeout = 10", "timeout = 1"))
+    # This case needs a running detached child before testing timeout cleanup.
+    # An unrelated bot and a one-second whole-run budget could expire before the scenario starts.
+    manifest.write_text(
+        manifest.read_text().split("[bots.echo]", 1)[0].replace("timeout = 10", "timeout = 5")
+    )
     output = tmp_path / "run"
-    result = invoke(manifest, output)
-    assert result.returncode == 1
+    heartbeat = output / "scenario" / "heartbeat"
+    ready = output / "scenario" / "ready.json"
+    with subprocess.Popen(  # noqa: S603 — actual public CLI, no shell or consumer import
+        [sys.executable, "-m", "gramlab", "run", str(manifest), "--output", str(output)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=os.environ.copy(),
+    ) as process:
+        try:
+            deadline = time.monotonic() + 15
+            while not ready.exists() or not heartbeat.exists():
+                assert process.poll() is None, "CLI exited before descendant readiness"
+                assert time.monotonic() < deadline, "Detached descendant did not become ready"
+                time.sleep(0.01)
+            identity = json.loads(ready.read_text())
+            assert set(identity) == {"pid", "sid"}
+            assert type(identity["pid"]) is int and identity["pid"] == identity["sid"] > 0
+            initial = heartbeat.read_bytes()
+            while heartbeat.read_bytes() == initial:
+                assert process.poll() is None, "CLI exited before descendant liveness was observed"
+                assert time.monotonic() < deadline, "Detached descendant heartbeat did not grow"
+                time.sleep(0.01)
+            assert process.poll() is None
+            stdout, stderr = process.communicate(timeout=30)
+            assert process.returncode == 1, (stdout, stderr)
+        finally:
+            if process.poll() is None:
+                # Allow the bounded public run to perform its own namespace cleanup even when a
+                # readiness assertion fails; kill the CLI only if it also violates that bound.
+                try:
+                    process.communicate(timeout=30)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate(timeout=10)
     recorded = json.loads((output / "result.json").read_text())
     assert recorded["failure"] == "timeout"
-    heartbeat = output / "scenario" / "heartbeat"
+    assert set(recorded["processes"]) == {"scenario"}
+    assert recorded["processes"]["scenario"]["stopped_by_runner"] is True
     before = heartbeat.read_bytes()
     assert before
     time.sleep(0.1)  # Observe after CLI completion; a leaked descendant would keep writing.
