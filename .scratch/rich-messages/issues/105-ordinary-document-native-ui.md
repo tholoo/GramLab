@@ -111,10 +111,25 @@ surface, 256-KiB text bounds and capability removal.
 Native execution also requires `GRAMLAB_ANDROID_APK_PROVENANCE` pointing to the coordinator's
 existing APK pointer format. Before any guest is created, the test verifies the supplied APK and
 retained pointer APK hashes, rejects experimental pointers, requires the current complete ordered
-series with `0030-ordinary-document-delivery.patch`, walks the linked source-provenance digests and
-per-patch hashes through the established 24-patch base, and matches the toolchain's upstream
-revision to `upstream-lock.json`. The report labels that value as the upstream revision and records
-the distinct patched-source provenance hash plus all ordered patch digests. Host controls reject
+series with `0030-ordinary-document-delivery.patch`, and matches the toolchain's upstream revision
+to `upstream-lock.json`. The report labels that value as the upstream revision and records the
+distinct patched-source provenance hash plus all ordered patch digests. Host controls reject
 changed APK bytes, delivery-patch bytes and upstream identity. These checks do not claim that
 external-files publication works; reviewed104 native delivery and this original UI run remain
 required.
+
+The frozen `0f05fe1` verifier still allowed an earlier patch to change because it bound only the
+historical patch-24-to-30 provenance links while reporting freshly computed hashes for patches
+1-23. `artifacts/document-ui-provenance-pre24-red-01.json` retains that real host red: changed patch
+1 was accepted and then falsely reported as part of the APK's ordered inputs. The corrected
+existing source-provenance record requires additive `upstream_revision` and complete
+`ordered_patches` fields and compares them exactly with every current pinned input. The pointer
+still binds that record's digest to the APK digest. There is no machine-specific chain cutoff or
+new manifest type; an older or incomplete source record fails clearly before guest creation. Host
+controls now reject mutations to patch1 and patch0030, APK and upstream mismatches, and an incomplete
+record.
+
+The final guarded host selection is retained under `artifacts/document-ui-host-04`: the real bot
+scenario and both boundary controls pass, while the one original Android case remains explicitly
+skipped pending the reviewed normal30 APK and complete source-provenance record. Scoped Ruff and
+strict mypy pass after this correction.

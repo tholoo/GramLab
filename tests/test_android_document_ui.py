@@ -101,6 +101,10 @@ def verify_android_build_provenance(
     ):
         raise ValueError("Android APK pointer does not cover the current ordered patch series")
     patch_digests = [_digest(series_path.parent / name) for name in series]
+    ordered_patches = [
+        {"position": position, "name": name, "sha256": digest}
+        for position, (name, digest) in enumerate(zip(series, patch_digests, strict=True), 1)
+    ]
 
     source_path = Path(pointer["source_provenance"])
     expected_source_digest = pointer["source_provenance_sha256"]
@@ -109,48 +113,23 @@ def verify_android_build_provenance(
         or _digest(source_path) != expected_source_digest
     ):
         raise ValueError("Android source provenance digest does not match its pointer")
-    chain: list[dict[str, Any]] = []
-    expected_count = len(series)
-    while True:
-        source = _json_object(source_path)
-        if source.get("patches") != expected_count:
-            raise ValueError("Android source provenance patch count is discontinuous")
-        expected_patch = patch_digests[expected_count - 1]
-        if source.get("patch") != expected_patch:
-            raise ValueError("Android source provenance patch digest does not match the series")
-        chain.append(
-            {
-                "patches": expected_count,
-                "patch": series[expected_count - 1],
-                "sha256": expected_patch,
-                "provenance_sha256": _digest(source_path),
-            }
-        )
-        if expected_count == 24:
-            break
-        previous = source.get("before_provenance")
-        previous_digest = source.get("before_provenance_sha256")
-        if not isinstance(previous, str) or not isinstance(previous_digest, str):
-            raise ValueError("Android source provenance chain ends before its established base")
-        source_path = Path(previous)
-        if _digest(source_path) != previous_digest:
-            raise ValueError("Android source provenance link digest does not match")
-        expected_count -= 1
-
+    source = _json_object(source_path)
+    if "upstream_revision" not in source or "ordered_patches" not in source:
+        raise ValueError("Android source provenance lacks complete pinned source fields")
+    if source.get("patches") != len(series) or source.get("patch") != patch_digests[-1]:
+        raise ValueError("Android source provenance does not describe the complete patch series")
+    if source["ordered_patches"] != ordered_patches:
+        raise ValueError("Android source provenance ordered patch digests do not match the series")
     upstream = _json_object(upstream_lock_path)
     revision = toolchain.get("client", {}).get("revision")
-    if upstream.get("clientRevision") != revision:
-        raise ValueError("Android toolchain and upstream source lock revisions differ")
+    if source["upstream_revision"] != revision or upstream.get("clientRevision") != revision:
+        raise ValueError("Android source provenance, toolchain and upstream lock revisions differ")
     return {
         "pointer_sha256": _digest(pointer_path),
         "apk_sha256": expected_apk,
         "source_provenance_sha256": expected_source_digest,
         "upstream_revision": revision,
-        "ordered_patches": [
-            {"position": position, "name": name, "sha256": digest}
-            for position, (name, digest) in enumerate(zip(series, patch_digests, strict=True), 1)
-        ],
-        "linked_source_provenance": chain,
+        "ordered_patches": ordered_patches,
     }
 
 
@@ -220,28 +199,19 @@ def test_apk_provenance_binds_delivery_patch_apk_and_upstream(tmp_path: Path) ->
     series = patches / "series"
     series.write_text("\n".join(names) + "\n")
 
-    source = tmp_path / "source"
-    source.mkdir()
-    previous = tmp_path / "provenance-24.json"
-    previous.write_text(
-        json.dumps({"source": str(source), "patches": 24, "patch": digests[23]}) + "\n"
-    )
-    for position in range(25, 31):
-        current = tmp_path / f"provenance-{position}.json"
-        current.write_text(
-            json.dumps(
-                {
-                    "source": str(source),
-                    "patches": position,
-                    "patch": digests[position - 1],
-                    "before_provenance": str(previous),
-                    "before_provenance_sha256": hashlib.sha256(previous.read_bytes()).hexdigest(),
-                }
-            )
-            + "\n"
-        )
-        previous = current
-
+    revision = "62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c"
+    ordered = [
+        {"position": position, "name": name, "sha256": digest}
+        for position, (name, digest) in enumerate(zip(names, digests, strict=True), 1)
+    ]
+    source_provenance = tmp_path / "source-provenance.json"
+    source_record = {
+        "patches": 30,
+        "patch": digests[-1],
+        "upstream_revision": revision,
+        "ordered_patches": ordered,
+    }
+    source_provenance.write_text(json.dumps(source_record) + "\n")
     apk = tmp_path / "client.apk"
     apk.write_bytes(b"reviewed apk")
     apk_digest = hashlib.sha256(apk.read_bytes()).hexdigest()
@@ -253,13 +223,14 @@ def test_apk_provenance_binds_delivery_patch_apk_and_upstream(tmp_path: Path) ->
                 "apk": str(apk),
                 "experimental": False,
                 "patches": 30,
-                "source_provenance": str(previous),
-                "source_provenance_sha256": hashlib.sha256(previous.read_bytes()).hexdigest(),
+                "source_provenance": str(source_provenance),
+                "source_provenance_sha256": hashlib.sha256(
+                    source_provenance.read_bytes()
+                ).hexdigest(),
             }
         )
         + "\n"
     )
-    revision = "62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c"
     upstream = tmp_path / "upstream.json"
     upstream.write_text(json.dumps({"clientRevision": revision}) + "\n")
     toolchain = {"client": {"revision": revision}}
@@ -278,9 +249,7 @@ def test_apk_provenance_binds_delivery_patch_apk_and_upstream(tmp_path: Path) ->
         "name": "0030-ordinary-document-delivery.patch",
         "sha256": digests[-1],
     }
-    assert [row["patches"] for row in verified["linked_source_provenance"]] == list(
-        range(30, 23, -1)
-    )
+    assert verified["ordered_patches"] == ordered
 
     apk.write_bytes(b"unreviewed apk")
     with pytest.raises(ValueError, match="APK"):
@@ -288,9 +257,16 @@ def test_apk_provenance_binds_delivery_patch_apk_and_upstream(tmp_path: Path) ->
             apk, pointer, toolchain, series_path=series, upstream_lock_path=upstream
         )
     apk.write_bytes(b"reviewed apk")
+    first = patches / names[0]
+    first.write_bytes(b"changed pre24 patch\n")
+    with pytest.raises(ValueError, match="ordered patch digests"):
+        verify_android_build_provenance(
+            apk, pointer, toolchain, series_path=series, upstream_lock_path=upstream
+        )
+    first.write_bytes(b"patch 1\n")
     delivery = patches / names[-1]
     delivery.write_bytes(b"changed delivery patch\n")
-    with pytest.raises(ValueError, match="patch digest"):
+    with pytest.raises(ValueError, match=r"patch series|ordered patch digests"):
         verify_android_build_provenance(
             apk, pointer, toolchain, series_path=series, upstream_lock_path=upstream
         )
@@ -302,6 +278,18 @@ def test_apk_provenance_binds_delivery_patch_apk_and_upstream(tmp_path: Path) ->
             {"client": {"revision": "0" * 40}},
             series_path=series,
             upstream_lock_path=upstream,
+        )
+    incomplete = dict(source_record)
+    del incomplete["ordered_patches"]
+    source_provenance.write_text(json.dumps(incomplete) + "\n")
+    pointer_record = json.loads(pointer.read_text())
+    pointer_record["source_provenance_sha256"] = hashlib.sha256(
+        source_provenance.read_bytes()
+    ).hexdigest()
+    pointer.write_text(json.dumps(pointer_record) + "\n")
+    with pytest.raises(ValueError, match="lacks complete pinned source fields"):
+        verify_android_build_provenance(
+            apk, pointer, toolchain, series_path=series, upstream_lock_path=upstream
         )
 
 
