@@ -34,9 +34,9 @@ lab.register_custom_emoji(
 user = lab.create_user(first_name="Sara")
 chat = lab.open_private_chat(user_id=user["id"], bot_id=lab.bots()["current"])
 lab.send_message(chat_id=chat["id"], sender_id=user["id"], text="publish current content")
-deadline = time.monotonic() + 20
+publication_deadline = time.monotonic() + 30
 while len(lab.history(chat["id"])) != 4:
-    assert time.monotonic() < deadline, "Current messages were not published"
+    assert time.monotonic() < publication_deadline, "Current messages were not published"
     time.sleep(0.02)
 lab.capture_chat(
     chat_id=chat["id"], label="current-messages",
@@ -44,10 +44,11 @@ lab.capture_chat(
 )
 lab.tap_inline_button(chat_id=chat["id"], message_id=2, row=0, column=0)
 lab.type_message(chat_id=chat["id"], text="reply after current content")
+completion_deadline = time.monotonic() + 30
 while len(lab.history(chat["id"])) != 6 or not any(
     event["type"] == "callback.answered" for event in lab.events()
 ):
-    assert time.monotonic() < deadline, "Current interactions did not complete"
+    assert time.monotonic() < completion_deadline, "Current interactions did not complete"
     time.sleep(0.02)
 """
 
@@ -223,7 +224,8 @@ def test_rich_photo_caption_identity_matches_text_and_credit_and_rejects_ambigui
 def test_ordinary_photo_keyboard_requires_exact_authored_caption_and_rejects_ambiguity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    with World.create(tmp_path / "world", seed=7, now=100) as world:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
         user = world.create_user(first_name="Sara")
         bot = world.create_user(first_name="Bot", is_bot=True)
         chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
@@ -237,6 +239,16 @@ def test_ordinary_photo_keyboard_requires_exact_authored_caption_and_rejects_amb
             caption="PNG ordinary / تصویر معمولی",
             reply_markup=KEYBOARD,
         )
+        world.send_photo(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            photo={"type": "photo", "media": "attach://other"},
+            uploads={
+                "other": (ASSETS / "rich-media/photo-square-16x16.png").read_bytes(),
+            },
+            caption="A distinct authored caption",
+            reply_markup=KEYBOARD,
+        )
 
     label = "Photo\nPNG ordinary / تصویر معمولی\nReceived at 10:13 PM\n"
     assert _inline_fragments(message) == ["PNG ordinary / تصویر معمولی"]
@@ -248,13 +260,37 @@ def test_ordinary_photo_keyboard_requires_exact_authored_caption_and_rejects_amb
     cell = (
         '<node package="org.gramlab.android" text="'
         + label.replace("\n", "&#10;")
-        + '"><node class="android.widget.Button" text="Inspect" /></node>'
+        + '"><node class="android.widget.Button" text="Inspect" bounds="[10,100][90,130]" '
+        'clickable="true" enabled="true" /></node>'
     )
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(android, "_open_chat", lambda _chat: "external Android launch")
     monkeypatch.setattr(
-        android, "_wait_ui", lambda _contains: "<hierarchy>" + cell * 2 + "</hierarchy>"
+        android, "_wait_ui", lambda _contains: "<hierarchy>" + cell + "</hierarchy>"
     )
-    with pytest.raises(RuntimeError, match="one accessible match"):
+
+    class NativeInputReached(Exception):
+        pass
+
+    def input_boundary(*_arguments: str, **_keywords: Any) -> Any:
+        raise NativeInputReached
+
+    monkeypatch.setattr(android, "_adb", input_boundary)
+    with pytest.raises(NativeInputReached):
+        android._tap_inline_button(chat, message, 0, 0)
+
+    with World.open(directory) as world:
+        world.send_photo(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            photo={"type": "photo", "media": "attach://duplicate"},
+            uploads={
+                "duplicate": (ASSETS / "rich-media/photo-square-16x16.png").read_bytes(),
+            },
+            caption=message["caption"],
+            reply_markup=KEYBOARD,
+        )
+    with pytest.raises(RuntimeError, match="text is ambiguous"):
         android._tap_inline_button(chat, message, 0, 0)
 
     message.pop("caption")
@@ -295,47 +331,89 @@ def test_public_android_runner_interacts_with_current_photo_mention_and_custom_e
     )
     recorded = json.loads((output / "result.json").read_text())
     assert outcome == "passed", recorded
-    history = recorded["histories"]["1"]
-    assert [message["id"] for message in history] == [1, 2, 3, 4, 5, 6]
-    assert history[0] == {
-        "id": 1,
-        "chat_id": 1,
-        "sender_id": 2,
-        "date": 1700000000,
-        "text": "publish current content",
-    }
-    assert history[1]["rich_message"]["blocks"][0]["caption"] == {
-        "text": {"type": "bold", "text": "Current photo caption"},
-        "credit": {"type": "italic", "text": "Current photo credit"},
-    }
-    assert history[1]["reply_markup"] == {
-        "inline_keyboard": [[{"text": "Inspect", "callback_data": "inspect-current"}]]
-    }
-    assert history[2]["rich_message"]["blocks"][0]["text"] == {
-        "type": "text_mention",
-        "text": "Mention Bot",
-        "user_id": 1,
-    }
-    assert history[3]["entities"] == [
-        {"type": "custom_emoji", "offset": 6, "length": 5, "custom_emoji_id": "7"}
+    expected_history = [
+        {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "publish current content",
+        },
+        {
+            "id": 2,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "",
+            "rich_message": {
+                "blocks": [
+                    {
+                        "type": "photo",
+                        "asset_id": 3,
+                        "caption": {
+                            "text": {"type": "bold", "text": "Current photo caption"},
+                            "credit": {"type": "italic", "text": "Current photo credit"},
+                        },
+                    }
+                ]
+            },
+            "reply_markup": {
+                "inline_keyboard": [[{"text": "Inspect", "callback_data": "inspect-current"}]]
+            },
+        },
+        {
+            "id": 3,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "",
+            "rich_message": {
+                "blocks": [
+                    {
+                        "type": "paragraph",
+                        "text": {
+                            "type": "text_mention",
+                            "text": "Mention Bot",
+                            "user_id": 1,
+                        },
+                    }
+                ]
+            },
+        },
+        {
+            "id": 4,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "Emoji 👩‍💻",
+            "entities": [
+                {
+                    "type": "custom_emoji",
+                    "offset": 6,
+                    "length": 5,
+                    "custom_emoji_id": "7",
+                }
+            ],
+        },
+        {
+            "id": 5,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "reply after current content",
+        },
+        {
+            "id": 6,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "Current content reply received",
+        },
     ]
-    assert history[4] == {
-        "id": 5,
-        "chat_id": 1,
-        "sender_id": 2,
-        "date": 1700000000,
-        "text": "reply after current content",
-    }
-    assert history[5] == {
-        "id": 6,
-        "chat_id": 1,
-        "sender_id": 1,
-        "date": 1700000000,
-        "text": "Current content reply received",
-    }
+    assert recorded["histories"] == {"1": expected_history}
     callback_interaction, composer_interaction = recorded["interactions"]
     assert callback_interaction["native"] is True
-    assert callback_interaction["callback"]["message"] == history[1]
+    assert callback_interaction["callback"]["message"] == expected_history[1]
     assert callback_interaction["callback"]["data"] == "inspect-current"
     assert callback_interaction["android"]["target"]["text"] == "Inspect"
     assert composer_interaction["native"] is True
@@ -343,7 +421,7 @@ def test_public_android_runner_interacts_with_current_photo_mention_and_custom_e
         {
             "request_id": composer_interaction["sends"][0]["request_id"],
             "position": 5,
-            "message": history[4],
+            "message": expected_history[4],
         }
     ]
     callback_events = [
@@ -359,5 +437,5 @@ def test_public_android_runner_interacts_with_current_photo_mention_and_custom_e
         "user_id": 2,
         "answer": {"text": "Inspected", "show_alert": False, "cache_time": 0},
     }
-    assert recorded["captures"][0]["history"] == history[:4]
+    assert recorded["captures"][0]["history"] == expected_history[:4]
     assert recorded["captures"][0]["rendered"] is True

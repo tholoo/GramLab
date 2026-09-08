@@ -54,13 +54,21 @@ frozen clean commit with all processes terminal; coordinator owns integration an
   labeling the substituted native input boundary.
 - Rich photo captions traverse canonical `text` then `credit`. Captioned ordinary photos match only
   the observed native wrapper containing their exact authored caption. Missing fragments, changed
-  captions, duplicate native cells and captionless photos reject conservatively.
+  captions, duplicate native cells and captionless photos reject conservatively. The final
+  history-wide ambiguity guard uses the same authored identity: distinct ordinary photo captions
+  reach the native input boundary, while a repeated exact caption remains ambiguous.
 - One collected Android test stages a public bridge-v4 runner with a contained multipart bot, rich
   photo caption and keyboard, mention, custom emoji, native callback and native composer send. It
-  asserts the complete six-message history, callback records/events and send journal. It was not
+  independently specifies all fields of the six-message canonical history, including the photo
+  descriptor and complete mention/custom-emoji messages, then asserts callback records/events and
+  the send journal. Publication and post-interaction polling have separate deadlines, and the bot's
+  fixture-only wait remains bounded by the existing 300-second run budget. The Android case was not
   executed because native disk approval remains pending.
 
 Evidence is retained under `artifacts/ticket69-red.xml` and
 `artifacts/ticket69-host-green-final.xml`; the intermediate malformed-test failure remains in
 `artifacts/ticket69-host-green.xml`. Final host result: 5 passed, 1 Android deselected. Collection:
-6 tests. Scoped strict mypy reports 3 source files clean; scoped Ruff lint and format pass.
+6 tests. The follow-up result is retained at `artifacts/ticket69-followup-host-green.xml` with the
+same 5 passed and 1 Android deselected. `artifacts/ticket69-followup-ambiguity-red.xml` retains the
+old final guard rejecting two distinct captioned photos solely because both have empty `text`.
+Scoped strict mypy reports 3 source files clean; scoped Ruff lint and format pass.

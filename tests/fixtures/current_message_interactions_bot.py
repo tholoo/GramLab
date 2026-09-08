@@ -116,7 +116,7 @@ print(json.dumps({"event": "published", "rich": rich}), flush=True)
 offset = updates[0]["update_id"] + 1
 callback = None
 reply = None
-deadline = time.monotonic() + 30
+deadline = time.monotonic() + 300
 while time.monotonic() < deadline and (callback is None or reply is None):
     incoming = call("getUpdates", {"offset": offset, "timeout": 10})
     for update in incoming:

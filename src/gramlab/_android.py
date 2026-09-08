@@ -550,13 +550,7 @@ class Android:
             if world.get_message(chat["id"], message["id"]) != message:
                 raise RuntimeError("Inline message changed before input")
             same_text = [
-                item
-                for item in world.history(chat["id"])
-                if (
-                    _inline_matches(item, native_text)
-                    if "rich_message" in message or "rich_message" in item
-                    else item["text"] == message["text"]
-                )
+                item for item in world.history(chat["id"]) if _inline_matches(item, native_text)
             ]
             if len(same_text) != 1:
                 raise RuntimeError("Inline message text is ambiguous in this chat")
