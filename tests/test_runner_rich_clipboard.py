@@ -468,6 +468,10 @@ def test_public_native_rich_clipboard_paste_clear_and_disabled_preservation(tmp_
             ]
             if name == "row_disabled" and inputs[:1] == [["shell", "input", "keyevent", "4"]]:
                 keys.insert(0, ["shell", "input", "keyevent", "4"])
+                assert evidence["popup_back_issued"] is True
+                assert evidence["popup_dismissed"] is True
+            else:
+                assert not {"popup_back_issued", "popup_dismissed"} & evidence.keys()
             assert inputs == keys
             assert {p.name for p in operation.iterdir()} == {
                 "result.json",
@@ -978,3 +982,137 @@ def test_prepare_diagnostic_retains_actual_pending_frame_without_changing_outcom
     with pytest.raises(ValueError) as repeated:
         native_host.prepare(receipt, client_nonce="actual-client")
     assert repeated.value is failure and calls == 2 and path.read_bytes() == raw
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "native06_prefix",
+        "immediate",
+        "settles",
+        "persistent",
+        "deadline",
+        "budget",
+        "wrong_pid",
+        "unrelated",
+        "ambiguous",
+        "different_popup",
+    ],
+)
+def test_popup_settling_replays_native_prefix_and_never_retries_input(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    # Native06 op699e6d9dba6c4345a26645a83a8caf6a retained result SHA256:
+    # bc0ad7a495e9e160254cd81668c5ebc6b44ddb92f901cf9d665f1b5f13ed9b69.
+    # These are exact focus/PID projections of its six rc0 commands. Later transitions
+    # are independently scheduled external controls, not a claim about that guest's future.
+    popup = (
+        "  mCurrentFocus=Window{d7a2043 u0 PopupWindow:cbc808}\n"
+        "  mFocusedApp=ActivityRecord{211137882 u0 "
+        "org.gramlab.android/org.telegram.ui.LaunchActivity t11}\n"
+    )
+    chat = "mCurrentFocus=Window{d7ef034 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}\n"
+    focus = ("shell", "dumpsys", "window", "displays")
+    pid = ("shell", "pidof", "org.gramlab.android")
+    back = ("shell", "input", "keyevent", "4")
+    calls: list[tuple[tuple[str, ...], str]] = []
+    captures: list[str] = []
+    ownership: list[tuple[tuple[str, str, str], int]] = []
+    sent_back = False
+    polls = 0
+
+    def external_adb(*arguments: str) -> subprocess.CompletedProcess[str]:
+        nonlocal sent_back, polls
+        output = ""
+        if arguments == focus:
+            if sent_back:
+                polls += 1
+            output = popup
+            if sent_back and (
+                mode in {"immediate", "wrong_pid"} or (mode == "settles" and polls > 1)
+            ):
+                output = chat
+            elif sent_back and mode == "unrelated":
+                output = "mCurrentFocus=Window{abcd u0 other.application/Activity}\n"
+            elif sent_back and mode == "ambiguous":
+                output = popup + chat
+            elif sent_back and mode == "different_popup":
+                output = popup.replace("d7a2043", "abcd")
+        elif arguments == pid:
+            output = "9999\n" if sent_back and mode == "wrong_pid" else "3722\n"
+        elif arguments == back:
+            assert not sent_back
+            sent_back = True
+        else:
+            assert mode in {"immediate", "settles"}
+            assert arguments[:3] == ("shell", "input", "keyevent")
+        calls.append((arguments, output))
+        if (mode == "native06_prefix" and sent_back and arguments == focus) or (
+            mode == "deadline" and sent_back and arguments == pid
+        ):
+            native_host.android.deadline = time.monotonic() - 1
+        return subprocess.CompletedProcess(arguments, 0, stdout=output, stderr="")
+
+    def external_ownership(focused: tuple[str, str, str], process: int) -> None:
+        # The host ownership validator's independent suite owns PID/UID/parent/surface evidence.
+        ownership.append((focused, process))
+
+    class ExternalCapture(ClipboardProbe):
+        def capture(self, phase: str, expected: str) -> None:
+            captures.append(phase)
+            composer(editor(expected), expected)
+
+    monkeypatch.setattr(native_host.android, "_adb", external_adb)
+    monkeypatch.setattr(native_host, "_owned_popup", external_ownership)
+    probe = ExternalCapture(native_host, Path.cwd(), {"operation_id": "7" * 32})
+    initial_calls = 24 if mode == "budget" else 0
+    probe.calls = initial_calls
+    if mode in {"immediate", "settles"}:
+        probe.run("row_disabled", "row copied / ردیف")
+        assert captures == ["empty", "pasted", "cleared"]
+        assert probe.record["popup_dismissed"] is True
+        assert probe.record["cleared"] is True
+    else:
+        failure = TimeoutError if mode in {"native06_prefix", "deadline"} else ValueError
+        with pytest.raises(failure):
+            probe.run("row_disabled", "row copied / ردیف")
+        assert captures == []
+        assert "popup_dismissed" not in probe.record
+        assert "cleared" not in probe.record
+    assert probe.record["popup_back_issued"] is True
+    assert ownership == [(("d7a2043", "0", "PopupWindow:cbc808"), 3722)]
+    assert calls[:5] == [
+        (focus, popup),
+        (pid, "3722\n"),
+        (pid, "3722\n"),
+        (focus, popup),
+        (back, ""),
+    ]
+    if mode == "native06_prefix":
+        assert calls == [*calls[:5], (focus, popup)]
+    if mode in {"unrelated", "ambiguous", "different_popup"}:
+        assert len(calls) == 6
+    if mode == "wrong_pid":
+        assert calls[5:] == [(focus, chat), (pid, "9999\n")]
+    if mode == "settles":
+        assert [value for arguments, value in calls if arguments == focus] == [
+            popup,
+            popup,
+            popup,
+            chat,
+        ]
+    assert sum(arguments == back for arguments, _ in calls) == 1
+    inputs = [arguments for arguments, _ in calls if arguments[:2] == ("shell", "input")]
+    assert inputs == (
+        [
+            back,
+            ("shell", "input", "keyevent", "279"),
+            ("shell", "input", "keyevent", "123"),
+            ("shell", "input", "keyevent", *(["67"] * len("row copied / ردیف"))),
+        ]
+        if mode in {"immediate", "settles"}
+        else [back]
+    )
+    assert probe.calls == len(calls) + initial_calls <= 32
+    if mode in {"persistent", "budget"}:
+        assert probe.calls == 32
