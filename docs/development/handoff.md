@@ -36,8 +36,8 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   correction has 108 focused host/simulation checks and actual native acceptance. Earlier
   native10/11 readiness failures remain incompletely diagnosed; source review finds arm ACKs can
   reference old draws. Fresh startup-instrumented native15 accepts88's complete visible/ABA histories, events, API
-  ordering, receipts and native provenance in 81.47 seconds. Actual clipboard paste and native
-  unrelated-edit survival remain open under74/92. Do not infer those from the current receipt-status test.
+  ordering, receipts and native provenance in 81.47 seconds. Separate clipboard92 and unrelated-edit95 now pass their complete bounded native scenarios
+  below. Wider placement/recovery under74 remains open.
 - Fresh original custom-emoji UI09 passes in 130.06 seconds on unchanged normal24: initial static
   rendering, real bot callback/edit, original settings, three animated carriers and unchanged
   cold-cache restart. All 24 conservative acquisition bounds are 140–210 ms (median 160 ms).
@@ -56,19 +56,19 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   comparisons pass; the original capture and desktop/mobile report were inspected. The first red
   remains retained and successful guest disks were retired. Ticket88 expands native button state
   acceptance independently and now passes fresh native15. Native14
-  failed the existing boot deadline before scenario execution and remains retained; actual clipboard paste and native unrelated-edit survival remain
-  separate gaps. Unrelated message revisions do not bypass native geometry/freshness checks.
+  failed the existing boot deadline before scenario execution and remains retained; clipboard92 and unrelated-edit95 now have separate passing native acceptance below. Unrelated message revisions do not bypass native geometry/freshness checks.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The current core12 checkpoint passes980 tests at87.36% coverage in163.92 seconds with four
-isolated workers and no simultaneous guest. All57 documented static commands, Ruff lint/format
-across497 files and configuration/links in245 Markdown documents pass. This includes92's four-phase
-scenario and original prepare/freshness diagnostics,95's reduced pre-prepare work and failure
-retention, and96's fixture-connection cleanup. No resource warnings remain in this combined run.
-Successful temporary core fixtures are retired after preserving JUnit, logs and outcome. This core checkpoint predates integrated document metadata97 and native disarm98. A later
-static12 run passes all59 documented static commands; combined runtime verification is pending.
+The current core13 checkpoint passes1054 tests at87.49% coverage in134.14 seconds with four
+isolated workers and no guest. All59 documented static commands, Ruff lint/format across510 files
+and configuration/links in252 Markdown documents pass. This includes integrated metadata97,
+multipart decoding100, native disarm98 and the final clipboard92 popup-settling correction. No
+resource warnings remain. Clipboard92 and disarm98 are resolved after actual native acceptance
+and this combined gate. Worker99's typed World/schema9 implementation and native codec101 remain
+under separate review/implementation; they are not certified by this gate. Successful temporary
+core fixtures are retired after retaining JUnit, logs and outcome.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
 Multipart metadata94 is resolved, preserving filename/type and exact image bytes. Storage96 is
@@ -95,7 +95,7 @@ on normal27 (eight pass), then passes all ten on normal28. The unchanged four-ph
 endpoint initially failed its immediate post-Back focus assertion in137.30 seconds. Bounded
 read-only focus settling after exactly one Back now passes40 focused checks and fresh native07
 in155.89 seconds. All four actual paste/clear phases and complete semantic/API comparisons pass;
-eight original pasted/cleared images are inspected. Combined core acceptance remains pending. No timeout,
+eight original pasted/cleared images are inspected. Core13 and static13 complete92/98 acceptance. No timeout,
 input, freshness or original drawing change is justified. The unchanged complete88 endpoint remains
 separate evidence. Earlier results and screenshots remain; obsolete guest disks are retired.
 
@@ -125,7 +125,7 @@ Successful core fixtures are retired immediately after preserving JUnit, logs an
 Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
 for user consultation; changing
 the fidelity target remains unapproved and implementation must not start on that assumption.
-Native unrelated-edit survival and the wider operational inventory remain required. Exact local
+Wider native placement/recovery and the operational inventory remain required. Exact local
 paths, process handles, cleanup receipts and active worker state stay in ignored coordinator notes.
 
 ## First action
@@ -262,8 +262,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 980 passed at 87.36% coverage in 163.92 seconds with four isolated workers and no guest. Includes integrated clipboard/unrelated acceptance helpers and storage fixture cleanup; native evidence remains separate. |
-| Latest static/workflow | Core12 checkpoint passes 57 documented static commands, Ruff lint/format across 497 files, and configuration/links in 245 Markdown documents. Later static12 passes59 commands including integrated97/98; their combined core gate is pending. |
+| Latest core | 1054 passed at 87.49% coverage in 134.14 seconds with four isolated workers and no guest. Includes integrated clipboard/unrelated acceptance helpers and storage fixture cleanup; native evidence remains separate. |
+| Latest static/workflow | Core13 checkpoint passes59 documented static commands, Ruff lint/format across510 files, and configuration/links in252 Markdown documents. Includes integrated97/98/100 and clipboard92 follow-up. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable

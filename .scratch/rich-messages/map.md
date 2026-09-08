@@ -35,8 +35,8 @@ the full product scope documented in the handoff.
 
 - [91: document source contract](issues/91-document-source-contract.md): pinned filename/MIME
   derivation and empty-upload rejection are researched; ordinary file implementation remains open.
-- [92: clipboard acceptance](issues/92-rich-button-native-clipboard-acceptance.md): row/inline copy and inline-disabled
-  paste/clear pass in native03; four-phase native05 identifies stale disarm blocking a new lifetime.
+- [92: clipboard acceptance](issues/92-rich-button-native-clipboard-acceptance.md): resolved: full four-phase native07 passes actual paste/clear in155.89 seconds; original
+  stale-disarm and asynchronous popup-focus failures remain documented.
 - [94: multipart metadata](issues/94-multipart-upload-metadata.md): integrated with 12 affected
   checks passing and the 948-test combined core gate passing.
 - [95: unrelated target survival](issues/95-native-unrelated-edit-target-survival.md): resolved: fresh normal27 native03 passes the complete
@@ -46,8 +46,8 @@ the full product scope documented in the handoff.
 
 - [97: pinned document metadata](issues/97-pinned-document-filename-metadata.md): exact filename
   cleaning and extension-derived MIME are integrated with32 independent focused checks.
-- [98: native disarm scope](issues/98-native-disarm-lifetime-scope.md): preserve strict validation
-  while preventing a valid old-lifetime disarm from blocking a new arm.
+- [98: native disarm scope](issues/98-native-disarm-lifetime-scope.md): resolved: actual native red/green proves strict lifetime-scoped handling; complete
+  clipboard native07 and1054-test combined core gate pass.
 
 - [99: ordinary document World](issues/99-ordinary-document-world.md): typed storage, schema9
   migration and v5 dependencies are assigned under the frozen document contract.
