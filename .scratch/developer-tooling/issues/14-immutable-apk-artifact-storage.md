@@ -48,11 +48,13 @@ hardlink replacement. Plans and complete receipts are bounded to 16 MiB before m
 reads are descriptor-bounded. Fsynced receipts retain original metadata and recover both published
 objects and replacements interrupted before their journal entries.
 
-Seventeen real temporary-filesystem cases pass under the outer loopback-only namespace, covering
+Twenty real temporary-filesystem cases pass under the outer loopback-only namespace, covering
 duplicate and unique bytes, complete path preservation, idempotence, byte/mode/inode staleness,
 symlink, path escape and unmanaged-hardlink rejection, parent substitution before and during
 apply, content and create-only output collisions, quiescence confirmation, manifest/receipt bounds,
-and interruptions before/after replacement and after object publication. Retained JUnit is
-`artifacts/immutable-apk-artifact-storage.xml`. Scoped Ruff lint/format, strict mypy, bytecode
-compilation and assigned-checkout import verification pass. No actual archive, guest, build,
-runtime/core API or shared configuration was changed.
+and interruptions before/after replacement and after object publication. They also reject an
+unmanaged staged hardlink and an impossible premature completion before mutation, and exercise a
+maximum-length APK basename through bounded digest-derived staging. Retained follow-up JUnit is
+`artifacts/immutable-apk-artifact-storage-followup.xml`. Scoped Ruff lint/format, strict mypy,
+bytecode compilation and assigned-checkout import verification pass. No actual archive, guest,
+build, runtime/core API or shared configuration was changed.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -278,6 +279,84 @@ def test_apply_rejects_preexisting_content_object_collision(tmp_path: Path) -> N
     assert "unsafe metadata" in result.stderr or "does not match its name" in result.stderr
     assert (root / "one/first.apk").read_bytes() == values["one/first.apk"]
     assert not receipt.exists()
+
+
+def test_apply_rejects_unmanaged_staging_link_before_mutation(tmp_path: Path) -> None:
+    helper = load_tool()
+    root = tmp_path / "archive"
+    store = tmp_path / "store"
+    root.mkdir()
+    store.mkdir()
+    artifact = root / "client.apk"
+    artifact.write_bytes(b"immutable apk")
+    original_inode = artifact.stat().st_ino
+    plan_path = tmp_path / "plan.json"
+    receipt = tmp_path / "receipt.jsonl"
+    helper.plan_archive(root, store, plan_path)
+    record = json.loads(plan_path.read_text())["files"][0]
+    canonical = store / f"{record['sha256']}.apk"
+    canonical.write_bytes(artifact.read_bytes())
+    canonical.chmod(0o444)
+    staged = root / helper.staging_name("client.apk")
+    os.link(canonical, staged)
+
+    with pytest.raises(helper.Refusal, match="temporary path collision"):
+        helper.apply_archive(root, store, plan_path, receipt, confirmed_quiescent=True)
+    assert artifact.stat().st_ino == original_inode
+    assert artifact.read_bytes() == b"immutable apk"
+    assert staged.exists()
+    assert not receipt.exists()
+
+
+def test_apply_rejects_premature_complete_receipt_before_mutation(tmp_path: Path) -> None:
+    helper = load_tool()
+    root = tmp_path / "archive"
+    store = tmp_path / "store"
+    root.mkdir()
+    store.mkdir()
+    artifact = root / "client.apk"
+    artifact.write_bytes(b"immutable apk")
+    original_inode = artifact.stat().st_ino
+    plan_path = tmp_path / "plan.json"
+    receipt = tmp_path / "receipt.jsonl"
+    helper.plan_archive(root, store, plan_path)
+    header = {
+        "event": "started",
+        "schema": helper.SCHEMA,
+        "plan_sha256": hashlib.sha256(plan_path.read_bytes()).hexdigest(),
+        "archive_root": str(root.resolve()),
+        "store": str(store.resolve()),
+    }
+    receipt.write_text(
+        "\n".join(json.dumps(event) for event in (header, {"event": "complete", "linked_paths": 1}))
+        + "\n"
+    )
+
+    with pytest.raises(helper.Refusal, match="invalid completion"):
+        helper.apply_archive(root, store, plan_path, receipt, confirmed_quiescent=True)
+    assert artifact.stat().st_ino == original_inode
+    assert artifact.read_bytes() == b"immutable apk"
+    assert list(store.iterdir()) == []
+    assert len(receipt_events(receipt)) == 2
+
+
+def test_apply_supports_maximum_length_apk_basename(tmp_path: Path) -> None:
+    helper = load_tool()
+    root = tmp_path / "archive"
+    store = tmp_path / "store"
+    root.mkdir()
+    store.mkdir()
+    artifact = root / ("z" * 251 + ".apk")
+    artifact.write_bytes(b"immutable apk")
+    plan_path = tmp_path / "plan.json"
+    receipt = tmp_path / "receipt.jsonl"
+    helper.plan_archive(root, store, plan_path)
+
+    result = helper.apply_archive(root, store, plan_path, receipt, confirmed_quiescent=True)
+    assert result["linked_paths"] == 1
+    assert artifact.read_bytes() == b"immutable apk"
+    assert artifact.stat().st_ino == next(store.glob("*.apk")).stat().st_ino
+    assert not (root / helper.staging_name(artifact.name)).exists()
 
 
 def test_create_only_manifest_write_preserves_a_collision(tmp_path: Path) -> None:

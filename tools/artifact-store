@@ -545,7 +545,13 @@ def read_receipt(
             linked.add(relative)
         elif kind == "complete":
             exact(event, {"event", "linked_paths"}, "RECEIPT completion record")
-            if index != len(events) - 1 or event["linked_paths"] != len(records):
+            if (
+                index != len(events) - 1
+                or event["linked_paths"] != len(records)
+                or prepared != set(expected)
+                or linked != set(expected)
+                or objects != {str(record["sha256"]) for record in records}
+            ):
                 fail("RECEIPT contains an invalid completion record.")
         else:
             fail("RECEIPT contains an unsupported event.")
@@ -605,6 +611,11 @@ def receipt_bound(header: dict[str, Any], records: list[dict[str, Any]], store: 
 
 def replace_atomic(parent: int, source: str, destination: str) -> None:
     os.replace(source, destination, src_dir_fd=parent, dst_dir_fd=parent)
+
+
+def staging_name(relative: str) -> str:
+    digest = hashlib.sha256(relative.encode()).hexdigest()
+    return f".artifact-store-link-{digest}"
 
 
 def create_object(
@@ -694,7 +705,8 @@ def apply_archive(
         fail("ARCHIVE_ROOT APK inventory changed since PLAN.")
 
     events = read_receipt(receipt, plan_digest, archive_root, store, records)
-    prepared = {event.get("path") for event in events if event.get("event") == "prepared"}
+    durable_prepared = {event.get("path") for event in events if event.get("event") == "prepared"}
+    prepared = set(durable_prepared)
     linked_events = {event.get("path") for event in events if event.get("event") == "linked"}
     if any(event.get("event") == "complete" for event in events[:-1]):
         fail("RECEIPT contains records after completion.")
@@ -723,6 +735,23 @@ def apply_archive(
                 fail(f"APK changed since PLAN: {relative}")
         else:
             fail(f"APK changed since PLAN: {relative}")
+
+        staged_name = staging_name(relative)
+        with anchored_parent(archive_root, relative) as (parent, _name):
+            try:
+                staged_status = os.stat(staged_name, dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                staged_status = None
+        if staged_status is not None:
+            staged_object = object_status.get(str(record["sha256"]))
+            if (
+                relative not in durable_prepared
+                or staged_object is None
+                or not stat.S_ISREG(staged_status.st_mode)
+                or staged_status.st_dev != staged_object.st_dev
+                or staged_status.st_ino != staged_object.st_ino
+            ):
+                fail(f"Replacement temporary path collision: {path.parent / staged_name}")
 
     expected_header = {
         "event": "started",
@@ -771,7 +800,7 @@ def apply_archive(
             if relative not in prepared:
                 journal.append({"event": "prepared", "path": relative, "original": record})
                 prepared.add(relative)
-            staged_name = f".{path.name}.artifact-store-link"
+            staged_name = staging_name(relative)
             with anchored_parent(archive_root, relative) as (parent, name):
                 try:
                     staged_status = os.stat(staged_name, dir_fd=parent, follow_symlinks=False)
@@ -779,7 +808,7 @@ def apply_archive(
                     staged_status = None
                 if staged_status is not None:
                     if (
-                        relative not in prepared
+                        relative not in durable_prepared
                         or not stat.S_ISREG(staged_status.st_mode)
                         or staged_status.st_dev != stored.st_dev
                         or staged_status.st_ino != stored.st_ino

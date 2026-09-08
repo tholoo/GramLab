@@ -48,10 +48,13 @@ is either the old readable file or the complete verified object. Run the same ap
 the same plan and receipt to finish: it recognizes an authorized staged link and a replacement
 completed just before interruption, and records a verified object published before its prior
 journal append as recovered. Parent directories are reopened without following symlinks and the
-final replacement uses the anchored directory descriptor. Changed inputs, unexpected receipt
-contents, temporary-file collisions and content-object collisions fail instead of being
-overwritten. Plans and the complete receipt are each limited to 16 MiB; the tool refuses an
-inventory whose durable records would exceed that bound before changing the archive.
+final replacement uses the anchored directory descriptor. Staged-link names have a fixed bounded
+length derived from the complete relative path. A staged link is accepted only after a durable
+prepared record authorizes it, and a completion record is valid only after every planned object,
+preparation and replacement is recorded. Changed inputs, unexpected receipt contents,
+temporary-file collisions and content-object collisions fail instead of being overwritten. Plans
+and the complete receipt are each limited to 16 MiB; the tool refuses an inventory whose durable
+records would exceed that bound before changing the archive.
 
 Hardlinks share permissions and content. Archived APK paths become read-only because changing a
 linked path in place would also change the content object and every peer. To obtain a writable,
