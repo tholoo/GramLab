@@ -64,7 +64,47 @@ def _inline_fragments(message: dict[str, Any]) -> list[str]:
     return [fragment for fragment in fragments if fragment]
 
 
-def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
+def _android_file_size(size: int) -> str:
+    """Match the pinned English Android accessibility size for local document bounds."""
+    if type(size) is not int or size < 0:
+        raise ValueError("Invalid document file size")
+    if size == 0:
+        return "0 KB"
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        tenths = (size * 10 + 512) // 1024
+        return f"{tenths // 10}.{tenths % 10} KB"
+    if size < 1000 * 1024 * 1024:
+        tenths = (size * 10 + 512 * 1024) // (1024 * 1024)
+        return f"{tenths // 10}.{tenths % 10} MB"
+    hundredths = (size // 1024 // 1024 + 5) // 10
+    return f"{hundredths // 100}.{hundredths % 100:02d} GB"
+
+
+def _document_accessibility_header(descriptor: dict[str, Any]) -> str:
+    """Build the stable part of the pinned English original document description."""
+    file_name = descriptor["file_name"]
+    mime_type = descriptor["mime_type"]
+    if not isinstance(file_name, str) or not isinstance(mime_type, str):
+        raise ValueError("Invalid document descriptor")
+    dot = file_name.rfind(".")
+    extension = file_name[dot + 1 :] if dot >= 0 else ""
+    if not extension:
+        extension = {
+            "video/mp4": "mp4",
+            "video/x-matroska": "mkv",
+            "audio/ogg": "ogg",
+        }.get(mime_type, "")
+    document_type = f"{extension.upper()} file, " if extension else ""
+    return f"{document_type}{file_name}, {_android_file_size(descriptor['file_size'])}"
+
+
+def _inline_matches(
+    message: dict[str, Any],
+    native_text: str,
+    document_descriptor: dict[str, Any] | None = None,
+) -> bool:
     if "rich_message" not in message:
         if message["text"]:
             return native_text.startswith(message["text"] + "\n")
@@ -73,7 +113,10 @@ def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
         if "photo" in message:
             match = re.fullmatch(r"Photo\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
         elif "document" in message:
-            match = re.fullmatch(r"[^\n]+\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+            if document_descriptor is None:
+                return False
+            header = re.escape(_document_accessibility_header(document_descriptor))
+            match = re.fullmatch(header + r"\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
         else:
             return False
         return match is not None and match[1] == message["caption"]
@@ -533,6 +576,12 @@ class Android:
         fragments = _inline_fragments(message)
         if not any(fragment.strip() for fragment in fragments):
             raise RuntimeError("Inline message has no observable text identity")
+        document_descriptor = None
+        if "document" in message:
+            with World.open(Path("world")) as world:
+                document_descriptor = world.granted_document(
+                    chat["user_id"], message["document"]["document_id"]
+                )[0]
         ui = self._wait_ui(fragments)
         tree = ET.fromstring(ui)  # noqa: S314 — dedicated UIAutomator XML
         keyboard = message["reply_markup"]["inline_keyboard"]
@@ -540,7 +589,7 @@ class Android:
         candidates = []
         for node in tree.iter("node"):
             if node.get("package") != "org.gramlab.android" or not _inline_matches(
-                message, node.get("text", "")
+                message, node.get("text", ""), document_descriptor
             ):
                 continue
             buttons = [child for child in node if child.get("class") == "android.widget.Button"]
@@ -563,9 +612,15 @@ class Android:
         with World.open(Path("world")) as world:
             if world.get_message(chat["id"], message["id"]) != message:
                 raise RuntimeError("Inline message changed before input")
-            same_text = [
-                item for item in world.history(chat["id"]) if _inline_matches(item, native_text)
-            ]
+            same_text = []
+            for item in world.history(chat["id"]):
+                item_descriptor = None
+                if "document" in item:
+                    item_descriptor = world.granted_document(
+                        chat["user_id"], item["document"]["document_id"]
+                    )[0]
+                if _inline_matches(item, native_text, item_descriptor):
+                    same_text.append(item)
             if len(same_text) != 1:
                 raise RuntimeError("Inline message text is ambiguous in this chat")
             events = world.events()

@@ -16,7 +16,13 @@ import pytest
 from test_android_rich_button_host import ExternalGuest
 
 from gramlab import __main__ as cli
-from gramlab._android import Android, _inline_fragments, _inline_matches
+from gramlab._android import (
+    Android,
+    _android_file_size,
+    _document_accessibility_header,
+    _inline_fragments,
+    _inline_matches,
+)
 from gramlab._interactions import Interactions
 from gramlab.documents import DocumentUpload
 from gramlab.runner import run
@@ -979,11 +985,173 @@ def test_document_inline_identity_requires_its_exact_caption() -> None:
         "document": {"document_id": "1"},
         "caption": "فایل Report 👩‍💻",
     }
-    label = "PDF file, 85 B\nفایل Report 👩‍💻\nReceived at 10:13 PM\n"  # noqa: RUF001
+    descriptor = {
+        "document_id": "1",
+        "file_name": "report.pdf",
+        "mime_type": "application/pdf",
+        "file_size": 85,
+        "sha256": "a" * 64,
+    }
+    label = "PDF file, report.pdf, 85 B\nفایل Report 👩‍💻\nReceived at 10:13 PM\n"  # noqa: RUF001
     assert _inline_fragments(message) == ["فایل Report 👩‍💻"]
-    assert _inline_matches(message, label)
-    assert not _inline_matches(message, "PDF file, 85 B\nDifferent\nReceived at 10:13 PM\n")
-    assert not _inline_matches(message, "فایل Report 👩‍💻\nReceived at 10:13 PM\n")
+    assert _inline_matches(message, label, descriptor)
+    assert not _inline_matches(
+        message,
+        "PDF file, report.pdf, 85 B\nDifferent\nReceived at 10:13 PM\n",
+        descriptor,
+    )
+    assert not _inline_matches(message, "فایل Report 👩‍💻\nReceived at 10:13 PM\n", descriptor)
+    assert not _inline_matches(message, label)
     del message["caption"]
     assert _inline_fragments(message) == []
-    assert not _inline_matches(message, "PDF file, 85 B\nReceived at 10:13 PM\n")
+    assert not _inline_matches(
+        message, "PDF file, report.pdf, 85 B\nReceived at 10:13 PM\n", descriptor
+    )
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [
+        (0, "0 KB"),
+        (1, "1 B"),
+        (1023, "1023 B"),
+        (1024, "1.0 KB"),
+        (1280, "1.3 KB"),
+        (1024 * 1024 - 1, "1024.0 KB"),
+        (1024 * 1024, "1.0 MB"),
+        (1024 * 1024 + 256 * 1024, "1.3 MB"),
+        (50_000_000, "47.7 MB"),
+    ],
+)
+def test_document_accessibility_size_uses_pinned_english_boundaries(
+    size: int, expected: str
+) -> None:
+    assert _android_file_size(size) == expected
+
+
+def test_document_accessibility_type_uses_filename_then_original_mime_fallback() -> None:
+    assert (
+        _document_accessibility_header(
+            {"file_name": "report.PdF", "mime_type": "application/zip", "file_size": 85}
+        )
+        == "PDF file, report.PdF, 85 B"
+    )
+    assert (
+        _document_accessibility_header(
+            {"file_name": "archive", "mime_type": "video/x-matroska", "file_size": 1024}
+        )
+        == "MKV file, archive, 1.0 KB"
+    )
+    assert (
+        _document_accessibility_header(
+            {"file_name": "archive", "mime_type": "application/octet-stream", "file_size": 1024}
+        )
+        == "archive, 1.0 KB"
+    )
+
+
+@pytest.mark.parametrize(
+    "native_text",
+    [
+        "ZIP file, report.pdf, 85 B\nSame caption\nReceived at 10:13 PM\n",
+        "PDF file, report.pdf, 999 GB\nSame caption\nReceived at 10:13 PM\n",
+    ],
+)
+def test_document_dispatch_rejects_wrong_native_type_or_size_before_tap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    native_text: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    keyboard = {"inline_keyboard": [[{"text": "Open", "callback_data": "open"}]]}
+    with World.create(Path("world"), seed=107, now=1_700_000_000) as world:
+        user = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Files", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+        message = world.send_document(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            document={"media": "attach://document"},
+            uploads={"document": DocumentUpload(b"x" * 85, "report.pdf")},
+            caption="Same caption",
+            reply_markup=keyboard,
+        )
+    cell = (
+        '<hierarchy><node package="org.gramlab.android" text="'
+        + native_text.replace("\n", "&#10;")
+        + '"><node class="android.widget.Button" text="Open" bounds="[10,100][90,130]" '
+        'clickable="true" enabled="true" /></node></hierarchy>'
+    )
+    android = Android(profile(), deadline=time.monotonic() + 2, secrets=[], bridge_version=5)
+    monkeypatch.setattr(android, "_open_chat", lambda _chat: None)
+    monkeypatch.setattr(android, "_wait_ui", lambda _contains: cell)
+    taps: list[tuple[str, ...]] = []
+
+    def dispatch(*arguments: str, **_keywords: Any) -> Any:
+        taps.append(arguments)
+        raise AssertionError("A mismatched document row reached native input")
+
+    monkeypatch.setattr(android, "_adb", dispatch)
+    with pytest.raises(RuntimeError, match="one accessible match"):
+        android._tap_inline_button(chat, message, 0, 0)
+    assert taps == []
+
+
+def test_document_dispatch_distinguishes_descriptors_and_rejects_indistinguishable_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    keyboard = {"inline_keyboard": [[{"text": "Open", "callback_data": "open"}]]}
+    with World.create(Path("world"), seed=107, now=1_700_000_000) as world:
+        user = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Files", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+        target = world.send_document(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            document={"media": "attach://target"},
+            uploads={"target": DocumentUpload(b"a" * 85, "report.pdf")},
+            caption="Same caption",
+            reply_markup=keyboard,
+        )
+        world.send_document(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            document={"media": "attach://distinct"},
+            uploads={"distinct": DocumentUpload(b"b" * 85, "archive.zip")},
+            caption="Same caption",
+            reply_markup=keyboard,
+        )
+    native_text = "PDF file, report.pdf, 85 B\nSame caption\nReceived at 10:13 PM\n"
+    cell = (
+        '<hierarchy><node package="org.gramlab.android" text="'
+        + native_text.replace("\n", "&#10;")
+        + '"><node class="android.widget.Button" text="Open" bounds="[10,100][90,130]" '
+        'clickable="true" enabled="true" /></node></hierarchy>'
+    )
+    android = Android(profile(), deadline=time.monotonic() + 2, secrets=[], bridge_version=5)
+    monkeypatch.setattr(android, "_open_chat", lambda _chat: None)
+    monkeypatch.setattr(android, "_wait_ui", lambda _contains: cell)
+
+    class NativeInputReached(Exception):
+        pass
+
+    monkeypatch.setattr(
+        android,
+        "_adb",
+        lambda *_arguments, **_keywords: (_ for _ in ()).throw(NativeInputReached),
+    )
+    with pytest.raises(NativeInputReached):
+        android._tap_inline_button(chat, target, 0, 0)
+
+    with World.open(Path("world")) as world:
+        world.send_document(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            document={"media": "attach://indistinguishable"},
+            uploads={"indistinguishable": DocumentUpload(b"c" * 85, "report.pdf")},
+            caption="Same caption",
+            reply_markup=keyboard,
+        )
+    with pytest.raises(RuntimeError, match="text is ambiguous"):
+        android._tap_inline_button(chat, target, 0, 0)

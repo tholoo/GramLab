@@ -82,3 +82,30 @@ tests are boundary substitutes and make no native rendering or input claim. Coor
 still requires the reviewed v5 delivery APK from task104 and the public native workflow named above.
 Any public selector/compatibility documentation should be updated only after that native gate is
 green. All worker commands completed without a retained terminal process.
+
+## Document input identity correction
+
+Independent review found that the first v5 document matcher accepted any nonempty accessibility
+header above an exact caption. A wrong ZIP type or `999 GB` size with the same caption and keyboard
+therefore reached the ADB tap boundary, while a correct PDF row became falsely ambiguous when a
+different same-caption document existed. The retained pre-fix
+`artifacts/document-runner-v5-descriptor-red.xml` records all three dispatch-boundary failures,
+including both mismatched rows reaching the tap substitute.
+
+The correction derives the stable English accessibility header from the target's immutable
+persona grant and compares the original filename, extension/MIME fallback and formatted byte size
+before admitting a cell. The history ambiguity guard resolves each document's own grant, so a ZIP
+and PDF with the same caption remain distinguishable while two rows with identical observable
+filename/type/size/caption still reject before input. Captionless documents remain untargetable.
+This is an independent compatibility implementation based on pristine Android revision
+`62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`: `ChatMessageCell.java:27105-27110` derives the
+English document type from the attachment extension, `:27207-27215` appends the formatted size,
+`MessageObject.java:6040-6059` supplies the original filename, and `FileLoader.java:1598-1609`,
+`:1616-1631` and `:1644-1662` establish the filename-first MIME fallback. No Android/GPL source was
+copied into the MIT module.
+
+`artifacts/document-runner-v5-descriptor-green-02.xml` records 14 focused passes for exact
+positive/negative dispatch and size/type boundaries. The affected host selection at
+`artifacts/document-runner-v5-descriptor-affected-02.xml` records 42 passes across ticket107,
+current-message interactions and rich button/list controls. This correction adds no bridge schema,
+Android patch, guest or build claim; the native104 gate above remains unchanged.
