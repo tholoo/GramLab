@@ -34,7 +34,9 @@ for the public native gate. No guest was run.
 
 Coordinator reproduction uses the README commands and a fresh app-private output directory. The
 worker compile output and complete input hashes are retained under the ignored
-`.cache/rich-button-matrix-probe-02/`; compilation used javac 17.0.20.1, Android API/build tools 36,
+`.cache/rich-button-matrix-probe-04/`; compilation used javac 17.0.20.1, Android API/build tools 36,
+probe source SHA-256 `cbd33c18f6c38c5bcf20abfcef27fc56c7a261361e36a3e206c53b83dc962dba`,
+probe APK SHA-256 `88865fbee76c1cd7daf12e9325c3e62c96fbeaa3d9aac05f892144056fcbddd1`,
 normal27 classes SHA-256 `f52d2fdff65e5c9bd59689bf0c00d30742dacb5d7d057001ee388cdf4bad5b46`
 and normal27 APK SHA-256 `141415076e8727cfbffc6eacfe759f339e3640fa363ba5932e95cd7dc4a52375`.
 

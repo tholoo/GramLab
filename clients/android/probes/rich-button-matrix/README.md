@@ -24,8 +24,14 @@ The coordinator may stage the generated probe and matching APK read-only beneath
 UID in an already contained guest, then invoke:
 
 ```sh
-sh run-on-guest.sh probe.apk normal27.apk /data/user/0/org.gramlab.android/files/rich-button-matrix-RUN
+run-as org.gramlab.android sh \
+  /data/user/0/org.gramlab.android/files/rich-button-matrix/run-on-guest.sh \
+  /data/user/0/org.gramlab.android/files/rich-button-matrix/probe.apk \
+  /data/user/0/org.gramlab.android/files/rich-button-matrix/normal27.apk \
+  /data/user/0/org.gramlab.android/files/rich-button-matrix-RUN
 ```
+
+All three inputs in this example must first be staged where the installed app UID can read them.
 
 The fresh bounded output contains seven case records, an outer-basis evidence record and summary.
 The cases compare identity, translated and nonuniformly scaled outer bases; verify the independently
