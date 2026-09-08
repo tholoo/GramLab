@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
@@ -256,7 +257,9 @@ class Android:
             except (OSError, subprocess.TimeoutExpired):
                 self.observations["failure_logcat"] = "Unavailable before the run deadline"
 
-    def _open_chat(self, chat: dict[str, Any]) -> str:
+    def _open_chat(
+        self, chat: dict[str, Any], *, before_launch: Callable[[], None] | None = None
+    ) -> str:
         if self._guest is None or self._guest.poll() is not None:
             raise RuntimeError("Dedicated emulator is not running")
         if self._bridge is None:
@@ -288,6 +291,8 @@ class Android:
             "'mkdir -p files/gramlab && cat > files/gramlab/config.json'",
             input=json.dumps(configuration),
         )
+        if before_launch is not None:
+            before_launch()
         launched = self._adb(
             "shell",
             "am",
