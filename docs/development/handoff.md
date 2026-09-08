@@ -35,8 +35,9 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   repeated receipts remain unchanged. Passive12 also passes in 151.69 seconds. The owned-popup
   correction has 108 focused host/simulation checks and actual native acceptance. Earlier
   native10/11 readiness failures remain incompletely diagnosed; source review finds arm ACKs can
-  reference old draws. Wider independent clipboard paste/full-state and placement/recovery gates
-  remain open under ticket74. Do not infer those from the current receipt-status test.
+  reference old draws. Fresh startup-instrumented native15 accepts88's complete visible/ABA histories, events, API
+  ordering, receipts and native provenance in 81.47 seconds. Actual clipboard paste and native
+  unrelated-edit survival remain open under74/92. Do not infer those from the current receipt-status test.
 - Fresh original custom-emoji UI09 passes in 130.06 seconds on unchanged normal24: initial static
   rendering, real bot callback/edit, original settings, three animated carriers and unchanged
   cold-cache restart. All 24 conservative acquisition bounds are 140–210 ms (median 160 ms).
@@ -54,19 +55,27 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   callback-event shape. Complete six-message history, callback creation/answer and composer-send
   comparisons pass; the original capture and desktop/mobile report were inspected. The first red
   remains retained and successful guest disks were retired. Ticket88 expands native button state
-  acceptance independently and is integrated with two passing contained scenarios; native14
-  failed the existing boot deadline before scenario execution, so fresh acceptance is pending; actual clipboard paste and native unrelated-edit survival remain
+  acceptance independently and now passes fresh native15. Native14
+  failed the existing boot deadline before scenario execution and remains retained; actual clipboard paste and native unrelated-edit survival remain
   separate gaps. Unrelated message revisions do not bypass native geometry/freshness checks.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The combined core checkpoint passes 917 tests at 87.07% coverage in 145.42 seconds with four
-isolated workers and no simultaneous guest. All 53 documented static commands, Ruff lint/format
-across 474 files and configuration/links in 233 Markdown documents pass. Integrated88/89/90 remain
-outside this combined checkpoint. Run native gates serially using exact immutable APK provenance; review
-and integrate frozen worker branches before further combined verification. Live handles and
-machine-specific details stay in ignored coordinator notes.
+The corrected combined core checkpoint passes 924 tests at 87.07% coverage in 157.96 seconds
+with four isolated workers and no simultaneous guest. All 53 documented static commands, Ruff
+lint/format across 479 files and configuration/links in 238 Markdown documents pass. This includes
+integrated88/89/90 and the recovery-fixture correction. Core08's six failures remain recorded: its
+standalone abrupt-exit harness omitted88's new fixture-variant file, so the scenario failed before
+reaching the intended interruption boundary. The explicit full variant restores all six unchanged
+recovery checks. No production timeout, rendering or recovery behavior changed.
+
+Ordinary document source research is integrated under91; files/albums remain unimplemented.
+Ticket92 owns actual public native clipboard paste/clear acceptance in a separate worktree.
+Ticket93 prepares a concrete offline rich auto-detection policy for user consultation; changing
+the fidelity target remains unapproved and implementation must not start on that assumption.
+Native unrelated-edit survival and the wider operational inventory remain required. Exact local
+paths, process handles, cleanup receipts and active worker state stay in ignored coordinator notes.
 
 ## First action
 
