@@ -1,0 +1,1626 @@
+{
+  "snapshot": {
+    "schema": 1,
+    "seed": 96,
+    "now": 1700000000,
+    "users": [
+      {
+        "id": 1,
+        "is_bot": false,
+        "first_name": "Ada"
+      },
+      {
+        "id": 2,
+        "is_bot": true,
+        "first_name": "Media"
+      },
+      {
+        "id": 3,
+        "is_bot": false,
+        "first_name": "Photo recipient"
+      },
+      {
+        "id": 4,
+        "is_bot": false,
+        "first_name": "Stranger"
+      },
+      {
+        "id": 5,
+        "is_bot": true,
+        "first_name": "Other bot"
+      }
+    ],
+    "chats": [
+      {
+        "id": 1,
+        "type": "private",
+        "user_id": 1,
+        "bot_id": 2
+      },
+      {
+        "id": 2,
+        "type": "private",
+        "user_id": 3,
+        "bot_id": 2
+      },
+      {
+        "id": 3,
+        "type": "private",
+        "user_id": 4,
+        "bot_id": 5
+      }
+    ]
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "type": "user.created",
+      "data": {
+        "is_bot": false,
+        "first_name": "Ada",
+        "id": 1
+      }
+    },
+    {
+      "sequence": 2,
+      "type": "user.created",
+      "data": {
+        "is_bot": true,
+        "first_name": "Media",
+        "id": 2
+      }
+    },
+    {
+      "sequence": 3,
+      "type": "user.created",
+      "data": {
+        "is_bot": false,
+        "first_name": "Photo recipient",
+        "id": 3
+      }
+    },
+    {
+      "sequence": 4,
+      "type": "user.created",
+      "data": {
+        "is_bot": false,
+        "first_name": "Stranger",
+        "id": 4
+      }
+    },
+    {
+      "sequence": 5,
+      "type": "user.created",
+      "data": {
+        "is_bot": true,
+        "first_name": "Other bot",
+        "id": 5
+      }
+    },
+    {
+      "sequence": 6,
+      "type": "chat.created",
+      "data": {
+        "id": 1,
+        "type": "private",
+        "user_id": 1,
+        "bot_id": 2
+      }
+    },
+    {
+      "sequence": 7,
+      "type": "chat.created",
+      "data": {
+        "id": 2,
+        "type": "private",
+        "user_id": 3,
+        "bot_id": 2
+      }
+    },
+    {
+      "sequence": 8,
+      "type": "chat.created",
+      "data": {
+        "id": 3,
+        "type": "private",
+        "user_id": 4,
+        "bot_id": 5
+      }
+    },
+    {
+      "sequence": 9,
+      "type": "message.created",
+      "data": {
+        "id": 1,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "rich_message": {
+          "blocks": [
+            {
+              "type": "photo",
+              "asset_id": 1,
+              "caption": {
+                "text": "A 🖼"
+              }
+            }
+          ]
+        },
+        "reply_markup": {
+          "inline_keyboard": [
+            [
+              {
+                "text": "Tap",
+                "callback_data": "tap"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "type": "message.created",
+      "data": {
+        "id": 2,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "photo": {
+          "asset_id": 1
+        }
+      }
+    },
+    {
+      "sequence": 11,
+      "type": "message.created",
+      "data": {
+        "id": 1,
+        "chat_id": 2,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "photo": {
+          "asset_id": 1
+        }
+      }
+    },
+    {
+      "sequence": 12,
+      "type": "callback.created",
+      "data": {
+        "id": "5a62bb8c-75d0-4980-a177-5baec2ddbb91",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 1,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "rich_message": {
+            "blocks": [
+              {
+                "type": "photo",
+                "asset_id": 1,
+                "caption": {
+                  "text": "A 🖼"
+                }
+              }
+            ]
+          },
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "Tap",
+                  "callback_data": "tap"
+                }
+              ]
+            ]
+          }
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f"
+      }
+    },
+    {
+      "sequence": 13,
+      "type": "callback.answered",
+      "data": {
+        "id": "5a62bb8c-75d0-4980-a177-5baec2ddbb91",
+        "user_id": 1,
+        "answer": {
+          "text": "Recorded",
+          "show_alert": false,
+          "cache_time": 0
+        }
+      }
+    },
+    {
+      "sequence": 14,
+      "type": "message.edited",
+      "data": {
+        "id": 1,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "edit_date": 1700000000,
+        "rich_message": {
+          "blocks": [
+            {
+              "type": "photo",
+              "asset_id": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 15,
+      "type": "message.created",
+      "data": {
+        "id": 3,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "🙂🙂",
+        "entities": [
+          {
+            "type": "custom_emoji",
+            "offset": 0,
+            "length": 2,
+            "custom_emoji_id": "41"
+          },
+          {
+            "type": "custom_emoji",
+            "offset": 2,
+            "length": 2,
+            "custom_emoji_id": "42"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 16,
+      "type": "callback.created",
+      "data": {
+        "id": "1ba3f606-157b-4bed-b904-ef69a481c284",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 3,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "🙂🙂",
+          "entities": [
+            {
+              "type": "custom_emoji",
+              "offset": 0,
+              "length": 2,
+              "custom_emoji_id": "41"
+            },
+            {
+              "type": "custom_emoji",
+              "offset": 2,
+              "length": 2,
+              "custom_emoji_id": "42"
+            }
+          ]
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f"
+      }
+    },
+    {
+      "sequence": 17,
+      "type": "message.edited",
+      "data": {
+        "id": 3,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "Edited to plain",
+        "edit_date": 1700000000
+      }
+    },
+    {
+      "sequence": 18,
+      "type": "message.created",
+      "data": {
+        "id": 4,
+        "chat_id": 1,
+        "sender_id": 1,
+        "date": 1700000000,
+        "text": "User reply"
+      }
+    },
+    {
+      "sequence": 19,
+      "type": "message.created",
+      "data": {
+        "id": 1,
+        "chat_id": 3,
+        "sender_id": 5,
+        "date": 1700000000,
+        "text": "Isolated"
+      }
+    }
+  ],
+  "histories": [
+    [
+      {
+        "id": 1,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "edit_date": 1700000000,
+        "rich_message": {
+          "blocks": [
+            {
+              "type": "photo",
+              "asset_id": 2
+            }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "photo": {
+          "asset_id": 1
+        }
+      },
+      {
+        "id": 3,
+        "chat_id": 1,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "Edited to plain",
+        "edit_date": 1700000000
+      },
+      {
+        "id": 4,
+        "chat_id": 1,
+        "sender_id": 1,
+        "date": 1700000000,
+        "text": "User reply"
+      }
+    ],
+    [
+      {
+        "id": 1,
+        "chat_id": 2,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "photo": {
+          "asset_id": 1
+        }
+      }
+    ],
+    [
+      {
+        "id": 1,
+        "chat_id": 3,
+        "sender_id": 5,
+        "date": 1700000000,
+        "text": "Isolated"
+      }
+    ]
+  ],
+  "updates": [
+    [
+      {
+        "update_id": 1,
+        "callback_query": {
+          "id": "5a62bb8c-75d0-4980-a177-5baec2ddbb91",
+          "user_id": 1,
+          "chat_id": 1,
+          "message": {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "",
+            "rich_message": {
+              "blocks": [
+                {
+                  "type": "photo",
+                  "asset_id": 1,
+                  "caption": {
+                    "text": "A 🖼"
+                  }
+                }
+              ]
+            },
+            "reply_markup": {
+              "inline_keyboard": [
+                [
+                  {
+                    "text": "Tap",
+                    "callback_data": "tap"
+                  }
+                ]
+              ]
+            }
+          },
+          "data": "tap",
+          "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f"
+        }
+      },
+      {
+        "update_id": 2,
+        "callback_query": {
+          "id": "1ba3f606-157b-4bed-b904-ef69a481c284",
+          "user_id": 1,
+          "chat_id": 1,
+          "message": {
+            "id": 3,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "🙂🙂",
+            "entities": [
+              {
+                "type": "custom_emoji",
+                "offset": 0,
+                "length": 2,
+                "custom_emoji_id": "41"
+              },
+              {
+                "type": "custom_emoji",
+                "offset": 2,
+                "length": 2,
+                "custom_emoji_id": "42"
+              }
+            ]
+          },
+          "data": "tap",
+          "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f"
+        }
+      },
+      {
+        "update_id": 3,
+        "message": {
+          "id": 4,
+          "chat_id": 1,
+          "sender_id": 1,
+          "date": 1700000000,
+          "text": "User reply"
+        }
+      }
+    ],
+    []
+  ],
+  "clients": [
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 1,
+      "cursor": 19,
+      "now": 1700000000,
+      "users": [
+        {
+          "id": 1,
+          "is_bot": false,
+          "first_name": "Ada"
+        },
+        {
+          "id": 2,
+          "is_bot": true,
+          "first_name": "Media"
+        }
+      ],
+      "chats": [
+        {
+          "id": 1,
+          "type": "private",
+          "user_id": 1,
+          "bot_id": 2
+        }
+      ],
+      "messages": [
+        {
+          "id": 1,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "edit_date": 1700000000,
+          "rich_message": {
+            "blocks": [
+              {
+                "type": "photo",
+                "asset_id": 2
+              }
+            ]
+          }
+        },
+        {
+          "id": 2,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "photo": {
+            "asset_id": 1
+          }
+        },
+        {
+          "id": 3,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "Edited to plain",
+          "edit_date": 1700000000
+        },
+        {
+          "id": 4,
+          "chat_id": 1,
+          "sender_id": 1,
+          "date": 1700000000,
+          "text": "User reply"
+        }
+      ],
+      "message_position": 6,
+      "sends": [],
+      "assets": [
+        {
+          "asset_id": 1,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+          "width": 3,
+          "height": 2
+        },
+        {
+          "asset_id": 2,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "d491b2d0000ea8d6945e7101d992d2b09706f453720f3f19ae32d0571e896df1",
+          "width": 3,
+          "height": 2
+        },
+        {
+          "asset_id": 3,
+          "mime_type": "image/webp",
+          "file_size": 82,
+          "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "asset_id": 4,
+          "mime_type": "image/webp",
+          "file_size": 70,
+          "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+          "width": 16,
+          "height": 16
+        }
+      ],
+      "message_revisions": [
+        {
+          "chat_id": 1,
+          "message_id": 1,
+          "revision": 14
+        },
+        {
+          "chat_id": 1,
+          "message_id": 2,
+          "revision": 10
+        },
+        {
+          "chat_id": 1,
+          "message_id": 3,
+          "revision": 17
+        },
+        {
+          "chat_id": 1,
+          "message_id": 4,
+          "revision": 18
+        }
+      ],
+      "custom_emoji": [
+        {
+          "custom_emoji_id": "41",
+          "fallback": "🙂",
+          "free": true,
+          "needs_repainting": false,
+          "main_asset_id": 3,
+          "thumbnail_asset_id": 4,
+          "duration_ms": 0
+        },
+        {
+          "custom_emoji_id": "42",
+          "fallback": "🙂",
+          "free": true,
+          "needs_repainting": false,
+          "main_asset_id": 3,
+          "thumbnail_asset_id": 4,
+          "duration_ms": 0
+        }
+      ]
+    },
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 3,
+      "cursor": 19,
+      "now": 1700000000,
+      "users": [
+        {
+          "id": 2,
+          "is_bot": true,
+          "first_name": "Media"
+        },
+        {
+          "id": 3,
+          "is_bot": false,
+          "first_name": "Photo recipient"
+        }
+      ],
+      "chats": [
+        {
+          "id": 2,
+          "type": "private",
+          "user_id": 3,
+          "bot_id": 2
+        }
+      ],
+      "messages": [
+        {
+          "id": 1,
+          "chat_id": 2,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "photo": {
+            "asset_id": 1
+          }
+        }
+      ],
+      "message_position": 1,
+      "sends": [],
+      "assets": [
+        {
+          "asset_id": 1,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "message_revisions": [
+        {
+          "chat_id": 2,
+          "message_id": 1,
+          "revision": 11
+        }
+      ],
+      "custom_emoji": []
+    },
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 4,
+      "cursor": 19,
+      "now": 1700000000,
+      "users": [
+        {
+          "id": 4,
+          "is_bot": false,
+          "first_name": "Stranger"
+        },
+        {
+          "id": 5,
+          "is_bot": true,
+          "first_name": "Other bot"
+        }
+      ],
+      "chats": [
+        {
+          "id": 3,
+          "type": "private",
+          "user_id": 4,
+          "bot_id": 5
+        }
+      ],
+      "messages": [
+        {
+          "id": 1,
+          "chat_id": 3,
+          "sender_id": 5,
+          "date": 1700000000,
+          "text": "Isolated"
+        }
+      ],
+      "message_position": 1,
+      "sends": [],
+      "assets": [],
+      "message_revisions": [
+        {
+          "chat_id": 3,
+          "message_id": 1,
+          "revision": 19
+        }
+      ],
+      "custom_emoji": []
+    }
+  ],
+  "changes": [
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 1,
+      "cursor": 6,
+      "head": 6,
+      "now": 1700000000,
+      "changes": [
+        {
+          "position": 1,
+          "type": "message.created",
+          "data": {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "",
+            "rich_message": {
+              "blocks": [
+                {
+                  "type": "photo",
+                  "asset_id": 1,
+                  "caption": {
+                    "text": "A 🖼"
+                  }
+                }
+              ]
+            },
+            "reply_markup": {
+              "inline_keyboard": [
+                [
+                  {
+                    "text": "Tap",
+                    "callback_data": "tap"
+                  }
+                ]
+              ]
+            }
+          },
+          "revision": 9
+        },
+        {
+          "position": 2,
+          "type": "message.created",
+          "data": {
+            "id": 2,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "",
+            "photo": {
+              "asset_id": 1
+            }
+          },
+          "revision": 10
+        },
+        {
+          "position": 3,
+          "type": "message.edited",
+          "data": {
+            "id": 1,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "",
+            "edit_date": 1700000000,
+            "rich_message": {
+              "blocks": [
+                {
+                  "type": "photo",
+                  "asset_id": 2
+                }
+              ]
+            }
+          },
+          "revision": 14
+        },
+        {
+          "position": 4,
+          "type": "message.created",
+          "data": {
+            "id": 3,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "🙂🙂",
+            "entities": [
+              {
+                "type": "custom_emoji",
+                "offset": 0,
+                "length": 2,
+                "custom_emoji_id": "41"
+              },
+              {
+                "type": "custom_emoji",
+                "offset": 2,
+                "length": 2,
+                "custom_emoji_id": "42"
+              }
+            ]
+          },
+          "revision": 15
+        },
+        {
+          "position": 5,
+          "type": "message.edited",
+          "data": {
+            "id": 3,
+            "chat_id": 1,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "Edited to plain",
+            "edit_date": 1700000000
+          },
+          "revision": 17
+        },
+        {
+          "position": 6,
+          "type": "message.created",
+          "data": {
+            "id": 4,
+            "chat_id": 1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "User reply"
+          },
+          "revision": 18
+        }
+      ],
+      "users": [
+        {
+          "id": 1,
+          "is_bot": false,
+          "first_name": "Ada"
+        },
+        {
+          "id": 2,
+          "is_bot": true,
+          "first_name": "Media"
+        }
+      ],
+      "assets": [
+        {
+          "asset_id": 1,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+          "width": 3,
+          "height": 2
+        },
+        {
+          "asset_id": 2,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "d491b2d0000ea8d6945e7101d992d2b09706f453720f3f19ae32d0571e896df1",
+          "width": 3,
+          "height": 2
+        },
+        {
+          "asset_id": 3,
+          "mime_type": "image/webp",
+          "file_size": 82,
+          "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "asset_id": 4,
+          "mime_type": "image/webp",
+          "file_size": 70,
+          "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+          "width": 16,
+          "height": 16
+        }
+      ],
+      "custom_emoji": [
+        {
+          "custom_emoji_id": "41",
+          "fallback": "🙂",
+          "free": true,
+          "needs_repainting": false,
+          "main_asset_id": 3,
+          "thumbnail_asset_id": 4,
+          "duration_ms": 0
+        },
+        {
+          "custom_emoji_id": "42",
+          "fallback": "🙂",
+          "free": true,
+          "needs_repainting": false,
+          "main_asset_id": 3,
+          "thumbnail_asset_id": 4,
+          "duration_ms": 0
+        }
+      ]
+    },
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 3,
+      "cursor": 1,
+      "head": 1,
+      "now": 1700000000,
+      "changes": [
+        {
+          "position": 1,
+          "type": "message.created",
+          "data": {
+            "id": 1,
+            "chat_id": 2,
+            "sender_id": 2,
+            "date": 1700000000,
+            "text": "",
+            "photo": {
+              "asset_id": 1
+            }
+          },
+          "revision": 11
+        }
+      ],
+      "users": [
+        {
+          "id": 2,
+          "is_bot": true,
+          "first_name": "Media"
+        },
+        {
+          "id": 3,
+          "is_bot": false,
+          "first_name": "Photo recipient"
+        }
+      ],
+      "assets": [
+        {
+          "asset_id": 1,
+          "mime_type": "image/png",
+          "file_size": 78,
+          "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "custom_emoji": []
+    },
+    {
+      "schema": 4,
+      "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+      "user_id": 4,
+      "cursor": 1,
+      "head": 1,
+      "now": 1700000000,
+      "changes": [
+        {
+          "position": 1,
+          "type": "message.created",
+          "data": {
+            "id": 1,
+            "chat_id": 3,
+            "sender_id": 5,
+            "date": 1700000000,
+            "text": "Isolated"
+          },
+          "revision": 19
+        }
+      ],
+      "users": [
+        {
+          "id": 4,
+          "is_bot": false,
+          "first_name": "Stranger"
+        },
+        {
+          "id": 5,
+          "is_bot": true,
+          "first_name": "Other bot"
+        }
+      ],
+      "assets": [],
+      "custom_emoji": []
+    }
+  ],
+  "v3_client": {
+    "schema": 3,
+    "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+    "user_id": 3,
+    "cursor": 19,
+    "now": 1700000000,
+    "users": [
+      {
+        "id": 2,
+        "is_bot": true,
+        "first_name": "Media"
+      },
+      {
+        "id": 3,
+        "is_bot": false,
+        "first_name": "Photo recipient"
+      }
+    ],
+    "chats": [
+      {
+        "id": 2,
+        "type": "private",
+        "user_id": 3,
+        "bot_id": 2
+      }
+    ],
+    "messages": [
+      {
+        "id": 1,
+        "chat_id": 2,
+        "sender_id": 2,
+        "date": 1700000000,
+        "text": "",
+        "photo": {
+          "asset_id": 1
+        }
+      }
+    ],
+    "message_position": 1,
+    "sends": [],
+    "assets": [
+      {
+        "asset_id": 1,
+        "mime_type": "image/png",
+        "file_size": 78,
+        "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+        "width": 3,
+        "height": 2
+      }
+    ],
+    "message_revisions": [
+      {
+        "chat_id": 2,
+        "message_id": 1,
+        "revision": 11
+      }
+    ]
+  },
+  "v3_changes": {
+    "schema": 3,
+    "world_id": "92626c7b-51bd-47ab-b226-6ca06335aa8b",
+    "user_id": 3,
+    "cursor": 1,
+    "head": 1,
+    "now": 1700000000,
+    "changes": [
+      {
+        "position": 1,
+        "type": "message.created",
+        "data": {
+          "id": 1,
+          "chat_id": 2,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "photo": {
+            "asset_id": 1
+          }
+        },
+        "revision": 11
+      }
+    ],
+    "users": [
+      {
+        "id": 2,
+        "is_bot": true,
+        "first_name": "Media"
+      },
+      {
+        "id": 3,
+        "is_bot": false,
+        "first_name": "Photo recipient"
+      }
+    ],
+    "assets": [
+      {
+        "asset_id": 1,
+        "mime_type": "image/png",
+        "file_size": 78,
+        "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+        "width": 3,
+        "height": 2
+      }
+    ]
+  },
+  "emoji": [
+    {
+      "custom_emoji_id": "41",
+      "fallback": "🙂",
+      "free": true,
+      "needs_repainting": false,
+      "main_asset_id": 3,
+      "thumbnail_asset_id": 4,
+      "duration_ms": 0
+    },
+    {
+      "custom_emoji_id": "42",
+      "fallback": "🙂",
+      "free": true,
+      "needs_repainting": false,
+      "main_asset_id": 3,
+      "thumbnail_asset_id": 4,
+      "duration_ms": 0
+    }
+  ],
+  "stickers": [
+    {
+      "file_id": "gramlab_v5HrJVS9rGxRiiz5U7NHqLaF4OA-aTrM",
+      "file_unique_id": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+      "file_size": 82,
+      "type": "custom_emoji",
+      "width": 100,
+      "height": 100,
+      "is_animated": false,
+      "is_video": false,
+      "custom_emoji_id": "41",
+      "emoji": "🙂",
+      "thumbnail": {
+        "file_id": "gramlab_VQeBl_WVFfEA56agPWI1BcmuwBb0i2tV",
+        "file_unique_id": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+        "width": 16,
+        "height": 16,
+        "file_size": 70
+      }
+    },
+    {
+      "file_id": "gramlab_v5HrJVS9rGxRiiz5U7NHqLaF4OA-aTrM",
+      "file_unique_id": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+      "file_size": 82,
+      "type": "custom_emoji",
+      "width": 100,
+      "height": 100,
+      "is_animated": false,
+      "is_video": false,
+      "custom_emoji_id": "42",
+      "emoji": "🙂",
+      "thumbnail": {
+        "file_id": "gramlab_VQeBl_WVFfEA56agPWI1BcmuwBb0i2tV",
+        "file_unique_id": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+        "width": 16,
+        "height": 16,
+        "file_size": 70
+      }
+    }
+  ],
+  "authentication": [
+    2,
+    1
+  ],
+  "callbacks": [
+    {
+      "callback": {
+        "id": "5a62bb8c-75d0-4980-a177-5baec2ddbb91",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 1,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "rich_message": {
+            "blocks": [
+              {
+                "type": "photo",
+                "asset_id": 1,
+                "caption": {
+                  "text": "A 🖼"
+                }
+              }
+            ]
+          },
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "Tap",
+                  "callback_data": "tap"
+                }
+              ]
+            ]
+          }
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f",
+        "answer": {
+          "text": "Recorded",
+          "show_alert": false,
+          "cache_time": 0
+        }
+      },
+      "dependencies": {
+        "users": [
+          {
+            "id": 1,
+            "is_bot": false,
+            "first_name": "Ada"
+          },
+          {
+            "id": 2,
+            "is_bot": true,
+            "first_name": "Media"
+          }
+        ],
+        "assets": [
+          {
+            "asset_id": 1,
+            "mime_type": "image/png",
+            "file_size": 78,
+            "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+            "width": 3,
+            "height": 2
+          }
+        ],
+        "message_revision": 9
+      },
+      "stored": {
+        "id": "5a62bb8c-75d0-4980-a177-5baec2ddbb91",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 1,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "",
+          "rich_message": {
+            "blocks": [
+              {
+                "type": "photo",
+                "asset_id": 1,
+                "caption": {
+                  "text": "A 🖼"
+                }
+              }
+            ]
+          },
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "Tap",
+                  "callback_data": "tap"
+                }
+              ]
+            ]
+          }
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f",
+        "answer": {
+          "text": "Recorded",
+          "show_alert": false,
+          "cache_time": 0
+        }
+      }
+    },
+    {
+      "callback": {
+        "id": "1ba3f606-157b-4bed-b904-ef69a481c284",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 3,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "🙂🙂",
+          "entities": [
+            {
+              "type": "custom_emoji",
+              "offset": 0,
+              "length": 2,
+              "custom_emoji_id": "41"
+            },
+            {
+              "type": "custom_emoji",
+              "offset": 2,
+              "length": 2,
+              "custom_emoji_id": "42"
+            }
+          ]
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f",
+        "answer": null
+      },
+      "dependencies": {
+        "users": [
+          {
+            "id": 1,
+            "is_bot": false,
+            "first_name": "Ada"
+          },
+          {
+            "id": 2,
+            "is_bot": true,
+            "first_name": "Media"
+          }
+        ],
+        "assets": [
+          {
+            "asset_id": 3,
+            "mime_type": "image/webp",
+            "file_size": 82,
+            "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "asset_id": 4,
+            "mime_type": "image/webp",
+            "file_size": 70,
+            "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "message_revision": 15,
+        "custom_emoji": [
+          {
+            "custom_emoji_id": "41",
+            "fallback": "🙂",
+            "free": true,
+            "needs_repainting": false,
+            "main_asset_id": 3,
+            "thumbnail_asset_id": 4,
+            "duration_ms": 0
+          },
+          {
+            "custom_emoji_id": "42",
+            "fallback": "🙂",
+            "free": true,
+            "needs_repainting": false,
+            "main_asset_id": 3,
+            "thumbnail_asset_id": 4,
+            "duration_ms": 0
+          }
+        ]
+      },
+      "stored": {
+        "id": "1ba3f606-157b-4bed-b904-ef69a481c284",
+        "user_id": 1,
+        "chat_id": 1,
+        "message": {
+          "id": 3,
+          "chat_id": 1,
+          "sender_id": 2,
+          "date": 1700000000,
+          "text": "🙂🙂",
+          "entities": [
+            {
+              "type": "custom_emoji",
+              "offset": 0,
+              "length": 2,
+              "custom_emoji_id": "41"
+            },
+            {
+              "type": "custom_emoji",
+              "offset": 2,
+              "length": 2,
+              "custom_emoji_id": "42"
+            }
+          ]
+        },
+        "data": "tap",
+        "chat_instance": "e6a325689a2d9414b0771b7bdede7f317e8961593dff546c72e060406f87695f",
+        "answer": null
+      }
+    }
+  ],
+  "files": [
+    [
+      {
+        "file_id": "gramlab_V_8UBoLpOaxZpHmdTkw_xRYGjmymNi9j",
+        "file_unique_id": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+        "file_size": 78,
+        "file_path": "photos/gramlab_V_8UBoLpOaxZpHmdTkw_xRYGjmymNi9j.png",
+        "mime_type": "image/png"
+      },
+      "89504e470d0a1a0a0000000d49484452000000030000000208020000001216f14d0000001549444154789c6314d1b061606060606060628001000884007c707811050000000049454e44ae426082"
+    ],
+    [
+      {
+        "file_id": "gramlab_zgA8HeNR72M8WIGmJf5zrWNLidqWlhad",
+        "file_unique_id": "d491b2d0000ea8d6945e7101d992d2b09706f453720f3f19ae32d0571e896df1",
+        "file_size": 78,
+        "file_path": "photos/gramlab_zgA8HeNR72M8WIGmJf5zrWNLidqWlhad.png",
+        "mime_type": "image/png"
+      },
+      "89504e470d0a1a0a0000000d49484452000000030000000208020000001216f14d0000001549444154789c63740b886260606060606062800100110800f4e02f705b0000000049454e44ae426082"
+    ],
+    [
+      {
+        "file_id": "gramlab_v5HrJVS9rGxRiiz5U7NHqLaF4OA-aTrM",
+        "file_unique_id": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+        "file_size": 82,
+        "file_path": "stickers/gramlab_v5HrJVS9rGxRiiz5U7NHqLaF4OA-aTrM.webp",
+        "mime_type": "image/webp"
+      },
+      "524946464a000000574542505650384c3d0000002f63c0181017201048421a7c60814012d2fe54230804521cc648cf7f40ff02458d24298bfee8cee4d83c01f889e8ff04d04602c05d389231577f50be7f00"
+    ],
+    [
+      {
+        "file_id": "gramlab_VQeBl_WVFfEA56agPWI1BcmuwBb0i2tV",
+        "file_unique_id": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+        "file_size": 70,
+        "file_path": "stickers/gramlab_VQeBl_WVFfEA56agPWI1BcmuwBb0i2tV.webp",
+        "mime_type": "image/webp"
+      },
+      "524946463e000000574542505650384c310000002f0fc003100f30688335f0f31ff05013d96af47297488855a421050994b9ca8888e87f022896bcc458f2e692185e2c293f00"
+    ]
+  ],
+  "grants": [
+    [
+      1,
+      1,
+      {
+        "asset_id": 1,
+        "mime_type": "image/png",
+        "file_size": 78,
+        "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+        "width": 3,
+        "height": 2
+      },
+      "89504e470d0a1a0a0000000d49484452000000030000000208020000001216f14d0000001549444154789c6314d1b061606060606060628001000884007c707811050000000049454e44ae426082"
+    ],
+    [
+      1,
+      2,
+      {
+        "asset_id": 2,
+        "mime_type": "image/png",
+        "file_size": 78,
+        "sha256": "d491b2d0000ea8d6945e7101d992d2b09706f453720f3f19ae32d0571e896df1",
+        "width": 3,
+        "height": 2
+      },
+      "89504e470d0a1a0a0000000d49484452000000030000000208020000001216f14d0000001549444154789c63740b886260606060606062800100110800f4e02f705b0000000049454e44ae426082"
+    ],
+    [
+      1,
+      3,
+      {
+        "asset_id": 3,
+        "mime_type": "image/webp",
+        "file_size": 82,
+        "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+        "width": 100,
+        "height": 100
+      },
+      "524946464a000000574542505650384c3d0000002f63c0181017201048421a7c60814012d2fe54230804521cc648cf7f40ff02458d24298bfee8cee4d83c01f889e8ff04d04602c05d389231577f50be7f00"
+    ],
+    [
+      1,
+      4,
+      {
+        "asset_id": 4,
+        "mime_type": "image/webp",
+        "file_size": 70,
+        "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+        "width": 16,
+        "height": 16
+      },
+      "524946463e000000574542505650384c310000002f0fc003100f30688335f0f31ff05013d96af47297488855a421050994b9ca8888e87f022896bcc458f2e692185e2c293f00"
+    ],
+    [
+      3,
+      1,
+      {
+        "asset_id": 1,
+        "mime_type": "image/png",
+        "file_size": 78,
+        "sha256": "2f9c7d9ce3089854969acaf0d3dec2d9b1ad83b216004d312c8f6bf26759ff01",
+        "width": 3,
+        "height": 2
+      },
+      "89504e470d0a1a0a0000000d49484452000000030000000208020000001216f14d0000001549444154789c6314d1b061606060606060628001000884007c707811050000000049454e44ae426082"
+    ],
+    [
+      3,
+      2,
+      "Asset is unavailable"
+    ],
+    [
+      3,
+      3,
+      "Asset is unavailable"
+    ],
+    [
+      3,
+      4,
+      "Asset is unavailable"
+    ],
+    [
+      4,
+      1,
+      "Asset is unavailable"
+    ],
+    [
+      4,
+      2,
+      "Asset is unavailable"
+    ],
+    [
+      4,
+      3,
+      "Asset is unavailable"
+    ],
+    [
+      4,
+      4,
+      "Asset is unavailable"
+    ]
+  ],
+  "other_bot_denials": [
+    "File is unavailable",
+    "File is unavailable",
+    "File is unavailable",
+    "File is unavailable",
+    "File is unavailable"
+  ],
+  "emoji_grants_1": [
+    [
+      {
+        "custom_emoji_id": "41",
+        "fallback": "🙂",
+        "free": true,
+        "needs_repainting": false,
+        "main_asset_id": 3,
+        "thumbnail_asset_id": 4,
+        "duration_ms": 0
+      },
+      {
+        "custom_emoji_id": "42",
+        "fallback": "🙂",
+        "free": true,
+        "needs_repainting": false,
+        "main_asset_id": 3,
+        "thumbnail_asset_id": 4,
+        "duration_ms": 0
+      }
+    ],
+    [
+      {
+        "asset_id": 3,
+        "mime_type": "image/webp",
+        "file_size": 82,
+        "sha256": "7e1b283fb74b684cfaed135e5ce02ce6a0fc4824e4fb29c493f83fe05ccc0107",
+        "width": 100,
+        "height": 100
+      },
+      {
+        "asset_id": 4,
+        "mime_type": "image/webp",
+        "file_size": 70,
+        "sha256": "6d97276da8fc4212d117000d1d0c0c83e86025004fd08257768d547e3527c034",
+        "width": 16,
+        "height": 16
+      }
+    ]
+  ],
+  "emoji_grants_3": "Document is unavailable",
+  "emoji_grants_4": "Document is unavailable"
+}
