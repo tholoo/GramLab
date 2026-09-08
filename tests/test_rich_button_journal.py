@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from gramlab._rich_button_journal import Journal, recover_journal
+from gramlab.world import World
 
 RUN_ID = "00000000-0000-4000-8000-000000000071"
 WORLD_ID = "00000000-0000-4000-8000-000000000070"
@@ -131,12 +132,58 @@ def test_journal_transitions_and_recovers_complete_and_interrupted_operations(
             third_intent
             | {
                 "status": "uncertain",
-                "dispatch": "dispatched",
                 "reason": {"code": "component_stopped"},
             },
         ],
         "unclaimed_target_ids": ["target_4"],
     }
+
+
+def test_intent_only_uncertainty_does_not_invent_a_backend_handoff(tmp_path: Path) -> None:
+    observed = observation("target_1")
+    journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
+    journal.allocate(observed, user_id=2, client_nonce=CLIENT)
+    claimed = receipt(observed, 0, "operation_1")
+    journal.transition("claim", claimed, client_nonce=CLIENT)
+    intent = claimed | {"dispatch": "intent_recorded"}
+    journal.transition("intent", intent, client_nonce=CLIENT)
+    uncertain = intent | {
+        "status": "uncertain",
+        "reason": {"code": "dispatch_unconfirmed"},
+    }
+    journal.transition("receipt", uncertain, client_nonce=CLIENT)
+    journal.close()
+    assert recover_journal(tmp_path / "rich-button-journal.jsonl")["receipts"] == [uncertain]
+
+
+def test_known_mismatch_cannot_be_replaced_by_later_success(tmp_path: Path) -> None:
+    observed = observation("target_1")
+    journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
+    journal.allocate(observed, user_id=2, client_nonce=CLIENT)
+    claimed = receipt(observed, 0, "operation_1")
+    journal.transition("claim", claimed, client_nonce=CLIENT)
+    journal.transition("intent", claimed | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
+    mismatch = claimed | {
+        "status": "uncertain",
+        "dispatch": "dispatched",
+        "reason": {"code": "effect_mismatch"},
+    }
+    journal.transition("receipt", mismatch, client_nonce=CLIENT)
+    evidence = EVIDENCE | {"clipboard_observation": {"before": None, "after": None}}
+    journal.evidence("operation_1", evidence, client_nonce=CLIENT)
+    with pytest.raises(ValueError, match="mismatch"):
+        journal.transition(
+            "receipt",
+            mismatch
+            | {
+                "status": "succeeded",
+                "reason": None,
+                "effect": {"kind": "none", "reason": "disabled"},
+                "evidence": evidence,
+            },
+            client_nonce=CLIENT,
+        )
+    journal.close()
 
 
 def test_journal_rejects_invalid_identity_order_and_terminal_mutation(tmp_path: Path) -> None:
@@ -184,7 +231,7 @@ def test_journal_writes_only_changed_evidence_and_enforces_record_progression(
     journal.evidence("operation_1", EVIDENCE, client_nonce=CLIENT)
     assert path.stat().st_size == before
 
-    evidence = EVIDENCE | {"world_event_sequences": [12]}
+    evidence = EVIDENCE | {"clipboard_observation": {"before": None, "after": None}}
     journal.evidence("operation_1", evidence, client_nonce=CLIENT)
     uncertain = intent | {
         "status": "uncertain",
@@ -258,15 +305,39 @@ def test_preflight_uses_final_record_encoding_without_mutating_the_journal(tmp_p
     }
     journal.preflight_receipt(prospective, client_nonce=CLIENT)
     assert path.read_bytes() == before
-    oversized = prospective | {
+    large_observed = observation("large_target")
+    large_observed["targets"][0]["button"] = {"text": "Large", "callback_data": "large"}
+    oversized = receipt(large_observed, 0, "large_operation") | {
+        "status": "succeeded",
+        "dispatch": "dispatched",
         "effect": {
             "kind": "callback",
-            "callback": {"retained": "x" * (128 * 1024)},
+            "callback": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "user_id": 2,
+                "chat_id": 3,
+                "message": {
+                    "id": 5,
+                    "chat_id": 3,
+                    "rich_message": {
+                        "blocks": [
+                            {
+                                "type": "buttons",
+                                "buttons": [{"text": "Large", "callback_data": "large"}],
+                            }
+                        ]
+                    },
+                    "retained_optional_field": "x" * (128 * 1024),
+                },
+                "data": "large",
+                "chat_instance": "0" * 64,
+                "answer": None,
+            },
             "event_sequence": 1,
-        }
+        },
     }
     with pytest.raises(ValueError, match="128 KiB"):
-        journal.preflight_receipt(oversized, client_nonce=CLIENT)
+        journal.preflight_receipt(oversized, client_nonce="0" * 128)
     assert path.read_bytes() == before
 
     journal.transition("intent", claimed | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
@@ -288,6 +359,192 @@ def test_recovery_accepts_only_an_incomplete_final_record(tmp_path: Path) -> Non
         stream.write(b"\n")
     with pytest.raises(ValueError, match="corrupt"):
         recover_journal(path)
+
+    bounded = tmp_path / "oversized-tail.jsonl"
+    bounded.write_bytes(path.read_bytes().splitlines(keepends=True)[0] + b"x" * (128 * 1024 + 1))
+    with pytest.raises(ValueError, match="128 KiB"):
+        recover_journal(bounded)
+
+
+def test_evidence_advances_monotonically_for_actions_and_native_artifacts(tmp_path: Path) -> None:
+    observed = observation("copy", "disabled", "callback", "native")
+    observed["targets"][0]["button"] = {"text": "Copy", "copy_text": {"text": "copied"}}
+    observed["targets"][2]["button"] = {"text": "Callback", "callback_data": "payload"}
+    observed["targets"][3]["button"] = {"text": "Copy", "copy_text": {"text": "copied"}}
+    journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
+    journal.allocate(observed, user_id=2, client_nonce=CLIENT)
+
+    copied = receipt(observed, 0, "copy_operation")
+    journal.transition("claim", copied, client_nonce=CLIENT)
+    journal.transition("intent", copied | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
+    baseline = EVIDENCE | {"clipboard_observation": {"before": "old", "after": "old"}}
+    journal.evidence("copy_operation", baseline, client_nonce=CLIENT)
+    for invalid in (
+        EVIDENCE,
+        baseline | {"world_event_sequences": [1]},
+        baseline | {"clipboard_observation": {"before": "changed", "after": "copied"}},
+        baseline | {"clipboard_observation": {"before": "old", "after": "unrelated"}},
+    ):
+        with pytest.raises(ValueError):
+            journal.evidence("copy_operation", invalid, client_nonce=CLIENT)
+    confirmed = baseline | {"clipboard_observation": {"before": "old", "after": "copied"}}
+    journal.evidence("copy_operation", confirmed, client_nonce=CLIENT)
+    with pytest.raises(ValueError, match="immutable"):
+        journal.evidence("copy_operation", baseline, client_nonce=CLIENT)
+
+    disabled = receipt(observed, 1, "disabled_operation")
+    journal.transition("claim", disabled, client_nonce=CLIENT)
+    journal.transition("intent", disabled | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
+    disabled_pair = EVIDENCE | {"clipboard_observation": {"before": "same", "after": "same"}}
+    journal.evidence("disabled_operation", disabled_pair, client_nonce=CLIENT)
+    with pytest.raises(ValueError, match="immutable"):
+        journal.evidence(
+            "disabled_operation",
+            EVIDENCE | {"clipboard_observation": {"before": "same", "after": "changed"}},
+            client_nonce=CLIENT,
+        )
+
+    callback = receipt(observed, 2, "callback_operation")
+    journal.transition("claim", callback, client_nonce=CLIENT)
+    journal.transition("intent", callback | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
+    with pytest.raises(ValueError, match="clipboard"):
+        journal.evidence(
+            "callback_operation",
+            EVIDENCE | {"clipboard_observation": {"before": None, "after": None}},
+            client_nonce=CLIENT,
+        )
+
+    native_empty = {
+        **EVIDENCE,
+        "mode": "headless-android",
+        "native": {"observation": None, "effect": None, "captures": []},
+    }
+    native = receipt(observed, 3, "native_operation", evidence=native_empty)
+    journal.transition("claim", native, client_nonce=CLIENT)
+    journal.transition("intent", native | {"dispatch": "intent_recorded"}, client_nonce=CLIENT)
+    observed_native = copy.deepcopy(native_empty)
+    observed_native["native"] = {
+        "observation": "observation.json",
+        "effect": None,
+        "captures": ["before.png"],
+    }
+    journal.evidence("native_operation", observed_native, client_nonce=CLIENT)
+    invalid_natives: tuple[dict[str, Any], ...] = (
+        {"observation": "changed.json", "effect": None, "captures": ["before.png"]},
+        {"observation": "observation.json", "effect": None, "captures": []},
+    )
+    for invalid_native in invalid_natives:
+        invalid = copy.deepcopy(observed_native)
+        invalid["native"] = invalid_native
+        with pytest.raises(ValueError):
+            journal.evidence("native_operation", invalid, client_nonce=CLIENT)
+    first_effect = copy.deepcopy(observed_native)
+    first_effect["native"]["effect"] = "effect-1.json"
+    journal.evidence("native_operation", first_effect, client_nonce=CLIENT)
+    replacement = copy.deepcopy(first_effect)
+    replacement["native"]["effect"] = "effect-2.json"
+    journal.evidence("native_operation", replacement, client_nonce=CLIENT)
+    dropped = copy.deepcopy(replacement)
+    dropped["native"]["effect"] = None
+    with pytest.raises(ValueError, match="dropped"):
+        journal.evidence("native_operation", dropped, client_nonce=CLIENT)
+    journal.close()
+
+
+def test_callback_effect_binds_complete_actual_world_callback_and_target(tmp_path: Path) -> None:
+    world_directory = tmp_path / "world"
+    with World.create(world_directory, seed=71, now=100) as world:
+        user = world.create_user(first_name="Human")
+        bot = world.create_user(first_name="Bot", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+        message = world.send_rich_message(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            rich_message={
+                "blocks": [
+                    {
+                        "type": "buttons",
+                        "buttons": [{"text": "Actual", "callback_data": "actual:payload"}],
+                    }
+                ],
+                "skip_entity_detection": True,
+            },
+        )
+        callback = world.create_callback(
+            user_id=user["id"],
+            chat_id=chat["id"],
+            message_id=message["id"],
+            data="actual:payload",
+            request_id="operation_actual",
+            version=4,
+        )
+        event_sequence = world.events()[-1]["sequence"]
+
+    observed = {
+        "chat_id": chat["id"],
+        "message_id": message["id"],
+        "message_revision": 1,
+        "targets": [
+            {
+                "target_id": "actual_target",
+                "path": ["blocks", 0, "buttons", 0],
+                "button": {"text": "Actual", "callback_data": "actual:payload"},
+                "label": "Actual",
+            }
+        ],
+    }
+    journal_directory = tmp_path / "journal"
+    journal_directory.mkdir()
+    journal = Journal(journal_directory, run_id=RUN_ID, world_id=WORLD_ID)
+    journal.allocate(observed, user_id=user["id"], client_nonce=CLIENT)
+    claimed = receipt(observed, 0, "operation_actual")
+    journal.transition("claim", claimed, client_nonce=CLIENT)
+    intent = claimed | {"dispatch": "intent_recorded"}
+    journal.transition("intent", intent, client_nonce=CLIENT)
+    evidence = EVIDENCE | {"world_event_sequences": [event_sequence]}
+    journal.evidence("operation_actual", evidence, client_nonce=CLIENT)
+    effect = {"kind": "callback", "callback": callback, "event_sequence": event_sequence}
+    succeeded = intent | {
+        "status": "succeeded",
+        "dispatch": "dispatched",
+        "effect": effect,
+        "evidence": evidence,
+    }
+
+    wrong_action = succeeded | {"effect": {"kind": "copy", "text": "actual:payload"}}
+    before_preflight = (journal_directory / "rich-button-journal.jsonl").read_bytes()
+    journal.preflight_receipt(wrong_action, client_nonce=CLIENT)
+    assert (journal_directory / "rich-button-journal.jsonl").read_bytes() == before_preflight
+    with pytest.raises(ValueError, match="target"):
+        journal.transition("receipt", wrong_action, client_nonce=CLIENT)
+    for field, changed in (
+        ("data", "wrong"),
+        ("answer", {"text": "too late"}),
+        ("user_id", user["id"] + 1),
+    ):
+        malformed = copy.deepcopy(succeeded)
+        malformed["effect"]["callback"][field] = changed
+        with pytest.raises(ValueError):
+            journal.transition("receipt", malformed, client_nonce=CLIENT)
+    wrong_occurrence = copy.deepcopy(succeeded)
+    wrong_occurrence["effect"]["callback"]["message"]["rich_message"]["blocks"][0]["buttons"][0][
+        "callback_data"
+    ] = "different"
+    with pytest.raises(ValueError, match="occurrence"):
+        journal.transition("receipt", wrong_occurrence, client_nonce=CLIENT)
+
+    journal.transition("receipt", succeeded, client_nonce=CLIENT)
+    journal.close()
+    assert recover_journal(journal_directory / "rich-button-journal.jsonl")["receipts"] == [
+        succeeded
+    ]
+
+    overflow = tmp_path / "overflow.jsonl"
+    lines = (journal_directory / "rich-button-journal.jsonl").read_text().splitlines()
+    lines[-1] = lines[-1].replace('"message":{', '"message":{"overflow":1e400,', 1)
+    overflow.write_text("\n".join(lines) + "\n")
+    with pytest.raises(ValueError, match="non-finite"):
+        recover_journal(overflow)
 
 
 @pytest.mark.parametrize(

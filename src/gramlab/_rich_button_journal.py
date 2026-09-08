@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from gramlab._rich_buttons import occurrences
 
 _SCHEMA = 1
 _NAME = "rich-button-journal.jsonl"
@@ -212,11 +215,113 @@ def _evidence(value: Any) -> dict[str, Any]:
     return result
 
 
+def _prefix(previous: list[Any], current: list[Any], context: str) -> None:
+    if len(current) < len(previous) or current[: len(previous)] != previous:
+        raise ValueError(f"Rich-button {context} must advance by prefix append only")
+
+
+def _evidence_progress(
+    previous: dict[str, Any], current: dict[str, Any], button: dict[str, Any]
+) -> None:
+    if current["mode"] != previous["mode"]:
+        raise ValueError("Rich-button evidence mode is immutable")
+    _prefix(
+        previous["world_event_sequences"],
+        current["world_event_sequences"],
+        "event sequences",
+    )
+    old_clipboard = previous["clipboard_observation"]
+    new_clipboard = current["clipboard_observation"]
+    if "callback_data" in button:
+        if new_clipboard is not None:
+            raise ValueError("Rich-button callback clipboard evidence must remain null")
+    else:
+        if current["world_event_sequences"]:
+            raise ValueError("Rich-button copy/disabled evidence cannot add World events")
+        if old_clipboard is not None and new_clipboard is None:
+            raise ValueError("Rich-button clipboard evidence cannot be dropped")
+        if "disabled" in button and old_clipboard is not None and new_clipboard != old_clipboard:
+            raise ValueError("Rich-button disabled clipboard evidence is immutable")
+        if "copy_text" in button and new_clipboard is not None:
+            copied = button["copy_text"]["text"]
+            if new_clipboard["after"] not in {new_clipboard["before"], copied}:
+                raise ValueError("Rich-button copy evidence has an unrelated clipboard value")
+            if old_clipboard is not None:
+                if new_clipboard["before"] != old_clipboard["before"]:
+                    raise ValueError("Rich-button clipboard before value is immutable")
+                if old_clipboard["after"] == copied and new_clipboard["after"] != copied:
+                    raise ValueError("Rich-button confirmed copy evidence is immutable")
+                if (
+                    new_clipboard["after"] != old_clipboard["after"]
+                    and new_clipboard["after"] != copied
+                ):
+                    raise ValueError("Rich-button copy evidence may advance only to target text")
+    if current["mode"] != "headless-android":
+        return
+    old_native = previous["native"]
+    new_native = current["native"]
+    if old_native["observation"] is not None and (
+        new_native["observation"] != old_native["observation"]
+    ):
+        raise ValueError("Rich-button native observation evidence is immutable")
+    _prefix(old_native["captures"], new_native["captures"], "native captures")
+    if old_native["effect"] is not None and new_native["effect"] is None:
+        raise ValueError("Rich-button native effect evidence cannot be dropped")
+
+
+def _initial_evidence(evidence: dict[str, Any], button: dict[str, Any]) -> None:
+    empty: dict[str, Any] = {
+        "mode": evidence["mode"],
+        "world_event_sequences": [],
+        "clipboard_observation": None,
+    }
+    if evidence["mode"] == "headless-android":
+        empty["native"] = {"observation": None, "effect": None, "captures": []}
+    _evidence_progress(empty, evidence, button)
+
+
 def _reason(value: Any, allowed: frozenset[str]) -> dict[str, str]:
     item = _object(value, {"code"}, "receipt reason")
     if item["code"] not in allowed:
         raise ValueError("Invalid rich-button receipt reason")
     return {"code": item["code"]}
+
+
+def _callback(value: Any) -> dict[str, Any]:
+    callback = _object(
+        value,
+        {"id", "user_id", "chat_id", "message", "data", "chat_instance", "answer"},
+        "callback",
+    )
+    callback_id = _identifier(callback["id"], "callback identifier")
+    user_id = _positive(callback["user_id"], "callback user identifier")
+    chat_id = _positive(callback["chat_id"], "callback chat identifier")
+    if callback["answer"] is not None:
+        raise ValueError("Rich-button callback must retain its creation-time null answer")
+    if (
+        not isinstance(callback["chat_instance"], str)
+        or re.fullmatch(r"[0-9a-f]{64}", callback["chat_instance"]) is None
+    ):
+        raise ValueError("Invalid rich-button callback chat instance")
+    data = _bounded_text(callback["data"], "callback data", 64)
+    if not data:
+        raise ValueError("Invalid rich-button callback data")
+    message = callback["message"]
+    if not isinstance(message, dict):
+        raise ValueError("Invalid rich-button callback message")
+    _positive(message.get("id"), "callback message identifier")
+    _positive(message.get("chat_id"), "callback message chat")
+    if not isinstance(message.get("rich_message"), dict):
+        raise ValueError("Invalid rich-button callback message")
+    return {
+        "id": callback_id,
+        "user_id": user_id,
+        "chat_id": chat_id,
+        "message": copy.deepcopy(message),
+        "data": data,
+        "chat_instance": callback["chat_instance"],
+        "answer": None,
+    }
 
 
 def _effect(value: Any) -> dict[str, Any]:
@@ -233,11 +338,9 @@ def _effect(value: Any) -> dict[str, Any]:
         return {"kind": "none", "reason": "disabled"}
     if kind == "callback":
         item = _object(value, {"kind", "callback", "event_sequence"}, "callback effect")
-        if not isinstance(item["callback"], dict):
-            raise ValueError("Invalid rich-button callback effect")
         return {
             "kind": "callback",
-            "callback": copy.deepcopy(item["callback"]),
+            "callback": _callback(item["callback"]),
             "event_sequence": _positive(item["event_sequence"], "callback event sequence"),
         }
     raise ValueError("Invalid rich-button effect")
@@ -258,6 +361,7 @@ def _receipt(value: Any) -> dict[str, Any]:
         "uncertain",
     } or dispatch not in {"not_dispatched", "intent_recorded", "dispatched"}:
         raise ValueError("Invalid rich-button receipt state")
+    target = _target(item["target"], complete=True)
     effect = None if item["effect"] is None else _effect(item["effect"])
     reason: dict[str, str] | None = None
     if status == "in_progress":
@@ -270,7 +374,7 @@ def _receipt(value: Any) -> dict[str, Any]:
             raise ValueError("Invalid rich-button receipt state")
         reason = _reason(item["reason"], _PRE_REASONS)
     elif status == "uncertain":
-        if dispatch != "dispatched" or effect is not None:
+        if dispatch not in {"intent_recorded", "dispatched"} or effect is not None:
             raise ValueError("Invalid rich-button receipt state")
         reason = _reason(item["reason"], _UNCERTAIN_REASONS)
     else:
@@ -278,7 +382,7 @@ def _receipt(value: Any) -> dict[str, Any]:
             raise ValueError("Invalid rich-button receipt state")
     return {
         "operation_id": _identifier(item["operation_id"], "operation identifier"),
-        "target": _target(item["target"], complete=True),
+        "target": target,
         "status": status,
         "dispatch": dispatch,
         "effect": effect,
@@ -291,6 +395,7 @@ def _receipt(value: Any) -> dict[str, Any]:
 class _TargetState:
     target: dict[str, Any]
     client_nonce: str
+    user_id: int
     operation_id: str | None = None
 
 
@@ -306,6 +411,52 @@ class _OperationState:
     terminal: bool = False
 
 
+def _receipt_semantics(receipt: dict[str, Any], target: _TargetState) -> None:
+    effect = receipt["effect"]
+    if effect is None:
+        return
+    button = target.target["button"]
+    if "copy_text" in button:
+        if effect != {"kind": "copy", "text": button["copy_text"]["text"]}:
+            raise ValueError("Rich-button copy effect does not match target")
+        clipboard = receipt["evidence"]["clipboard_observation"]
+        if clipboard is None or clipboard["after"] != effect["text"]:
+            raise ValueError("Rich-button copy effect does not match evidence")
+        return
+    if "disabled" in button:
+        if effect != {"kind": "none", "reason": "disabled"}:
+            raise ValueError("Rich-button disabled effect does not match target")
+        clipboard = receipt["evidence"]["clipboard_observation"]
+        if clipboard is None or clipboard["before"] != clipboard["after"]:
+            raise ValueError("Rich-button disabled effect does not match evidence")
+        return
+    if effect["kind"] != "callback":
+        raise ValueError("Rich-button callback effect does not match target")
+    callback = effect["callback"]
+    if (
+        callback["user_id"] != target.user_id
+        or callback["chat_id"] != target.target["chat_id"]
+        or callback["data"] != button["callback_data"]
+    ):
+        raise ValueError("Rich-button callback identity does not match target")
+    if effect["event_sequence"] not in receipt["evidence"]["world_event_sequences"]:
+        raise ValueError("Rich-button callback effect does not match evidence")
+    message = callback["message"]
+    if (
+        message["id"] != target.target["message_id"]
+        or message["chat_id"] != target.target["chat_id"]
+    ):
+        raise ValueError("Rich-button callback message does not match target")
+    found = occurrences(message["rich_message"])
+    if not any(
+        item["path"] == target.target["path"]
+        and item["button"] == button
+        and item["label"] == target.target["label"]
+        for item in found
+    ):
+        raise ValueError("Rich-button callback occurrence does not match target")
+
+
 @dataclass
 class _Ledger:
     targets: dict[str, _TargetState] = field(default_factory=dict)
@@ -314,7 +465,7 @@ class _Ledger:
     operation_order: list[str] = field(default_factory=list)
 
     def allocate(self, value: Any, *, user_id: Any, client_nonce: Any) -> list[str]:
-        _positive(user_id, "user identifier")
+        actor = _positive(user_id, "user identifier")
         nonce = _identifier(client_nonce, "client lifetime")
         observed = _observation(value)
         ids = [target["target_id"] for target in observed["targets"]]
@@ -330,7 +481,7 @@ class _Ledger:
                 "message_revision": observed["message_revision"],
             }
             target_id = target["target_id"]
-            self.targets[target_id] = _TargetState(complete, nonce)
+            self.targets[target_id] = _TargetState(complete, nonce, actor)
             self.target_order.append(target_id)
         return ids
 
@@ -348,6 +499,7 @@ class _Ledger:
             raise ValueError("Rich-button client lifetime does not match allocation")
         if current["target"] != target.target:
             raise ValueError("Rich-button target identity does not match allocation")
+        _receipt_semantics(current, target)
         operation = self.operations.get(operation_id)
         if kind == "claim":
             if operation is not None:
@@ -360,6 +512,7 @@ class _Ledger:
                 raise ValueError("Rich-button target is already claimed")
             if current["status"] != "in_progress" or current["dispatch"] != "not_dispatched":
                 raise ValueError("Invalid rich-button claim receipt")
+            _initial_evidence(current["evidence"], target.target["button"])
             target.operation_id = operation_id
             self.operations[operation_id] = _OperationState(target_id, nonce, current)
             self.operation_order.append(operation_id)
@@ -392,6 +545,8 @@ class _Ledger:
         if operation.receipt_count == 1:
             if operation.current["status"] != "uncertain" or current["status"] != "succeeded":
                 raise ValueError("Rich-button receipt progression is invalid")
+            if operation.current["reason"] == {"code": "effect_mismatch"}:
+                raise ValueError("Rich-button effect mismatch cannot resolve to success")
             if operation.evidence_at_receipt == operation.current["evidence"]:
                 raise ValueError("Rich-button success after uncertainty requires changed evidence")
         operation.receipt_count += 1
@@ -415,6 +570,8 @@ class _Ledger:
         clean = _evidence(value)
         if clean == operation.current["evidence"]:
             return operation.target_id, False
+        target = self.targets[operation.target_id]
+        _evidence_progress(operation.current["evidence"], clean, target.target["button"])
         if operation.evidence_count >= 4:
             raise ValueError("Rich-button operation exceeds four changed evidence records")
         operation.evidence_count += 1
@@ -619,7 +776,19 @@ def _parse(line: bytes) -> dict[str, Any]:
         raise ValueError("Journal is corrupt: invalid JSON record") from error
     if not isinstance(value, dict):
         raise ValueError("Journal is corrupt: record is not an object")
+    _finite(value)
     return value
+
+
+def _finite(value: Any) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("Journal is corrupt: non-finite number")
+    if isinstance(value, dict):
+        for child in value.values():
+            _finite(child)
+    elif isinstance(value, list):
+        for child in value:
+            _finite(child)
 
 
 def _payload(record: dict[str, Any], expected: set[str]) -> dict[str, Any]:
@@ -640,6 +809,8 @@ def recover_journal(path: Path) -> dict[str, Any]:
         incomplete = bool(data) and not data.endswith(b"\n")
         lines = data.splitlines(keepends=True)
         if incomplete:
+            if len(lines[-1]) > _MAX_RECORD:
+                raise ValueError("incomplete journal tail exceeds 128 KiB")
             lines = lines[:-1]
         if not lines:
             raise ValueError("journal has no complete start record")
@@ -700,7 +871,6 @@ def recover_journal(path: Path) -> dict[str, Any]:
                 current.update(
                     {
                         "status": "uncertain",
-                        "dispatch": "dispatched",
                         "reason": {"code": "component_stopped"},
                     }
                 )

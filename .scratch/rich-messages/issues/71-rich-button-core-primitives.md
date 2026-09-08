@@ -69,3 +69,13 @@ receipt before target allocation. Preflight therefore performs shape and exact c
 framing checks without live state, then applies identity, terminal, and remaining-reservation
 guards whenever the target or operation is known. Recovery admits only integer schema/sequence
 fields and reads at most the journal cap plus one byte, independent of mutable file metadata.
+
+The final journal review preserves `intent_recorded` when interruption cannot prove backend
+handoff and makes `effect_mismatch` uncertainty irreversible. Evidence now advances monotonically
+for the fixed mode, World-event prefix, action-specific clipboard observations, and native
+observation/effect/capture paths. Complete callback effects bind the allocated user, target action,
+canonical occurrence, and actual frozen World callback message; conservative preflight values
+remain structural sizing inputs until transition. Recovery recursively rejects parsed overflow
+floats and rejects an incomplete tail over 128 KiB before discarding it. The retained state red is
+`artifacts/ticket71/journal-state-red.xml`; final evidence is
+`artifacts/ticket71/core-primitives-six-fixes.xml`.
