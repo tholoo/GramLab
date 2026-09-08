@@ -146,3 +146,36 @@ text and tail values cannot persist. The complete16-control host suite passes in
 `artifacts/ticket92-xml-green.xml`; strict typing and scoped Ruff checks pass. No native01 evidence
 was rewritten, and no guest/build/full gate ran. Fresh native02 clipboard acceptance remains
 coordinator-owned and unproven until actually executed.
+
+
+## Native02 freshness diagnosis
+
+Native02 proves row-copy's actual exact paste/clear and equal before/after semantic state;
+its post-dispatch probe lasts15.109828611 seconds. Later inline callback/copy/disabled and row-disabled
+operations reject before dispatch. Their operation directories exist but contain no retained
+observation or capture, locating rejection inside the initial `_fresh` call after the first strict
+observation parse and directory creation. Initial geometry equality is not checked there because
+preparation has not yet stored geometry. The prior row-copy observation/effect are not the failing
+samples; static age, recorded availability and transient focus remain distinct hypotheses.
+The before/cleared PNGs show the same visible chat layout, which does not prove observer freshness.
+Preserve all native02 results. No accepted arrangement or freshness/runtime behavior is changed.
+
+The test-only bootstrap now wraps original `_fresh` once. Successful calls return the original
+object directly. On an original exception, it uses that exception's actual traceback and existing
+frame locals, then rethrows the same exception. It issues no guest/private-file/World reads,
+clock calls, input, sleeps, redraw, target renewal or retries. At bootstrap installation it hashes
+the original function's source file for provenance; failure retention adds only bounded host IO.
+The existing operation directory receives immutable `fresh-failure.json` even before registration
+in `_operations`. It contains the original source hash/file/line, up to16 traceback entries,
+existing `sample`/`pid`/`now`, selected arm/target/identity/geometry flags, and explicit missing-field
+lists. Full World records and exception messages are omitted. Known secrets are redacted before
+publication; over128KiB records omit detailed state/locals with an explicit reason. Existing
+failure files are never overwritten, and diagnostic errors do not replace the original failure.
+
+Four focused controls prove exact return identity, original exception/frame/source/line identity,
+missing-local reporting, oversized-detail omission, redaction and immutable repeated evidence.
+They initially fail because the diagnostic hook is absent (`artifacts/ticket92-fresh-diagnostic-red.xml`).
+All20 host controls now pass in `artifacts/ticket92-fresh-diagnostic-green.xml`; scoped Ruff/format
+and strict typing pass. No native02 files changed and no guest/build/full gate ran. Coordinator
+native03 retains identical clipboard/input/freshness behavior and must establish the actual failing
+sample/guard before any further acceptance arrangement is proposed or changed.
