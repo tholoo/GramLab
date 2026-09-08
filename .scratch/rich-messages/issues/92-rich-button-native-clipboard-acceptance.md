@@ -62,7 +62,7 @@ renderer/profile change or extra pre-dispatch guest command is added. Row-disabl
 reuses strict native PID/UID/parent/surface ownership checks, rechecks the exact focus/PID, sends one
 ordinary Back only for that owned popup, then requires the original activity and composer.
 
-Each operation retains original XML and PNG at empty/pasted/cleared stages, redacted command
+Each operation retains XML with redacted values and original PNG at empty/pasted/cleared stages, redacted command
 outputs, original receipt outcome, timing, failure phase/class and complete before/after semantic
 snapshots. The snapshots use one read-only SQLite transaction and compare World identity,
 all message histories/events, complete callbacks/client sends and bot update-generation counters.
@@ -114,3 +114,31 @@ Coordinator native selection, within the existing dedicated Android gate/profile
 `tests/test_runner_rich_clipboard.py::test_public_native_rich_clipboard_paste_clear_and_disabled_preservation`.
 Its fixture stages the bootstrap automatically; no ignored plugin or Java/APK change is needed.
 Actual operation artifacts live under `headless-android-run/clipboard-probes/OPERATION_ID/`.
+
+
+## Native01 XML redaction follow-up
+
+The coordinator's first actual clipboard run fails in99.35 seconds after both complete88 oracles
+pass. Row-copy's empty-capture XML fails parsing before any paste key is issued: applying the
+generic text redactor to the serialized XML changes the native boolean attribute
+`password="false"` into unquoted `password=[REDACTED]`. The other probes fail ordered validation
+because row-copy never completes. Preserve that native01 result and its original artifacts;
+it establishes neither successful paste nor a renderer/input defect.
+
+The bounded correction parses the original1MiB-limited XML, applies the existing redactor to
+individual attribute/text/tail values, and serializes well-formed XML. Native boolean attributes
+retain their actual values; the unchanged composer password/focus/uniqueness/content checks still
+apply. The serialized derivative is also bounded and rejects known capabilities remaining in XML
+structure before writing. Evidence explicitly labels this representation
+`xml_with_redacted_attribute_and_text_values`; it is not byte-identical original XML. Original PNG
+capture/redaction, dispatch hooks, source-hash checks, deadlines and ordinary input remain unchanged.
+
+Two new host regressions run through the actual capture/command-retention path with literal
+UIAutomator-shaped XML and explicit external screenshot substitution, without creating a PNG.
+Both initially reproduce the exact ParseError class in `artifacts/ticket92-xml-red.xml`.
+After correction the false flag passes, the true flag still rejects through composer validation,
+quoted/escaped attribute content remains intact, and known capabilities in separate attribute,
+text and tail values cannot persist. The complete16-control host suite passes in
+`artifacts/ticket92-xml-green.xml`; strict typing and scoped Ruff checks pass. No native01 evidence
+was rewritten, and no guest/build/full gate ran. Fresh native02 clipboard acceptance remains
+coordinator-owned and unproven until actually executed.

@@ -58,6 +58,27 @@ def composer(xml: str, expected: str) -> dict[str, str]:
     return dict(node.attrib)
 
 
+def redact_ui(xml: str, secrets: list[str]) -> str:
+    """Retain XML structure with redacted values, not byte-identical raw XML."""
+    if len(xml.encode()) > LIMIT:
+        raise ValueError("Composer XML exceeds bound")
+    root = ET.fromstring(xml)  # noqa: S314 — bounded original guest XML
+    redactor = _Redactor(secrets)
+    for node in root.iter():
+        for name, value in list(node.attrib.items()):
+            node.set(name, redactor.text(value))
+        if node.text is not None:
+            node.text = redactor.text(node.text)
+        if node.tail is not None:
+            node.tail = redactor.text(node.tail)
+    serialized = ET.tostring(root, encoding="unicode")
+    if len(serialized.encode()) > LIMIT:
+        raise ValueError("Redacted composer XML exceeds bound")
+    if any(secret in serialized for secret in redactor.secrets):
+        raise ValueError("Composer XML structure contains a capability")
+    return serialized
+
+
 def semantic_state(directory: Path) -> dict[str, Any]:
     """One read-only snapshot; update generation counts exclude ordinary queue ACK races."""
     uri = (directory / "world.sqlite3").absolute().as_uri() + "?mode=ro"
@@ -120,7 +141,8 @@ class ClipboardProbe:
         remote = f"/data/local/tmp/clipboard-{self.record['operation_id']}-{phase}.xml"
         self.adb("shell", "uiautomator", "dump", remote)
         xml = self.adb("shell", "cat", remote)
-        xml = _Redactor(self.android.secrets).text(xml)
+        xml = redact_ui(xml, self.android.secrets)
+        self.record["ui_representation"] = "xml_with_redacted_attribute_and_text_values"
         with (self.directory / (phase + ".xml")).open("x") as stream:
             stream.write(xml)
         self.host._capture_original(self.directory / (phase + ".png"))
