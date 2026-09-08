@@ -174,9 +174,9 @@ def test_patch_and_fixture_freeze_the_bounded_document_codec() -> None:
     assert patch.count("diff --git ") == 1
     assert patch.count("GramLabDocument.java") == 3
     assert "new file mode 100644" in patch
-    assert Path("clients/android/patches/series").read_text().splitlines()[-1] == (
-        "0029-ordinary-document-codec.patch"
-    )
+    series = Path("clients/android/patches/series").read_text().splitlines()
+    assert series[28] == "0029-ordinary-document-codec.patch"
+    assert series.count("0029-ordinary-document-codec.patch") == 1
     assert "public static long identifier(Object value)" in patch
     assert "public static Map<Long, Entry> parse(JSONArray rows)" in patch
     assert "public static TLRPC.TL_document project(Entry entry)" in patch

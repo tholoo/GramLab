@@ -26,9 +26,9 @@ def test_patch_and_fixture_are_bounded_to_the_actual_reload_seam() -> None:
     assert patch.count("diff --git ") == 1
     assert patch.count("GramLabButtonObserver.java") == 4
     assert all(term not in patch for term in ("postDelayed", "input", "drawn(", "deadline"))
-    assert Path("clients/android/patches/series").read_text().splitlines()[-1] == (
-        "0028-rich-button-disarm-lifetime.patch"
-    )
+    series = Path("clients/android/patches/series").read_text().splitlines()
+    assert series[27] == "0028-rich-button-disarm-lifetime.patch"
+    assert series.count("0028-rich-button-disarm-lifetime.patch") == 1
     assert source.startswith("// SPDX-License-Identifier: GPL-2.0-or-later\n")
     assert 'getDeclaredMethod("reload")' in source
     assert 'field(observer, "invalidatedOperations")' in source
