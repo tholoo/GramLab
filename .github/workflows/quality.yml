@@ -182,3 +182,4 @@ jobs:
           uv run --locked mypy --strict src/gramlab/_rich_buttons.py src/gramlab/_rich_button_journal.py src/gramlab/_rich_interactions.py src/gramlab/_android_rich_buttons.py tests/test_rich_button_occurrences.py tests/test_rich_button_journal.py tests/test_rich_button_world_transactions.py tests/test_rich_interactions.py tests/test_android_rich_button_host.py tests/test_runner_rich_button_recovery.py tests/probes/rich_button_interruption.py
           MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/rich_targets_bot.py tests/rich_targets_scenario.py tests/test_runner_rich_targets.py
           MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/rich_native_clipboard_supervisor.py tests/rich_native_clipboard_plugin.py tests/test_runner_rich_clipboard.py
+          uv run --locked mypy --strict tests/test_multipart_uploads.py

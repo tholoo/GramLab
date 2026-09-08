@@ -11,6 +11,7 @@ import re
 import socket
 import threading
 import time
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
@@ -18,6 +19,13 @@ from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
 
 from gramlab.world import World, update_selection
+
+
+@dataclass(frozen=True, slots=True)
+class _Upload:
+    data: bytes
+    filename: str
+    content_type: str | None
 
 
 def _public_rich(world: World, bot_id: int, value: Any) -> Any:
@@ -197,8 +205,11 @@ def _dispatch(
     method: str,
     parameters: dict[str, Any],
     polling: _Polling,
-    uploads: dict[str, bytes] | None = None,
+    uploads: dict[str, _Upload] | None = None,
 ) -> Any:
+    upload_data = (
+        None if uploads is None else {name: upload.data for name, upload in uploads.items()}
+    )
     supported = {
         "getme": set(),
         "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
@@ -287,7 +298,7 @@ def _dispatch(
                 chat_id=chat["id"],
                 sender_id=bot_id,
                 photo={"type": "photo", "media": parameters["photo"]},
-                uploads=uploads,
+                uploads=upload_data,
                 caption=parameters.get("caption"),
                 caption_entities=parameters.get("caption_entities"),
                 reply_markup=parameters.get("reply_markup"),
@@ -313,7 +324,7 @@ def _dispatch(
                 text=parameters.get("text"),
                 rich_message=parameters.get("rich_message"),
                 reply_markup=parameters.get("reply_markup"),
-                uploads=uploads,
+                uploads=upload_data,
                 entities=parameters.get("entities"),
             ),
         )
@@ -325,7 +336,7 @@ def _dispatch(
                 sender_id=bot_id,
                 rich_message=parameters["rich_message"],
                 reply_markup=parameters.get("reply_markup"),
-                uploads=uploads,
+                uploads=upload_data,
             ),
         )
     return _message(
@@ -340,7 +351,7 @@ def _dispatch(
     )
 
 
-def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str, bytes]]:
+def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str, _Upload]]:
     match = re.fullmatch(
         r'multipart/form-data;\s*boundary=(?:"([^"\r\n]+)"|([^;\s]+))', content_type
     )
@@ -357,7 +368,7 @@ def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str,
     if len(chunks) > 64:
         raise ValueError("Multipart request exceeds 64 parts")
     fields: dict[str, Any] = {}
-    uploads: dict[str, bytes] = {}
+    uploads: dict[str, _Upload] = {}
     text_size = upload_size = 0
     for chunk in chunks:
         if b"\r\n\r\n" not in chunk:
@@ -387,7 +398,7 @@ def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str,
             upload_size += len(payload)
             if upload_size > 20_000_000:
                 raise ValueError("Uploaded file data exceeds the request limit")
-            uploads[field_name] = payload
+            uploads[field_name] = _Upload(payload, filename, headers.get("content-type"))
         else:
             text_size += len(payload)
             if text_size > 65_536:
@@ -494,7 +505,7 @@ class BotAPIServer:
                             )
                             return
                         parameters = _form_parameters(url.query)
-                        uploads: dict[str, bytes] = {}
+                        uploads: dict[str, _Upload] = {}
                         if self.command == "POST":
                             lengths = self.headers.get_all("Content-Length", [])
                             if len(lengths) != 1 or "Transfer-Encoding" in self.headers:
