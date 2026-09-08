@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: frozen for coordinator review on `task/current-android-host-interactions`
 Blocked by: native execution requires coordinator disk-space cleanup approval
 
 Own this ticket, `src/gramlab/_android.py`, new `tests/test_android_current_message_interactions.py`
@@ -33,8 +33,34 @@ fixtures and the current reviewed APK; no renderer, profile or bridge-schema cha
 must be marked Android and will remain unexecuted until the coordinator runs it with disk space.
 If one combined scene cannot prove a boundary, state the gap rather than inventing success.
 
+The coordinator added one same-file observation during implementation: original Android exposes a
+captioned ordinary photo as `Photo\n<caption>\nReceived at ...`. Ordinary photo keyboards therefore
+also use the exact authored caption as their identity. Generic `Photo` and receipt metadata cannot
+identify a message; captionless photo-keyboard input remains unavailable without another sound seam.
+
 Read AGENTS, handoff, TESTING, offline safety and parallel workflow. Provision and execute checks
 through this checkout's `tools/dev default --offline --command ...`; never use an inherited runtime
 profile with a bare command. Run focused host regressions, native collection and scoped
 Ruff/format/strict typing only. No guest/build/full gate. Retain red/green evidence and return a
 frozen clean commit with all processes terminal; coordinator owns integration and native acceptance.
+
+## Worker acceptance
+
+- The retained focused red has four failures: photo and mention v3 plus custom-emoji v4 composer
+  preflight all hit the legacy v2 guard, and a World-canonical rich photo caption raises
+  `KeyError("type")` during identity extraction.
+- Both composer snapshots now use the configured Android bridge version. Focused tests retain the
+  real World message, version guard, client-send journal, position and final history while clearly
+  labeling the substituted native input boundary.
+- Rich photo captions traverse canonical `text` then `credit`. Captioned ordinary photos match only
+  the observed native wrapper containing their exact authored caption. Missing fragments, changed
+  captions, duplicate native cells and captionless photos reject conservatively.
+- One collected Android test stages a public bridge-v4 runner with a contained multipart bot, rich
+  photo caption and keyboard, mention, custom emoji, native callback and native composer send. It
+  asserts the complete six-message history, callback records/events and send journal. It was not
+  executed because native disk approval remains pending.
+
+Evidence is retained under `artifacts/ticket69-red.xml` and
+`artifacts/ticket69-host-green-final.xml`; the intermediate malformed-test failure remains in
+`artifacts/ticket69-host-green.xml`. Final host result: 5 passed, 1 Android deselected. Collection:
+6 tests. Scoped strict mypy reports 3 source files clean; scoped Ruff lint and format pass.
