@@ -122,8 +122,8 @@ This filename is untrusted presentation metadata, not a host path or storage nam
 Android client separately reads `documentAttributeFilename`, removes control characters and
 characters such as `/`, `\\`, `:`, `?`, and `*`, and uses the remaining extension when creating
 the cache filename
-([filename extraction and sanitization](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1450-L1482),
-[cache key](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1524-L1555)).
+([filename extraction and sanitization](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1566-L1600),
+[cache key](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1644-L1662)).
 The request flag maps exactly: `true` selects TDLib `DocumentAsFile`; false or omitted selects
 `Document`
 ([selection](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/td/telegram/MessageContent.cpp#L5202-L5212)).
@@ -171,13 +171,13 @@ empty/malformed files, limit boundaries, reuse/download, and specialized-content
 
 The original carrier must be `TL_messageMediaDocument` containing a `TL_document`. The current
 constructor reads the document only when media flag 0 is set
-([message media](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L6863-L6907)).
+([message media](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L7441-L7480)).
 The document itself contains `id`, `access_hash`, `file_reference`, `date`, `mime_type`, 64-bit
 `size`, `dc_id`, optional thumbnail vectors, and an attribute vector
-([Document](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L26723-L26903)).
+([Document](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L28383-L28574)).
 For a general file, the required first-profile attribute is
 `TL_documentAttributeFilename{file_name}`
-([attribute](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L1536-L1546)).
+([attribute](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java#L1662-L1674)).
 Do not add image-size, audio, video, animated, sticker, or custom-emoji attributes to an opaque
 document: Android uses those attributes and selected MIME types to classify specialized media.
 An ordinary `TL_message` must also carry its caption in `message`, caption entities in `entities`,
@@ -185,15 +185,15 @@ its keyboard in `reply_markup`, and the media-present flag.
 
 With no specialized attribute, `MessageObject` classifies `TL_messageMediaDocument` as
 `TYPE_FILE`; filename becomes the visible attachment label
-([classification](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L6384-L6417),
-[label](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L6243-L6262)).
+([classification](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L6598-L6687),
+[label](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L6514-L6524)).
 `FileLoader.getPathToAttach` sends ordinary documents to `MEDIA_DIR_DOCUMENT`, consults its file
 path database using document ID/DC/type, and names the file from DC ID, document ID and the
 sanitized filename extension
-([path selection](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1243-L1335)).
+([path selection](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L1339-L1449)).
 The original load operation builds `inputDocumentFileLocation` from ID, access hash, file reference
 and DC, expects `document.size`, and derives its extension from the filename
-([load location](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoadOperation.java#L380-L421)).
+([load location](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoadOperation.java#L406-L473)).
 
 The existing synthetic loader can be reused in shape: fixed local DC/access/file-reference values,
 an immutable ID-to-byte descriptor installed before message decoding, original filename-based
@@ -203,6 +203,35 @@ cancellation, retry, and original delegates. A document path must intercept orig
 collision-free namespace across ordinary documents and existing custom-emoji documents; they must
 not be guessed from a bot `file_id` or silently equated with an asset ID before that namespace is
 frozen.
+
+## Native document identity and destination requirements
+
+A source review of the pinned Android tree and the current 27-patch adapter confirms that document
+IDs remain signed 64-bit values through TL serialization, image-location keys and the file-path
+SQLite database. The ordinary-document mapping can therefore use a canonical positive decimal
+string `D` in `1..9223372036854775807`, mapped to native ID `-D` at reserved DC `-1`. Existing custom
+emoji retain positive IDs at DC `-1`. Ordinary and emoji attach keys are consequently disjoint even
+for equal ID magnitudes and extensions. Zero and `Long.MIN_VALUE` are never allocated. This is a
+source-backed implementation requirement, not native acceptance evidence.
+
+One valid boundary needs explicit coverage: canonical `2147483648` maps to native `-2147483648`.
+The original loader rejects attach filenames containing the decimal `Integer.MIN_VALUE` sentinel
+([original guard](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L835-L843)).
+Both reserved `Document` and `ImageLocation` entry points must resolve locally before that guard
+or any `FileLoadOperation`/DC queue. Unknown positive or negative reserved IDs must fail locally;
+knowing an ID must not create a path, grant or remote request. Keep stream loading explicitly
+unsupported until a separate complete local streaming implementation exists.
+
+Ordinary download destinations must preserve the original file behavior. The existing emoji
+adapter's direct document-cache destination does not establish ordinary-file fidelity. Reuse the
+original saved-path lookup and, where the original cache type and `canSaveAsFile` permit it,
+`MEDIA_DIR_FILES` with the sanitized presentation filename
+([destination selection](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java#L930-L977)).
+Publish verified bytes with the original filename collision suffix behavior and persist the actual
+final destination through `FilePathDatabase`; preserve keyed cache paths for other cache modes.
+Required acceptance includes concurrent equal filenames, missing saved paths, cache reuse and cold
+restart, full-range IDs and both reserved loader entry points. Do not instantiate a remote load
+operation merely to reuse its destination helpers.
 
 ## Existing primitives and schema boundary
 
@@ -265,9 +294,9 @@ those guarantees.
 
 Android carries the group ID on each message. `GroupedMessages.calculate` marks groups beginning
 with a document/music item as document groups and changes caption/layout behavior
-([group model](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L1174-L1303));
+([group model](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java#L1255-L1405));
 `ChatMessageCell` has separate branches for `currentMessagesGroup.isDocuments`
-([cell layout](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java#L10079-L10125)).
+([cell layout](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java#L10538-L10585)).
 The album implementation must deliver the complete ordered group to the native grouping layer and
 verify document-list layout; independent single-message rendering is insufficient. Albums remain a
 separate atomic implementation slice, but they are required for the operational milestone rather
