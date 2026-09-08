@@ -84,6 +84,29 @@ def _stage_world(directory: Path, messages: list[tuple[str, list[int]]]) -> dict
         }
 
 
+def _expected_assets() -> dict[str, dict[str, Any]]:
+    return {
+        "2_2.jpg": {
+            "size": THUMBNAIL.stat().st_size,
+            "sha256": hashlib.sha256(THUMBNAIL.read_bytes()).hexdigest(),
+        }
+    }
+
+
+def _stage_shared_case(tmp_path: Path) -> dict[str, Any]:
+    shared_directory = tmp_path / "world-shared"
+    shared_identity = _stage_world(
+        shared_directory,
+        [("Static carrier 👩‍💻", [1]), ("Second carrier 👩‍💻", [2])],
+    )
+    return {
+        "name": "shared-thumbnail",
+        "world": shared_directory.name,
+        "labels": ["Static carrier", "Second carrier"],
+        **shared_identity,
+    }
+
+
 def _stage_cases(tmp_path: Path) -> dict[str, Any]:
     document_cases = []
     texts = {
@@ -105,25 +128,10 @@ def _stage_cases(tmp_path: Path) -> dict[str, Any]:
                 **identity,
             }
         )
-    shared_directory = tmp_path / "world-shared"
-    shared_identity = _stage_world(
-        shared_directory,
-        [("Static carrier 👩‍💻", [1]), ("Second carrier 👩‍💻", [2])],
-    )
     return {
         "document_cases": document_cases,
-        "shared_case": {
-            "name": "shared-thumbnail",
-            "world": shared_directory.name,
-            "labels": ["Static carrier", "Second carrier"],
-            **shared_identity,
-        },
-        "expected": {
-            "2_2.jpg": {
-                "size": THUMBNAIL.stat().st_size,
-                "sha256": hashlib.sha256(THUMBNAIL.read_bytes()).hexdigest(),
-            },
-        },
+        "shared_case": _stage_shared_case(tmp_path),
+        "expected": _expected_assets(),
     }
 
 
@@ -205,14 +213,17 @@ def _assert_cache(
         )
 
 
-@pytest.mark.android
-def test_original_custom_emoji_faults_and_shared_thumbnail_recover(tmp_path: Path) -> None:
+def _android_inputs() -> tuple[RuntimeProfile, str]:
     manifest = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
     if manifest is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
         pytest.skip("Requires the Android profile, reviewed custom emoji APK and accessible KVM")
-    profile = RuntimeProfile.load(Path(manifest))
-    cases = _stage_cases(tmp_path)
+    return RuntimeProfile.load(Path(manifest)), apk
+
+
+def _execute_android(
+    tmp_path: Path, profile: RuntimeProfile, apk: str, cases: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
     (tmp_path / "cases.json").write_text(json.dumps(cases))
     shutil.copy2(apk, tmp_path / "client.apk")
     shutil.copytree(
@@ -253,6 +264,55 @@ def test_original_custom_emoji_faults_and_shared_thumbnail_recover(tmp_path: Pat
     observed = full["extra_probe"]
     assert "Accounts: 0" in observed["accounts"]
     assert observed["expected"] == cases["expected"]
+    return full, observed, toolchain, image
+
+
+def _assert_shared_case(tmp_path: Path, observed: dict[str, Any]) -> tuple[Screenshot, Screenshot]:
+    shared = observed["shared"]
+    assert "Status: ok" in shared["launch"] and "LaunchState: COLD" in shared["launch"]
+    assert shared["hold"] == {"started": True, "partial_sent": True, "finished": True}
+    for stage, labels in (
+        ("initial_capture", ["Static carrier", "Second carrier"]),
+        ("removed_capture", ["Static removed", "Second carrier"]),
+        ("complete_capture", ["Static removed", "Second carrier"]),
+    ):
+        _assert_capture(tmp_path, shared[stage], labels)
+    asset_two = [row for row in shared["assets"] if row["asset_id"] == 2]
+    assert len(asset_two) == 1
+    assert asset_two[0]["status"] == 200 and asset_two[0]["error"] is None
+    assert asset_two[0]["bytes"] == observed["expected"]["2_2.jpg"]["size"]
+    events = [row for row in shared["trace"] if row.get("asset_id") == 2]
+    assert any(row["event"] == "media_load_success" for row in events)
+    assert not any(row["event"] == "media_load_cancel" for row in events)
+    _assert_cache(shared["cache"], observed["expected"], {"2_2.jpg"})
+    assert _diamond_count(tmp_path, shared["complete_capture"], "Second carrier") == 1
+    assert observed["limits"] == {
+        "same_process_refetch": "External outcome only; callback owner identity is not observed.",
+        "late_completion": (
+            "File completion and surviving UI only; removed receiver delivery is not observed."
+        ),
+        "batching": (
+            "A false batch_observed value retains failure evidence without claiming original "
+            "batching."
+        ),
+    }
+    return (
+        Screenshot(
+            caption="shared-removed",
+            png=(tmp_path / shared["removed_capture"]["png"]).read_bytes(),
+        ),
+        Screenshot(
+            caption="shared-complete",
+            png=(tmp_path / shared["complete_capture"]["png"]).read_bytes(),
+        ),
+    )
+
+
+@pytest.mark.android
+def test_original_custom_emoji_faults_and_shared_thumbnail_recover(tmp_path: Path) -> None:
+    profile, apk = _android_inputs()
+    cases = _stage_cases(tmp_path)
+    full, observed, toolchain, image = _execute_android(tmp_path, profile, apk, cases)
     assert set(observed["document_cases"]) == set(FAULT_CASES)
     screenshots = []
 
@@ -326,41 +386,7 @@ def test_original_custom_emoji_faults_and_shared_thumbnail_recover(tmp_path: Pat
                 )
             )
 
-    shared = observed["shared"]
-    assert "Status: ok" in shared["launch"] and "LaunchState: COLD" in shared["launch"]
-    assert shared["hold"] == {"started": True, "partial_sent": True, "finished": True}
-    for stage, labels in (
-        ("initial_capture", ["Static carrier", "Second carrier"]),
-        ("removed_capture", ["Static removed", "Second carrier"]),
-        ("complete_capture", ["Static removed", "Second carrier"]),
-    ):
-        _assert_capture(tmp_path, shared[stage], labels)
-    asset_two = [row for row in shared["assets"] if row["asset_id"] == 2]
-    assert len(asset_two) == 1
-    assert asset_two[0]["status"] == 200 and asset_two[0]["error"] is None
-    assert asset_two[0]["bytes"] == observed["expected"]["2_2.jpg"]["size"]
-    events = [row for row in shared["trace"] if row.get("asset_id") == 2]
-    assert any(row["event"] == "media_load_success" for row in events)
-    assert not any(row["event"] == "media_load_cancel" for row in events)
-    _assert_cache(shared["cache"], observed["expected"], {"2_2.jpg"})
-    assert _diamond_count(tmp_path, shared["complete_capture"], "Second carrier") == 1
-    assert observed["limits"] == {
-        "same_process_refetch": "External outcome only; callback owner identity is not observed.",
-        "late_completion": (
-            "File completion and surviving UI only; removed receiver delivery is not observed."
-        ),
-        "batching": (
-            "A false batch_observed value retains failure evidence without claiming original "
-            "batching."
-        ),
-    }
-    for stage in ("removed_capture", "complete_capture"):
-        screenshots.append(
-            Screenshot(
-                caption="shared-" + stage.removesuffix("_capture"),
-                png=(tmp_path / shared[stage]["png"]).read_bytes(),
-            )
-        )
+    screenshots.extend(_assert_shared_case(tmp_path, observed))
     write_report(
         tmp_path / "report.html",
         Report(
@@ -384,6 +410,45 @@ def test_original_custom_emoji_faults_and_shared_thumbnail_recover(tmp_path: Pat
                 "Network isolation": full["network"],
             },
             screenshots=tuple(screenshots),
+            limitations=tuple(observed["limits"].values()),
+        ),
+    )
+
+
+@pytest.mark.android
+def test_original_custom_emoji_shared_thumbnail_progressive_transfer(tmp_path: Path) -> None:
+    profile, apk = _android_inputs()
+    cases = {
+        "selector": "shared",
+        "document_cases": [],
+        "shared_case": _stage_shared_case(tmp_path),
+        "expected": _expected_assets(),
+    }
+    full, observed, toolchain, image = _execute_android(tmp_path, profile, apk, cases)
+    assert observed["document_cases"] == {}
+    screenshots = _assert_shared_case(tmp_path, observed)
+    write_report(
+        tmp_path / "report.html",
+        Report(
+            run_id="custom-emoji-native-shared-thumbnail",
+            title="Original custom emoji shared thumbnail transfer",
+            mode="headless-android",
+            outcome="passed",
+            seed=66,
+            profile={
+                "Android SDK": str(toolchain["sdk"]["platform"]),
+                "System image": image,
+                "Application": PACKAGE,
+            },
+            summary=(
+                "One original shared thumbnail transfer remains active while its first carrier "
+                "is removed, then completes for the surviving carrier."
+            ),
+            evidence={
+                "Shared thumbnail": observed["shared"],
+                "Network isolation": full["network"],
+            },
+            screenshots=screenshots,
             limitations=tuple(observed["limits"].values()),
         ),
     )
