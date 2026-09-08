@@ -24,14 +24,24 @@ IMAGE_PACKAGE = "system-images;android-36;default;x86_64"
 def _inline_fragments(message: dict[str, Any]) -> list[str]:
     """Readable content only; rich styling and hidden descendants cannot identify a cell."""
     if "rich_message" not in message:
-        return [message["text"]] if message["text"] else []
+        if message["text"]:
+            return [message["text"]]
+        return [message["caption"]] if "photo" in message and message.get("caption") else []
     fragments: list[str] = []
 
     def visit(blocks: list[dict[str, Any]]) -> None:
         for block in blocks:
             for field in ("text", "summary", "caption"):
                 if field in block:
-                    fragments.append(_rich_text(block[field]))
+                    if field == "caption" and block["type"] == "photo":
+                        caption = block[field]
+                        fragments.extend(
+                            _rich_text(caption[name])
+                            for name in ("text", "credit")
+                            if name in caption
+                        )
+                    else:
+                        fragments.append(_rich_text(block[field]))
             if "cells" in block:
                 for row in block["cells"]:
                     for cell in row:
@@ -51,7 +61,12 @@ def _inline_fragments(message: dict[str, Any]) -> list[str]:
 
 def _inline_matches(message: dict[str, Any], native_text: str) -> bool:
     if "rich_message" not in message:
-        return bool(message["text"]) and native_text.startswith(message["text"] + "\n")
+        if message["text"]:
+            return native_text.startswith(message["text"] + "\n")
+        if "photo" not in message or not message.get("caption"):
+            return False
+        match = re.fullmatch(r"Photo\n(.*)\nReceived at [^\n]+\n", native_text, re.DOTALL)
+        return match is not None and match[1] == message["caption"]
     # The pinned English host appends receipt metadata after a separate paragraph.
     # Do not let timestamps or status words supply otherwise absent message content.
     # Localized/changed host metadata must fail until its observation contract is verified.
@@ -389,7 +404,9 @@ class Android:
                 raise RuntimeError("Composer chat changed before input")
             if text is None and world.history(chat["id"]):
                 raise RuntimeError("Start Bot conversation changed before input")
-            position = world.client_snapshot(chat["user_id"], version=2)["message_position"]
+            position = world.client_snapshot(chat["user_id"], version=self._bridge_version)[
+                "message_position"
+            ]
         entered = self._click_start(ui) if text is None else self._enter_text(text)
         return self._accepted_composer_send(
             chat, position, expected, started, launched, ui, entered
@@ -460,7 +477,7 @@ class Android:
         deadline = min(self.deadline, time.monotonic() + 15)
         while time.monotonic() < deadline:
             with World.open(Path("world")) as world:
-                snapshot = world.client_snapshot(chat["user_id"], version=2)
+                snapshot = world.client_snapshot(chat["user_id"], version=self._bridge_version)
             sends = [
                 send
                 for send in snapshot["sends"]
@@ -533,13 +550,7 @@ class Android:
             if world.get_message(chat["id"], message["id"]) != message:
                 raise RuntimeError("Inline message changed before input")
             same_text = [
-                item
-                for item in world.history(chat["id"])
-                if (
-                    _inline_matches(item, native_text)
-                    if "rich_message" in message or "rich_message" in item
-                    else item["text"] == message["text"]
-                )
+                item for item in world.history(chat["id"]) if _inline_matches(item, native_text)
             ]
             if len(same_text) != 1:
                 raise RuntimeError("Inline message text is ambiguous in this chat")

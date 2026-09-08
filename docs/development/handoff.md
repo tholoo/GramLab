@@ -111,8 +111,11 @@ offline safety, licensing and completion requirements before the corresponding a
   delivery. Both native acceptance gates remain pending. Public semantic capture and virtual
   callback compatibility fixes are integrated under tickets67/68: eight capture controls and
   two callback controls pass focused checks and the combined core gate. Two
-  Android host defects (composer snapshot version and rich-photo caption matching) are assigned
-  under ticket69; native acceptance and the disk-space blocker remain separate.
+  Android host defects (composer snapshot version and photo caption matching) are corrected
+  under ticket69. Seven integrated host/capture/callback controls and scoped static checks pass;
+  combined core verification follows. The collected native scenario remains unexecuted.
+  The rich-button shared implementation contract is being reviewed under ticket70; it preserves
+  strict v4 payloads and adds a separately versioned app-private observation interface.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
