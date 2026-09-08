@@ -36,14 +36,14 @@ wait_for(lambda history: len(history) == 3, "publication")
 observation = rich_lab.rich_buttons(chat_id=chat["id"], message_id=2)
 by_path = {json.dumps(target["path"]): target for target in observation["targets"]}
 paths: list[list[str | int]] = [
-    ["blocks", 0, "buttons", 0],
-    ["blocks", 0, "buttons", 1],
-    ["blocks", 0, "buttons", 2],
-    ["blocks", 1, "text", 1, "text", 0, "button"],
-    ["blocks", 1, "text", 1, "text", 2, "button"],
-    ["blocks", 1, "text", 2, "button"],
-    ["blocks", 2, "blocks", 0, "text", "button"],
-    ["blocks", 18, "text", "button"],
+    ["blocks", 16, "buttons", 0],
+    ["blocks", 16, "buttons", 1],
+    ["blocks", 16, "buttons", 2],
+    ["blocks", 17, "text", 1, "text", 0, "button"],
+    ["blocks", 17, "text", 1, "text", 2, "button"],
+    ["blocks", 17, "text", 2, "button"],
+    ["blocks", 18, "blocks", 0, "text", "button"],
+    ["blocks", 0, "text", "button"],
 ]
 
 
@@ -77,7 +77,7 @@ receipts["row_callback_repeat"] = rich_lab.tap_rich_button(target_id=target(path
 stale_observation = rich_lab.rich_buttons(chat_id=chat["id"], message_id=2)
 lab.send_message(chat_id=chat["id"], sender_id=user["id"], text="same-clock ABA")
 wait_for(lambda history: history[-1].get("text") == "ABA complete", "same-clock ABA")
-stale_target = stale_observation["targets"][0]
+stale_target = next(target for target in stale_observation["targets"] if target["path"] == paths[0])
 stale_before = {"snapshot": lab.snapshot(), "events": lab.events()}
 stale = rich_lab.tap_rich_button(target_id=stale_target["target_id"])
 stale_after = {"snapshot": lab.snapshot(), "events": lab.events()}
@@ -86,7 +86,9 @@ stale_repeat = rich_lab.tap_rich_button(target_id=stale_target["target_id"])
 unrelated_observation = rich_lab.rich_buttons(chat_id=chat["id"], message_id=2)
 lab.send_message(chat_id=chat["id"], sender_id=user["id"], text="edit unrelated")
 wait_for(lambda history: history[-1].get("text") == "Unrelated edit complete", "unrelated edit")
-unrelated_target = unrelated_observation["targets"][0]
+unrelated_target = next(
+    target for target in unrelated_observation["targets"] if target["path"] == paths[0]
+)
 unrelated = rich_lab.tap_rich_button(target_id=unrelated_target["target_id"])
 unrelated_repeat = rich_lab.tap_rich_button(target_id=unrelated_target["target_id"])
 

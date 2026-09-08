@@ -19,6 +19,17 @@ FILLER = [{"type": "paragraph", "text": f"Filler {index} / فاصله {index}"} 
 EXPECTED_PRIMARY = {
     "blocks": [
         {
+            "type": "paragraph",
+            "text": {
+                "type": "button",
+                "button": {
+                    "text": "Offscreen callback / دور",
+                    "callback_data": "offscreen",
+                },
+            },
+        },
+        *FILLER,
+        {
             "type": "buttons",
             "buttons": [
                 {"text": "Same / همان", "callback_data": "same:payload"},
@@ -72,59 +83,48 @@ EXPECTED_PRIMARY = {
                 }
             ],
         },
-        *FILLER,
-        {
-            "type": "paragraph",
-            "text": {
-                "type": "button",
-                "button": {
-                    "text": "Offscreen callback / دور",
-                    "callback_data": "offscreen",
-                },
-            },
-        },
     ]
 }
 EXPECTED_TARGETS = [
     (
-        ["blocks", 0, "buttons", 0],
+        ["blocks", 0, "text", "button"],
+        {"text": "Offscreen callback / دور", "callback_data": "offscreen"},
+        "Offscreen callback / دور",
+    ),
+    (
+        ["blocks", 16, "buttons", 0],
         {"text": "Same / همان", "callback_data": "same:payload"},
         "Same / همان",
     ),
     (
-        ["blocks", 0, "buttons", 1],
+        ["blocks", 16, "buttons", 1],
         {"text": ["Copy / ", "کپی"], "copy_text": {"text": "row copied / ردیف"}},
         "Copy / کپی",
     ),
     (
-        ["blocks", 0, "buttons", 2],
+        ["blocks", 16, "buttons", 2],
         {"text": "Disabled / غیرفعال", "disabled": {}},
         "Disabled / غیرفعال",
     ),
     (
-        ["blocks", 1, "text", 1, "text", 0, "button"],
+        ["blocks", 17, "text", 1, "text", 0, "button"],
         {"text": "Same / همان", "callback_data": "same:payload"},
         "Same / همان",
     ),
     (
-        ["blocks", 1, "text", 1, "text", 2, "button"],
+        ["blocks", 17, "text", 1, "text", 2, "button"],
         {"text": ["Copy / ", "کپی"], "copy_text": {"text": "inline copied / درون"}},
         "Copy / کپی",
     ),
     (
-        ["blocks", 1, "text", 2, "button"],
+        ["blocks", 17, "text", 2, "button"],
         {"text": "Disabled inline / غیرفعال", "disabled": {}},
         "Disabled inline / غیرفعال",
     ),
     (
-        ["blocks", 2, "blocks", 0, "text", "button"],
+        ["blocks", 18, "blocks", 0, "text", "button"],
         {"text": "Hidden callback / پنهان", "callback_data": "hidden"},
         "Hidden callback / پنهان",
-    ),
-    (
-        ["blocks", 18, "text", "button"],
-        {"text": "Offscreen callback / دور", "callback_data": "offscreen"},
-        "Offscreen callback / دور",
     ),
 ]
 
@@ -269,10 +269,10 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     receipts = scenario["receipts"]
     targets = observation["targets"]
     for name, index, payload, sequence in (
-        ("row_callback", 0, "same:payload", 7),
-        ("inline_callback", 3, "same:payload", 8),
-        ("hidden", 6, "hidden", 9),
-        ("offscreen", 7, "offscreen", 10),
+        ("row_callback", 1, "same:payload", 7),
+        ("inline_callback", 4, "same:payload", 8),
+        ("hidden", 7, "hidden", 9),
+        ("offscreen", 0, "offscreen", 10),
     ):
         assert_callback_receipt(
             receipts[name],
@@ -285,7 +285,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
 
     assert receipts["row_copy"] == {
         "operation_id": receipts["row_copy"]["operation_id"],
-        "target": expected_receipt_target(targets[1], 5),
+        "target": expected_receipt_target(targets[2], 5),
         "status": "succeeded",
         "dispatch": "dispatched",
         "effect": {"kind": "copy", "text": "row copied / ردیف"},
@@ -298,7 +298,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     }
     assert receipts["row_disabled"] == {
         "operation_id": receipts["row_disabled"]["operation_id"],
-        "target": expected_receipt_target(targets[2], 5),
+        "target": expected_receipt_target(targets[3], 5),
         "status": "succeeded",
         "dispatch": "dispatched",
         "effect": {"kind": "none", "reason": "disabled"},
@@ -314,7 +314,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     }
     assert receipts["inline_copy"] == {
         "operation_id": receipts["inline_copy"]["operation_id"],
-        "target": expected_receipt_target(targets[4], 5),
+        "target": expected_receipt_target(targets[5], 5),
         "status": "succeeded",
         "dispatch": "dispatched",
         "effect": {"kind": "copy", "text": "inline copied / درون"},
@@ -330,7 +330,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     }
     assert receipts["inline_disabled"] == {
         "operation_id": receipts["inline_disabled"]["operation_id"],
-        "target": expected_receipt_target(targets[5], 5),
+        "target": expected_receipt_target(targets[6], 5),
         "status": "succeeded",
         "dispatch": "dispatched",
         "effect": {"kind": "none", "reason": "disabled"},
@@ -350,7 +350,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
 
     stale_observation = scenario["stale_observation"]
     assert_observation(stale_observation, revision=5)
-    stale_target = expected_receipt_target(stale_observation["targets"][0], 5)
+    stale_target = expected_receipt_target(stale_observation["targets"][1], 5)
     assert scenario["stale"] == {
         "operation_id": scenario["stale"]["operation_id"],
         "target": stale_target,
@@ -378,7 +378,7 @@ def test_real_bot_public_rich_targets_preserve_effects_staleness_and_quiet_state
     edited_primary = initial_message | {"edit_date": 1700000000}
     assert_callback_receipt(
         scenario["unrelated"],
-        expected_receipt_target(unrelated_observation["targets"][0], 13),
+        expected_receipt_target(unrelated_observation["targets"][1], 13),
         edited_primary,
         "same:payload",
         18,
