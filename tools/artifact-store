@@ -1,0 +1,846 @@
+#!/usr/bin/env python3
+"""Move completed APK archives into verified, immutable content-addressed storage."""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import hashlib
+import json
+import os
+import shutil
+import stat
+import sys
+from collections.abc import Iterator
+from pathlib import Path, PurePosixPath
+from typing import Any, BinaryIO, NoReturn
+
+SCHEMA = 1
+MAX_FILES = 10_000
+MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_TOTAL_BYTES = 1024 * 1024 * 1024 * 1024
+MAX_MANIFEST_BYTES = 16 * 1024 * 1024
+COPY_CHUNK_BYTES = 1024 * 1024
+RECORD_KEYS = {
+    "path",
+    "sha256",
+    "size",
+    "dev",
+    "ino",
+    "mode",
+    "uid",
+    "gid",
+    "mtime_ns",
+    "atime_ns",
+    "ctime_ns",
+    "nlink",
+}
+IDENTITY_KEYS = ("dev", "ino", "size", "mode", "uid", "gid", "mtime_ns", "ctime_ns", "nlink")
+
+
+class Refusal(Exception):
+    """The requested archive operation is unsafe or stale."""
+
+
+def fail(message: str) -> NoReturn:
+    raise Refusal(message)
+
+
+def exact(value: dict[str, Any], keys: set[str], context: str) -> None:
+    if set(value) != keys:
+        fail(f"{context} has unsupported or missing fields.")
+
+
+def json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            fail(f"JSON contains duplicate field {key!r}.")
+        result[key] = value
+    return result
+
+
+def read_bounded(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        fail(f"Cannot open manifest {path}: {exc}")
+    with os.fdopen(descriptor, "rb") as stream:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_MANIFEST_BYTES:
+            fail(f"Manifest is not a bounded regular file: {path}")
+        value = stream.read(MAX_MANIFEST_BYTES + 1)
+        after = os.fstat(descriptor)
+    if len(value) > MAX_MANIFEST_BYTES or any(
+        getattr(before, f"st_{key}") != getattr(after, f"st_{key}")
+        for key in ("dev", "ino", "size", "mtime_ns", "ctime_ns")
+    ):
+        fail(f"Manifest changed or exceeds {MAX_MANIFEST_BYTES} bytes: {path}")
+    return value
+
+
+def parse_json(raw: bytes, context: str) -> Any:
+    try:
+        return json.loads(raw, object_pairs_hook=json_object)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"Cannot parse {context}: {exc}")
+
+
+def directory(value: str | Path, label: str) -> Path:
+    supplied = Path(value)
+    try:
+        status = supplied.lstat()
+        resolved = supplied.resolve(strict=True)
+    except OSError as exc:
+        fail(f"{label} is unavailable: {exc}")
+    if supplied.is_symlink() or not stat.S_ISDIR(status.st_mode) or not resolved.is_dir():
+        fail(f"{label} must be a real directory, not a symlink.")
+    return resolved
+
+
+def ensure_separate(archive_root: Path, store: Path) -> None:
+    if archive_root == store or archive_root in store.parents or store in archive_root.parents:
+        fail("ARCHIVE_ROOT and STORE must be separate, non-nested directories.")
+
+
+def safe_output(path: Path, archive_root: Path, store: Path, label: str) -> Path:
+    if path.exists() or path.is_symlink():
+        fail(f"{label} already exists: {path}")
+    parent = directory(path.parent, f"{label} parent")
+    resolved = parent / path.name
+    if resolved == archive_root or archive_root in resolved.parents:
+        fail(f"{label} must be outside ARCHIVE_ROOT.")
+    if resolved == store or store in resolved.parents:
+        fail(f"{label} must be outside STORE.")
+    return resolved
+
+
+def relative_path(value: Any) -> str:
+    if not isinstance(value, str):
+        fail("Artifact path must be a string.")
+    path = PurePosixPath(value)
+    if (
+        not value
+        or len(value.encode()) > 4096
+        or path.is_absolute()
+        or "\\" in value
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.as_posix() != value
+        or path.suffix != ".apk"
+    ):
+        fail(f"Unsupported archive-relative APK path: {value!r}")
+    return value
+
+
+@contextlib.contextmanager
+def anchored_parent(root: Path, relative: str) -> Iterator[tuple[int, str]]:
+    parts = PurePosixPath(relative).parts
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(root, flags)
+    try:
+        for part in parts[:-1]:
+            child = os.open(part, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        yield descriptor, parts[-1]
+    except OSError as exc:
+        fail(f"Archive parent changed or is unsafe for {relative}: {exc}")
+    finally:
+        os.close(descriptor)
+
+
+def anchored_status(root: Path, relative: str) -> os.stat_result:
+    with anchored_parent(root, relative) as (parent, name):
+        try:
+            return os.stat(name, dir_fd=parent, follow_symlinks=False)
+        except OSError as exc:
+            fail(f"Cannot inspect archive APK {relative}: {exc}")
+
+
+def open_anchored_source(root: Path, relative: str) -> tuple[BinaryIO, os.stat_result]:
+    with anchored_parent(root, relative) as (parent, name):
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(name, flags, dir_fd=parent)
+        except OSError as exc:
+            fail(f"Cannot open APK {relative}: {exc}")
+    stream = os.fdopen(descriptor, "rb")
+    status = os.fstat(descriptor)
+    if not stat.S_ISREG(status.st_mode):
+        stream.close()
+        fail(f"APK path is not a regular file: {relative}")
+    return stream, status
+
+
+def walk_apks(root: Path) -> Iterator[tuple[str, Path]]:
+    def walk(current: Path, parts: tuple[str, ...]) -> Iterator[tuple[str, Path]]:
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: os.fsencode(entry.name))
+        except OSError as exc:
+            fail(f"Cannot inspect archive directory {current}: {exc}")
+        for entry in entries:
+            child = current / entry.name
+            try:
+                status = entry.stat(follow_symlinks=False)
+            except OSError as exc:
+                fail(f"Cannot inspect archive entry {child}: {exc}")
+            if stat.S_ISLNK(status.st_mode):
+                fail(f"Archive contains a symlink: {child}")
+            if stat.S_ISDIR(status.st_mode):
+                yield from walk(child, (*parts, entry.name))
+            elif entry.name.endswith(".apk"):
+                if not stat.S_ISREG(status.st_mode):
+                    fail(f"APK path is not a regular file: {child}")
+                yield PurePosixPath(*parts, entry.name).as_posix(), child
+
+    yield from walk(root, ())
+
+
+def apk_entries(root: Path) -> list[tuple[str, Path]]:
+    entries: list[tuple[str, Path]] = []
+    for entry in walk_apks(root):
+        if len(entries) >= MAX_FILES:
+            fail(f"Archive contains more than {MAX_FILES} APKs.")
+        entries.append(entry)
+    return sorted(entries, key=lambda entry: os.fsencode(entry[0]))
+
+
+def sha256_stream(stream: BinaryIO) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    size = 0
+    while chunk := stream.read(COPY_CHUNK_BYTES):
+        digest.update(chunk)
+        size += len(chunk)
+        if size > MAX_FILE_BYTES:
+            fail(f"APK exceeds {MAX_FILE_BYTES} bytes.")
+    return digest.hexdigest(), size
+
+
+def open_source(path: Path) -> tuple[BinaryIO, os.stat_result]:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        fail(f"Cannot open APK {path}: {exc}")
+    stream = os.fdopen(descriptor, "rb")
+    status = os.fstat(descriptor)
+    if not stat.S_ISREG(status.st_mode):
+        stream.close()
+        fail(f"APK path is not a regular file: {path}")
+    return stream, status
+
+
+def identity(status: os.stat_result) -> dict[str, int]:
+    return {
+        "dev": status.st_dev,
+        "ino": status.st_ino,
+        "size": status.st_size,
+        "mode": stat.S_IMODE(status.st_mode),
+        "uid": status.st_uid,
+        "gid": status.st_gid,
+        "mtime_ns": status.st_mtime_ns,
+        "atime_ns": status.st_atime_ns,
+        "ctime_ns": status.st_ctime_ns,
+        "nlink": status.st_nlink,
+    }
+
+
+def inventory_record(root: Path, relative: str, path: Path) -> dict[str, Any]:
+    del path
+    stream, before = open_anchored_source(root, relative)
+    with stream:
+        if before.st_size > MAX_FILE_BYTES:
+            fail(f"APK exceeds {MAX_FILE_BYTES} bytes: {relative}")
+        digest, size = sha256_stream(stream)
+        after = os.fstat(stream.fileno())
+    if any(
+        getattr(before, f"st_{key}") != getattr(after, f"st_{key}")
+        for key in ("dev", "ino", "size", "mtime_ns", "ctime_ns", "nlink")
+    ):
+        fail(f"APK changed while hashing: {relative}")
+    try:
+        current = anchored_status(root, relative)
+    except Refusal as exc:
+        fail(f"APK changed while hashing {relative}: {exc}")
+    if any(
+        getattr(after, f"st_{key}") != getattr(current, f"st_{key}")
+        for key in ("dev", "ino", "size", "mtime_ns", "ctime_ns", "nlink")
+    ):
+        fail(f"APK changed while hashing: {relative}")
+    record: dict[str, Any] = {"path": relative, "sha256": digest, **identity(before)}
+    record["size"] = size
+    return record
+
+
+def fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def create_file(path: Path, value: bytes, mode: int = 0o644) -> None:
+    created = False
+    try:
+        with path.open("xb") as stream:
+            created = True
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+        path.chmod(mode)
+        fsync_directory(path.parent)
+    except Exception:
+        if created:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+        raise
+
+
+def encode_json(value: Any) -> bytes:
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+
+
+def journal_line(value: dict[str, Any]) -> bytes:
+    return json.dumps(value, sort_keys=True).encode() + b"\n"
+
+
+def plan_archive(
+    archive_value: str | Path, store_value: str | Path, output_value: str | Path
+) -> dict[str, Any]:
+    archive_root = directory(archive_value, "ARCHIVE_ROOT")
+    store = directory(store_value, "STORE")
+    ensure_separate(archive_root, store)
+    output = safe_output(Path(output_value), archive_root, store, "PLAN")
+    files: list[dict[str, Any]] = []
+    total = 0
+    for relative, path in apk_entries(archive_root):
+        record = inventory_record(archive_root, relative, path)
+        total += int(record["size"])
+        if total > MAX_TOTAL_BYTES:
+            fail(f"Archive exceeds {MAX_TOTAL_BYTES} bytes.")
+        files.append(record)
+    if not files:
+        fail("ARCHIVE_ROOT contains no regular .apk files.")
+    plan = {
+        "schema": SCHEMA,
+        "archive_root": str(archive_root),
+        "store": str(store),
+        "files": files,
+    }
+    encoded = encode_json(plan)
+    if len(encoded) > MAX_MANIFEST_BYTES:
+        fail(f"PLAN would exceed {MAX_MANIFEST_BYTES} bytes.")
+    create_file(output, encoded)
+    return {"files": len(files), "bytes": total, "plan": str(output)}
+
+
+def integer(value: Any, field: str, *, positive: bool = False) -> int:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or (positive and value <= 0)
+        or value < 0
+    ):
+        fail(f"Plan field {field!r} must be a nonnegative integer.")
+    return value
+
+
+def validate_record(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail("Plan file record must be an object.")
+    exact(value, RECORD_KEYS, "Plan file record")
+    relative_path(value["path"])
+    digest = value["sha256"]
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(c not in "0123456789abcdef" for c in digest)
+    ):
+        fail("Plan SHA-256 must be 64 lowercase hexadecimal characters.")
+    for field in RECORD_KEYS - {"path", "sha256"}:
+        integer(value[field], field, positive=field in {"size", "nlink"})
+    if value["size"] > MAX_FILE_BYTES or value["mode"] > 0o7777:
+        fail("Plan file metadata exceeds supported bounds.")
+    return value
+
+
+def load_plan(path: Path) -> tuple[dict[str, Any], str]:
+    raw = read_bounded(path)
+    parsed = parse_json(raw, "PLAN")
+    if not isinstance(parsed, dict):
+        fail("PLAN must contain a JSON object.")
+    exact(parsed, {"schema", "archive_root", "store", "files"}, "PLAN")
+    if parsed["schema"] != SCHEMA or not isinstance(parsed["files"], list):
+        fail("PLAN uses an unsupported schema.")
+    if not isinstance(parsed["archive_root"], str) or not isinstance(parsed["store"], str):
+        fail("PLAN roots must be strings.")
+    if not parsed["files"] or len(parsed["files"]) > MAX_FILES:
+        fail("PLAN has an unsupported file count.")
+    records = [validate_record(record) for record in parsed["files"]]
+    paths = [record["path"] for record in records]
+    if paths != sorted(paths, key=os.fsencode) or len(paths) != len(set(paths)):
+        fail("PLAN paths must be unique and sorted.")
+    total = sum(int(record["size"]) for record in records)
+    if total > MAX_TOTAL_BYTES:
+        fail("PLAN total size exceeds the supported bound.")
+    parsed["files"] = records
+    return parsed, hashlib.sha256(raw).hexdigest()
+
+
+def source_matches_at(
+    parent: int, name: str, record: dict[str, Any], *, hash_content: bool
+) -> bool:
+    try:
+        status = os.stat(name, dir_fd=parent, follow_symlinks=False)
+    except OSError:
+        return False
+    metadata = identity(status)
+    if not stat.S_ISREG(status.st_mode) or stat.S_ISLNK(status.st_mode):
+        return False
+    if any(metadata[key] != record[key] for key in IDENTITY_KEYS):
+        return False
+    if hash_content:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(name, flags, dir_fd=parent)
+        except OSError:
+            return False
+        stream = os.fdopen(descriptor, "rb")
+        opened = os.fstat(descriptor)
+        with stream:
+            if any(identity(opened)[key] != record[key] for key in IDENTITY_KEYS):
+                return False
+            digest, size = sha256_stream(stream)
+        if digest != record["sha256"] or size != record["size"]:
+            return False
+        try:
+            current_status = os.stat(name, dir_fd=parent, follow_symlinks=False)
+        except OSError:
+            return False
+        if any(identity(current_status)[key] != record[key] for key in IDENTITY_KEYS):
+            return False
+    return True
+
+
+def source_matches(
+    archive_root: Path, relative: str, record: dict[str, Any], *, hash_content: bool
+) -> bool:
+    try:
+        with anchored_parent(archive_root, relative) as (parent, name):
+            return source_matches_at(parent, name, record, hash_content=hash_content)
+    except Refusal:
+        return False
+
+
+def object_path(store: Path, digest: str) -> Path:
+    return store / f"{digest}.apk"
+
+
+def validate_object(path: Path, digest: str, size: int, device: int) -> os.stat_result:
+    stream, status = open_source(path)
+    if (
+        not stat.S_ISREG(status.st_mode)
+        or status.st_dev != device
+        or status.st_size != size
+        or stat.S_IMODE(status.st_mode) != 0o444
+    ):
+        stream.close()
+        fail(f"Content object has unsafe metadata: {path}")
+    with stream:
+        actual, actual_size = sha256_stream(stream)
+        after = os.fstat(stream.fileno())
+    try:
+        current = path.lstat()
+    except OSError as exc:
+        fail(f"Content object changed during verification {path}: {exc}")
+    if any(
+        getattr(status, f"st_{key}") != getattr(after, f"st_{key}")
+        or getattr(after, f"st_{key}") != getattr(current, f"st_{key}")
+        for key in ("dev", "ino", "size", "mode", "mtime_ns", "ctime_ns", "nlink")
+    ):
+        fail(f"Content object changed during verification: {path}")
+    if actual != digest or actual_size != size:
+        fail(f"Content object does not match its name: {path}")
+    return after
+
+
+def read_receipt(
+    path: Path,
+    plan_digest: str,
+    archive_root: Path,
+    store: Path,
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    raw = read_bounded(path)
+    events: list[dict[str, Any]] = []
+    for number, line in enumerate(raw.splitlines(), 1):
+        parsed = parse_json(line, f"RECEIPT line {number}")
+        if not isinstance(parsed, dict):
+            fail(f"RECEIPT line {number} must be an object.")
+        events.append(parsed)
+    if not events:
+        fail("RECEIPT is empty.")
+    header = events[0]
+    exact(header, {"event", "schema", "plan_sha256", "archive_root", "store"}, "RECEIPT header")
+    if header != {
+        "event": "started",
+        "schema": SCHEMA,
+        "plan_sha256": plan_digest,
+        "archive_root": str(archive_root),
+        "store": str(store),
+    }:
+        fail("RECEIPT does not belong to this exact plan and storage root.")
+    expected = {record["path"]: record for record in records}
+    objects: set[str] = set()
+    prepared: set[str] = set()
+    linked: set[str] = set()
+    for index, event in enumerate(events[1:], 1):
+        kind = event.get("event")
+        if kind == "object":
+            exact(
+                event,
+                {"event", "path", "sha256", "size", "recovered"},
+                "RECEIPT object record",
+            )
+            digest = event["sha256"]
+            matches = [record for record in records if record["sha256"] == digest]
+            if (
+                not isinstance(digest, str)
+                or digest in objects
+                or not matches
+                or event["path"] != str(object_path(store, digest))
+                or event["size"] != matches[0]["size"]
+                or not isinstance(event["recovered"], bool)
+            ):
+                fail("RECEIPT contains an invalid content-object record.")
+            objects.add(digest)
+        elif kind == "prepared":
+            exact(event, {"event", "path", "original"}, "RECEIPT prepared record")
+            relative = event["path"]
+            if (
+                relative in prepared
+                or relative not in expected
+                or event["original"] != expected[relative]
+            ):
+                fail("RECEIPT contains an invalid prepared record.")
+            prepared.add(relative)
+        elif kind == "linked":
+            exact(event, {"event", "path", "recovered"}, "RECEIPT linked record")
+            relative = event["path"]
+            if (
+                relative in linked
+                or relative not in prepared
+                or relative not in expected
+                or not isinstance(event["recovered"], bool)
+            ):
+                fail("RECEIPT contains an invalid linked record.")
+            linked.add(relative)
+        elif kind == "complete":
+            exact(event, {"event", "linked_paths"}, "RECEIPT completion record")
+            if index != len(events) - 1 or event["linked_paths"] != len(records):
+                fail("RECEIPT contains an invalid completion record.")
+        else:
+            fail("RECEIPT contains an unsupported event.")
+    return events
+
+
+class Journal:
+    def __init__(self, path: Path, header: dict[str, Any] | None) -> None:
+        self.path = path
+        mode = "xb" if header is not None else "ab"
+        self.stream = path.open(mode)
+        self.size = path.stat().st_size
+        if header is not None:
+            self.append(header)
+            fsync_directory(path.parent)
+
+    def append(self, value: dict[str, Any]) -> None:
+        encoded = journal_line(value)
+        if self.size + len(encoded) > MAX_MANIFEST_BYTES:
+            fail(f"RECEIPT would exceed {MAX_MANIFEST_BYTES} bytes.")
+        self.stream.write(encoded)
+        self.stream.flush()
+        os.fsync(self.stream.fileno())
+        self.size += len(encoded)
+
+    def close(self) -> None:
+        self.stream.close()
+
+    def __enter__(self) -> Journal:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+def receipt_bound(header: dict[str, Any], records: list[dict[str, Any]], store: Path) -> int:
+    size = len(journal_line(header))
+    objects: dict[str, dict[str, Any]] = {}
+    for record in records:
+        digest = str(record["sha256"])
+        objects.setdefault(
+            digest,
+            {
+                "event": "object",
+                "path": str(object_path(store, digest)),
+                "sha256": digest,
+                "size": record["size"],
+                "recovered": False,
+            },
+        )
+        size += len(journal_line({"event": "prepared", "path": record["path"], "original": record}))
+        size += len(journal_line({"event": "linked", "path": record["path"], "recovered": False}))
+    size += sum(len(journal_line(event)) for event in objects.values())
+    size += len(journal_line({"event": "complete", "linked_paths": len(records)}))
+    return size
+
+
+def replace_atomic(parent: int, source: str, destination: str) -> None:
+    os.replace(source, destination, src_dir_fd=parent, dst_dir_fd=parent)
+
+
+def create_object(
+    archive_root: Path, relative: str, record: dict[str, Any], canonical: Path
+) -> None:
+    temporary = canonical.with_name(f".{canonical.name}.artifact-store-{os.getpid()}")
+    if temporary.exists() or temporary.is_symlink():
+        fail(f"Content-object temporary path collision: {temporary}")
+    created = False
+    try:
+        if not source_matches(archive_root, relative, record, hash_content=True):
+            fail(f"APK changed since PLAN: {record['path']}")
+        input_stream, opened = open_anchored_source(archive_root, relative)
+        with input_stream:
+            if any(identity(opened)[key] != record[key] for key in IDENTITY_KEYS):
+                fail(f"APK changed since PLAN: {record['path']}")
+            with temporary.open("xb") as output:
+                created = True
+                shutil.copyfileobj(input_stream, output, COPY_CHUNK_BYTES)
+                output.flush()
+                os.fsync(output.fileno())
+        with temporary.open("rb") as copied:
+            digest, size = sha256_stream(copied)
+        if digest != record["sha256"] or size != record["size"]:
+            fail(f"Copied content object failed verification: {canonical}")
+        temporary.chmod(0o444)
+        try:
+            os.link(temporary, canonical, follow_symlinks=False)
+        except FileExistsError:
+            fail(f"Content-object path collision: {canonical}")
+        fsync_directory(canonical.parent)
+    finally:
+        if created:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def apply_archive(
+    archive_value: str | Path,
+    store_value: str | Path,
+    plan_value: str | Path,
+    receipt_value: str | Path,
+    *,
+    confirmed_quiescent: bool,
+) -> dict[str, Any]:
+    if not confirmed_quiescent:
+        fail("Apply requires explicit --completed-quiescent confirmation.")
+    archive_root = directory(archive_value, "ARCHIVE_ROOT")
+    store = directory(store_value, "STORE")
+    ensure_separate(archive_root, store)
+    if archive_root.stat().st_dev != store.stat().st_dev:
+        fail("ARCHIVE_ROOT and STORE must be on the same filesystem for hardlinks.")
+    plan_input = Path(plan_value)
+    if plan_input.is_symlink():
+        fail("PLAN must be a regular file, not a symlink.")
+    plan_path = plan_input.resolve(strict=True)
+    if (
+        plan_path == archive_root
+        or archive_root in plan_path.parents
+        or plan_path == store
+        or store in plan_path.parents
+    ):
+        fail("PLAN must be outside ARCHIVE_ROOT and STORE.")
+    receipt_input = Path(receipt_value)
+    if receipt_input.exists():
+        if receipt_input.is_symlink():
+            fail("RECEIPT must be a regular file, not a symlink.")
+        receipt = receipt_input.resolve(strict=True)
+        if (
+            receipt == archive_root
+            or archive_root in receipt.parents
+            or receipt == store
+            or store in receipt.parents
+        ):
+            fail("RECEIPT must be outside ARCHIVE_ROOT and STORE.")
+    else:
+        receipt = safe_output(receipt_input, archive_root, store, "RECEIPT")
+    plan, plan_digest = load_plan(plan_path)
+    if plan["archive_root"] != str(archive_root) or plan["store"] != str(store):
+        fail("PLAN roots do not match the requested roots.")
+    records: list[dict[str, Any]] = plan["files"]
+    current_paths = [relative for relative, _ in apk_entries(archive_root)]
+    planned_paths = [str(record["path"]) for record in records]
+    if current_paths != planned_paths:
+        fail("ARCHIVE_ROOT APK inventory changed since PLAN.")
+
+    events = read_receipt(receipt, plan_digest, archive_root, store, records)
+    prepared = {event.get("path") for event in events if event.get("event") == "prepared"}
+    linked_events = {event.get("path") for event in events if event.get("event") == "linked"}
+    if any(event.get("event") == "complete" for event in events[:-1]):
+        fail("RECEIPT contains records after completion.")
+
+    object_status: dict[str, os.stat_result] = {}
+    for record in records:
+        relative = str(record["path"])
+        path = archive_root / PurePosixPath(relative)
+        canonical = object_path(store, str(record["sha256"]))
+        if canonical.exists() or canonical.is_symlink():
+            object_status[str(record["sha256"])] = validate_object(
+                canonical, str(record["sha256"]), int(record["size"]), store.stat().st_dev
+            )
+        if source_matches(archive_root, relative, record, hash_content=True):
+            pass
+        elif canonical.exists():
+            current = anchored_status(archive_root, relative)
+            stored = object_status[str(record["sha256"])]
+            if (
+                stat.S_ISREG(current.st_mode)
+                and current.st_dev == stored.st_dev
+                and current.st_ino == stored.st_ino
+            ):
+                pass
+            else:
+                fail(f"APK changed since PLAN: {relative}")
+        else:
+            fail(f"APK changed since PLAN: {relative}")
+
+    expected_header = {
+        "event": "started",
+        "schema": SCHEMA,
+        "plan_sha256": plan_digest,
+        "archive_root": str(archive_root),
+        "store": str(store),
+    }
+    if receipt_bound(expected_header, records, store) > MAX_MANIFEST_BYTES:
+        fail(f"Complete RECEIPT would exceed {MAX_MANIFEST_BYTES} bytes.")
+    header = expected_header if not events else None
+    object_events = {event.get("sha256") for event in events if event.get("event") == "object"}
+    linked = 0
+    with Journal(receipt, header) as journal:
+        for record in records:
+            relative = str(record["path"])
+            canonical = object_path(store, str(record["sha256"]))
+            if not canonical.exists():
+                create_object(archive_root, relative, record, canonical)
+            if record["sha256"] not in object_events:
+                journal.append(
+                    {
+                        "event": "object",
+                        "path": str(canonical),
+                        "sha256": record["sha256"],
+                        "size": record["size"],
+                        "recovered": canonical.exists() and record["sha256"] in object_status,
+                    }
+                )
+                object_events.add(record["sha256"])
+            stored = validate_object(
+                canonical, str(record["sha256"]), int(record["size"]), store.stat().st_dev
+            )
+            path = archive_root / PurePosixPath(relative)
+            current = anchored_status(archive_root, relative)
+            if current.st_dev == stored.st_dev and current.st_ino == stored.st_ino:
+                if relative not in linked_events:
+                    if relative not in prepared:
+                        journal.append({"event": "prepared", "path": relative, "original": record})
+                        prepared.add(relative)
+                    journal.append({"event": "linked", "path": relative, "recovered": True})
+                linked += 1
+                continue
+            if not source_matches(archive_root, relative, record, hash_content=True):
+                fail(f"APK changed before replacement: {relative}")
+            if relative not in prepared:
+                journal.append({"event": "prepared", "path": relative, "original": record})
+                prepared.add(relative)
+            staged_name = f".{path.name}.artifact-store-link"
+            with anchored_parent(archive_root, relative) as (parent, name):
+                try:
+                    staged_status = os.stat(staged_name, dir_fd=parent, follow_symlinks=False)
+                except FileNotFoundError:
+                    staged_status = None
+                if staged_status is not None:
+                    if (
+                        relative not in prepared
+                        or not stat.S_ISREG(staged_status.st_mode)
+                        or staged_status.st_dev != stored.st_dev
+                        or staged_status.st_ino != stored.st_ino
+                    ):
+                        fail(f"Replacement temporary path collision: {path.parent / staged_name}")
+                else:
+                    os.link(canonical, staged_name, dst_dir_fd=parent, follow_symlinks=False)
+                if not source_matches_at(parent, name, record, hash_content=True):
+                    fail(f"APK changed before atomic replacement: {relative}")
+                replace_atomic(parent, staged_name, name)
+                os.fsync(parent)
+            journal.append({"event": "linked", "path": relative, "recovered": False})
+            linked += 1
+        for record in records:
+            canonical = object_path(store, str(record["sha256"]))
+            stored = validate_object(
+                canonical, str(record["sha256"]), int(record["size"]), store.stat().st_dev
+            )
+            current = anchored_status(archive_root, str(record["path"]))
+            if current.st_dev != stored.st_dev or current.st_ino != stored.st_ino:
+                fail(f"Final archive verification failed: {record['path']}")
+        if not events or not events[-1].get("event") == "complete":
+            journal.append({"event": "complete", "linked_paths": linked})
+    return {"linked_paths": linked, "receipt": str(receipt)}
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    commands = result.add_subparsers(dest="command", required=True)
+    plan = commands.add_parser("plan", help="inventory a completed APK archive without mutation")
+    plan.add_argument("--archive-root", required=True)
+    plan.add_argument("--store", required=True)
+    plan.add_argument("--output", required=True)
+    apply = commands.add_parser(
+        "apply", help="verify and replace planned APKs with store hardlinks"
+    )
+    apply.add_argument("--archive-root", required=True)
+    apply.add_argument("--store", required=True)
+    apply.add_argument("--plan", required=True)
+    apply.add_argument("--receipt", required=True)
+    apply.add_argument("--completed-quiescent", action="store_true")
+    return result
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    try:
+        if arguments.command == "plan":
+            result = plan_archive(arguments.archive_root, arguments.store, arguments.output)
+        else:
+            result = apply_archive(
+                arguments.archive_root,
+                arguments.store,
+                arguments.plan,
+                arguments.receipt,
+                confirmed_quiescent=arguments.completed_quiescent,
+            )
+    except (OSError, Refusal) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
