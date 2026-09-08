@@ -89,7 +89,7 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
-@@ -0,0 +1,227 @@
+@@ -0,0 +1,230 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +package org.telegram.gramlab;
 +
@@ -133,7 +133,8 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +    private static boolean stickyUncertain;
 +    private static ClipboardState clipboardBaseline;
 +    private static JSONObject currentEffect;
-+    private static String lastConflictKey;
++    private static String lastConflictKey,lastPublishedOperation;
++    private static JSONObject lastConflictEffect;
 +    private static java.util.ArrayList<Binding> pendingGroup;
 +    private static final java.util.concurrent.ExecutorService writer=java.util.concurrent.Executors.newSingleThreadExecutor(r->new Thread(r,"GramLabButtonObservation"));
 +    private static final class RequestEvidence { final Binding binding; final String operation; final JSONObject chain; RequestEvidence(Binding b,String o,JSONObject c){binding=b;operation=o;chain=c;} }
@@ -184,15 +185,16 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                ||positive(candidate,"message_id")!=positive(activation,"message_id")||positive(candidate,"revision")!=positive(activation,"revision")
 +                ||!(candidate.opt("path") instanceof JSONArray)||!publishedGroups.containsKey(nonnegative(candidate,"observation_generation")))throw invalid();
 +        validatePath(candidate.getJSONArray("path")); String operation=token(candidate,"operation_id"); if(invalidatedOperations.contains(operation)||consumedOperations.contains(operation))return;
-+        if(arm!=null&&!sameArm(arm,candidate)){publishConflict(candidate);return;}if(arm!=null)return;
++        if(arm!=null&&!sameArm(arm,candidate)){publishConflict(candidate);return;}if(arm!=null){String active=token(arm,"operation_id");if(currentEffect!=null&&!active.equals(lastPublishedOperation)){JSONObject restored=copy(currentEffect).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=restored;writeEffect(restored);}return;}
 +        if(arm==null){arm=candidate;downTime=-1;upTime=-1;requestChains=new JSONArray();dispatched=null;stickyUncertain=false;lastConflictKey=null; Binding binding=find(publishedGroups.get(nonnegative(candidate,"observation_generation")),candidate.getJSONArray("path")); if(binding==null)throw invalid();armedBinding=binding;clipboardBaseline=needsClipboard(binding)?readClipboard():null;if(needsClipboard(binding)&&!clipboardBaseline.available){effect(binding,"unavailable",null,false,false,null,"clipboard_unavailable");}else effect(binding,"armed",null,false,false,needsClipboard(binding)?clipboardPair(clipboardBaseline,clipboardBaseline):null,null);}
 +    }
 +    private static void validatePath(JSONArray path){if(path.length()==0||path.length()>64)throw invalid();for(int i=0;i<path.length();i++){Object part=path.opt(i);if(part instanceof String){if(((String)part).isEmpty())throw invalid();}else if(part instanceof Integer||part instanceof Long){if(((Number)part).longValue()<0)throw invalid();}else throw invalid();}}
 +    private static boolean needsClipboard(Binding b){return b.button.has("copy_text")||b.button.has("disabled");}
 +    private static final class ClipboardState{final boolean available;final String value;ClipboardState(boolean a,String v){available=a;value=v;}}
++    private static boolean sameClipboard(ClipboardState a,ClipboardState b){return a!=null&&b!=null&&a.available&&b.available&&java.util.Objects.equals(a.value,b.value);}
 +    private static ClipboardState readClipboard(){try{Context context=org.telegram.messenger.ApplicationLoader.applicationContext;ClipboardManager manager=(ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE);if(!manager.hasPrimaryClip())return new ClipboardState(true,null);android.content.ClipDescription d=manager.getPrimaryClipDescription();if(d==null||!d.hasMimeType("text/*"))return new ClipboardState(false,null);ClipData clip=manager.getPrimaryClip();if(clip==null||clip.getItemCount()!=1)return new ClipboardState(false,null);CharSequence text=clip.getItemAt(0).getText();if(text==null)return new ClipboardState(false,null);String value=text.toString();return new ClipboardState(value.getBytes(StandardCharsets.UTF_8).length<=4096,value);}catch(Exception failure){return new ClipboardState(false,null);}}
 +    private static boolean sameArm(JSONObject a,JSONObject b){try{return a.getInt("schema")==b.getInt("schema")&&a.getString("nonce").equals(b.getString("nonce"))&&a.getString("client_nonce").equals(b.getString("client_nonce"))&&a.getString("operation_id").equals(b.getString("operation_id"))&&a.getString("world_id").equals(b.getString("world_id"))&&a.getLong("user_id")==b.getLong("user_id")&&a.getLong("chat_id")==b.getLong("chat_id")&&a.getLong("message_id")==b.getLong("message_id")&&a.getLong("revision")==b.getLong("revision")&&a.getLong("observation_generation")==b.getLong("observation_generation")&&a.getJSONArray("path").toString().equals(b.getJSONArray("path").toString());}catch(Exception failure){return false;}}
-+    private static void publishConflict(JSONObject candidate){try{String key=candidate.getString("operation_id")+"\n"+candidate.getString("nonce")+"\n"+candidate.getString("client_nonce")+"\n"+candidate.getString("world_id")+"\n"+candidate.getLong("user_id")+"/"+candidate.getLong("chat_id")+"/"+candidate.getLong("message_id")+"/"+candidate.getLong("revision")+"/"+candidate.getLong("observation_generation")+"\n"+candidate.getJSONArray("path").toString();if(key.equals(lastConflictKey))return;lastConflictKey=key;JSONObject result=new JSONObject().put("schema",1).put("nonce",candidate.get("nonce")).put("client_nonce",clientNonce).put("operation_id",candidate.get("operation_id")).put("world_id",candidate.get("world_id")).put("user_id",candidate.get("user_id")).put("chat_id",candidate.get("chat_id")).put("message_id",candidate.get("message_id")).put("revision",candidate.get("revision")).put("path",candidate.get("path")).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis()).put("state","unavailable").put("reason","arm_conflict").put("touch",JSONObject.NULL).put("action",JSONObject.NULL).put("requests",new JSONArray()).put("clipboard",JSONObject.NULL);write("rich-button-effect.json",result);}catch(Exception ignored){}}
++    private static void publishConflict(JSONObject candidate){try{String key=candidate.getString("operation_id")+"\n"+candidate.getString("nonce")+"\n"+candidate.getString("client_nonce")+"\n"+candidate.getString("world_id")+"\n"+candidate.getLong("user_id")+"/"+candidate.getLong("chat_id")+"/"+candidate.getLong("message_id")+"/"+candidate.getLong("revision")+"/"+candidate.getLong("observation_generation")+"\n"+candidate.getJSONArray("path").toString();if(key.equals(lastConflictKey)){if(lastConflictEffect!=null&&!candidate.getString("operation_id").equals(lastPublishedOperation)){JSONObject restored=copy(lastConflictEffect).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());lastConflictEffect=restored;writeEffect(restored);}return;}lastConflictKey=key;JSONObject result=new JSONObject().put("schema",1).put("nonce",candidate.get("nonce")).put("client_nonce",clientNonce).put("operation_id",candidate.get("operation_id")).put("world_id",candidate.get("world_id")).put("user_id",candidate.get("user_id")).put("chat_id",candidate.get("chat_id")).put("message_id",candidate.get("message_id")).put("revision",candidate.get("revision")).put("path",candidate.get("path")).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis()).put("state","unavailable").put("reason","arm_conflict").put("touch",JSONObject.NULL).put("action",JSONObject.NULL).put("requests",new JSONArray()).put("clipboard",JSONObject.NULL);lastConflictEffect=result;writeEffect(result);}catch(Exception ignored){}}
 +    private static Binding find(java.util.ArrayList<Binding> group,JSONArray path){Binding found=null;if(group==null)return null;for(Binding b:group)if(b.path.toString().equals(path.toString())&&b.revision==positive(activation,"revision")&&b.messageId==positive(activation,"message_id")&&b.finalObject!=null&&!b.ambiguous){if(found!=null)return null;found=b;}return found;}
 +
 +    private static final class DuplicateScanner {
@@ -261,21 +263,21 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +    public static synchronized void down(Object object, boolean disabled) {
 +        try { reload(); } catch (Exception failure) { return; } Binding binding = bindings.get(object);
 +        if (binding == null || binding != armedBinding || arm == null) return;
-+        if(downTime>=0)return;if(needsClipboard(binding)){ClipboardState current=readClipboard();if(!current.available){uncertain("clipboard_unavailable");return;}clipboardBaseline=current;}downTime=SystemClock.uptimeMillis();consumedOperations.add(token(arm,"operation_id"));
-+        ClipboardState after=disabled?readClipboard():null;if(disabled&&!after.available){uncertain("clipboard_unavailable");return;}
++        if(downTime>=0)return;downTime=SystemClock.uptimeMillis();consumedOperations.add(token(arm,"operation_id"));if(needsClipboard(binding)){ClipboardState current=readClipboard();if(!sameClipboard(clipboardBaseline,current)){uncertain("clipboard_unavailable");return;}}
++        ClipboardState after=disabled?readClipboard():null;if(disabled&&!sameClipboard(clipboardBaseline,after)){uncertain("effect_mismatch");return;}
 +        effect(binding,disabled?"complete":"consumed",disabled?"disabled_suppressed":null,true,false,disabled?clipboardPair(clipboardBaseline,after):null,null);
 +    }
 +
 +    public static synchronized void action(Object object, String action) {
-+        Binding binding = bindings.get(object); if(binding!=armedBinding)return; if(binding!=null&&upTime>=0){uncertain("multiple_dispatches");return;} if (binding != null && downTime>=0) { upTime=SystemClock.uptimeMillis(); dispatched = binding; String actual=binding.button.has("callback_data")?"callback":binding.button.has("copy_text")?"copy":action; effect(binding, "consumed", actual, true, true, null, null); }
++        Binding binding = bindings.get(object); if(arm==null||binding!=armedBinding)return; if(binding!=null&&upTime>=0){uncertain("multiple_dispatches");return;} if(binding!=null&&needsClipboard(binding)&&!sameClipboard(clipboardBaseline,readClipboard())){uncertain("clipboard_unavailable");return;} if (binding != null && downTime>=0) { upTime=SystemClock.uptimeMillis(); dispatched = binding; String actual=binding.button.has("callback_data")?"callback":binding.button.has("copy_text")?"copy":action; effect(binding, "consumed", actual, true, true, null, null); }
 +    }
 +
-+    public static synchronized void copyStarted(Object object){Binding binding=bindings.get(object);if(binding!=armedBinding)return;ClipboardState current=readClipboard();if(!current.available){uncertain("clipboard_unavailable");return;}clipboardBaseline=current;}
-+    public static synchronized void copied(Object object){Binding binding=bindings.get(object);if(binding!=armedBinding)return;ClipboardState after=readClipboard();if(!after.available){uncertain("clipboard_unavailable");return;}try{String expected=binding.button.getJSONObject("copy_text").getString("text");if(!expected.equals(after.value)){uncertain("effect_mismatch");return;}}catch(Exception failure){uncertain("effect_mismatch");return;}effect(binding,"complete","copy",true,true,clipboardPair(clipboardBaseline,after),null);}
++    public static synchronized void copyStarted(Object object){Binding binding=bindings.get(object);if(arm==null||binding!=armedBinding)return;ClipboardState current=readClipboard();if(!sameClipboard(clipboardBaseline,current)){uncertain("clipboard_unavailable");}}
++    public static synchronized void copied(Object object){Binding binding=bindings.get(object);if(arm==null||binding!=armedBinding||stickyUncertain)return;ClipboardState after=readClipboard();if(!after.available){uncertain("clipboard_unavailable");return;}try{String expected=binding.button.getJSONObject("copy_text").getString("text");if(!expected.equals(after.value)){uncertain("effect_mismatch");return;}}catch(Exception failure){uncertain("effect_mismatch");return;}effect(binding,"complete","copy",true,true,clipboardPair(clipboardBaseline,after),null);}
 +
 +
 +
-+    public static synchronized void callbackQuery(Object button,Object query){Binding binding=bindings.get(button);if(binding==null||binding!=armedBinding||binding!=dispatched){if(dispatched!=null)uncertain("request_mismatch");return;}callbackQueries.put(query,new CallbackOwner(binding,token(arm,"operation_id")));}
++    public static synchronized void callbackQuery(Object button,Object query){Binding binding=bindings.get(button);if(arm==null)return;if(binding==null||binding!=armedBinding||binding!=dispatched){if(dispatched!=null)uncertain("request_mismatch");return;}callbackQueries.put(query,new CallbackOwner(binding,token(arm,"operation_id")));}
 +
 +    public static synchronized void nativeRequest(Object query, int token) {
 +        CallbackOwner owner=callbackQueries.remove(query); if(owner==null||arm==null||owner.binding!=dispatched||owner.binding!=armedBinding||!owner.operation.equals(token(arm,"operation_id")))return; Binding linked=owner.binding;
@@ -285,14 +287,14 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +        effect(dispatched, "consumed", "callback", true, true, null, null);
 +    }
 +    public static synchronized void httpRequest(Object query,String requestId){RequestEvidence evidence=requests.get(query);if(evidence==null)return;try{evidence.chain.put("request_id",requestId);publishRequest(evidence);}catch(Exception ignored){}}
-+    private static void publishRequest(RequestEvidence evidence){try{if(currentEffect==null||arm==null||!evidence.operation.equals(token(arm,"operation_id"))||evidence.binding!=armedBinding)return;JSONObject result=copy(currentEffect).put("requests",requestChains).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);}catch(Exception ignored){}}
++    private static void publishRequest(RequestEvidence evidence){try{if(currentEffect==null||arm==null||!evidence.operation.equals(token(arm,"operation_id"))||evidence.binding!=armedBinding)return;JSONObject result=copy(currentEffect).put("requests",requestChains).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;writeEffect(result);}catch(Exception ignored){}}
 +    public static synchronized void callbackResponse(Object query, String callbackId, long revision) {
 +        RequestEvidence evidence=requests.remove(query); if(evidence==null)return; JSONObject c=evidence.chain;
-+        try { c.put("callback_id",callbackId).put("message_revision",revision); JSONObject result=currentEffect==null||arm==null||!evidence.operation.equals(token(arm,"operation_id"))||evidence.binding!=armedBinding?null:copy(currentEffect); if(result!=null&&!stickyUncertain){result.put("requests",requestChains).put("state","complete").put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);} } catch(Exception ignored){}
++        try { c.put("callback_id",callbackId).put("message_revision",revision);if(arm!=null&&evidence.operation.equals(token(arm,"operation_id"))&&revision!=positive(arm,"revision")){publishRequest(evidence);uncertain("request_mismatch");return;} JSONObject result=currentEffect==null||arm==null||!evidence.operation.equals(token(arm,"operation_id"))||evidence.binding!=armedBinding?null:copy(currentEffect); if(result!=null&&!stickyUncertain){result.put("requests",requestChains).put("state","complete").put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;writeEffect(result);} } catch(Exception ignored){}
 +    }
 +
 +
-+    private static void uncertain(String reason){stickyUncertain=true;try{if(currentEffect==null)return;JSONObject result=copy(currentEffect).put("state","uncertain").put("reason",reason).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;write("rich-button-effect.json",result);}catch(Exception ignored){}}
++    private static void uncertain(String reason){stickyUncertain=true;try{if(currentEffect==null)return;JSONObject result=copy(currentEffect).put("state","uncertain").put("reason",reason).put("generation",++generation).put("uptime_ms",SystemClock.uptimeMillis());currentEffect=result;writeEffect(result);}catch(Exception ignored){}}
 +
 +    private static JSONObject clipboardPair(ClipboardState before,ClipboardState after){if(before==null||after==null||!before.available||!after.available)return null;return new JSONObject().put("before",before.value==null?JSONObject.NULL:before.value).put("after",after.value==null?JSONObject.NULL:after.value);}
 +
@@ -307,12 +309,13 @@ diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObser
 +                            .put("up_uptime_ms", upTime < 0 ? JSONObject.NULL : upTime).put("path", binding.path))
 +                    .put("action", action == null ? JSONObject.NULL : action).put("requests", requestChains)
 +                    .put("clipboard", clipboard == null ? JSONObject.NULL : clipboard);
-+            currentEffect=result; write("rich-button-effect.json", result);
++            currentEffect=result; writeEffect(result);
 +        } catch (Exception ignored) { }
 +    }
 +
 +    private static JSONArray rect(RectF r) { return new JSONArray().put(r.left).put(r.top).put(r.right).put(r.bottom); }
 +    private static JSONObject copy(JSONObject value) throws Exception { return new JSONObject(value.toString()); }
++    private static void writeEffect(JSONObject value){lastPublishedOperation=value.optString("operation_id",null);write("rich-button-effect.json",value);}
 +    private static void write(String name, JSONObject value) {
 +        byte[] bytes=value.toString().getBytes(StandardCharsets.UTF_8);writer.execute(()->{File temporary=new File(directory,name+".tmp");try{Files.write(temporary.toPath(),bytes);Files.move(temporary.toPath(),new File(directory,name).toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(Exception ignored){}finally{temporary.delete();}});
 +    }
