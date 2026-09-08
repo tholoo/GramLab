@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed — coordinator Bot API slice; client bridge remains unassigned
 Blocked by: 99
 
 Complete the HTTP layer of the [frozen document contract](../../../docs/development/documents-implementation-contract.md)
