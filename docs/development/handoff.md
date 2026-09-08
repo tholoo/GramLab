@@ -79,8 +79,8 @@ separate: reuse the existing real-bot/UI harness for caption edits and media rep
 
 Remaining operational work includes default upload classification, albums, approved automatic
 rich detection, wider rich-button placement/recovery and representative combined workflow/current-APK
-regression. Album source research is being checked against exact pinned source identities before
-freezing an implementation contract. Preserve the full inventory; explicit unsupported errors do
+regression. [Album source findings](albums-references.md) now use corrected pinned identities; group allocation,
+request bounds and complete-group bridge application still need a frozen implementation contract. Preserve the full inventory; explicit unsupported errors do
 not complete compatibility.
 
 ## Existing evidence to reuse
