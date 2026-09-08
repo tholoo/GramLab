@@ -93,3 +93,14 @@ hides its underlying cause. Probe-only bounded diagnostic follow-up is assigned;
 codec defect has been demonstrated. The prior normal28 native01 exited137 with empty stdout and
 Killed stderr; its initiator is unknown and this is not the intended missing-class regression red.
 Original results remain retained; actual native acceptance and combined gate closure remain open.
+
+Probe-only diagnostic follow-up preserves the successful 34-case result while failure records now
+identify the exact projection/reflection stage and retain at most eight bounded causes and four
+relevant stack frames. A missing bootstrap class produces a structured one-case `summary.json` and
+matching stdout before native-library loading. This does not attribute the earlier status 137 to a
+specific initiator. The fixture source SHA-256 is
+`dabed8fa2691cd00d360fdc4b1ea1ee22046494957a406b7a8a977847da64538`; retained probe05 APK
+SHA-256 is `df64f3597b1f55042f1e9585b2efe89bc53c7610c98ea2eeaa03d779175881e7`, with inputs manifest
+SHA-256 `97cb282debf2071ac3b58f219404f18c8ca6489447295e89a0fc2109e4417c8c`. Java compilation with
+`-Xlint:all -Werror`, D8, and three focused non-Android tests pass. Native diagnostic execution
+remains coordinator-owned.

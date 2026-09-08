@@ -18,6 +18,9 @@ import org.json.JSONObject;
 public final class DocumentCodecProbe {
     private static final String INVALID = "GRAMLAB_BRIDGE_INVALID_DOCUMENT";
     private static final String MAX_ID = "9223372036854775807";
+    private static final int DIAGNOSTIC_TEXT_LIMIT = 256;
+    private static final int CAUSE_LIMIT = 8;
+    private static final int STACK_FRAME_LIMIT = 4;
     private static final JSONArray cases = new JSONArray();
     private static final JSONArray documents = new JSONArray();
     private static Method identifier;
@@ -31,6 +34,7 @@ public final class DocumentCodecProbe {
     private static Method bufferReadInt32;
     private static Method bufferRewind;
     private static Method bufferReuse;
+    private static String stage = "bootstrap";
     private static int passed;
     private static int failed;
 
@@ -105,30 +109,50 @@ public final class DocumentCodecProbe {
     }
 
     private static JSONObject describe(Object value) throws Exception {
+        stage = "describe.tl_object_class";
         Class<?> tlObjectClass = Class.forName("org.telegram.tgnet.TLObject");
+        stage = "describe.get_object_size_method";
         Method objectSize = tlObjectClass.getMethod("getObjectSize");
+        stage = "describe.get_object_size";
         int expectedSize = ((Integer) objectSize.invoke(value)).intValue();
+        stage = "describe.allocate_native_buffer";
         Object buffer = nativeBufferConstructor.newInstance(Integer.valueOf(expectedSize));
         Object decoded;
         int serializedSize;
         try {
+            stage = "describe.serialize_method";
             Method serialize = value.getClass().getMethod("serializeToStream", outputSerializedDataClass);
+            stage = "describe.serialize";
             serialize.invoke(value, buffer);
-            serializedSize = ((Integer) buffer.getClass().getMethod("position").invoke(buffer)).intValue();
+            stage = "describe.position_method";
+            Method position = buffer.getClass().getMethod("position");
+            stage = "describe.position";
+            serializedSize = ((Integer) position.invoke(buffer)).intValue();
             require(serializedSize == expectedSize, "native_buffer_size_mismatch");
+            stage = "describe.rewind";
             bufferRewind.invoke(buffer);
+            stage = "describe.read_constructor";
             int constructor = ((Integer) bufferReadInt32.invoke(buffer, Boolean.TRUE)).intValue();
+            stage = "describe.deserialize_method";
             Method deserialize = documentClass.getMethod(
                     "TLdeserialize", inputSerializedDataClass, int.class, boolean.class);
+            stage = "describe.deserialize";
             decoded = deserialize.invoke(null, buffer, Integer.valueOf(constructor), Boolean.TRUE);
             require(decoded != null, "native_deserialize_null");
+            stage = "describe.remaining_method";
+            Method remaining = buffer.getClass().getMethod("remaining");
+            stage = "describe.remaining";
             require(
-                    ((Integer) buffer.getClass().getMethod("remaining").invoke(buffer)).intValue() == 0,
+                    ((Integer) remaining.invoke(buffer)).intValue() == 0,
                     "native_bytes_remaining");
         } finally {
+            String priorStage = stage;
+            stage = "describe.buffer_reuse";
             bufferReuse.invoke(buffer);
+            stage = priorStage;
         }
 
+        stage = "describe.document_attribute_class";
         Class<?> documentAttributeClass = Class.forName("org.telegram.tgnet.TLRPC$DocumentAttribute");
         List<?> attributes = (List<?>) field(decoded, "attributes");
         JSONArray describedAttributes = new JSONArray();
@@ -136,7 +160,10 @@ public final class DocumentCodecProbe {
             JSONObject description = new JSONObject()
                     .put("kind", attribute.getClass().getSimpleName());
             if ("TL_documentAttributeFilename".equals(attribute.getClass().getSimpleName())) {
-                description.put("file_name", documentAttributeClass.getField("file_name").get(attribute));
+                stage = "describe.filename_field";
+                Field fileName = documentAttributeClass.getField("file_name");
+                stage = "describe.filename";
+                description.put("file_name", fileName.get(attribute));
             }
             describedAttributes.put(description);
         }
@@ -144,16 +171,25 @@ public final class DocumentCodecProbe {
         byte[] fileReference = (byte[]) field(decoded, "file_reference");
         List<?> thumbs = (List<?>) field(decoded, "thumbs");
         List<?> videoThumbs = (List<?>) field(decoded, "video_thumbs");
+        stage = "describe.image_location_class";
         Class<?> imageLocationClass = Class.forName("org.telegram.messenger.ImageLocation");
-        Object location = imageLocationClass.getMethod("getForDocument", documentClass)
-                .invoke(null, decoded);
-        String key = (String) imageLocationClass
-                .getMethod("getKey", Object.class, Object.class, boolean.class)
-                .invoke(location, decoded, null, Boolean.FALSE);
-        String attachFileName = (String) Class.forName("org.telegram.messenger.FileLoader")
-                .getMethod("getAttachFileName", tlObjectClass)
-                .invoke(null, decoded);
+        stage = "describe.get_for_document_method";
+        Method getForDocument = imageLocationClass.getMethod("getForDocument", documentClass);
+        stage = "describe.get_for_document";
+        Object location = getForDocument.invoke(null, decoded);
+        stage = "describe.get_key_method";
+        Method getKey = imageLocationClass.getMethod(
+                "getKey", Object.class, Object.class, boolean.class);
+        stage = "describe.get_key";
+        String key = (String) getKey.invoke(location, decoded, null, Boolean.FALSE);
+        stage = "describe.file_loader_class";
+        Class<?> fileLoaderClass = Class.forName("org.telegram.messenger.FileLoader");
+        stage = "describe.get_attach_file_name_method";
+        Method getAttachFileName = fileLoaderClass.getMethod("getAttachFileName", tlObjectClass);
+        stage = "describe.get_attach_file_name";
+        String attachFileName = (String) getAttachFileName.invoke(null, decoded);
 
+        stage = "describe.result";
         return new JSONObject()
                 .put("kind", decoded.getClass().getSimpleName())
                 .put("flags", field(decoded, "flags"))
@@ -173,20 +209,89 @@ public final class DocumentCodecProbe {
     }
 
     private static Object field(Object value, String name) throws Exception {
-        return documentClass.getField(name).get(value);
+        stage = "describe.field_method." + name;
+        Field reflected = documentClass.getField(name);
+        stage = "describe.field." + name;
+        return reflected.get(value);
+    }
+
+    private static String bounded(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= DIAGNOSTIC_TEXT_LIMIT
+                ? value : value.substring(0, DIAGNOSTIC_TEXT_LIMIT);
+    }
+
+    private static boolean relevant(StackTraceElement frame) {
+        String className = frame.getClassName();
+        return className.startsWith("org.telegram.gramlab.")
+                || className.startsWith("org.telegram.tgnet.")
+                || className.startsWith("org.telegram.messenger.");
+    }
+
+    private static String frame(StackTraceElement value) {
+        return bounded(value.getClassName() + "#" + value.getMethodName() + ":" + value.getLineNumber());
+    }
+
+    private static JSONObject failureRecord(String name, Throwable failure) throws Exception {
+        JSONObject record = new JSONObject()
+                .put("name", name)
+                .put("passed", false)
+                .put("failure_class", failure.getClass().getSimpleName())
+                .put("stage", bounded(stage));
+        if (failure instanceof AssertionError) {
+            record.put("assertion", bounded(failure.getMessage()));
+        }
+
+        JSONArray causeChain = new JSONArray();
+        Throwable actual = failure;
+        for (int depth = 0; depth < CAUSE_LIMIT && actual != null; depth++) {
+            causeChain.put(new JSONObject()
+                    .put("class", bounded(actual.getClass().getName()))
+                    .put("message", bounded(actual.getMessage())));
+            Throwable next = actual.getCause();
+            if (next == null || next == actual) {
+                break;
+            }
+            actual = next;
+        }
+        record.put("cause_chain", causeChain)
+                .put("actual_cause_class", bounded(actual.getClass().getName()))
+                .put("actual_cause_message", bounded(actual.getMessage()));
+
+        JSONArray frames = new JSONArray();
+        for (StackTraceElement value : actual.getStackTrace()) {
+            if (relevant(value)) {
+                frames.put(frame(value));
+                if (frames.length() == STACK_FRAME_LIMIT) {
+                    break;
+                }
+            }
+        }
+        if (frames.length() == 0) {
+            StackTraceElement[] values = actual.getStackTrace();
+            for (int index = 0; index < values.length && index < STACK_FRAME_LIMIT; index++) {
+                frames.put(frame(values[index]));
+            }
+        }
+        return record.put("relevant_frames", frames);
+    }
+
+    private static void emit(File output, JSONObject summary) throws Exception {
+        writeRecord(new File(output, "summary.json"), summary);
+        System.out.println(summary);
     }
 
     private static void run(String name, Case test) throws Exception {
         JSONObject record = new JSONObject().put("name", name);
+        stage = "case." + name;
         try {
             test.run();
             record.put("passed", true);
             passed++;
         } catch (Exception | AssertionError failure) {
-            record.put("passed", false).put("failure_class", failure.getClass().getSimpleName());
-            if (failure instanceof AssertionError) {
-                record.put("assertion", failure.getMessage());
-            }
+            record = failureRecord(name, failure);
             failed++;
         }
         cases.put(record);
@@ -200,21 +305,52 @@ public final class DocumentCodecProbe {
         if (output.exists() || !output.mkdir()) {
             throw new IllegalArgumentException("fresh output required");
         }
-        Class<?> codec = Class.forName("org.telegram.gramlab.GramLabDocument");
-        Class<?> entry = Class.forName("org.telegram.gramlab.GramLabDocument$Entry");
-        identifier = codec.getMethod("identifier", Object.class);
-        parse = codec.getMethod("parse", JSONArray.class);
-        project = codec.getMethod("project", entry);
-        customEmojiIdentifier = Class.forName("org.telegram.gramlab.GramLabCustomEmoji")
-                .getMethod("identifier", Object.class);
-        documentClass = Class.forName("org.telegram.tgnet.TLRPC$Document");
-        inputSerializedDataClass = Class.forName("org.telegram.tgnet.InputSerializedData");
-        outputSerializedDataClass = Class.forName("org.telegram.tgnet.OutputSerializedData");
+        Class<?> codec;
+        Class<?> entry;
+        try {
+            stage = "bootstrap.document_codec_class";
+            codec = Class.forName("org.telegram.gramlab.GramLabDocument");
+            stage = "bootstrap.document_entry_class";
+            entry = Class.forName("org.telegram.gramlab.GramLabDocument$Entry");
+            stage = "bootstrap.identifier_method";
+            identifier = codec.getMethod("identifier", Object.class);
+            stage = "bootstrap.parse_method";
+            parse = codec.getMethod("parse", JSONArray.class);
+            stage = "bootstrap.project_method";
+            project = codec.getMethod("project", entry);
+            stage = "bootstrap.custom_emoji_class";
+            customEmojiIdentifier = Class.forName("org.telegram.gramlab.GramLabCustomEmoji")
+                    .getMethod("identifier", Object.class);
+            stage = "bootstrap.document_class";
+            documentClass = Class.forName("org.telegram.tgnet.TLRPC$Document");
+            stage = "bootstrap.input_serialized_data_class";
+            inputSerializedDataClass = Class.forName("org.telegram.tgnet.InputSerializedData");
+            stage = "bootstrap.output_serialized_data_class";
+            outputSerializedDataClass = Class.forName("org.telegram.tgnet.OutputSerializedData");
+        } catch (ClassNotFoundException failure) {
+            JSONObject bootstrapFailure = failureRecord("bootstrap_document_codec", failure);
+            emit(output, new JSONObject()
+                    .put("schema", 1)
+                    .put("passed", 0)
+                    .put("failed", 1)
+                    .put("total", 1)
+                    .put("custom_emoji_ids", new JSONArray())
+                    .put("documents", new JSONArray())
+                    .put("cases", new JSONArray().put(bootstrapFailure)));
+            System.exit(1);
+            return;
+        }
+        stage = "bootstrap.native_library";
         System.load(new File(arguments[1]).getAbsolutePath());
+        stage = "bootstrap.native_buffer_class";
         Class<?> nativeBuffer = Class.forName("org.telegram.tgnet.NativeByteBuffer");
+        stage = "bootstrap.native_buffer_constructor";
         nativeBufferConstructor = nativeBuffer.getConstructor(int.class);
+        stage = "bootstrap.read_int32_method";
         bufferReadInt32 = nativeBuffer.getMethod("readInt32", boolean.class);
+        stage = "bootstrap.rewind_method";
         bufferRewind = nativeBuffer.getMethod("rewind");
+        stage = "bootstrap.reuse_method";
         bufferReuse = nativeBuffer.getMethod("reuse");
 
         run("numeric_ordering_and_projection", () -> {
@@ -263,7 +399,9 @@ public final class DocumentCodecProbe {
                 require(((Long) item.getKey()).longValue() == expectedIds[entryIndex],
                         "wrong_entry_key_" + entryIndex);
                 order.add(item.getKey().toString());
-                documents.put(describe(project.invoke(null, parsedEntry)));
+                stage = "project." + entryIndex;
+                Object document = project.invoke(null, parsedEntry);
+                documents.put(describe(document));
                 entryIndex++;
             }
             require(entryIndex == expectedIds.length, "wrong_asserted_entry_count");
@@ -340,8 +478,7 @@ public final class DocumentCodecProbe {
                 .put("custom_emoji_ids", rows("2147483648", MAX_ID))
                 .put("documents", documents)
                 .put("cases", cases);
-        writeRecord(new File(output, "summary.json"), summary);
-        System.out.println(summary);
+        emit(output, summary);
         System.exit(failed == 0 ? 0 : 1);
     }
 
