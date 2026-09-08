@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/multipart-upload-metadata`; coordinator review pending
 Blocked by: none
 
 Own this ticket, `src/gramlab/bot_api.py`, and new `tests/test_multipart_uploads.py` only.
@@ -41,3 +41,22 @@ controls and scoped lint/format/strict typing. No guest/build/full gate. Preserv
 verify assigned imports. Return clean frozen tip, precise checks, metadata semantics, remaining
 unsupported document behavior, source scope and terminal resources. Avoid upstream exports;
 provision only the assigned small environment using its own tools/dev.
+
+## Implemented boundary and evidence
+
+The multipart decoder now returns frozen upload values containing the exact body bytes, decoded
+filename and optional trimmed part Content-Type. Missing and present-empty Content-Type remain
+distinct, filenames are not interpreted as paths, and case and parameters are preserved. The HTTP
+handler carries these values into dispatch; existing photo and rich-photo World operations receive
+only a same-key mapping of each value's original bytes.
+
+The retained decoder red in `artifacts/ticket94-worker/red.xml` has one metadata failure while all
+seven admission controls pass: current uploads are bare bytes and have no filename or Content-Type.
+The final isolated run in `artifacts/ticket94-worker/final.xml` passes 12 multipart, media HTTP and
+real-bot round-trip checks. It covers Unicode and empty filenames, missing/empty/parameterized types,
+arbitrary binary bodies, multiple parts, immutability and the existing malformed, duplicate, nested,
+boundary, part-count, aggregate-size and UTF-8 rejection boundaries. Scoped Ruff lint/format and
+strict mypy pass for both owned Python files.
+
+No World, storage, native or API-method behavior changed. General document methods remain
+unsupported; this metadata is preparation for their separately reviewed implementation.
