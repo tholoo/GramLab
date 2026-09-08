@@ -61,11 +61,30 @@ class GuestBeforeDeadline(Protocol):
     ) -> subprocess.CompletedProcess[str]: ...
 
 
+class SelectedDocumentCases(Protocol):
+    def __call__(self, manifest: dict[str, Any]) -> list[dict[str, Any]]: ...
+
+
+class FailureRecord(Protocol):
+    def __call__(
+        self,
+        phase: str,
+        error: BaseException,
+        document_results: dict[str, dict[str, Any]],
+        document_failure: dict[str, Any],
+        shared_failure: dict[str, Any],
+    ) -> dict[str, object]: ...
+
+
+def _fault_probe(monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.syspath_prepend(str(Path("tests/probes").resolve()))
+    return importlib.import_module("android_custom_emoji_faults")
+
+
 def test_checkpoint_publication_is_bounded_redacted_and_never_overwrites(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.syspath_prepend(str(Path("tests/probes").resolve()))
-    probe = importlib.import_module("android_custom_emoji_faults")
+    probe = _fault_probe(monkeypatch)
     write_checkpoint = cast(CheckpointWriter, probe._write_checkpoint)
     maximum = cast(int, probe.MAX_CHECKPOINT_BYTES)
     path = tmp_path / "completed.json"
@@ -88,8 +107,7 @@ def test_checkpoint_publication_is_bounded_redacted_and_never_overwrites(
 def test_all_capabilities_are_rejected_and_expired_diagnostics_do_not_call_guest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.syspath_prepend(str(Path("tests/probes").resolve()))
-    probe = importlib.import_module("android_custom_emoji_faults")
+    probe = _fault_probe(monkeypatch)
     retain_text = cast(TextRetainer, probe._retain_text)
     before_deadline = cast(GuestBeforeDeadline, probe._guest_before_deadline)
     older = "gramlab-client_" + "a" * 43
@@ -108,6 +126,40 @@ def test_all_capabilities_are_rejected_and_expired_diagnostics_do_not_call_guest
     with pytest.raises(TimeoutError, match="expired"):
         before_deadline(guest, ("shell", "logcat"), {}, 10.0)
     assert calls == []
+
+
+def test_focused_selector_skips_documents_and_failure_record_retains_document_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    probe = _fault_probe(monkeypatch)
+    selected = cast(SelectedDocumentCases, probe._selected_document_cases)
+    failure_record = cast(FailureRecord, probe._failure_record)
+    document = {"case": "single-404", "native": {"trace_path": "failure-trace.jsonl"}}
+
+    full_cases = [{"name": "single-404"}]
+    assert selected({"document_cases": full_cases}) == full_cases
+    assert selected({"selector": "shared", "document_cases": []}) == []
+    with pytest.raises(ValueError, match="cannot include"):
+        selected({"selector": "shared", "document_cases": full_cases})
+    with pytest.raises(ValueError, match="Unknown"):
+        selected({"selector": "unsupported", "document_cases": []})
+
+    record = failure_record(
+        "document:single-404:reopen-capture",
+        TimeoutError("not retained"),
+        {"mixed-404": {"result": "complete"}},
+        document,
+        {},
+    )
+    assert record == {
+        "schema": 1,
+        "kind": "failure",
+        "phase": "document:single-404:reopen-capture",
+        "exception_class": "TimeoutError",
+        "completed_document_cases": ["mixed-404"],
+        "document": document,
+        "shared": None,
+    }
 
 
 def request(

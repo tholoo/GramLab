@@ -74,12 +74,48 @@ def _write_checkpoint(path: Path, value: object, secrets: list[str]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _selected_document_cases(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    selector = manifest.get("selector", "full")
+    document_cases = manifest.get("document_cases")
+    if not isinstance(document_cases, list) or not all(
+        isinstance(case, dict) for case in document_cases
+    ):
+        raise ValueError("Custom emoji document cases must be a list of objects")
+    if selector == "full":
+        return document_cases
+    if selector == "shared":
+        if document_cases:
+            raise ValueError("Shared custom emoji selection cannot include document cases")
+        return []
+    raise ValueError("Unknown custom emoji fault selector")
+
+
+def _failure_record(
+    phase: str,
+    error: BaseException,
+    document_results: dict[str, dict[str, Any]],
+    document_failure: dict[str, Any],
+    shared_failure: dict[str, Any],
+) -> dict[str, object]:
+    return {
+        "schema": 1,
+        "kind": "failure",
+        "phase": phase,
+        "exception_class": type(error).__name__,
+        "completed_document_cases": list(document_results),
+        "document": document_failure or None,
+        "shared": shared_failure or None,
+    }
+
+
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     manifest = json.loads(Path("cases.json").read_text())
-    capabilities = [case["capability"] for case in manifest["document_cases"]] + [
+    document_cases = _selected_document_cases(manifest)
+    capabilities = [case["capability"] for case in document_cases] + [
         manifest["shared_case"]["capability"]
     ]
     active_phase = "install"
+    document_failure: dict[str, Any] = {}
     shared_failure: dict[str, Any] = {}
 
     def retain(name: str, value: str) -> str:
@@ -402,7 +438,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         raise RuntimeError(f"Original custom emoji IDs did not resolve during {case}/{stage}")
 
     def document_case(case: dict[str, Any]) -> dict[str, Any]:
-        nonlocal active_phase
+        nonlocal active_phase, document_failure
         name = str(case["name"])
         fault: DocumentFault = case["fault"]
         active_phase = f"document:{name}"
@@ -412,92 +448,117 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 peer.phase("failed")
                 peer.document_fault(fault, missing_ids=set(case["missing_ids"]))
                 with NativeAssetProxy(peer.base_url, case["capability"]) as proxy:
-                    proxy.phase("failed")
-                    configure(proxy.base_url, case)
-                    failed_launch = launch(name, "failed")
-                    failed_documents = wait_document_ids(
-                        proxy, 0, case["expected_ids"], name, "failed"
-                    )
-                    failed_trace = wait_trace_terminals(name, "failed", len(failed_documents))
-                    failed_capture = wait_ui(name, "failed", case["labels"])
-                    count_before_idle = len(failed_documents)
-                    idle_deadline = time.monotonic() + IDLE_OBSERVATION_SECONDS
-                    while time.monotonic() < idle_deadline:
-                        time.sleep(0.1)
-                    idle_documents = proxy.document_requests()
-                    idle_capture = wait_ui(name, "idle", case["labels"])
-                    failed_assets = proxy.requests()
+                    try:
+                        proxy.phase("failed")
+                        active_phase = f"document:{name}:configure"
+                        configure(proxy.base_url, case)
+                        active_phase = f"document:{name}:failed-launch"
+                        failed_launch = launch(name, "failed")
+                        active_phase = f"document:{name}:failed-documents"
+                        failed_documents = wait_document_ids(
+                            proxy, 0, case["expected_ids"], name, "failed"
+                        )
+                        active_phase = f"document:{name}:failed-trace"
+                        failed_trace = wait_trace_terminals(name, "failed", len(failed_documents))
+                        active_phase = f"document:{name}:failed-capture"
+                        failed_capture = wait_ui(name, "failed", case["labels"])
+                        active_phase = f"document:{name}:idle"
+                        count_before_idle = len(failed_documents)
+                        idle_deadline = time.monotonic() + IDLE_OBSERVATION_SECONDS
+                        while time.monotonic() < idle_deadline:
+                            time.sleep(0.1)
+                        idle_documents = proxy.document_requests()
+                        idle_capture = wait_ui(name, "idle", case["labels"])
+                        failed_assets = proxy.requests()
 
-                    adb(
-                        name + "-away",
-                        "shell",
-                        "am",
-                        "start",
-                        "-W",
-                        "-a",
-                        "android.settings.SETTINGS",
-                        timeout=30,
-                    )
-                    time.sleep(EVICTION_WAIT_SECONDS)
-                    before_reopen = len(proxy.document_requests())
-                    reopen_launch = launch(name, "reopen")
-                    refetch_deadline = time.monotonic() + 12
-                    reopened_documents = proxy.document_requests()
-                    while (
-                        len(reopened_documents) <= before_reopen
-                        and time.monotonic() < refetch_deadline
-                    ):
-                        time.sleep(0.2)
+                        active_phase = f"document:{name}:away"
+                        adb(
+                            name + "-away",
+                            "shell",
+                            "am",
+                            "start",
+                            "-W",
+                            "-a",
+                            "android.settings.SETTINGS",
+                            timeout=30,
+                        )
+                        time.sleep(EVICTION_WAIT_SECONDS)
+                        before_reopen = len(proxy.document_requests())
+                        active_phase = f"document:{name}:reopen-launch"
+                        reopen_launch = launch(name, "reopen")
+                        refetch_deadline = time.monotonic() + 12
                         reopened_documents = proxy.document_requests()
-                    same_process_refetch = len(reopened_documents) > before_reopen
-                    reopen_capture = wait_ui(name, "reopen", case["labels"])
+                        while (
+                            len(reopened_documents) <= before_reopen
+                            and time.monotonic() < refetch_deadline
+                        ):
+                            time.sleep(0.2)
+                            reopened_documents = proxy.document_requests()
+                        same_process_refetch = len(reopened_documents) > before_reopen
+                        active_phase = f"document:{name}:reopen-capture"
+                        reopen_capture = wait_ui(name, "reopen", case["labels"])
 
-                    stopped_pid = force_stop(name, "failed")
-                    proxy.phase("recovery")
-                    proxy.retarget(bridge.base_url)
-                    recovery_start = len(proxy.document_requests())
-                    recovered_launch = launch(name, "recovered")
-                    recovered_documents = wait_document_ids(
-                        proxy,
-                        recovery_start,
-                        case["expected_ids"],
-                        name,
-                        "recovered",
-                    )
-                    expected_cache = {"2_2.jpg"}
-                    recovered_cache = wait_cache(name, "recovered", expected_cache)
-                    recovered_capture = wait_ui(name, "recovered", case["labels"])
-                    recovered_trace = trace(name, "recovered")
-                    result = {
-                        "fault": fault,
-                        "expected_ids": case["expected_ids"],
-                        "batch_observed": any(
-                            row["custom_emoji_ids"] == case["expected_ids"]
-                            for row in failed_documents
-                        ),
-                        "failed_launch": failed_launch,
-                        "failed_documents": failed_documents,
-                        "failed_trace": failed_trace,
-                        "failed_capture": failed_capture,
-                        "failed_assets": failed_assets,
-                        "idle_seconds": IDLE_OBSERVATION_SECONDS,
-                        "idle_document_count": len(idle_documents),
-                        "document_count_before_idle": count_before_idle,
-                        "idle_capture": idle_capture,
-                        "eviction_seconds": EVICTION_WAIT_SECONDS,
-                        "same_process_refetch": same_process_refetch,
-                        "reopened_documents": reopened_documents,
-                        "reopen_launch": reopen_launch,
-                        "reopen_capture": reopen_capture,
-                        "stopped_pid": stopped_pid,
-                        "recovered_launch": recovered_launch,
-                        "recovered_documents": recovered_documents,
-                        "recovered_assets": proxy.requests(),
-                        "recovered_cache": recovered_cache,
-                        "recovered_capture": recovered_capture,
-                        "recovered_trace": recovered_trace,
-                        "peer_requests": peer.requests(),
-                    }
+                        active_phase = f"document:{name}:recovery-stop"
+                        stopped_pid = force_stop(name, "failed")
+                        proxy.phase("recovery")
+                        proxy.retarget(bridge.base_url)
+                        recovery_start = len(proxy.document_requests())
+                        active_phase = f"document:{name}:recovered-launch"
+                        recovered_launch = launch(name, "recovered")
+                        active_phase = f"document:{name}:recovered-documents"
+                        recovered_documents = wait_document_ids(
+                            proxy,
+                            recovery_start,
+                            case["expected_ids"],
+                            name,
+                            "recovered",
+                        )
+                        expected_cache = {"2_2.jpg"}
+                        active_phase = f"document:{name}:recovered-cache"
+                        recovered_cache = wait_cache(name, "recovered", expected_cache)
+                        active_phase = f"document:{name}:recovered-capture"
+                        recovered_capture = wait_ui(name, "recovered", case["labels"])
+                        active_phase = f"document:{name}:recovered-trace"
+                        recovered_trace = trace(name, "recovered")
+                        result = {
+                            "fault": fault,
+                            "expected_ids": case["expected_ids"],
+                            "batch_observed": any(
+                                row["custom_emoji_ids"] == case["expected_ids"]
+                                for row in failed_documents
+                            ),
+                            "failed_launch": failed_launch,
+                            "failed_documents": failed_documents,
+                            "failed_trace": failed_trace,
+                            "failed_capture": failed_capture,
+                            "failed_assets": failed_assets,
+                            "idle_seconds": IDLE_OBSERVATION_SECONDS,
+                            "idle_document_count": len(idle_documents),
+                            "document_count_before_idle": count_before_idle,
+                            "idle_capture": idle_capture,
+                            "eviction_seconds": EVICTION_WAIT_SECONDS,
+                            "same_process_refetch": same_process_refetch,
+                            "reopened_documents": reopened_documents,
+                            "reopen_launch": reopen_launch,
+                            "reopen_capture": reopen_capture,
+                            "stopped_pid": stopped_pid,
+                            "recovered_launch": recovered_launch,
+                            "recovered_documents": recovered_documents,
+                            "recovered_assets": proxy.requests(),
+                            "recovered_cache": recovered_cache,
+                            "recovered_capture": recovered_capture,
+                            "recovered_trace": recovered_trace,
+                            "peer_requests": peer.requests(),
+                        }
+                    except BaseException:
+                        document_failure = {
+                            "case": name,
+                            "peer_requests": peer.requests(),
+                            "document_requests": proxy.document_requests(),
+                            "asset_requests": proxy.requests(),
+                            "native": failure_native_diagnostics(name),
+                        }
+                        raise
         force_stop(name, "cleanup")
         return result
 
@@ -597,11 +658,22 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     adb("install", "install", "--no-streaming", "/work/client.apk", timeout=60)
     document_results: dict[str, dict[str, Any]] = {}
     try:
-        for index, case in enumerate(manifest["document_cases"]):
+        for index, case in enumerate(document_cases):
             name = str(case["name"])
             if re.fullmatch(r"[a-z0-9-]{1,64}", name) is None:
                 raise ValueError("Invalid custom emoji fault case name")
-            document_result = document_case(case)
+            try:
+                document_result = document_case(case)
+            except BaseException:
+                if not document_failure:
+                    document_failure = {
+                        "case": name,
+                        "peer_requests": [],
+                        "document_requests": [],
+                        "asset_requests": [],
+                        "native": failure_native_diagnostics(name),
+                    }
+                raise
             active_phase = f"document:{name}:checkpoint"
             _write_checkpoint(
                 Path(f"custom-emoji-fault-document-{index:02d}-{name}.json"),
@@ -644,14 +716,13 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     except BaseException as error:
         _write_checkpoint(
             Path("custom-emoji-fault-failure.json"),
-            {
-                "schema": 1,
-                "kind": "failure",
-                "phase": active_phase,
-                "exception_class": type(error).__name__,
-                "completed_document_cases": list(document_results),
-                "shared": shared_failure or None,
-            },
+            _failure_record(
+                active_phase,
+                error,
+                document_results,
+                document_failure,
+                shared_failure,
+            ),
             capabilities,
         )
         raise
