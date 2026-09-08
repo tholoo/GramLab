@@ -120,7 +120,7 @@ uv run --locked mypy --strict src/gramlab/_rich_buttons.py src/gramlab/_rich_but
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/rich_targets_bot.py tests/rich_targets_scenario.py tests/test_runner_rich_targets.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/rich_native_clipboard_supervisor.py tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/unrelated_target_bot.py tests/unrelated_target_scenario.py tests/probes/unrelated_target_supervisor.py tests/test_runner_unrelated_target.py
-uv run --locked mypy --strict tests/test_multipart_uploads.py
+uv run --locked mypy --strict src/gramlab/bot_api.py tests/test_multipart_uploads.py tests/test_multipart_filename_decoding.py
 uv run --locked mypy --strict src/gramlab/world.py tests/test_media_world.py tests/test_media_storage_migration.py tests/fixtures/media_storage_v7/generate.py
 uv run --locked mypy --strict src/gramlab/_document_metadata.py tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
 MYPYPATH=tests:tests/probes uv run --locked mypy --strict --explicit-package-bases tests/test_android_button_disarm.py tests/probes/android_button_disarm.py

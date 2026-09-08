@@ -112,7 +112,8 @@ emoji IDs at reserved DC-1, including the required canonical2147483648 sentinel 
 pinned-source links and original file destination/deconfliction requirements are recorded in
 [document references](documents-references.md). Metadata97 is integrated and resolved:32 focused checks cover independently reproduced pinned
 Unicode/MIME data and filename normalization. The frozen [document implementation contract](documents-implementation-contract.md)
-guides worker99 typed World/schema9/v5 dependencies and worker100 multipart metadata decoding;
+guides worker99 typed World/schema9/v5 dependencies. Multipart decoding100 is integrated with
+83 focused multipart/photo/metadata checks and strict typing;
 general document API/native delivery and albums remain open.
 Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
 the local parser's different limit. Preserve this distinction and the unresolved server detector.

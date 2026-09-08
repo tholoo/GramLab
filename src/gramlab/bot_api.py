@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote_to_bytes, urlsplit
 
 from gramlab.world import World, update_selection
 
@@ -24,7 +24,7 @@ from gramlab.world import World, update_selection
 @dataclass(frozen=True, slots=True)
 class _Upload:
     data: bytes
-    filename: str
+    filename: str  # Decoded metadata only; surrogateescape preserves invalid UTF-8 for cleaning.
     content_type: str | None
 
 
@@ -351,6 +351,13 @@ def _dispatch(
     )
 
 
+def _disposition_value(value: str, *, filename: bool = False) -> str:
+    # Pinned HttpReader unescapes quoted values before one percent pass; plus stays literal.
+    unescaped = re.sub(r"\\([^\r\n])", r"\1", value)
+    raw = unquote_to_bytes(unescaped.encode("utf-8", errors="surrogateescape"))
+    return raw.decode("utf-8", errors="surrogateescape" if filename else "strict")
+
+
 def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str, _Upload]]:
     match = re.fullmatch(
         r'multipart/form-data;\s*boundary=(?:"([^"\r\n]+)"|([^;\s]+))', content_type
@@ -382,16 +389,27 @@ def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str,
             key = header_name.decode("ascii", errors="strict").lower()
             if not separator or key in headers:
                 raise ValueError("Malformed multipart headers")
-            headers[key] = value.decode("utf-8", errors="strict").strip()
+            errors = "surrogateescape" if key == "content-disposition" else "strict"
+            headers[key] = value.decode("utf-8", errors=errors).strip()
         disposition = headers.get("content-disposition", "")
         if headers.get("content-type", "").lower().startswith("multipart/"):
             raise ValueError("Nested multipart content is unsupported")
         named = re.fullmatch(
-            r'form-data;\s*name="([^"\r\n]+)"(?:;\s*filename="([^"\r\n]*)")?', disposition
+            r'form-data;\s*name="((?:[^"\\\r\n]|\\[^\r\n])*)"'
+            r'(?:;\s*filename="((?:[^"\\\r\n]|\\[^\r\n])*)")?',
+            disposition,
         )
         if named is None or set(headers) - {"content-disposition", "content-type"}:
             raise ValueError("Malformed multipart part headers")
-        field_name, filename = named.groups()
+        encoded_name, encoded_filename = named.groups()
+        field_name = _disposition_value(encoded_name)
+        if not field_name:
+            raise ValueError("Empty multipart field name is unsupported")
+        filename = (
+            None
+            if encoded_filename is None
+            else _disposition_value(encoded_filename, filename=True)
+        )
         if field_name in fields or field_name in uploads:
             raise ValueError("Repeated request parameters are unsupported")
         if filename is not None:

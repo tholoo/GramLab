@@ -45,6 +45,11 @@ the full product scope documented in the handoff.
   checks and the 968-test combined gate; ordinary document APIs remain open.
 
 - [97: pinned document metadata](issues/97-pinned-document-filename-metadata.md): exact filename
-  cleaning and extension-derived MIME implementation is assigned independently of World/HTTP.
+  cleaning and extension-derived MIME are integrated with32 independent focused checks.
 - [98: native disarm scope](issues/98-native-disarm-lifetime-scope.md): preserve strict validation
   while preventing a valid old-lifetime disarm from blocking a new arm.
+
+- [99: ordinary document World](issues/99-ordinary-document-world.md): typed storage, schema9
+  migration and v5 dependencies are assigned under the frozen document contract.
+- [100: multipart filename decoding](issues/100-multipart-document-filename-decoding.md):
+  integrated;83 multipart/photo/metadata checks pass with explicit inspection-connection cleanup.
