@@ -59,7 +59,13 @@ capacity, poisons its writer after append failures, preflights prospective recei
 derives interruption receipts from strictly validated complete JSONL records.
 
 The retained red report `artifacts/ticket71/journal-red.xml` fails collection because the journal
-module does not exist. The final guarded report `artifacts/ticket71/core-primitives-final.xml`
-passes all 16 traversal and journal cases. Scoped Ruff, Ruff format, and strict mypy pass for the
-four owned implementation/test files. Android, guest, integration, and full-suite checks remain
-the coordinator's separate gates.
+module does not exist. The guarded follow-up report
+`artifacts/ticket71/core-primitives-followup.xml` passes all 18 traversal and journal cases. Scoped
+Ruff, Ruff format, and strict mypy pass for the four owned implementation/test files. Android,
+guest, integration, and full-suite checks remain the coordinator's separate gates.
+
+Coordinator integration review additionally required preflighting an arbitrary prospective
+receipt before target allocation. Preflight therefore performs shape and exact conservative
+framing checks without live state, then applies identity, terminal, and remaining-reservation
+guards whenever the target or operation is known. Recovery admits only integer schema/sequence
+fields and reads at most the journal cap plus one byte, independent of mutable file metadata.

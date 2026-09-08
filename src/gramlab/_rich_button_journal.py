@@ -568,20 +568,26 @@ class Journal:
         clean = _receipt(receipt)
         target_id = clean["target"]["target_id"]
         target = self._ledger.targets.get(target_id)
-        if target is None:
-            raise ValueError("Unknown rich-button target")
-        if nonce != target.client_nonce:
-            raise ValueError("Rich-button client lifetime does not match allocation")
-        if clean["target"] != target.target:
-            raise ValueError("Rich-button target identity does not match allocation")
         operation = self._ledger.operations.get(clean["operation_id"])
-        if operation is None or operation.target_id != target_id:
-            raise ValueError("Unknown rich-button operation")
-        if operation.terminal or target_id not in self._reservations:
-            raise ValueError("Rich-button operation is terminal")
+        if target is not None:
+            if nonce != target.client_nonce:
+                raise ValueError("Rich-button client lifetime does not match allocation")
+            if clean["target"] != target.target:
+                raise ValueError("Rich-button target identity does not match allocation")
+            if target.operation_id is not None:
+                if target.operation_id != clean["operation_id"]:
+                    raise ValueError("Rich-button operation identifier does not match claim")
+                claimed = self._ledger.operations[target.operation_id]
+                if claimed.terminal:
+                    raise ValueError("Rich-button operation is terminal")
+        if operation is not None:
+            if operation.target_id != target_id or nonce != operation.client_nonce:
+                raise ValueError("Rich-button operation identifier does not match target")
+            if operation.terminal:
+                raise ValueError("Rich-button operation is terminal")
         payload = {"receipt": copy.deepcopy(receipt), "client_nonce": client_nonce}
         encoded = _encode(self._record_at_sequence("receipt", payload, _MAX_SEQUENCE))
-        if len(encoded) > self._reservations[target_id]:
+        if target is not None and len(encoded) > self._reservations[target_id]:
             raise ValueError("Rich-button target exceeds its reserved journal capacity")
 
     def close(self) -> None:
@@ -627,9 +633,10 @@ def recover_journal(path: Path) -> dict[str, Any]:
     """Validate a terminated journal and derive its bounded offline recovery report."""
 
     try:
-        if path.stat().st_size > _MAX_JOURNAL:
+        with path.open("rb") as stream:
+            data = stream.read(_MAX_JOURNAL + 1)
+        if len(data) > _MAX_JOURNAL:
             raise ValueError("journal exceeds 80 MiB")
-        data = path.read_bytes()
         incomplete = bool(data) and not data.endswith(b"\n")
         lines = data.splitlines(keepends=True)
         if incomplete:
@@ -645,7 +652,12 @@ def recover_journal(path: Path) -> dict[str, Any]:
             record = _parse(framed[:-1])
             if set(record) != {"schema", "sequence", "run_id", "world_id", "kind", "payload"}:
                 raise ValueError("invalid record members")
-            if record["schema"] != _SCHEMA or record["sequence"] != sequence:
+            if (
+                type(record["schema"]) is not int
+                or record["schema"] != _SCHEMA
+                or type(record["sequence"]) is not int
+                or record["sequence"] != sequence
+            ):
                 raise ValueError("invalid record schema or sequence")
             record_run = _identifier(record["run_id"], "run identifier")
             record_world = _identifier(record["world_id"], "World identifier")

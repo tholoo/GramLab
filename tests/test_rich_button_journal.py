@@ -237,10 +237,18 @@ def test_allocation_is_atomic_and_bounded(tmp_path: Path) -> None:
 def test_preflight_uses_final_record_encoding_without_mutating_the_journal(tmp_path: Path) -> None:
     observed = observation("target_1")
     journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
+    path = tmp_path / "rich-button-journal.jsonl"
+    before_allocation = path.read_bytes()
+    arbitrary = receipt(observed, 0, "0" * 32) | {
+        "status": "rejected_before_dispatch",
+        "reason": {"code": "message_revision_changed"},
+    }
+    journal.preflight_receipt(arbitrary, client_nonce="0" * 128)
+    assert path.read_bytes() == before_allocation
+
     journal.allocate(observed, user_id=2, client_nonce=CLIENT)
     claimed = receipt(observed, 0, "operation_1")
     journal.transition("claim", claimed, client_nonce=CLIENT)
-    path = tmp_path / "rich-button-journal.jsonl"
     before = path.read_bytes()
 
     prospective = claimed | {
@@ -282,7 +290,18 @@ def test_recovery_accepts_only_an_incomplete_final_record(tmp_path: Path) -> Non
         recover_journal(path)
 
 
-@pytest.mark.parametrize("damage", ["duplicate", "identity", "sequence", "unknown-target", "crlf"])
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "duplicate",
+        "identity",
+        "sequence",
+        "schema-bool",
+        "sequence-float",
+        "unknown-target",
+        "crlf",
+    ],
+)
 def test_recovery_rejects_complete_corruption(tmp_path: Path, damage: str) -> None:
     journal = Journal(tmp_path, run_id=RUN_ID, world_id=WORLD_ID)
     observed = observation("target_1")
@@ -300,6 +319,10 @@ def test_recovery_rejects_complete_corruption(tmp_path: Path, damage: str) -> No
             record["world_id"] = "00000000-0000-4000-8000-000000000099"
         elif damage == "sequence":
             record["sequence"] = 9
+        elif damage == "schema-bool":
+            record["schema"] = True
+        elif damage == "sequence-float":
+            record["sequence"] = 1.0
         else:
             record["kind"] = "evidence"
             record["payload"] = {
