@@ -1,0 +1,7 @@
+{
+  "TMessagesProj/jni/TgNetWrapper.cpp": "f00232aa0504092862c134f6aeed40c0ff42ffc157ef1f58e960249fb3ee13e0",
+  "TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java": "f5e0170d53e9b365ed9ab8328179606abb1965c46834f0a67baeddcec64b0703",
+  "TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java": "c2141bec8873e310207c5f3aff18a706ab6d7c976cd4ea81344eb1f40d057574",
+  "TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java": "9e3a55e8f31fed38286ec3e2489a4dbc9cd1658c1e2b3e8048ebd38932222d35",
+  "TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java": "19faf388dce9a4b21d22e090da1e4812ec4dd97a7756af6c61c73b2e9dd72b3d"
+}
