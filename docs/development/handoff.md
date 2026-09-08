@@ -45,15 +45,20 @@ not establish the cause of an unrelated earlier failure.
    document/emoji identities, exact v5 dependencies, rejected-response atomicity, original
    destinations, cancellation, cache and notifications. Review found same-world authority rotation,
    cache10 lifecycle and missing v4/v5 native controls; the worker is addressing them.
-2. Resolve publication on the actual external-files filesystem before building. Filesystem01 on
-   unchanged normal29 reaches loaded native code with zero accounts and no HTTP requests, but
-   fails with SecurityException inside external_files_primitives. Its current recorder lacks the
-   failing stage/cause; the worker is preparing bounded diagnostics. This is not evidence for or
-   against hard-link support. Original failure evidence remains; its terminal guest disks are retired.
-3. Cache10 above2MiB needs the original partial-preload lifecycle and subsequent full-load upgrade.
-   The worker may provide explicit local rejection as an interim checkpoint while preserving small
-   file behavior. That does **not** close104 or reduce the required final cache behavior. Review the
-   proposed original-loader data-source seam/transport needs before consequential changes.
+2. Resolve publication on the actual external-files filesystem before building. Filesystem01/02
+   fail at getExternalFilesDir with callingPackage/UID mismatch. Probe07 verifies Context identity
+   but filesystem03 still fails: Android's static volume lookup uses ActivityThread's initial
+   Application, left as the system app by systemMain. Source-backed probe08 binds the already
+   attached original ApplicationLoader; filesystem04 proves operation package android → the
+   installed app and passes that lookup, then fails mkdir. The worker is retaining a non-null
+   external root and concrete filesystem error next. No hard-link result is established yet.
+   All four original results/source snapshots remain; terminal guest disks are retired.
+3. Source/caller review corrects the cache10 interpretation: ordinary filename-only documents do
+   not enable the original video preload stream. Above2MiB, the original path fails on its first
+   nonempty response; the stock caller targets video, with an MKV MIME edge. Preserve explicit
+   local rejection for ordinary files, both loader entrypoints, zero requests/UI/files and normal
+   retry; keep the original small-file behavior. Those native controls remain pending. A generic
+   document preloader or Range protocol is not required to reproduce this unsupported boundary.
 4. Review [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
    independently. Its worker reports one contained simulation pass with complete bot API/state
    comparisons; coordinator review and native execution remain. Freeze the owned harness against
@@ -62,6 +67,10 @@ not establish the cause of an unrelated earlier failure.
    incremental cache. Enable the host's explicit v5 selector only after delivery is verified.
    Capture original rows/captions/emoji/keyboard, real download/callback actions, exact destination
    bytes, phase-local GETs, warm reuse, cold restart and complete matching World/API state.
+   Independent105 review found launch/restart phase boundaries that can misattribute requests,
+   incomplete action-failure artifacts and an APK hash not bound to the patched-source manifest;
+   the worker is correcting these before integration. Its named-file destination oracle is now
+   corrected to the original MEDIA_DIR_FILES path, distinct from the database/attachment key.
 
 After this batch, required operational work still includes default upload classification,
 media/document edits, albums, approved automatic rich detection, wider rich-button placement/
