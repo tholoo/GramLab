@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: claimed by `custom_emoji_request_observer` on `task/rich-button-public-acceptance`
 Blocked by: frozen contract70; green execution waits for coordinator73 implementation
 
 Own this ticket, new `tests/fixtures/rich_targets_bot.py`, new
@@ -32,3 +32,25 @@ will supply a reviewed frozen dependency for focused green checks using the docu
 if needed. No guest/build/full gate. Finish with a frozen clean branch, meaningful red/green or
 explicit unavailable evidence and terminal processes. Worker fixture completion alone does not
 resolve native acceptance or the operational milestone.
+
+## Worker evidence
+
+- The independent contained bot publishes eight canonical occurrences spanning row and inline
+  callback/copy/disabled actions, duplicate labels and payloads, Persian text, closed details and
+  an offscreen target. The public scenario issues three complete observations (24 reserved rich
+  slots), checks first-call/repeat behavior, and separates publication, interaction and bot-exit
+  deadlines.
+- `artifacts/ticket74-missing-operation-red-final.xml` retains the meaningful base red: the real
+  contained bot publishes the complete scene, after which the unchanged public scenario fails
+  because `Scenario.rich_buttons` is absent. No stand-in implementation was used.
+- Focused collection finds two tests. Ruff check/format and strict mypy with explicit package bases
+  pass for all three new files. Green behavioral execution remains blocked on the reviewed core
+  implementation and journal dependency; the Android-marked case is prepared but has not been run.
+- The first integrated public run reached and passed the complete receipt/history assertions. A
+  bounded fixture follow-up now reads the runner's namespaced `bot:targets` process key and compares
+  `callback.created` event payloads without the receipt-only `answer` member. Scoped collection and
+  static checks pass; the coordinator retains the integrated behavioral artifact.
+- Coordinator integration passes the independent simulation scenario together with registry,
+  World transaction and actual supervisor interruption checks: 20 passed, one Android case
+  deselected in `artifacts/rich-button-public-integration-05.xml`. The native acceptance case
+  remains pending; this ticket is not resolved by simulation evidence.
