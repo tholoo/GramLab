@@ -58,13 +58,15 @@ A rejects its old target before dispatch. Complete snapshots, events, both histo
 callback and answer are independently specified for simulation and native modes.
 
 The test-only supervisor wraps the existing Android rich-input seam. It retains the first native
-observation's message/revision, process nonce, PID and geometry. Immediately before the original
-`prepare`, it calls the existing `Android._wait_ui` for B's edited text in the already-running
-selected chat, checks zero accounts and retains the original XML/PNG. It does not open, capture or
-re-observe the chat. The original prepare must then report the same process, lifetime and geometry;
-an ADB call counter rejects any guest call between prepare's return and dispatch. The host staging
-control pins this supervisor as the sole native entry override and rejects a scenario re-observation
-between the unrelated edit request and original target tap.
+observation's message/revision, process nonce, PID and geometry, and checks zero accounts there
+before the bot edits B. Immediately before the original `prepare`, it calls the existing
+`Android._wait_ui` for B's edited text in the already-running selected chat and retains the XML
+barrier. It does not open, capture or re-observe the chat. The original prepare's own `before.png`
+is the visual evidence of that UI state and is bound back to the barrier by exact path, byte count
+and digest using host-only reads after prepare returns. The original prepare must report the same
+process, lifetime and geometry; an ADB call counter rejects any guest call between prepare's return
+and dispatch. The host staging control pins this supervisor as the sole native entry override and
+rejects a scenario re-observation between the unrelated edit request and original target tap.
 
 The review follow-up shares one complete contained-bot transcript oracle between simulation and
 native expectations. It compares both publication results, all command/callback updates, every
@@ -88,6 +90,23 @@ exactly one tap at the retained target center while preserving the zero-call pre
   Scoped Ruff check/format and strict mypy again pass all four files. The expanded Android case was
   collected only; its stronger native/API/provenance expectations remain pending coordinator guest
   execution.
+- Coordinator native attempt `gramlab-unrelated-target-native-02-xa7gtxh5` retained a real B edit
+  and the original operation's `before.png`, then returned the original target receipt as
+  `rejected_before_dispatch` / `target_unavailable`. The retained observation was generation 4 at
+  drawn uptime 105399 and the armed effect was generation 5 at uptime 110377, a 4978 ms draw age at
+  arming. This motivates removing redundant pre-prepare guest work but does not prove which exact
+  freshness check rejected. The attempt's later callback wait obscured that receipt in the scenario
+  failure, so the scenario now prints the complete receipt and fails immediately before any repeat
+  tap or callback wait.
+- The native follow-up moves the account check to the first observation, removes the independent
+  pre-prepare screencap, persists the XML barrier before original preparation, and binds the
+  original preparation capture after success without another guest call. If original preparation
+  fails, it preserves the partial barrier and a bounded, redacted diagnostic from the original
+  `_fresh` traceback frame without a second guest, World or clock read. The canonical contained
+  non-Android command now passes all four focused cases, including preservation of the original
+  prepare exception when diagnostic publication itself fails. Scoped Ruff check/format and strict
+  mypy pass all four files, and Android-only collection still selects exactly one case. A fresh
+  native acceptance run remains coordinator-owned and pending.
 - Early `ticket95-simulation-red.xml` and `ticket95-simulation-green.xml` retain two test-oracle
   projection failures discovered while authoring the independent expected state. They are not
   claimed as behavioral reds; no production behavior changed in this test-only task.

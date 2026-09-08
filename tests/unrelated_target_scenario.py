@@ -49,6 +49,28 @@ wait_for(
 )
 before_success = {"snapshot": lab.snapshot(), "events": lab.events()}
 success = rich_lab.tap_rich_button(target_id=original_target["target_id"])
+if (
+    success.get("status") != "succeeded"
+    or success.get("dispatch") != "dispatched"
+    or (success.get("effect") or {}).get("kind") != "callback"
+):
+    print(
+        json.dumps(
+            {
+                "event": "original_target_failed",
+                "phase": "original_target_tap",
+                "original_target_id": original_target["target_id"],
+                "receipt": success,
+                "before_success": before_success,
+                "rendered_history": lab.history(rendered_chat["id"]),
+                "control_history": lab.history(control_chat["id"]),
+                "events": lab.events(),
+            },
+            ensure_ascii=False,
+        ),
+        flush=True,
+    )
+    raise RuntimeError("Original target tap did not produce a dispatched callback")
 success_repeat = rich_lab.tap_rich_button(target_id=original_target["target_id"])
 wait_for(
     control_chat["id"],

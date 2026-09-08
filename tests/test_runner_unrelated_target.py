@@ -7,6 +7,7 @@ import json
 import math
 import os
 import re
+import runpy
 import shutil
 import sqlite3
 import subprocess
@@ -569,16 +570,140 @@ def test_supervisor_source_is_staged_as_the_only_native_entry_override(
     source = staged.read_text()
     assert '._wait_ui(["Unrelated bravo / حالت ب"])' in source
     assert "._open_chat(" not in source and "._capture(" not in source
+    assert "screencap" not in source
     assert "hashlib.sha256(Path(__file__).read_bytes()).hexdigest()" in source
     assert 'arguments[:3] == ("shell", "input", "tap")' in source
-    assert source.index("observation_complete") < source.index("ui_barrier_before_prepare")
-    assert source.index("ui_barrier_before_prepare") < source.index("original_prepare(")
+    accounts = source.index('._adb("shell", "dumpsys", "account")')
+    observed = source.index("observation_complete")
+    barrier = source.index("ui_barrier_before_prepare")
+    persisted = source.index("persist(self.android.secrets)", barrier)
+    prepared = source.index("original_prepare(")
+    assert accounts < observed < barrier < persisted < prepared
     assert source.index("prepare_complete") < source.index("dispatch_started")
+    fresh = source[source.index("def fresh(") : source.index("def counted_adb(")]
+    assert "error.__traceback__" in fresh and "original_fresh(self, state)" in fresh
+    assert all(
+        value not in fresh for value in ("._adb(", "._read(", "World.open(", "sleep(", "time.")
+    )
     scenario = Path("tests/unrelated_target_scenario.py").read_text()
     unrelated = scenario.index('text="edit unrelated"')
     success = scenario.index("success = rich_lab.tap_rich_button")
     assert "rich_lab.rich_buttons" not in scenario[unrelated:success]
     assert "capture_chat" not in scenario[unrelated:success]
+    failed = scenario.index('"event": "original_target_failed"')
+    retained = scenario.index('"receipt": success')
+    raised = scenario.index("raise RuntimeError", success)
+    repeated = scenario.index("success_repeat = rich_lab.tap_rich_button")
+    callback_wait = scenario.index('"callback answer"')
+    assert success < failed < retained < raised < repeated < callback_wait
+
+
+def test_fresh_failure_retains_original_frame_without_another_guest_call(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = Path(__file__).resolve().parent / "probes/unrelated_target_supervisor.py"
+    monkeypatch.chdir(tmp_path)
+    namespace = runpy.run_path(source.as_posix())
+    failure = ValueError("original freshness failure")
+    secret = "gramlab-client_" + "q" * 43
+    calls = 0
+
+    def failing_fresh(self: Any, state: dict[str, Any]) -> dict[str, Any]:
+        nonlocal calls
+        del self
+        calls += 1
+        sample: dict[str, Any] = {
+            "generation": 4,
+            "drawn_uptime_ms": 105399,
+            "targets": [{"path": ["blocks", 1], "label": secret}],
+        }
+        pid, now = 2390, 110401
+        assert state["pid"] == pid and now - sample["drawn_uptime_ms"] > 5000
+        raise failure
+
+    class FakeAndroid:
+        def __init__(self) -> None:
+            self.secrets = [secret]
+
+    class FakeHost:
+        android = FakeAndroid()
+
+    fresh = namespace["fresh"]
+    fresh.__globals__["original_fresh"] = failing_fresh
+    state: dict[str, Any] = {
+        "arm": {"operation_id": "d" * 32, "chat_id": 1, "message_id": 2},
+        "target": {"path": ["blocks", 1], "label": secret},
+        "pid": 2390,
+    }
+    with pytest.raises(ValueError) as caught:
+        fresh(FakeHost(), state)
+    assert caught.value is failure and calls == 1
+    retained = Path("unrelated-target-barrier.json").read_bytes()
+    assert len(retained) <= 128 * 1024 and secret.encode() not in retained
+    barrier = json.loads(retained)
+    assert barrier["bootstrap_sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+    assert [event["kind"] for event in barrier["events"]] == ["fresh_failed"]
+    event = barrier["events"][0]
+    assert event["operation_id"] == "d" * 32 and event["exception_class"] == "ValueError"
+    assert event["frame_present"] is True and event["missing_locals"] == []
+    assert event["locals"] == {
+        "pid": 2390,
+        "now": 110401,
+        "sample": {
+            "generation": 4,
+            "drawn_uptime_ms": 105399,
+            "targets": [{"path": ["blocks", 1], "label": "[REDACTED]"}],
+        },
+    }
+    traceback = caught.value.__traceback__
+    while traceback is not None and traceback.tb_frame.f_code is not failing_fresh.__code__:
+        traceback = traceback.tb_next
+    assert traceback is not None and event["line"] == traceback.tb_lineno
+    assert event["source"] == {
+        "file": Path(failing_fresh.__code__.co_filename).name,
+        "sha256": hashlib.sha256(Path(failing_fresh.__code__.co_filename).read_bytes()).hexdigest(),
+    }
+    assert event["state"]["target"]["label"] == "[REDACTED]"
+
+
+def test_prepare_failure_survives_diagnostic_publication_failure(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = Path(__file__).resolve().parent / "probes/unrelated_target_supervisor.py"
+    namespace = runpy.run_path(source.as_posix())
+    prepare = namespace["prepare"]
+    failure = ValueError("original preparation detail")
+    diagnostic_failure = OSError("diagnostic publication detail")
+    calls = {"prepare": 0, "persist": 0}
+
+    def failing_prepare(self: Any, receipt: dict[str, Any], *, client_nonce: str) -> dict[str, Any]:
+        del self, receipt, client_nonce
+        calls["prepare"] += 1
+        raise failure
+
+    def failing_persist(secrets: list[str]) -> None:
+        assert secrets == []
+        calls["persist"] += 1
+        raise diagnostic_failure
+
+    class FakeAndroid:
+        def __init__(self) -> None:
+            self.secrets: list[str] = []
+
+    class FakeHost:
+        android = FakeAndroid()
+
+    prepare.__globals__.update(
+        original_prepare=failing_prepare,
+        persist=failing_persist,
+        barrier_used=True,
+    )
+    receipt = {"operation_id": "d" * 32, "target": {"target_id": "e" * 32}}
+    with pytest.raises(ValueError) as caught:
+        prepare(FakeHost(), receipt, client_nonce="f" * 32)
+    assert caught.value is failure
+    assert calls == {"prepare": 1, "persist": 1}
+    assert capsys.readouterr().err == "Unrelated-target prepare diagnostic unavailable: OSError\n"
 
 
 @pytest.mark.android
@@ -619,6 +744,7 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         "generation",
         "drawn_uptime_ms",
         "geometry",
+        "accounts",
         "guest_calls",
     }
     assert ui.keys() == {
@@ -631,8 +757,7 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         "pid",
         "generation",
         "xml_sha256",
-        "png_sha256",
-        "accounts",
+        "xml_bytes",
         "guest_calls",
     }
     prepared_fields = {
@@ -650,7 +775,13 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         "observation_generation",
         "guest_calls",
     }
-    assert prepared.keys() == prepared_fields | {"drawn_uptime_ms"}
+    assert prepared.keys() == prepared_fields | {
+        "drawn_uptime_ms",
+        "ui_xml_sha256",
+        "before_png",
+        "before_png_sha256",
+        "before_png_bytes",
+    }
     assert dispatched.keys() == prepared_fields
     assert (
         ui["target_id"]
@@ -700,6 +831,7 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     assert_counter(prepared["drawn_uptime_ms"], minimum=observed["drawn_uptime_ms"])
     assert prepared["guest_calls"] == dispatched["guest_calls"]
     assert_counter(prepared["guest_calls"], minimum=ui["guest_calls"])
+    assert prepared["ui_xml_sha256"] == ui["xml_sha256"]
     left, top, right, bottom = prepared["geometry"]["screen_bounds"]
     tap = {
         "guest_call": complete["input_taps"][0]["guest_call"],
@@ -718,15 +850,12 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
         "input_taps": [tap],
     }
     assert_counter(tap["guest_call"], minimum=dispatched["guest_calls"] + 1)
-    assert ui["persona"] == 2 and ui["chat_id"] == 1 and ui["accounts"] == "Accounts: 0"
+    assert ui["persona"] == 2 and ui["chat_id"] == 1
+    assert observed["accounts"] == "Accounts: 0"
     xml = (output / "unrelated-target-ui.xml").read_text()
-    png = output / "unrelated-target-ui.png"
     assert "Unrelated bravo / حالت ب" in xml
     assert hashlib.sha256(xml.encode()).hexdigest() == ui["xml_sha256"]
-    assert hashlib.sha256(png.read_bytes()).hexdigest() == ui["png_sha256"]
-    with Image.open(png) as image:
-        assert image.format == "PNG" and image.size == (320, 640)
-        image.verify()
+    assert len(xml.encode()) == ui["xml_bytes"]
     assert recorded["android"]["network"] == {"ipv4": 1, "ipv6": 1}
     assert recorded["android"]["filesystem"] == {
         "world_visible": False,
@@ -844,6 +973,10 @@ def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     assert_token(request["request_id"])
     assert request["callback_id"] == callback["id"] and request["message_revision"] == 7
     capture = native_file(output, native["captures"][0], operation)
+    capture_bytes = capture.read_bytes()
+    assert prepared["before_png"] == native["captures"][0]
+    assert prepared["before_png_sha256"] == hashlib.sha256(capture_bytes).hexdigest()
+    assert prepared["before_png_bytes"] == len(capture_bytes)
     with Image.open(capture) as image:
         assert image.format == "PNG" and image.size == (320, 640)
         image.verify()
