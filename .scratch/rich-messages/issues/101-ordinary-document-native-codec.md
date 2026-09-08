@@ -110,3 +110,9 @@ its Java buffer is null. Source inspection confirms the standalone fixture omitt
 native_setJava(false) VM binding used by ApplicationLoader. Probe06 adds that binding only;
 the production codec and normal29 APK remain unchanged. Java/D8 compilation passes; native
 acceptance of this correction remains pending.
+
+Native04 now passes all34 cases in53.64s on unchanged normal29, using probe06 with the original VM
+binding. The exact same probe against normal28 produces the intended ClassNotFoundException at
+bootstrap.document_codec_class in native05, with matching retained stdout/summary and no native
+library initialization. Earlier failures remain unchanged. Codec native acceptance is established;
+combined verification and original loader/UI acceptance under104/105 remain separate.

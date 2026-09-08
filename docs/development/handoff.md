@@ -27,15 +27,19 @@ The HTTP slices pass50 and78 affected checks respectively; static14 passes63 doc
 configuration/links in256 documents. Core14 passed1123 cases but failed an obsolete last-patch
 assertion; corrected order/uniqueness checks pass five focused cases. Core15 then passed1123 cases
 but failed the runner timeout test because its expected descendant heartbeat file was absent.
-That failure is under diagnosis; neither combined run is a green gate.
+The runner test now requires observed post-setsid readiness and a growing heartbeat before timeout;
+its real public CLI control passes in6.45s. Neither earlier combined run is a green gate.
 
-Normal29 builds offline in2m39s using the existing incremental cache. The actual native codec run
-passes33 of34 cases, but the carrier case fails with an unexpanded reflection exception. A bounded
-probe diagnostic is in progress; no production codec cause is established. The old normal28 run
-exited137 with no JSON and cannot yet serve as the intended missing-class red. Both results remain
-retained. Original Android document loading is assigned independently in ticket104; host v5 mode
-remains unavailable until that delivery is verified. The automatic rich-detection policy has been
-sent for separate user consultation and remains unapproved.
+Normal29 builds offline in2m39s using the existing incremental cache. Actual native codec04 now
+passes all34 cases in53.64s on the same APK. Native03's bounded diagnostic exposed a missing VM
+binding in the standalone fixture; using the original native_setJava(false) call corrects the
+probe without changing the codec. The identical corrected probe rejects normal28 specifically for
+the absent GramLabDocument class in native05. Earlier native01 status137 remains unexplained and
+native02/03 failures remain retained. Original Android document loading and real-bot UI acceptance
+are assigned independently in104/105; host v5 mode remains unavailable until delivery is verified.
+The automatic rich-detection policy has been sent for separate user consultation and remains
+unapproved. Developer-tooling13 is measuring an atomic World-initialization optimization; it is
+not yet integrated. Successful/superseded guest disks are retired while their evidence remains.
 
 
 The user requested disk cleanup. Old guest disks, archives and reproducible caches were removed. Follow [run retention](artifact-storage.md#run-retention): save review
@@ -83,7 +87,7 @@ and configuration/links in252 Markdown documents pass. This includes integrated 
 multipart decoding100, native disarm98 and the final clipboard92 popup-settling correction. No
 resource warnings remain. Clipboard92 and disarm98 are resolved after actual native acceptance
 and this combined gate. World99 is subsequently integrated with102 focused checks, including high-ID allocation and
-late-grant rollback; this combined gate predates99. Native codec101 is integrated with three focused host checks and scoped static validation; actual native execution remains pending. Successful temporary
+late-grant rollback; this combined gate predates99. Native codec101 is integrated with three focused host checks and scoped static validation; its later34-case actual native acceptance is recorded above. Successful temporary
 core fixtures are retired after retaining JUnit, logs and outcome.
 
 Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
@@ -141,7 +145,7 @@ the local parser's different limit. Preserve this distinction and the unresolved
 Explicit forced-file upload, typed reuse/download, caption custom emoji and the local inclusive
 50,000,000-byte bound pass; default classification, edits, albums and Android loading remain open.
 The v5 HTTP delivery branch103 is integrated with78 affected HTTP/World checks and strict typing/Ruff. Native codec101 has three integrated host checks;
-its actual native gate is pending. These integrations postdate core13/static13.
+its34-case actual native gate passes after the original VM-binding fixture correction. These integrations postdate core13/static13.
 
 Exact run paths, cleanup identities and current process handles stay in ignored coordinator notes.
 Successful core fixtures are retired immediately after preserving JUnit, logs and outcomes.
