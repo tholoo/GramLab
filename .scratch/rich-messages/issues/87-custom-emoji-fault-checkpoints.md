@@ -2,8 +2,8 @@
 
 Type: task
 Status: resolved
-Work state: implemented on `task/custom-emoji-fault-checkpoints`; coordinator review pending
-Blocked by: coordinator integration and native execution
+Work state: integrated; focused and actual native diagnostic acceptance passed
+Blocked by: none
 
 Own this ticket and the test-only `tests/probes/android_custom_emoji_faults.py`; focused tests
 may be added to `tests/test_custom_emoji_fault_server.py` only when they exercise meaningful

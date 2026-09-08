@@ -43,23 +43,29 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   The unchanged spatial/phase oracle accepts all 72 carrier frames; independent PNG decoding
   exactly matches every retained raw frame. Original captures and desktop/mobile reports are
   inspected. Ticket86 has 79 combined capture/oracle checks; no renderer or fixture was changed.
-- The first ticket66 native fault suite fails shared-thumbnail cache settlement after all three
-  document-case functions return. Complete case result objects were lost when the later case
-  failed, so their full acceptance remains unproven. Ticket87 preserves those checkpoints and
-  failure traces. Cancellation is unproven; the adapter's read timeout during the intentional
-  partial-response hold is another hypothesis. Do not change original loader ownership on
-  speculation. Ticket69's fresh native mixed-content run passes in 84.80 seconds after correcting
-  the expected callback-event shape. Complete six-message history, callback creation/answer and
-  composer-send comparisons pass; the original photo/mention/emoji capture was inspected. The
-  first failed JUnit remains retained and the successful guest disks have been retired.
+- The checkpointed ticket66 fault rerun fails shared cache settlement in 244.62 seconds, while
+  all three complete document checkpoints pass their original assertion loop. The hold lasts
+  5.4607 seconds; the proxy fails at 5.0038 seconds with zero bytes delivered, before release.
+  Actual Android trace records media_load_failure and no media_load_cancel. Ticket87's durable
+  diagnostics are accepted. Ticket89 corrects only the progressive shared-transfer test stimulus
+  and transparent proxy forwarding; native timeouts, loader ownership and rendering stay intact.
+  Whole fault-suite/isolation-result acceptance remains unavailable until the suite returns.
+- Ticket69's fresh native mixed-content run passes in 84.80 seconds after correcting the expected
+  callback-event shape. Complete six-message history, callback creation/answer and composer-send
+  comparisons pass; the original capture and desktop/mobile report were inspected. The first red
+  remains retained and successful guest disks were retired. Ticket88 expands native button state
+  acceptance independently; actual clipboard paste and native unrelated-edit survival remain
+  separate gaps. Unrelated message revisions do not bypass native geometry/freshness checks.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The combined core checkpoint passes 894 tests at 87.07% coverage in 111.25 seconds with four
-isolated workers and no simultaneous guest. The subsequent raw-capture batch passes its 79
-focused controls and fresh native gate; repeat the combined check after the current diagnostic batch. Run the remaining native gates serially and reuse
-the exact immutable APK provenance. Any live handles stay in ignored coordinator notes.
+The combined core checkpoint passes 917 tests at 87.07% coverage in 145.42 seconds with four
+isolated workers and no simultaneous guest. All 53 documented static commands, Ruff lint/format
+across 474 files and configuration/links in 233 Markdown documents pass. Worker88/89 remain
+outside this checkpoint. Run native gates serially using exact immutable APK provenance; review
+and integrate frozen worker branches before further combined verification. Live handles and
+machine-specific details stay in ignored coordinator notes.
 
 ## First action
 
@@ -139,7 +145,7 @@ offline safety, licensing and completion requirements before the corresponding a
   gate. Normal24 also passes 99 native emoji codec, 28 photo codec and 75 mention codec cases.
   Tickets63/65 supply the real-bot lifecycle; settings79, sampled oracle80 and capture83/86 now
   have fresh native acceptance. Ticket66 fault/shared-transfer acceptance remains failed and
-  requires the bounded diagnostic checkpoints in ticket87. Semantic captures and virtual callback
+  has accepted diagnostic checkpoints in ticket87; ticket89 addresses the confirmed test transport timeout. Semantic captures and virtual callback
   fixes under tickets67/68 pass core checks; ticket69 covers the combined current-message public
   Android path and its complete native expected history/event assertions.
 - [Public rich-button targeting](scenario-rich-buttons.md) follows the frozen
@@ -180,8 +186,8 @@ offline safety, licensing and completion requirements before the corresponding a
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
   outcomes and client-local copy effects. Independent review and a guarded same-clock edit
   experiment inform the approved contract. The shared [implementation contract](rich-button-implementation-contract.md) is now frozen.
-  The permanent GPL observation seam and public effects are implemented but native acceptance
-  is blocked by the storage identity defect above. The earlier experiments do not certify them.
+  The permanent GPL observation seam and public effects have the focused native checkpoint above;
+  wider independent acceptance remains open. Earlier experiments do not certify the public seam.
 
 Preserve the full scope while pursuing independent work during a pending decision. No external
 runtime egress or remote publication is authorized. Provisioning and primary-source research are
@@ -195,8 +201,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 894 passed at 87.07% coverage in 111.25 seconds using four isolated workers, verified primary imports and no simultaneous guest. This includes the latest host, visual capture and developer tooling integrations; native gates remain separate. |
-| Latest static/workflow | The 894-test checkpoint passes 53 documented static commands, Ruff lint/format across 471 files, production/scoped strict typing, 230-document link/configuration validation and the pinned offline workflow check. The subsequently integrated raw-capture batch has separate focused and native evidence above. |
+| Latest core | 917 passed at 87.07% coverage in 145.42 seconds using four isolated workers, verified primary imports and no simultaneous guest. Includes raw capture and bounded fault diagnostics; native acceptance remains separate. |
+| Latest static/workflow | The 917-test checkpoint passes 53 documented static commands, Ruff lint/format across 474 files and configuration/links in 233 Markdown documents. The unchanged pinned workflow check passed at the preceding checkpoint. Workers88/89 are not integrated. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
