@@ -10,6 +10,9 @@ ordinary `TL_document` carrier, original serialization and attachment keys, the 
 namespace, and the positive custom-emoji namespace. The fixture calls the real codec only through
 reflection and does not contain a substitute TLRPC implementation. It loads the original x86_64
 native library extracted from the reviewed client APK solely to exercise `NativeByteBuffer`.
+Failure records name the exact reflection stage and retain bounded cause and relevant-stack details.
+A client that lacks the codec emits the same structured one-case bootstrap summary to stdout and
+`summary.json` before native loading; successful clients retain the original 34-case result shape.
 
 Compile the fixture using only cached inputs in this checkout's pinned Android shell:
 
