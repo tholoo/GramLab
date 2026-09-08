@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/custom-emoji-fault-checkpoints`; coordinator review pending
 Blocked by: coordinator integration and native execution
 
 Own this ticket and the test-only `tests/probes/android_custom_emoji_faults.py`; focused tests
@@ -30,3 +30,36 @@ messages or new unbounded output. This is a small diagnostic improvement, not a 
 framework. Validate syntax/static checks and the relevant existing focused tests; avoid tests
 that merely mirror serialization. No guest/build/full gate assigned. Return a clean frozen branch,
 exact evidence and any remaining gaps in failure artifact retention.
+
+## Implemented checkpoint boundary
+
+Each fully returned document case is now written before the next case starts to a dedicated,
+bounded JSON checkpoint. The record binds the case name to the unchanged result object. Publication
+uses a flushed temporary file, a no-replace hard link and a directory sync; an existing checkpoint
+is never overwritten and temporary files are removed after a collision or publication failure.
+All case capabilities are rejected from checkpoint bytes.
+
+The outer failure record contains only the active phase, exception class, already checkpointed
+document-case names and available shared-case evidence. During a shared-case failure, the probe
+snapshots the existing peer document/asset journals and hold state before context cleanup. It also
+records host monotonic observations for partial response, release and finished boundaries. An
+eight-second failure-only budget attempts the private trace, current selected cache inventory and
+the existing 2,000-line logcat capture; failures retain exception classes without messages. The
+normal successful path has no additional guest command and its returned result shape is unchanged.
+Every retained text artifact is checked against every case capability, including earlier document
+cases that may appear in accumulated logcat. Each failure-only guest call obtains its remaining
+positive timeout immediately before invocation; after the shared deadline, later diagnostic stages
+record `TimeoutError` as unavailable without calling the guest.
+
+Focused evidence is retained in `artifacts/custom-emoji-fault-checkpoints.xml`. The real loopback
+server suite passes seven tests under an isolated namespace. Android collection finds all three
+existing cases. Ruff, format and strict mypy with the repository's separate probe/test package-root
+convention pass. No guest, APK build or full gate ran; coordinator native execution remains required.
+
+## Coordinator integration
+
+Reviewed frozen follow-up `d83af49b7b914479f20d7d55eb6181ceeb6f394d` resolves all-capability
+raw-artifact redaction and failure-call deadline review findings. The merged focused fault peer,
+checkpoint and staging/visual controls pass nine tests with one Android case deselected in
+`artifacts/custom-emoji-fault-checkpoints-integrated-01.xml`; scoped lint, format and typing pass.
+Actual native failure-path retention is the next gate, using unchanged normal24 and fault scheduling.
