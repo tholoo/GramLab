@@ -1,8 +1,9 @@
 # Batch fresh World creation without weakening durability
 
 Type: task
-Status: ready-for-agent
-Work state: unassigned
+Status: in-progress
+Work state: prepared for coordinator review
+Owner: `world-creation-transactions` worker on `task/world-creation-transactions`
 
 The combined core15 runner-timeout case ended with an empty process record and no descendant
 heartbeat. Its one-second whole-run budget includes World initialization. The exact timeout cause
@@ -37,3 +38,34 @@ Use the assigned offline environment and pinned inputs. Run focused World/bootst
 runner tests, strict typing and Ruff; no guest/build/network/full gate. Report whether the existing
 one-second runner acceptance still fails rather than claiming the optimization proves descendant
 cleanup. Freeze the exact branch tip with evidence and terminal processes for coordinator review.
+
+## Answer
+
+Fresh creation now enables WAL before starting one explicit writer transaction. That transaction
+contains all schema statements, the initial custom-emoji counter, schema version 9 and the bound
+configuration row. A configuration binding error therefore rolls back the application schema and
+version while retaining the caller-owned directory, empty database and WAL journal mode.
+
+The real SQLite regression first failed against the assigned base because the database retained
+schema version 9 after the configuration insert rejected an unsupported bound value. It passes
+after the change with version 0 and no application tables, indexes, triggers or views. A separate
+success control verifies the complete schema-9 table set, counter/configuration state, WAL mode,
+integrity and foreign keys through an independent connection, then exercises user, bot, chat and
+message operations through `World` and reopens the result.
+
+Comparable local samples used the same 8-serial/32-four-worker `World.create` operation and removed
+all temporary databases after close. The original source
+`ade4d206fd601f2601c3a214ed63ba9515482cda10e2428785ee48b83f03be31` measured a 97.04 ms serial
+median (106.52 ms maximum) and 182.30 ms four-worker median (197.07 ms maximum). The changed source
+`c876a6c5b0781e89e1278ed79f56c4c6bea057cc1a7802d08a15b0edd3bb1852` measured a 16.71 ms serial
+median (17.31 ms maximum) and 39.94 ms four-worker median (45.17 ms maximum). Raw samples remain in
+ignored `.cache/local-notes/world-create-profile-{before,after}.json`. These samples have no test
+threshold and do not establish the exact cause of core15.
+
+The expanded World/storage/migration check passes 106 cases, and the separately contained public
+runner check passes 31 cases with `ResourceWarning` promoted to an error. The unchanged one-second
+timeout case passed in 2.503 seconds in this run; its scheduling assumption remains nondeterministic,
+so this result does not replace the coordinator-owned readiness/liveness correction. Strict mypy,
+Ruff lint and Ruff formatting pass for both owned Python files. Red/green JUnit and runner logs are
+retained under ignored `artifacts/world-creation-transactions-{red,green}/`; successful disposable
+runtime directories were removed.
