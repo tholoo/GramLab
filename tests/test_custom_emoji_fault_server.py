@@ -1,12 +1,14 @@
 """Verify actual HTTP custom-emoji fault and hold stimuli."""
 
 import http.client
+import importlib
 import json
 import threading
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from pathlib import Path
+from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
 
 import pytest
@@ -36,6 +38,34 @@ DOCUMENTS: dict[str, Any] = {
         {"asset_id": 3, "sha256": "animated"},
     ],
 }
+
+
+class CheckpointWriter(Protocol):
+    def __call__(self, path: Path, value: object, secrets: list[str]) -> None: ...
+
+
+def test_checkpoint_publication_is_bounded_redacted_and_never_overwrites(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.syspath_prepend(str(Path("tests/probes").resolve()))
+    probe = importlib.import_module("android_custom_emoji_faults")
+    write_checkpoint = cast(CheckpointWriter, probe._write_checkpoint)
+    maximum = cast(int, probe.MAX_CHECKPOINT_BYTES)
+    path = tmp_path / "completed.json"
+    value = {"case": "mixed-404", "result": {"requests": [1, 2]}}
+    write_checkpoint(path, value, [CAPABILITY])
+    original = path.read_bytes()
+    assert json.loads(original) == value
+    assert not list(tmp_path.glob("*.partial"))
+
+    with pytest.raises(FileExistsError):
+        write_checkpoint(path, {"changed": True}, [CAPABILITY])
+    assert path.read_bytes() == original
+    with pytest.raises(RuntimeError, match="capability"):
+        write_checkpoint(tmp_path / "secret.json", {"value": CAPABILITY}, [CAPABILITY])
+    with pytest.raises(ValueError, match="bound"):
+        write_checkpoint(tmp_path / "oversized.json", {"value": "x" * maximum}, [CAPABILITY])
+    assert {item.name for item in tmp_path.iterdir()} == {"completed.json"}
 
 
 def request(

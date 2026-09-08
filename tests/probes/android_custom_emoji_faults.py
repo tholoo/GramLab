@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shlex
 import subprocess
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
@@ -26,11 +28,41 @@ IDLE_OBSERVATION_SECONDS = 3.0
 # AnimatedEmojiDrawable removes a detached global drawable after 5,000 ms.
 EVICTION_WAIT_SECONDS = 5.5
 BOUNDS = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
+MAX_CHECKPOINT_BYTES = 4 * 1024 * 1024
+MAX_FAILURE_OUTPUT_BYTES = 1024 * 1024
+
+
+def _write_checkpoint(path: Path, value: object, secrets: list[str]) -> None:
+    """Atomically retain one bounded record without replacing earlier evidence."""
+    serialized = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    if len(serialized) > MAX_CHECKPOINT_BYTES:
+        raise ValueError("Custom emoji fault checkpoint exceeds its bound")
+    if any(secret and secret.encode() in serialized for secret in secrets):
+        raise RuntimeError("Custom emoji fault checkpoint contained a capability")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.partial")
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(serialized)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     manifest = json.loads(Path("cases.json").read_text())
+    capabilities = [case["capability"] for case in manifest["document_cases"]] + [
+        manifest["shared_case"]["capability"]
+    ]
     capability = ""
+    active_phase = "install"
+    shared_failure: dict[str, Any] = {}
 
     def retain(name: str, value: str) -> str:
         if capability and capability in value:
@@ -39,7 +71,13 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return value
 
     def adb(name: str, *arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        diagnostic_bound = kwargs.pop("diagnostic_bound", None)
         result = guest(*arguments, **kwargs)
+        if diagnostic_bound is not None and (
+            len(result.stdout.encode()) > diagnostic_bound
+            or len(result.stderr.encode()) > diagnostic_bound
+        ):
+            raise ValueError("Custom emoji fault diagnostic output exceeds its bound")
         retain(
             name + "-command.json",
             json.dumps(
@@ -100,8 +138,26 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         )
         return retain(case + "-" + stage + "-launch.log", result.stdout + result.stderr)
 
-    def trace(case: str, stage: str) -> list[dict[str, Any]]:
-        raw = adb(case + "-" + stage + "-trace", "shell", "run-as", PACKAGE, "cat", TRACE).stdout
+    def trace(case: str, stage: str, *, deadline: float | None = None) -> list[dict[str, Any]]:
+        options = (
+            {}
+            if deadline is None
+            else {
+                "timeout": max(0.1, deadline - time.monotonic()),
+                "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
+            }
+        )
+        raw = adb(
+            case + "-" + stage + "-trace",
+            "shell",
+            "run-as",
+            PACKAGE,
+            "cat",
+            TRACE,
+            **options,
+        ).stdout
+        if deadline is not None and len(raw.encode()) > MAX_FAILURE_OUTPUT_BYTES:
+            raise ValueError("Custom emoji fault trace exceeds its bound")
         retain(case + "-" + stage + "-trace.jsonl", raw)
         return [json.loads(line) for line in raw.splitlines()]
 
@@ -190,7 +246,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             time.sleep(0.1)
         raise RuntimeError("Dedicated custom emoji application remained alive after force-stop")
 
-    def cache_files(case: str, stage: str) -> dict[str, list[dict[str, Any]]]:
+    def cache_files(
+        case: str, stage: str, *, deadline: float | None = None
+    ) -> dict[str, list[dict[str, Any]]]:
         external = f"/storage/emulated/0/Android/data/{PACKAGE}"
         selected: dict[str, list[dict[str, Any]]] = {"2_2.jpg": []}
         areas = (
@@ -198,13 +256,29 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             ("external", ["shell", "find", external, "-type", "f"]),
         )
         for area, command in areas:
-            paths = adb(case + "-" + stage + "-" + area + "-find", *command).stdout
+            options = (
+                {}
+                if deadline is None
+                else {
+                    "timeout": max(0.1, deadline - time.monotonic()),
+                    "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
+                }
+            )
+            paths = adb(case + "-" + stage + "-" + area + "-find", *command, **options).stdout
             for path in paths.splitlines():
                 name = Path(path).name
                 if name not in selected:
                     continue
                 quoted = shlex.quote(path)
                 prefix = ["shell", "run-as", PACKAGE] if area == "internal" else ["shell"]
+                options = (
+                    {}
+                    if deadline is None
+                    else {
+                        "timeout": max(0.1, deadline - time.monotonic()),
+                        "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
+                    }
+                )
                 size = int(
                     adb(
                         case + "-" + stage + "-" + area + "-" + name + "-size",
@@ -213,7 +287,16 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                         "wc",
                         "-c",
                         quoted,
+                        **options,
                     ).stdout.split()[0]
+                )
+                options = (
+                    {}
+                    if deadline is None
+                    else {
+                        "timeout": max(0.1, deadline - time.monotonic()),
+                        "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
+                    }
                 )
                 digest = adb(
                     case + "-" + stage + "-" + area + "-" + name + "-sha",
@@ -221,10 +304,54 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     "toybox",
                     "sha256sum",
                     quoted,
+                    **options,
                 ).stdout.split()[0]
                 selected[name].append({"area": area, "path": path, "size": size, "sha256": digest})
-        retain(case + "-" + stage + "-cache.json", json.dumps(selected, indent=2))
+        serialized = json.dumps(selected, indent=2)
+        if deadline is not None and len(serialized.encode()) > MAX_FAILURE_OUTPUT_BYTES:
+            raise ValueError("Custom emoji fault cache evidence exceeds its bound")
+        retain(case + "-" + stage + "-cache.json", serialized)
         return selected
+
+    def failure_native_diagnostics(case: str) -> dict[str, object]:
+        """Retain failure-only private state without extending the successful path."""
+        deadline = time.monotonic() + 8
+        observed: dict[str, object] = {}
+        for name, path, operation in (
+            (
+                "trace",
+                case + "-failure-trace.jsonl",
+                lambda: trace(case, "failure", deadline=deadline),
+            ),
+            (
+                "cache",
+                case + "-failure-cache.json",
+                lambda: cache_files(case, "failure", deadline=deadline),
+            ),
+        ):
+            try:
+                operation()
+                observed[name + "_path"] = path
+            except BaseException as error:
+                observed[name] = {"unavailable_exception_class": type(error).__name__}
+        if time.monotonic() < deadline:
+            try:
+                logcat = adb(
+                    case + "-failure-logcat",
+                    "logcat",
+                    "-d",
+                    "-t",
+                    "2000",
+                    timeout=max(0.1, deadline - time.monotonic()),
+                    diagnostic_bound=MAX_FAILURE_OUTPUT_BYTES,
+                ).stdout
+                if len(logcat.encode()) > MAX_FAILURE_OUTPUT_BYTES:
+                    raise ValueError("Custom emoji fault logcat exceeds its bound")
+                retain(case + "-failure-logcat.txt", logcat)
+                observed["logcat_path"] = case + "-failure-logcat.txt"
+            except BaseException as error:
+                observed["logcat"] = {"unavailable_exception_class": type(error).__name__}
+        return observed
 
     def wait_cache(case: str, stage: str, names: set[str]) -> dict[str, list[dict[str, Any]]]:
         deadline = time.monotonic() + 45
@@ -258,8 +385,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         raise RuntimeError(f"Original custom emoji IDs did not resolve during {case}/{stage}")
 
     def document_case(case: dict[str, Any]) -> dict[str, Any]:
+        nonlocal active_phase
         name = str(case["name"])
         fault: DocumentFault = case["fault"]
+        active_phase = f"document:{name}"
         clear(name)
         with ClientBridge(Path(case["world"])) as bridge:
             with CustomEmojiFaultServer(bridge.base_url, case["capability"]) as peer:
@@ -356,7 +485,12 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return result
 
     def shared_case(case: dict[str, Any]) -> dict[str, Any]:
+        nonlocal active_phase, shared_failure
         name = str(case["name"])
+        partial_sent_ns: int | None = None
+        release_ns: int | None = None
+        finished_ns: int | None = None
+        active_phase = "shared:setup"
         clear(name)
         with ClientBridge(Path(case["world"])) as bridge:
             with CustomEmojiFaultServer(bridge.base_url, case["capability"]) as peer:
@@ -365,59 +499,107 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 with NativeAssetProxy(peer.base_url, case["capability"]) as proxy:
                     proxy.phase("shared")
                     configure(proxy.base_url, case)
-                    launched = launch(name, "initial")
-                    if not hold.partial_sent.wait(timeout=45):
-                        capture(name, "hold-timeout")
-                        raise RuntimeError(
-                            "Shared custom emoji thumbnail did not reach held response"
+                    try:
+                        active_phase = "shared:launch"
+                        launched = launch(name, "initial")
+                        active_phase = "shared:wait_partial"
+                        if not hold.partial_sent.wait(timeout=45):
+                            capture(name, "hold-timeout")
+                            raise RuntimeError(
+                                "Shared custom emoji thumbnail did not reach held response"
+                            )
+                        partial_sent_ns = time.monotonic_ns()
+                        active_phase = "shared:initial_capture"
+                        initial_capture = wait_ui(name, "initial", case["labels"])
+                        active_phase = "shared:edit"
+                        with World.open(Path(case["world"])) as world:
+                            world.edit_message(
+                                chat_id=1,
+                                message_id=1,
+                                bot_id=2,
+                                text="Static removed",
+                            )
+                        active_phase = "shared:removed_capture"
+                        removed_capture = wait_ui(
+                            name,
+                            "removed",
+                            ["Static removed", "Second carrier"],
                         )
-                    initial_capture = wait_ui(name, "initial", case["labels"])
-                    with World.open(Path(case["world"])) as world:
-                        world.edit_message(
-                            chat_id=1,
-                            message_id=1,
-                            bot_id=2,
-                            text="Static removed",
+                        active_phase = "shared:release"
+                        release_ns = time.monotonic_ns()
+                        hold.release.set()
+                        active_phase = "shared:wait_finished"
+                        if not hold.finished.wait(timeout=45):
+                            raise RuntimeError("Held shared thumbnail did not finish")
+                        finished_ns = time.monotonic_ns()
+                        active_phase = "shared:wait_cache"
+                        cache = wait_cache(name, "complete", {"2_2.jpg"})
+                        active_phase = "shared:complete_capture"
+                        complete_capture = wait_ui(
+                            name,
+                            "complete",
+                            ["Static removed", "Second carrier"],
                         )
-                    removed_capture = wait_ui(
-                        name,
-                        "removed",
-                        ["Static removed", "Second carrier"],
-                    )
-                    hold.release.set()
-                    if not hold.finished.wait(timeout=45):
-                        raise RuntimeError("Held shared thumbnail did not finish")
-                    cache = wait_cache(name, "complete", {"2_2.jpg"})
-                    complete_capture = wait_ui(
-                        name,
-                        "complete",
-                        ["Static removed", "Second carrier"],
-                    )
-                    result = {
-                        "launch": launched,
-                        "initial_capture": initial_capture,
-                        "removed_capture": removed_capture,
-                        "complete_capture": complete_capture,
-                        "cache": cache,
-                        "documents": proxy.document_requests(),
-                        "assets": proxy.requests(),
-                        "trace": trace(name, "complete"),
-                        "peer_requests": peer.requests(),
-                        "hold": {
-                            "started": hold.started.is_set(),
-                            "partial_sent": hold.partial_sent.is_set(),
-                            "finished": hold.finished.is_set(),
-                        },
-                    }
+                        active_phase = "shared:final_trace"
+                        result = {
+                            "launch": launched,
+                            "initial_capture": initial_capture,
+                            "removed_capture": removed_capture,
+                            "complete_capture": complete_capture,
+                            "cache": cache,
+                            "documents": proxy.document_requests(),
+                            "assets": proxy.requests(),
+                            "trace": trace(name, "complete"),
+                            "peer_requests": peer.requests(),
+                            "hold": {
+                                "started": hold.started.is_set(),
+                                "partial_sent": hold.partial_sent.is_set(),
+                                "finished": hold.finished.is_set(),
+                            },
+                        }
+                    except BaseException:
+                        shared_failure = {
+                            "peer_requests": peer.requests(),
+                            "document_requests": proxy.document_requests(),
+                            "asset_requests": proxy.requests(),
+                            "hold": {
+                                "started": hold.started.is_set(),
+                                "partial_sent": hold.partial_sent.is_set(),
+                                "released": hold.release.is_set(),
+                                "finished": hold.finished.is_set(),
+                                "partial_sent_observed_ns": partial_sent_ns,
+                                "release_ns": release_ns,
+                                "finished_observed_ns": finished_ns,
+                            },
+                            "native": failure_native_diagnostics(name),
+                        }
+                        raise
         force_stop(name, "cleanup")
         return result
 
     adb("install", "install", "--no-streaming", "/work/client.apk", timeout=60)
+    document_results: dict[str, dict[str, Any]] = {}
     try:
-        document_results = {
-            case["name"]: document_case(case) for case in manifest["document_cases"]
-        }
+        for index, case in enumerate(manifest["document_cases"]):
+            name = str(case["name"])
+            if re.fullmatch(r"[a-z0-9-]{1,64}", name) is None:
+                raise ValueError("Invalid custom emoji fault case name")
+            document_result = document_case(case)
+            active_phase = f"document:{name}:checkpoint"
+            _write_checkpoint(
+                Path(f"custom-emoji-fault-document-{index:02d}-{name}.json"),
+                {
+                    "schema": 1,
+                    "kind": "completed_document_case",
+                    "case": name,
+                    "result": document_result,
+                },
+                capabilities,
+            )
+            document_results[name] = document_result
+        active_phase = "shared:setup"
         shared = shared_case(manifest["shared_case"])
+        active_phase = "final:accounts"
         accounts = adb("accounts", "shell", "dumpsys", "account").stdout
         result: dict[str, object] = {
             "document_cases": document_results,
@@ -439,12 +621,23 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             },
         }
         serialized = json.dumps(result)
-        capabilities = [case["capability"] for case in manifest["document_cases"]] + [
-            manifest["shared_case"]["capability"]
-        ]
         if any(secret in serialized for secret in capabilities):
             raise RuntimeError("Custom emoji fault result contained a capability")
         return result
+    except BaseException as error:
+        _write_checkpoint(
+            Path("custom-emoji-fault-failure.json"),
+            {
+                "schema": 1,
+                "kind": "failure",
+                "phase": active_phase,
+                "exception_class": type(error).__name__,
+                "completed_document_cases": list(document_results),
+                "shared": shared_failure or None,
+            },
+            capabilities,
+        )
+        raise
     finally:
         guest("shell", "am", "force-stop", PACKAGE)
 
