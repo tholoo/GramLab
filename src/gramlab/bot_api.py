@@ -18,6 +18,7 @@ from types import TracebackType
 from typing import Any, Self
 from urllib.parse import parse_qs, unquote_to_bytes, urlsplit
 
+from gramlab.documents import MAX_DOCUMENT_BYTES, DocumentUpload
 from gramlab.world import World, update_selection
 
 
@@ -66,6 +67,13 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
         result["rich_message"] = _public_rich(world, int(chat["bot_id"]), message["rich_message"])
     elif "photo" in message:
         result["photo"] = [world.photo_size(int(chat["bot_id"]), message["photo"]["asset_id"])]
+        for field in ("caption", "caption_entities"):
+            if field in message:
+                result[field] = message[field]
+    elif "document" in message:
+        result["document"] = world.document_file(
+            int(chat["bot_id"]), message["document"]["document_id"]
+        )
         for field in ("caption", "caption_entities"):
             if field in message:
                 result[field] = message[field]
@@ -217,6 +225,14 @@ def _dispatch(
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
         "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
         "sendphoto": {"chat_id", "photo", "caption", "caption_entities", "reply_markup"},
+        "senddocument": {
+            "chat_id",
+            "document",
+            "caption",
+            "caption_entities",
+            "reply_markup",
+            "disable_content_type_detection",
+        },
         "getfile": {"file_id"},
         "getcustomemojistickers": {"custom_emoji_ids"},
         "editmessagetext": {
@@ -249,8 +265,7 @@ def _dispatch(
         if set(parameters) != {"file_id"} or not isinstance(parameters["file_id"], str):
             raise ValueError("file_id is required")
         info, _ = world.bot_file(bot_id, parameters["file_id"])
-        info.pop("mime_type")
-        return info
+        return {key: info[key] for key in ("file_id", "file_unique_id", "file_size", "file_path")}
     if method == "deletewebhook":
         if "drop_pending_updates" in parameters and _boolean(
             parameters["drop_pending_updates"], "drop_pending_updates"
@@ -288,6 +303,34 @@ def _dispatch(
         return True
     if "chat_id" not in parameters:
         raise ValueError("chat_id is required")
+    if method == "senddocument":
+        if "document" not in parameters:
+            raise ValueError("document is required")
+        media = parameters["document"]
+        if not isinstance(media, str):
+            raise ValueError("document must be an attachment or file identifier")
+        force_file = _boolean(
+            parameters.get("disable_content_type_detection", False),
+            "disable_content_type_detection",
+        )
+        if media.startswith("attach://") and not force_file:
+            raise ValueError("GRAMLAB_UNSUPPORTED: document upload content detection")
+        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        return _message(
+            world,
+            world.send_document(
+                chat_id=chat["id"],
+                sender_id=bot_id,
+                document={"media": media},
+                uploads={
+                    name: DocumentUpload(upload.data, upload.filename, upload.content_type)
+                    for name, upload in (uploads or {}).items()
+                },
+                caption=parameters.get("caption"),
+                caption_entities=parameters.get("caption_entities"),
+                reply_markup=parameters.get("reply_markup"),
+            ),
+        )
     if method == "sendphoto":
         if "chat_id" not in parameters or "photo" not in parameters:
             raise ValueError("chat_id and photo are required")
@@ -358,7 +401,9 @@ def _disposition_value(value: str, *, filename: bool = False) -> str:
     return raw.decode("utf-8", errors="surrogateescape" if filename else "strict")
 
 
-def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str, _Upload]]:
+def _multipart(
+    raw: bytes, content_type: str, *, maximum_upload_bytes: int = 20_000_000
+) -> tuple[dict[str, Any], dict[str, _Upload]]:
     match = re.fullmatch(
         r'multipart/form-data;\s*boundary=(?:"([^"\r\n]+)"|([^;\s]+))', content_type
     )
@@ -414,7 +459,7 @@ def _multipart(raw: bytes, content_type: str) -> tuple[dict[str, Any], dict[str,
             raise ValueError("Repeated request parameters are unsupported")
         if filename is not None:
             upload_size += len(payload)
-            if upload_size > 20_000_000:
+            if upload_size > maximum_upload_bytes:
                 raise ValueError("Uploaded file data exceeds the request limit")
             uploads[field_name] = _Upload(payload, filename, headers.get("content-type"))
         else:
@@ -489,7 +534,7 @@ class BotAPIServer:
                         if (
                             self.command != "GET"
                             or url.query
-                            or parts[3] not in ("photos", "stickers")
+                            or parts[3] not in ("photos", "stickers", "documents")
                         ):
                             raise LookupError("Not Found")
                         with World.open(directory) as world:
@@ -500,14 +545,21 @@ class BotAPIServer:
                                     {"ok": False, "error_code": 401, "description": "Unauthorized"},
                                 )
                                 return
-                            file_id, dot, _extension = parts[4].rpartition(".")
-                            if not dot:
-                                raise LookupError("Not Found")
+                            if parts[3] == "documents":
+                                if "Range" in self.headers:
+                                    raise ValueError("Document ranges are unsupported")
+                                file_id = parts[4]
+                            else:
+                                file_id, dot, _extension = parts[4].rpartition(".")
+                                if not dot:
+                                    raise LookupError("Not Found")
                             info, data = world.bot_file(bot_id, file_id)
                             if info["file_path"] != f"{parts[3]}/{parts[4]}":
                                 raise LookupError("Not Found")
                             self.send_response(200)
-                            self.send_header("Content-Type", info["mime_type"])
+                            self.send_header(
+                                "Content-Type", info["mime_type"] or "application/octet-stream"
+                            )
                             self.send_header("Content-Length", str(len(data)))
                             self.send_header("Cache-Control", "no-store")
                             self.end_headers()
@@ -533,7 +585,12 @@ class BotAPIServer:
                             multipart = content_type_header.lower().startswith(
                                 "multipart/form-data"
                             )
-                            maximum = 20_200_000 if multipart else 65_536
+                            maximum_upload = (
+                                MAX_DOCUMENT_BYTES
+                                if parts[2].lower() == "senddocument"
+                                else 20_000_000
+                            )
+                            maximum = maximum_upload + 200_000 if multipart else 65_536
                             if not 0 <= length <= maximum:
                                 raise ValueError("Request body exceeds the prototype limit")
                             raw = self.rfile.read(length)
@@ -549,7 +606,9 @@ class BotAPIServer:
                             elif content_type == "application/x-www-form-urlencoded":
                                 body = _form_parameters(raw.decode("utf-8", errors="strict"))
                             elif content_type == "multipart/form-data":
-                                body, uploads = _multipart(raw, content_type_header)
+                                body, uploads = _multipart(
+                                    raw, content_type_header, maximum_upload_bytes=maximum_upload
+                                )
                             else:
                                 raise ValueError("GRAMLAB_UNSUPPORTED: request content type")
                             if parameters.keys() & body.keys():
@@ -557,8 +616,9 @@ class BotAPIServer:
                             if parameters.keys() & uploads.keys() or body.keys() & uploads.keys():
                                 raise ValueError("Repeated request parameters are unsupported")
                             parameters.update(body)
-                        if parts[2].lower() == "sendphoto" and "photo" in uploads:
-                            parameters["photo"] = "attach://photo"
+                        for method, field in (("sendphoto", "photo"), ("senddocument", "document")):
+                            if parts[2].lower() == method and field in uploads:
+                                parameters[field] = "attach://" + field
                         with reading_lock:
                             reading.discard(self.connection)
                             if closing.is_set():

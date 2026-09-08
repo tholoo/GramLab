@@ -120,6 +120,12 @@ general document API/native delivery and albums remain open.
 Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
 the local parser's different limit. Preserve this distinction and the unresolved server detector.
 
+Document Bot API102 is integrated with50 affected real HTTP checks and strict typing/Ruff.
+Explicit forced-file upload, typed reuse/download, caption custom emoji and the local inclusive
+50,000,000-byte bound pass; default classification, edits, albums and Android loading remain open.
+The v5 HTTP delivery branch103 is under review. Native codec101 has three integrated host checks;
+its actual native gate is pending. These integrations postdate core13/static13.
+
 Exact run paths, cleanup identities and current process handles stay in ignored coordinator notes.
 Successful core fixtures are retired immediately after preserving JUnit, logs and outcomes.
 Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
