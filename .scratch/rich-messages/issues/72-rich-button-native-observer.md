@@ -54,6 +54,12 @@ publication advances evidence generation. Clipboard admission accepts only one b
 item, records the armed baseline, and verifies the original copy handler produced the canonical
 `copy_text.text` value. Identical arm/conflict polling is idempotent.
 
+Per-target output distinguishes missing final objects (`unmapped_object`) from multiply bound
+objects (`ambiguous_object`) before considering draw freshness, focus or clipping. Clipboard
+baselines remain immutable from arm acknowledgement through DOWN/action; later observations are
+comparisons only. The single effect file advances generation when its published operation identity
+changes between a cached conflict and the live arm, without rewriting unchanged polls.
+
 The patch dry-applies with `patch --dry-run -p1` to the selected normal24 inputs. Their SHA-256s
 are `9a2aafbc...5721a` (GramLabBridge), `fa0d15a2...57dc` (GramLabRichMessage),
 `a240f8db...e4a` (GramLabRuntime), `f231ba1c...1ffa9` (RichMessageLayout) and
