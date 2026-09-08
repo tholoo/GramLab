@@ -38,8 +38,9 @@ the absent GramLabDocument class in native05. Earlier native01 status137 remains
 native02/03 failures remain retained. Original Android document loading and real-bot UI acceptance
 are assigned independently in104/105; host v5 mode remains unavailable until delivery is verified.
 The automatic rich-detection policy has been sent for separate user consultation and remains
-unapproved. Developer-tooling13 is measuring an atomic World-initialization optimization; it is
-not yet integrated. Successful/superseded guest disks are retired while their evidence remains.
+unapproved. Developer-tooling13 now integrates atomic fresh World initialization, preserving WAL/durability and
+rolling back late configuration failures. Its primary creation/migration/runner gate passes55
+cases plus scoped static checks. Raw comparable startup samples stay ignored. Successful/superseded guest disks are retired while their evidence remains.
 
 
 The user requested disk cleanup. Old guest disks, archives and reproducible caches were removed. Follow [run retention](artifact-storage.md#run-retention): save review

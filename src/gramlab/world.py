@@ -132,9 +132,11 @@ class World:
         directory.mkdir(mode=0o700)
         connection = sqlite3.connect(directory / "world.sqlite3")
         try:
-            connection.executescript(
-                f"""
-                PRAGMA journal_mode=WAL;
+            connection.execute("PRAGMA journal_mode=WAL")
+            with connection:
+                connection.executescript(
+                    f"""
+                BEGIN IMMEDIATE;
                 CREATE TABLE configuration (
                     seed INTEGER NOT NULL, now INTEGER NOT NULL, world_id TEXT NOT NULL
                 );
@@ -214,8 +216,7 @@ class World:
                 {_DOCUMENT_GRANTS_TABLE};
                 PRAGMA user_version=9;
             """  # noqa: S608
-            )
-            with connection:
+                )
                 connection.execute(
                     "INSERT INTO configuration VALUES (?, ?, ?)", (seed, now, str(uuid.uuid4()))
                 )
