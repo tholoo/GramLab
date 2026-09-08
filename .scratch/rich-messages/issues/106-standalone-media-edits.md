@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: task/standalone-media-edits
 Blocked by: none for World/HTTP implementation; native acceptance remains coordinator-owned
 
@@ -145,4 +145,7 @@ complete messages, so later full event/change/snapshot comparisons cannot accept
 The photo-size control now uses otherwise valid PNG bytes and the exact size-limit error.
 Its in-process one-byte limit regression must return HTTP200 and fail the test; the original
 production source remains unchanged. A strict-typing conflict from reusing one local name for
-JSON and multipart payloads is corrected. Scoped typing and Ruff pass; combined gate remains pending.
+JSON and multipart payloads is corrected. Scoped typing and Ruff pass. Core18 passes all1,183 non-Android cases at88.11% coverage;
+static17 passes all67 documented commands. The injected one-byte photo limit increase returns
+HTTP200 and fails the boundary test as expected. This closes only the frozen World/HTTP task;
+original Android edit acceptance, albums and classification remain required follow-up.

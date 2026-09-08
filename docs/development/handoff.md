@@ -21,78 +21,67 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 
 ## Accepted integration checkpoint
 
-Core17 passes all **1,129 non-Android tests at 88.02% coverage**. Static16 passes all **65 documented
-commands** and configuration/links in 262 Markdown files. Typed document World99, multipart100,
-codec101 host checks, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved.
-The reviewed scenario105 is also integrated; its native acceptance remains pending. [Documents](documents.md) records the implemented forced-file HTTP profile and limits.
+Core18 passes all **1,183 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
+commands** and configuration/links in 263 Markdown files. Typed document World99, multipart100,
+codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone
+media edits106 are integrated and verified at the World/HTTP boundary. The real-bot scenario105
+is integrated; original Android acceptance remains pending. [Documents](documents.md) records
+implemented forced-file behavior and standalone edits, including their limits.
 
-Normal29 contains the ordinary codec but does not enable document delivery. All34 actual codec
-cases pass in native04 on that APK; the identical corrected probe rejects normal28 specifically
-for its absent codec class in native05. The probe uses original VM binding and native buffers.
-The normal29 source/APK/probe identities and run evidence are retained in ignored local notes.
+Normal30 is built with the complete ordered 30-patch source provenance and the original document
+delivery implementation. Its first actual loader suite timed out inside instrumentation after
+240 seconds, and archive retrieval failed. This establishes a failed acceptance run, not the
+cause of the stall. The earlier preflight run selected the wrong APK environment variable and
+skipped; it is recorded as unavailable coverage. Neither is a passing native document gate.
 
-Core14's obsolete patch-order assertion and core15's runner-readiness assumption now have
-specific corrections plus the green combined gate. Preserve the original failed JUnits.
-The native01 status137 remains unexplained. Codec native02/03 exposed a standalone fixture's
-missing VM binding, corrected without changing the production codec. A passing later run does
-not establish the cause of an unrelated earlier failure.
+The prior normal29 codec gate passes34 actual native cases; the same probe rejects normal28 for
+its absent codec class. Earlier failed core/native results remain retained with their specific
+corrections or unresolved causes. Do not infer an unrelated failure's cause from a later pass.
 
 ## Active work and next actions
 
-1. Review [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
-   is reviewed and integrated with 41 affected host checks, strict typing and Ruff passing.
-   Source reconstruction matches all 29 prior patches; private staging verifies all five changed
-   files. Build normal30 next, then run the 35-case original loader suite and cold restart. Preserve distinct
-   document/emoji identities, exact v5 dependencies, rejected-response atomicity, original
-   destinations, cancellation, cache and notifications. Review found same-world authority rotation,
-   cache10 lifecycle and missing v4/v5 native controls. Corrections are prepared; the publication
-   primitive is now replaced in the integrated code; actual production/native acceptance is pending.
-2. Actual target-process filesystem07 now establishes the publication blocker: app external files
-   are writable, but Java and Os hard-link creation both fail with access denied. The original
-   draft therefore cannot publish downloads there. A sequential Files.move control rejects an
-   existing destination but does not establish race safety. A narrow atomic no-replace
-   rename primitive was then verified in rename01: absent/Unicode targets succeed, an occupied
-   target returns EEXIST unchanged, and eight two-source races retain exactly one complete winner
-   and the unchanged losing source. Invalid/missing paths reject. The integrated patch uses this
-   bounded UTF-8 syscall primitive in the existing GPL JNI library; the production loader
-   suite and new APK remain pending. Runtime evidence is limited to the pinned x86_64 guest.
-   Earlier standalone probes used a different process/storage context; target instrumentation suppresses Application.onCreate explicitly,
-   verifies public Context/Application identity and retains zero-account/isolation evidence.
-   Filesystem06 failed on hidden-API reflection; public-API-only instrumentation05 passes07.
-   Preserve all original source/results; diagnostic success is not document-delivery acceptance.
-3. Source/caller review corrects the cache10 interpretation: ordinary filename-only documents do
-   not enable the original video preload stream. Above2MiB, the original path fails on its first
-   nonempty response; the stock caller targets video, with an MKV MIME edge. Preserve explicit
-   local rejection for ordinary files, both loader entrypoints, zero requests/UI/files and normal
-   retry; keep the original small-file behavior. Those native controls remain pending. A generic
-   document preloader or Range protocol is not required to reproduce this unsupported boundary.
+1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
+   is integrated with41 affected host checks, strict typing and Ruff passing. Bounded source
+   reconstruction matches all29 prior patches and private staging verifies all five changed files.
+   Normal30 is built. Diagnose its actual240-second instrumentation timeout before changing
+   production or increasing the deadline. The worker is adding bounded per-case progress/thread
+   diagnostics and reliable app-owned archive retrieval; preserve the original failure even if
+   evidence retention also fails. Review that fixture follow-up, use its immutable probe, then
+   rerun the35-case original loader suite and cold restart on the existing APK.
+2. The atomic publication primitive has separate actual target-process evidence: app external
+   files are writable, Java/Os hard links fail with access denied, and a bounded no-replace rename
+   succeeds for absent/Unicode paths and preserves occupied targets. Eight two-source races retain
+   one complete winner and unchanged loser. Production uses the existing GPL JNI library and
+   bounded UTF-8 syscall path. These primitive results do not establish complete loader delivery.
+   Runtime evidence is limited to the pinned x86_64 guest. Target instrumentation suppresses
+   Application.onCreate explicitly and verifies framework identity, zero accounts and isolation.
+3. Preserve the corrected cache10 boundary: ordinary filename-only documents do not enable the
+   original video preload stream. Above2MiB, reject locally through both loader entrypoints with
+   zero requests/UI/files, then verify a normal retry. Keep original small-file behavior. The
+   prepared native controls remain pending; a generic document preloader is not required here.
 4. [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
-   is reviewed and integrated. Its three host cases pass on the current World, with strict typing
-   and Ruff. They cover the full contained real-bot scenario, bounded failure evidence and complete
-   ordered APK input binding. Corrected launch/restart phase accounting and original named-file
-   destination assertions are included. Native execution remains pending104 and a normal30 APK.
-5. Merge only reviewed frozen delivery/edit branches, run affected checks, and build using the
-   existing incremental cache. Enable the host's explicit v5 selector only after delivery passes.
-   Capture original rows/captions/emoji/keyboard, actual download/callback actions, exact destination
-   bytes, phase-local GETs, warm reuse, cold restart and complete matching World/API state.
+   has three passing integrated host cases covering the complete contained bot scenario, bounded
+   failure evidence and full ordered APK input binding. Actual rows/captions/emoji/keyboard,
+   download/callback actions, exact destination bytes, phase-local GETs, warm reuse and cold restart
+   still require execution after104 passes.
+5. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is frozen
+   on its worker branch:22 new and176 affected host cases pass, with two retained baseline failures.
+   Review is underway. Integration remains gated on104 native delivery; default3 and explicit3/4
+   behavior must remain unchanged. Then exercise the public runner on Android with complete mixed
+   document/photo/emoji/rich-button state.
 
-Independent [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
-is back with its worker after review found a false edit for already-empty captions and incomplete
-full-state/boundary assertions. The worker is retaining that actual regression before correcting
-comparison semantics and strengthening coverage. Earlier90 affected checks are not acceptance of
-those missing cases. An eight-case retrospective baseline run proves absent-operation sensitivity;
-it does not replace the missing pre-implementation red. Integration and native acceptance remain
-pending; albums and other unsupported forms remain separate.
+[106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
+is resolved for its bounded World/HTTP implementation after19 integrated cases and the combined
+core/static gates. The empty-caption false-edit regression has eight actual red/green cases.
+Coordinator checks independently specify complete cross-kind messages and use a valid oversized
+PNG; an injected one-byte limit increase fails through real HTTP. Android edit acceptance remains
+separate: reuse the existing real-bot/UI harness for caption edits and media replacements.
 
-[107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is assigned
-independently. It covers explicit selection, ordinary document callbacks and rich-button checks in
-mixed-content worlds. Its integration is gated on104 native delivery; default3 and explicit3/4
-behavior remain unchanged.
-
-After this batch, required operational work still includes default upload classification,
-media/document edits, albums, approved automatic rich detection, wider rich-button placement/
-recovery and representative combined workflow/current-APK regression. Preserve the full inventory;
-an explicit unsupported error is an honest intermediate state, not completed compatibility.
+Remaining operational work includes default upload classification, albums, approved automatic
+rich detection, wider rich-button placement/recovery and representative combined workflow/current-APK
+regression. Album source research is being checked against exact pinned source identities before
+freezing an implementation contract. Preserve the full inventory; explicit unsupported errors do
+not complete compatibility.
 
 ## Existing evidence to reuse
 
