@@ -29,6 +29,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     cache: dict[str, Any] = {}
     carrier_bounds: dict[str, dict[str, list[int]]] = {}
     burst_timestamps_ns: list[int] = []
+    burst_end_timestamps_ns: list[int] = []
     animation_profile: dict[str, Any] = {}
     navigation_frame = 0
     phase = "initial"
@@ -334,6 +335,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             for index in range(24):
                 burst_timestamps_ns.append(time.monotonic_ns())
                 screenshot(f"edited-burst-{index:02d}")
+                burst_end_timestamps_ns.append(time.monotonic_ns())
                 time.sleep(0.08)
         return ui
 
@@ -372,6 +374,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 "cache": cache,
                 "carrier_bounds": carrier_bounds,
                 "burst_timestamps_ns": burst_timestamps_ns,
+                "burst_end_timestamps_ns": burst_end_timestamps_ns,
                 "animation_profile": animation_profile,
                 "native_requests": proxy.requests(),
                 "document_requests": proxy.document_requests(),
