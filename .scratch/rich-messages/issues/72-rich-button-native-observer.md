@@ -1,8 +1,8 @@
 # Original rich-button identity, observation and effect evidence
 
 Type: task
-Status: ready-for-agent
-Work state: open
+Status: implementation-in-progress
+Work state: claimed by task/rich-button-native-observer
 Blocked by: frozen contract70; host integration and native acceptance are coordinator-owned
 
 Own this ticket and new `clients/android/patches/0025-rich-button-observation.patch` only.
@@ -36,3 +36,19 @@ coordinator build after freezing, retain any available focused compile/static ev
 and provide the exact source mapping and unexecuted native cases. No guest, full source export,
 Gradle build, Python changes, series edit or full gate. Return a frozen clean commit and terminal
 process/resource state. Remain claimed until actual integration and required acceptance pass.
+
+## Worker evidence
+
+Patch `0025` binds canonical paths during rich-message decoding and observes only original
+row/inline draw, DOWN suppression, delegate dispatch and copy-handler branches. Its private reader
+rejects malformed UTF-8, trailing input, duplicate/extra/missing members and invalid identity or
+generation fields. One arm is acknowledged, consumed once and released only by its matching
+disarm command. Callback evidence follows the exact request object through native token, HTTP
+request ID and returned callback ID/revision. Canonical button JSON is retained unchanged,
+including object-shaped `copy_text` and `disabled` members.
+
+The patch dry-applies with `patch --dry-run -p1` to the selected normal24 inputs. Their SHA-256s
+are `9a2aafbc...5721a` (GramLabBridge), `fa0d15a2...57dc` (GramLabRichMessage),
+`a240f8db...e4a` (GramLabRuntime), `f231ba1c...1ffa9` (RichMessageLayout) and
+`54511290...25b5` (ChatActivityEnterView). Compilation and native behavior remain coordinator
+acceptance work; this worker did not run Gradle or a guest.
