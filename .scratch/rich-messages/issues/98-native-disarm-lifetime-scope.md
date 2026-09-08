@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/native-disarm-lifetime-scope`; coordinator acceptance pending
 Blocked by: none
 
 Clipboard acceptance92 native05 proves an arm acknowledgement timeout after a deliberate public
@@ -48,3 +48,31 @@ clipboard endpoint on the newly built APK. Source inspection or host stand-ins d
 native checks. Report any probe compilation needs precisely without building a full APK or guest.
 Follow TESTING.md, licensing/upstream and the parallel workflow, keep reference inputs/cache small,
 and freeze the clean branch with actual full Git hash and terminal process state.
+
+## Answer
+
+Patch 0028 keeps exact disarm framing, schema and token validation, then applies a valid record only
+when its activation nonce, client nonce and live operation all match. A foreign-lifetime record is
+left non-applicable so reload continues to the arm file. No polling cadence, deadline, geometry,
+drawing, input or arm-admission code changed.
+
+The GPL reflection fixture initializes only the actual observer's private control fields and invokes
+its real `reload()` method. It covers old activation/current client, current activation/old client,
+matching and different current operations, malformed JSON, extra fields, schema and all three token
+failures. The matching case writes a fully valid current arm after invalidation, invokes reload
+again, and verifies that the invalidated operation cannot rearm. One reusable probe APK is suitable
+for the coordinator's normal27 red and normal28 green runs.
+
+Worker verification:
+
+- `tools/android-patch-stage` applied patch SHA-256
+  `f2f25cd8360fc5a93c12fa7ac8bae3b15b37df6e200150482c59fffd487e33b2` with fuzz zero to the
+  exact normal27 Observer preimage `0ac9b14f507166eeed269989f74ea64a64f12c8f152c6615149924606cf4da3d`;
+  postimage `614a1df5c01f38f9b3d6df72cfedf28eb1d81de6e4a3ade7a9a4a747c2cfdc72`.
+- Focused non-Android pytest passes 2 tests. Focused Ruff lint and strict mypy pass; Bash syntax is
+  valid. The pinned offline Android shell compiles the fixture with Java 17, Android API 36 and D8
+  36.0.0; probe APK SHA-256 is
+  `8aa6232c5f4d72eb49628c494f2546ea3429ba2013f8ee5aa6f7cab21add2fa6`.
+
+No guest or full APK build ran in this worker. Coordinator acceptance remains the normal27 red,
+normal28 green, unchanged four-phase clipboard endpoint and combined checks specified above.

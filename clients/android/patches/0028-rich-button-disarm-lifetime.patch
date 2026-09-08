@@ -1,0 +1,23 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+index 1c09598..fcdb366 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+@@ -142,11 +142,14 @@ public final class GramLabButtonObserver {
+         if (disarmFile.isFile()) {
+             JSONObject disarm = strict(disarmFile);
+             exact(disarm, "schema", "nonce", "client_nonce", "operation_id");
+-            if (positive(disarm, "schema") != 1 || !activation.getString("nonce").equals(token(disarm, "nonce"))
+-                    || !clientNonce.equals(token(disarm, "client_nonce")))
++            if (positive(disarm, "schema") != 1)
+                 throw invalid();
+-            if (arm != null && token(arm, "operation_id").equals(token(disarm, "operation_id"))) {
+-                disarmedOperation = token(disarm, "operation_id");
++            String disarmNonce = token(disarm, "nonce");
++            String disarmClientNonce = token(disarm, "client_nonce");
++            String disarmOperation = token(disarm, "operation_id");
++            if (activation.getString("nonce").equals(disarmNonce) && clientNonce.equals(disarmClientNonce)
++                    && arm != null && token(arm, "operation_id").equals(disarmOperation)) {
++                disarmedOperation = disarmOperation;
+                 invalidatedOperations.add(disarmedOperation);
+                 arm = null;
+             }
