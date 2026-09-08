@@ -92,8 +92,10 @@ Source review identifies retained old disarm validation preventing native pollin
 new arm. Private disarm bytes were not captured; retention follows from the verified prior success,
 host disarm and same-persona cold-launch flow. Ticket98 is integrated: the same actual native probe fails exactly two stale-lifetime controls
 on normal27 (eight pass), then passes all ten on normal28. The unchanged four-phase clipboard
-endpoint reaches all six probe records on normal28 but fails final acceptance in137.30 seconds;
-the new failure is under investigation. Full clipboard acceptance remains open. No timeout,
+endpoint initially failed its immediate post-Back focus assertion in137.30 seconds. Bounded
+read-only focus settling after exactly one Back now passes40 focused checks and fresh native07
+in155.89 seconds. All four actual paste/clear phases and complete semantic/API comparisons pass;
+eight original pasted/cleared images are inspected. Combined core acceptance remains pending. No timeout,
 input, freshness or original drawing change is justified. The unchanged complete88 endpoint remains
 separate evidence. Earlier results and screenshots remain; obsolete guest disks are retired.
 

@@ -89,3 +89,8 @@ Unchanged four-phase clipboard92 on normal28 reaches all six clipboard probe rec
 its acceptance assertion in137.30 seconds. That failure remains under investigation; this ticket
 stays open pending clipboard and combined acceptance. The original red/green results, probe APK,
 source/APK provenance and diagnostics are retained; completed control guest disks are retired.
+
+Fresh unchanged normal28 clipboard92 native07 subsequently passes all four actual paste/clear
+phases in155.89 seconds after correcting the post-Back asynchronous focus assertion in the test
+probe. That correction issues no repeated input and does not change the APK. Native acceptance
+is now established; combined core verification remains pending.

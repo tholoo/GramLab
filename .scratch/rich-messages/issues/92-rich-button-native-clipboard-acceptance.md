@@ -367,3 +367,15 @@ tools/dev default --offline --command env MYPYPATH=tests .venv/bin/mypy \
 .venv/bin/ruff format --check --no-cache tests/probes/rich_native_clipboard_supervisor.py \
   tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
 ```
+
+## Coordinator native07 acceptance
+
+The popup follow-up is integrated after preserving both native05 diagnosis and native06 follow-up
+in the ticket merge. All40 focused checks, strict typing and Ruff pass. Fresh unchanged normal28
+native07 passes in155.89 seconds: all six action/baseline records and all four terminal paste/clear
+probes pass, including row-disabled with exactly one Back and verified return to the original chat.
+Full unchanged semantic-state, complete final history/event/API ordering, receipt/effect/source
+provenance and isolation assertions pass. All four original pasted and four cleared images were
+visually inspected; the retained XML independently proves exact text and empty composer states.
+The completed native07 and diagnosed native06 guest disks are retired, with304 other evidence files
+verified unchanged. The applicable combined core gate remains pending before resolving this ticket.
