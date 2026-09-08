@@ -21,11 +21,10 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 
 ## Accepted integration checkpoint
 
-Core16 passes all **1,126 non-Android tests at 88.02% coverage**. Static15 passes all **64 documented
-commands** and configuration/links in259 Markdown files. The later handoff-only reorganization
-gets its own document validation. This includes typed document World99, multipart100, codec101
-host checks, Bot API102, v5 client HTTP103 and atomic World creation13; these bounded tickets are
-resolved. [Documents](documents.md) records the implemented forced-file HTTP profile and limits.
+Core17 passes all **1,129 non-Android tests at 88.02% coverage**. Static16 passes all **65 documented
+commands** and configuration/links in 262 Markdown files. Typed document World99, multipart100,
+codec101 host checks, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved.
+The reviewed scenario105 is also integrated; its native acceptance remains pending. [Documents](documents.md) records the implemented forced-file HTTP profile and limits.
 
 Normal29 contains the ordinary codec but does not enable document delivery. All34 actual codec
 cases pass in native04 on that APK; the identical corrected probe rejects normal28 specifically
@@ -41,16 +40,21 @@ not establish the cause of an unrelated earlier failure.
 ## Active work and next actions
 
 1. Review [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
-   in its assigned worktree. A separate read-only reviewer is checking the draft. Preserve distinct
+   in its assigned worktree after the independent review. Preserve distinct
    document/emoji identities, exact v5 dependencies, rejected-response atomicity, original
    destinations, cancellation, cache and notifications. Review found same-world authority rotation,
-   cache10 lifecycle and missing v4/v5 native controls; the worker is addressing them.
+   cache10 lifecycle and missing v4/v5 native controls. Corrections are prepared; the publication
+   primitive is now being replaced before the complete production/native review.
 2. Actual target-process filesystem07 now establishes the publication blocker: app external files
    are writable, but Java and Os hard-link creation both fail with access denied. The original
    draft therefore cannot publish downloads there. A sequential Files.move control rejects an
-   existing destination; race-safe non-overwrite remains unproven. Investigate a narrow atomic
-   rename primitive before changing production. Earlier standalone probes used a different
-   process/storage context; target instrumentation suppresses Application.onCreate explicitly,
+   existing destination but does not establish race safety. A narrow atomic no-replace
+   rename primitive was then verified in rename01: absent/Unicode targets succeed, an occupied
+   target returns EEXIST unchanged, and eight two-source races retain exactly one complete winner
+   and the unchanged losing source. Invalid/missing paths reject. The worker is adapting this
+   bounded UTF-8/API26 syscall primitive into the existing GPL JNI library; the production loader
+   suite and new APK remain pending. Runtime evidence is limited to the pinned x86_64 guest.
+   Earlier standalone probes used a different process/storage context; target instrumentation suppresses Application.onCreate explicitly,
    verifies public Context/Application identity and retains zero-account/isolation evidence.
    Filesystem06 failed on hidden-API reflection; public-API-only instrumentation05 passes07.
    Preserve all original source/results; diagnostic success is not document-delivery acceptance.
@@ -71,10 +75,17 @@ not establish the cause of an unrelated earlier failure.
    bytes, phase-local GETs, warm reuse, cold restart and complete matching World/API state.
 
 Independent [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
-has a completed worker branch under independent review: 90 affected World/HTTP checks pass.
-The worker disclosed that the required pre-implementation red was not executed; do not claim it
-exists. Integration and original native acceptance remain pending. Its slice covers photo/document
-replacement and caption-only edits; albums and other unsupported forms remain separate.
+is back with its worker after review found a false edit for already-empty captions and incomplete
+full-state/boundary assertions. The worker is retaining that actual regression before correcting
+comparison semantics and strengthening coverage. Earlier90 affected checks are not acceptance of
+those missing cases. An eight-case retrospective baseline run proves absent-operation sensitivity;
+it does not replace the missing pre-implementation red. Integration and native acceptance remain
+pending; albums and other unsupported forms remain separate.
+
+[107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is assigned
+independently. It covers explicit selection, ordinary document callbacks and rich-button checks in
+mixed-content worlds. Its integration is gated on104 native delivery; default3 and explicit3/4
+behavior remain unchanged.
 
 After this batch, required operational work still includes default upload classification,
 media/document edits, albums, approved automatic rich detection, wider rich-button placement/
