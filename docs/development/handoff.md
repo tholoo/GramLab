@@ -62,31 +62,43 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The current combined core10 checkpoint passes 948 tests at 87.25% coverage in 189.00 seconds
-with four isolated workers and no simultaneous guest. All 55 documented static commands, Ruff
-lint/format across 487 files and configuration/links in 242 Markdown documents pass. This includes
-integrated92 XML correction and94 multipart metadata; pending95/96 and the next92 diagnostic are
-not included. The earlier924-test checkpoint included88/89/90 and the recovery-fixture correction.
-Core08's six failures remain recorded: its standalone abrupt-exit harness omitted88's new
-fixture-variant file and failed before the intended interruption boundary. The explicit full
-variant restored all six recovery checks. No production timeout, rendering or recovery behavior changed.
+The current core11 checkpoint passes 968 tests at 87.36% coverage in 139.41 seconds with four
+isolated workers and no simultaneous guest. All 57 documented static commands, Ruff lint/format
+across 494 files and configuration/links in 243 Markdown documents pass. This includes92's failure
+diagnostic,94 multipart metadata,95's corrected independent acceptance and96's schema-8 migration.
+The gate exposed unclosed fixture database connections; explicit closure subsequently passes all
+23 migration/media World checks with resource and unraisable warnings treated as errors. The
+production migration is unchanged. Core08's earlier six recovery-fixture failures and correction
+remain recorded; no production timeout, rendering or recovery behavior was changed to pass them.
 
-Document research91 now establishes the pinned upload filename/MIME path and empty-file rejection.
-Multipart metadata94 is integrated: filename and declared content type survive HTTP parsing while
-existing image callers receive identical bytes; all 12 affected checks pass. General documents and
-albums remain unimplemented. Ticket96 prepares shared immutable byte storage while preserving
-existing photo/emoji identities, grants and public outputs; its migration is not integrated yet.
+Document research91 establishes pinned upload filename/MIME derivation and empty-file rejection.
+Multipart metadata94 is resolved, preserving filename/type and exact image bytes. Storage96 is
+resolved: schema 8 shares immutable bytes while preserving existing photo/emoji identities, grants,
+callbacks and v3/v4 results. Its 53 affected World/migration/HTTP/bridge/real-bot checks pass together,
+with authentic populated schema-7 fixture provenance. General documents and albums remain unsupported;
+the next file implementation still needs typed document metadata/identity/grants and negotiated
+client delivery, rather than treating this migration as file support.
 
-Clipboard92 is integrated with 16 passing host controls after correcting value-level XML
-redaction. Native01 failed parsing before paste. Fresh native02 verifies exact row-copy paste and
-clear, unchanged semantic state and well-formed redacted XML, but fails the complete acceptance:
-later targets reject during their first freshness check before arming/input. Original screenshots
-show the same layout; the exact failed sample/guard was not retained. A bounded diagnostic
-follow-up is active; do not infer an input defect, stale-draw cause or complete clipboard support.
-Ticket95's separate unrelated-edit scenario is undergoing review corrections before integration
-and native execution. The 948-test checkpoint above includes the integrated92/94 code, while these
-worker follow-ups remain pending. Successful core temporary fixtures and diagnosed guest disks are retired after retaining
-JUnit, logs, screenshots and reports; cleanup identities remain in ignored local notes.
+Clipboard92's XML correction passes actual row-copy paste/clear in native02. Diagnostic native03
+also passes inline-copy and inline-disabled paste/clear with complete unchanged semantic snapshots.
+It still fails full acceptance: the row-disabled operation reads a draw sample 10,236 ms old and
+rejects at the unchanged five-second guard before dispatch. Exact source hash, failure frame and
+staged bootstrap are verified. Earlier native02's exact guard was not retained. A four-phase
+acceptance rewrite is active: deliberate public observation per phase, same-lifetime copy baseline
+for each disabled action, and terminal paste/clear; no expired-target renewal or input retry.
+The complete88 native gate remains separate and unchanged. Diagnosed clipboard guest disks are
+retired; their XML, screenshots, operation records, logs and source evidence remain.
+
+Unrelated-edit95 is integrated with two focused controls and complete bot/native oracles. Native01
+fails startup before actors. Startup-instrumented native02 boots and visibly applies the unrelated
+edit, but rejects the target before input; its retained armed effect is already 4,978 ms after the
+last drawn sample. The exact failing guard is not retained, so do not label its cause proven.
+The scenario then waits for a callback that cannot arrive. A bounded follow-up removes redundant
+preparation work, uses the original operation screenshot, and retains failures promptly. Native
+unrelated-edit survival remains unproven. Startup collector processes/threads are terminal.
+
+Exact run paths, cleanup identities and current process handles stay in ignored coordinator notes.
+Successful core fixtures are retired immediately after preserving JUnit, logs and outcomes.
 Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
 for user consultation; changing
 the fidelity target remains unapproved and implementation must not start on that assumption.
