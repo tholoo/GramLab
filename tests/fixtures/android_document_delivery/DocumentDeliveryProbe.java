@@ -89,14 +89,85 @@ public final class DocumentDeliveryProbe {
         }
         throw new AssertionError("invalid_input_accepted");
     }
-    static String diagnosticStep="bootstrap";
+    static volatile String diagnosticStep="bootstrap";
+    private static File diagnosticDirectory;
+    private static String diagnosticPrefix;
+    private static long diagnosticStarted;
+    private static final java.util.concurrent.atomic.AtomicInteger diagnosticEvents=new java.util.concurrent.atomic.AtomicInteger();
+    private static final CountDownLatch diagnosticDone=new CountDownLatch(1);
+    private static volatile String diagnosticWriteError="";
+    private static Thread diagnosticWatchdog;
+    private static long diagnosticOperationThread;
+    private static volatile int diagnosticCompleted;
+    private static volatile int diagnosticFailed;
+
+    private static JSONObject diagnosticPosition(String event) throws Exception {
+        return new JSONObject().put("schema",1).put("event",event).put("phase",phase).put("stage",diagnosticStep)
+                .put("elapsed_ms",android.os.SystemClock.elapsedRealtime()-diagnosticStarted)
+                .put("pid",android.os.Process.myPid()).put("completed",diagnosticCompleted).put("failed",diagnosticFailed)
+                .put("write_error",diagnosticWriteError);
+    }
+    private static void diagnosticWrite(String name,JSONObject value) {
+        try {
+            if(diagnosticDirectory==null)return;
+            byte[] bytes=value.toString().replace(CAPABILITY,"[REDACTED]").getBytes(StandardCharsets.UTF_8);
+            if(bytes.length>128*1024)throw new java.io.IOException("diagnostic_record_bound");
+            Files.write(new File(diagnosticDirectory,diagnosticPrefix+"-"+name+".json").toPath(),bytes,
+                    java.nio.file.StandardOpenOption.CREATE_NEW);
+        } catch(Exception error) {diagnosticWriteError=error.getClass().getName();}
+    }
+    static void diagnosticCheckpoint(String event,JSONObject detail) {
+        int position=diagnosticEvents.incrementAndGet();if(position>96)return;
+        try {JSONObject record=diagnosticPosition(event);if(detail!=null)record.put("detail",detail);
+            diagnosticWrite(String.format(java.util.Locale.ROOT,"event-%03d",position),record);
+        } catch(Exception error) {diagnosticWriteError=error.getClass().getName();}
+    }
+    static void startDiagnostics(Context context,String mode) {
+        diagnosticStarted=android.os.SystemClock.elapsedRealtime();diagnosticOperationThread=Thread.currentThread().getId();
+        diagnosticPrefix=(java.util.Arrays.asList("suite","restart","filesystem","rename").contains(mode)?mode:"invalid")+"-"+android.os.Process.myPid();
+        try {
+            diagnosticDirectory=new File(context.getFilesDir(),"document-delivery-diagnostics");
+            if(!diagnosticDirectory.mkdir()&&!diagnosticDirectory.isDirectory())throw new java.io.IOException("diagnostic_directory");
+        } catch(Exception error) {diagnosticWriteError=error.getClass().getName();}
+        diagnosticCheckpoint("instrumentation_start",null);
+        diagnosticWatchdog=new Thread(()->{
+            try {
+                for(int sample=1;sample<=8;sample++) {
+                    if(diagnosticDone.await(30,TimeUnit.SECONDS))return;
+                    JSONObject record=diagnosticPosition("watchdog");
+                    java.util.Map<Thread,StackTraceElement[]> traces=Thread.getAllStackTraces();
+                    java.util.ArrayList<Thread> ordered=new java.util.ArrayList<>(traces.keySet());
+                    ordered.sort(java.util.Comparator.comparingInt((Thread thread)->thread.getId()==diagnosticOperationThread?0:
+                            thread.getName().equals("main")?1:thread.getName().toLowerCase(java.util.Locale.ROOT).contains("queue")?2:3)
+                            .thenComparingLong(Thread::getId));
+                    JSONArray threads=new JSONArray();record.put("thread_count",ordered.size()).put("threads_omitted",Math.max(0,ordered.size()-48));
+                    for(int index=0;index<Math.min(48,ordered.size());index++) {
+                        Thread thread=ordered.get(index);StackTraceElement[] trace=traces.get(thread);JSONArray frames=new JSONArray();
+                        for(int frame=0;frame<Math.min(8,trace.length);frame++) {
+                            String value=diagnosticText(trace[frame].toString());frames.put(value.substring(0,Math.min(256,value.length())));
+                        }
+                        String name=diagnosticText(thread.getName());
+                        threads.put(new JSONObject().put("id",thread.getId()).put("name",name.substring(0,Math.min(96,name.length())))
+                                .put("state",thread.getState().name()).put("frames",frames).put("frames_omitted",Math.max(0,trace.length-8)));
+                    }
+                    record.put("threads",threads);diagnosticWrite("watchdog-"+sample,record);
+                }
+            } catch(InterruptedException error){Thread.currentThread().interrupt();}
+            catch(Throwable error){try{diagnosticWrite("watchdog-error",diagnosticFailure(error,"watchdog"));}catch(Exception ignored){}}
+        },"document-delivery-watchdog");
+        diagnosticWatchdog.setDaemon(true);diagnosticWatchdog.start();
+    }
+    static void stopDiagnostics() {
+        diagnosticDone.countDown();
+        if(diagnosticWatchdog!=null)try{diagnosticWatchdog.join(1000);}catch(InterruptedException error){Thread.currentThread().interrupt();}
+    }
     private static String diagnosticText(String value) {
         if(value==null)return "";
         value=value.replace(CAPABILITY,"[REDACTED]");
         return value.substring(0,Math.min(512,value.length()));
     }
     private static void run(String name, Check check) throws Exception {
-        phase = name;diagnosticStep="case_start";
+        phase = name;diagnosticStep="case_start";diagnosticCheckpoint("case_start",null);
         JSONObject result = new JSONObject().put("name", name);
         try { check.run(); result.put("status", "passed"); }
         catch (Throwable failure) {
@@ -111,7 +182,8 @@ public final class DocumentDeliveryProbe {
             // Assertion messages are authored static codes, never arbitrary transport errors.
             if (actual instanceof AssertionError) result.put("assertion", String.valueOf(actual.getMessage()));
         }
-        cases.put(result);
+        cases.put(result);diagnosticCompleted++;if(!result.getString("status").equals("passed"))diagnosticFailed++;
+        diagnosticCheckpoint("case_complete",result);
         Files.write(new File(directory, "cases-" + (phase.equals("cold_process_saved_destinations") ? "restart" : "suite") + ".json").toPath(), cases.toString(2).getBytes(StandardCharsets.UTF_8));
     }
     private static JSONObject descriptor(String id, String filename, String mime, byte[] bytes) throws Exception {

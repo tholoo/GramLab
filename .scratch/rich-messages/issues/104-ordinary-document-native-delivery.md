@@ -154,3 +154,34 @@ the sanitized preparation input across40 source paths. Every cached byte matches
 five patch0030 preimages; coordinator private staging then matches every expected postimage.
 The complete ordered patch identities will be bound into the new APK source record.
 Production native and original UI acceptance remain pending; this ticket is not resolved.
+
+## Native timeout diagnostic follow-up
+
+The coordinator's production native02 launched normal30 but its original suite instrumentation
+exceeded the unchanged240-second deadline. No case summaries were pulled, and the old archive
+record retained only returncode1, so no initialization/queue/case cause is established yet.
+Production remains frozen. The fixture now emits immutable initialization and case-start/completion
+records into a separate allowlisted diagnostic root without consuming the fresh suite directory.
+A daemon watchdog starts before attachment/native initialization and records at most eight
+30-second samples, each bounded to48 threads, eight frames per thread and128 KiB. Phase/stage and
+completion counters are thread-visible. It observes actual original thread stacks and performs no
+retry, case selection or deadline extension. Successful instrumentation result framing is unchanged.
+
+The host retains bounded redacted timeout partial output and archive/retrieval return codes and
+stderr. Packing uses an app-owned file and includes every present allowlisted root; retrieval
+bounds compressed bytes before base64, validates encoding/size, then uses the existing strict
+archive parser. Retention errors never replace an original native exception. Host regression red
+proved missing timeout evidence and masking by a subsequent archive timeout; real POSIX tools
+exercise the new shell framing, but host permissions do not establish Android permissions.
+Actual instrumentation08 evidence must locate the blocked stage before selecting smaller cases
+or considering any production correction. All prior probes/native failures remain retained.
+
+
+Follow-up verification: the initial focused host red has2 failures (lost timeout output and
+archive timeout replacing the original exception). Final focused checks pass44, including real
+POSIX tar/head/base64 transport, exact diagnostic bytes, malformed/overflow rejection and timeout
+redaction/identity. Strict typing, Ruff check/format and Android collection pass. Instrumentation08
+compiles/signs against the coordinator-built normal30 using cached javac/D8/NDK tools; its exact
+sources/manifests are retained separately from07. Binary retrieval status retains only encoded
+length/SHA, returncode and bounded stderr, not a duplicate opaque base64 payload. No production
+patch, native deadline, input or case order changed; actual native diagnosis remains pending.

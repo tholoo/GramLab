@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import base64
 import gzip
 import hashlib
 import io
 import json
 import shlex
 import subprocess
+import sys
 import tarfile
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
@@ -24,7 +26,7 @@ _SECRET = "gramlab-client_ddddddddddddddddddddddddddddddddddddddddddd"  # noqa: 
 _PROCESS_LIMIT = 1024 * 1024
 _ARCHIVE_LIMIT = 4 * 1024 * 1024
 _EXPANDED_LIMIT = 16 * 1024 * 1024
-_ROOTS = {"document-delivery-probe", "account3", "gramlab"}
+_ROOTS = {"document-delivery-probe", "document-delivery-diagnostics", "account3", "gramlab"}
 
 
 def unpack_evidence(archive: Path, destination: Path) -> None:
@@ -93,6 +95,128 @@ def instrumentation_result(stdout: str) -> tuple[int, dict[str, Any]]:
     return int(code_text), value
 
 
+def _safe_text(value: str | bytes | None) -> str:
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
+    return (
+        text.replace(_SECRET, "[REDACTED]")
+        .encode("utf-8", errors="replace")[:_PROCESS_LIMIT]
+        .decode("utf-8", errors="ignore")
+    )
+
+
+def _record(path: str, value: dict[str, Any]) -> None:
+    with Path(path).open("x") as output:
+        output.write(json.dumps(value, indent=2) + "\n")
+
+
+def decoded_archive(stdout: str) -> bytes:
+    # head bounds compressed bytes before base64; allow its standard wrapped output.
+    encoded_limit = ((_ARCHIVE_LIMIT + 3) // 3) * 4
+    if len(stdout) > encoded_limit + (encoded_limit + 63) // 64 + 4:
+        raise ValueError("Native archive exceeds encoded bound")
+    encoded = stdout.replace("\r", "").replace("\n", "").encode("ascii", errors="strict")
+    data = base64.b64decode(encoded, validate=True)
+    if len(data) > _ARCHIVE_LIMIT:
+        raise ValueError("Native archive exceeds compressed bound")
+    return data
+
+
+def _stdout_record(value: str | bytes | None, opaque: bool) -> dict[str, Any]:
+    if not opaque:
+        return {"stdout": _safe_text(value)}
+    data = value if isinstance(value, bytes) else (value or "").encode("utf-8", errors="replace")
+    return {"stdout_encoded_bytes": len(data), "stdout_sha256": hashlib.sha256(data).hexdigest()}
+
+
+def _observed_command(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+    path: str,
+    *args: str,
+    timeout: int,
+    opaque_stdout: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        result = guest(*args, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        try:
+            _record(
+                path,
+                {
+                    "exception": "TimeoutExpired",
+                    "timeout": error.timeout,
+                    **_stdout_record(error.stdout, opaque_stdout),
+                    "stderr": _safe_text(error.stderr),
+                },
+            )
+        except Exception:  # noqa: S110 — preserve the original timeout when retention is unwritable.
+            pass
+        raise
+    except Exception as error:
+        try:
+            _record(path, {"exception": type(error).__name__, "message": _safe_text(str(error))})
+        except Exception:  # noqa: S110 — preserve the original command error if retention fails.
+            pass
+        raise
+    _record(
+        path,
+        {
+            "returncode": result.returncode,
+            **_stdout_record(result.stdout, opaque_stdout),
+            "stderr": _safe_text(result.stderr),
+            "stdout_truncated": len(result.stdout.encode()) > _PROCESS_LIMIT,
+            "stderr_truncated": len(result.stderr.encode()) > _PROCESS_LIMIT,
+        },
+    )
+    return result
+
+
+def _retain_archive(guest: Callable[..., subprocess.CompletedProcess[str]]) -> None:
+    archive = "files/document-delivery-evidence.tar.gz"
+    # Include every present allowlisted root; initialization failures need no suite directory.
+    roots = " ".join(sorted(_ROOTS))
+    packing = (
+        "cd files || exit; set --; "
+        f'for root in {roots}; do if [ -d "$root" ]; then set -- "$@" "$root"; fi; done; '
+        '[ "$#" -gt 0 ] || exit 44; '
+        'tar -czf document-delivery-evidence.tar.gz -- "$@"'
+    )
+    pack_error: Exception | None = None
+    try:
+        packed = _observed_command(
+            guest,
+            "document-delivery-archive-status.json",
+            "shell",
+            "-T",
+            shlex.join(["run-as", _PACKAGE, "sh", "-c", packing]),
+            timeout=30,
+        )
+        if packed.returncode:
+            pack_error = RuntimeError("Native archive packing failed")
+    except Exception as error:
+        pack_error = error
+    extraction = (
+        f"if [ -f {archive} ]; then head -c {_ARCHIVE_LIMIT + 1} {archive} | base64; "
+        "else exit 44; fi"
+    )
+    pulled = _observed_command(
+        guest,
+        "document-delivery-pull-status.json",
+        "shell",
+        "-T",
+        shlex.join(["run-as", _PACKAGE, "sh", "-c", extraction]),
+        timeout=30,
+        opaque_stdout=True,
+    )
+    if pulled.returncode:
+        raise RuntimeError("Native archive retrieval failed")
+    data = decoded_archive(pulled.stdout)
+    with Path("native.tar.gz").open("xb") as output:
+        output.write(data)
+    unpack_evidence(Path("native.tar.gz"), Path("document-delivery-native"))
+    if pack_error is not None:
+        raise pack_error
+
+
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     def command(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         result = guest(*args, **kwargs)
@@ -113,7 +237,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     results: dict[str, object] = {}
     try:
         for mode in ("suite", "restart"):
-            result = guest(
+            result = _observed_command(
+                guest,
+                f"document-delivery-{mode}-process.json",
                 "shell",
                 "-T",
                 shlex.join(
@@ -133,18 +259,6 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if max(len(result.stdout.encode()), len(result.stderr.encode())) > _PROCESS_LIMIT:
                 raise RuntimeError("Native document-delivery output exceeds bound")
             safe_stdout = result.stdout.replace(_SECRET, "[REDACTED]")
-            safe_stderr = result.stderr.replace(_SECRET, "[REDACTED]")
-            Path(f"document-delivery-{mode}-process.json").write_text(
-                json.dumps(
-                    {
-                        "returncode": result.returncode,
-                        "stdout": safe_stdout,
-                        "stderr": safe_stderr,
-                    },
-                    indent=2,
-                )
-                + "\n"
-            )
             code, decoded = instrumentation_result(safe_stdout)
             results[mode] = {
                 "returncode": result.returncode,
@@ -154,32 +268,23 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if result.returncode or code:
                 break
     finally:
-        # Retain partial original evidence on failure. Missing outputs cannot become success.
-        packed = guest(
-            "shell",
-            "-T",
-            shlex.join(
-                [
-                    "run-as",
-                    _PACKAGE,
-                    "tar",
-                    "-czf",
-                    f"{_REMOTE}/evidence.tar.gz",
-                    "-C",
-                    "files",
-                    "document-delivery-probe",
-                    "account3",
-                    "gramlab",
-                ]
-            ),
-            timeout=30,
-        )
-        Path("document-delivery-archive-status.json").write_text(
-            json.dumps({"returncode": packed.returncode}) + "\n"
-        )
-        pulled = guest("pull", f"{_REMOTE}/evidence.tar.gz", "/work/native.tar.gz", timeout=30)
-        if pulled.returncode == 0 and Path("native.tar.gz").is_file():
-            unpack_evidence(Path("native.tar.gz"), Path("document-delivery-native"))
+        original_error = sys.exception()
+        try:
+            _retain_archive(guest)
+        except Exception as error:
+            try:
+                _record(
+                    "document-delivery-retention-error.json",
+                    {
+                        "exception": type(error).__name__,
+                        "message": _safe_text(str(error)),
+                    },
+                )
+            except Exception:
+                if original_error is None:
+                    raise
+            if original_error is None:
+                raise
     for mode, value in results.items():
         if not isinstance(value, dict):
             raise RuntimeError("Native result has invalid shape")

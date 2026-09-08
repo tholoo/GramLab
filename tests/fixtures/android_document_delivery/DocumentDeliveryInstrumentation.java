@@ -26,6 +26,7 @@ public final class DocumentDeliveryInstrumentation extends Instrumentation {
     @Override public void onStart() {
         Bundle retained=new Bundle();int status=2;
         try {
+            DocumentDeliveryProbe.startDiagnostics(getTargetContext(),mode);
             DocumentDeliveryProbe.diagnosticStep="instrumentation.attachment_wait";
             if(!attached.await(10,TimeUnit.SECONDS)||!(application instanceof ApplicationLoader))
                 throw new IllegalStateException("original_application_unavailable");
@@ -36,11 +37,13 @@ public final class DocumentDeliveryInstrumentation extends Instrumentation {
             JSONObject result=DocumentDeliveryProbe.instrumented((ApplicationLoader)application,getTargetContext(),mode);
             String encoded=result.toString();if(encoded.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>1024*1024)throw new IllegalStateException("result_bound");
             retained.putString("document_delivery",encoded);status=result.getInt("failed")==0?0:1;
+            DocumentDeliveryProbe.diagnosticCheckpoint("instrumentation_complete",null);
         } catch(Throwable error) {
             try {
                 JSONObject failure=DocumentDeliveryProbe.diagnosticFailure(error,"instrumentation_initialization");
+                DocumentDeliveryProbe.diagnosticCheckpoint("instrumentation_failure",failure);
                 retained.putString("document_delivery",failure.toString());
             } catch(Exception ignored) {retained.putString("document_delivery","{\"schema\":1}");}
-        } finally {finish(status,retained);}
+        } finally {DocumentDeliveryProbe.stopDiagnostics();finish(status,retained);}
     }
 }
