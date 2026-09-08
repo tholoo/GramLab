@@ -1,8 +1,8 @@
 # Check coordinate normalization using original Android Matrix and Canvas
 
 Type: task
-Status: ready-for-review
-Work state: frozen on task/rich-button-native-matrix-regression
+Status: ready-for-agent
+Work state: resolved
 Blocked by: none
 
 Own this ticket and `clients/android/probes/rich-button-matrix/`. Coordinator owns patches,
