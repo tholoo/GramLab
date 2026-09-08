@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
-Blocked by: coordinator native acceptance
+Work state: resolved
+Blocked by: none
 
 Coordinator owns this ticket, `src/gramlab/_android_rich_buttons.py`, focused host tests and the
 public rich-target scenario/acceptance files. Other workers must not edit those files.
@@ -34,3 +34,13 @@ simulation pass 108 focused tests (`artifacts/rich-button-popup-green-03.xml`), 
 and strict typing. Post-input confirmation verifies the exact window, package UID, session PID,
 visible panel and owned original parent, then rereads focus/PID. Pre-input focus remains strict.
 No native effect, clipboard, event or quiet-period check is removed. Native acceptance is next.
+
+## Original native acceptance
+
+Passive12 passes the complete public native test in 151.69 seconds with no extra guest reads.
+Uninstrumented native13 independently passes in 106.49 seconds on the same immutable normal27
+APK: row and inline callback/copy/disabled receipts succeed, hidden/offscreen reject before
+dispatch, and repeated receipts remain unchanged. The earlier native10/11 failures remain
+retained; this success does not diagnose those intermittent readiness failures or establish
+broader clipboard-paste and placement coverage. Successful guest disks are removed while
+original captures, native effects and JUnits remain.

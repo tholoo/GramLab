@@ -3,7 +3,7 @@
 Type: task
 Status: ready-for-agent
 Work state: claimed by `custom_emoji_request_observer` on `task/rich-button-public-acceptance`
-Blocked by: frozen contract70; green execution waits for coordinator73 implementation
+Blocked by: broader native effect and clipboard-paste acceptance
 
 Own this ticket, new `tests/fixtures/rich_targets_bot.py`, new
 `tests/test_runner_rich_targets.py` and optional new `tests/rich_targets_scenario.py` only.
@@ -54,3 +54,11 @@ resolve native acceptance or the operational milestone.
   World transaction and actual supervisor interruption checks: 20 passed, one Android case
   deselected in `artifacts/rich-button-public-integration-05.xml`. The native acceptance case
   remains pending; this ticket is not resolved by simulation evidence.
+
+## Current native checkpoint
+
+The prepared Android case now passes uninstrumented on normal27 in 106.49 seconds under
+`artifacts/rich-button-native-13.xml`: six visible controls succeed, hidden/offscreen reject,
+and repeated receipts are unchanged. This case checks public receipt status/evidence shape;
+it does not independently paste the actual clipboard or repeat the complete simulation
+expected-message/history comparison on Android. Those wider contract checks remain open.

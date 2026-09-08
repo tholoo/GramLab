@@ -3,7 +3,7 @@
 Type: feature
 Status: ready-for-agent
 Work state: claimed; host harness integrated, native acceptance pending
-Blocked by: coordinator serial native execution and original baseline rendering acceptance
+Blocked by: native execution result
 
 Own this ticket and new `tests/probes/android_custom_emoji_faults.py`,
 `tests/test_android_custom_emoji_faults.py`, `tests/probes/custom_emoji_fault_server.py`, and
@@ -68,5 +68,6 @@ The reviewed fixture uses two distinct static logical IDs sharing one thumbnail;
 WebM playback. Mixed/partial cases require an actual naturally batched pair, and the mixed peer
 leaves ID1 available while ID2 is unavailable. Missing batching must remain a failed/unproven
 case. Same-process refetch remains a bounded diagnostic, and callback owner identity and removed
-receiver delivery remain separate observation gaps. Native execution currently awaits disk-space
-cleanup approval; no failure/recovery screenshots or native report are accepted yet.
+receiver delivery remain separate observation gaps. The earlier disk-space cleanup requirement is satisfied. The coordinator has started the first
+serial native execution on the verified immutable normal24 APK. No failure/recovery screenshots
+or native report are accepted until that run completes and its assertions are reviewed.

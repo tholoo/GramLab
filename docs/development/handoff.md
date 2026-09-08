@@ -19,42 +19,38 @@ in the full goal. A text-only subset is not the operational milestone.
 
 ## Latest integration checkpoint
 
-This checkpoint supersedes the older native blockers described below. The full operational
-milestone remains incomplete; the last combined core gate is still 780 passed at 86.71% coverage.
+The full operational milestone remains incomplete. Earlier failures remain retained and are not
+superseded by a later pass unless the specific correction is demonstrated.
 
-The user explicitly requested disk cleanup. Completed-run guest disks, old disk archives and
-reproducible caches from merged workers have been removed, while source branches and review
-artifacts remain. Follow [run retention](artifact-storage.md#run-retention) after every guest:
-keep the current build and at most two recent failed guests when their disks are still useful.
-Do not recreate an archive of every emulator disk. Cleanup receipts and exact retained paths are
-in ignored local notes. Some historical disk paths are intentionally absent; their logs,
-screenshots, APKs, reports and source provenance remain available.
+The user requested disk cleanup. Old guest disks, archives and reproducible caches were removed. Follow [run retention](artifact-storage.md#run-retention): save review
+artifacts, remove successful guest disks immediately, and retain at most two failed guests only
+while their disks help diagnosis. Historical disk paths may be absent; screenshots, logs, native
+JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignored local notes.
 
-- Normal26 fixes reconstructed rich-button provenance. Independent execution against actual
-  Android native buffers and SQLite passes all 25 reload, reopen, stale-update, A→B→A and
-  malformed-record cases; the same probe demonstrates the original normal25 identity loss.
-- Public native targeting now returns all eight canonical targets. Two host readiness fixes
-  pass 88 focused checks and let the subsequent diagnostic execute the actual row callback and
-  original row copy. A disabled row opens Telegram's original message context menu; its popup
-  focus makes confirmation uncertain and blocks later targets. Preserve that original behavior.
-  The reviewed app-owned popup confirmation fix passes 108 focused checks using exact PID/UID/parent
-  ownership. Uninstrumented native10 now succeeds for row and inline callback/copy, but disabled
-  preparation rejects. Its retained draw is already 4.397 seconds old at arm acknowledgement;
-  passive tracing must distinguish the five-second freshness bound from other causes.
-- Normal27 applies the coordinate observer's explicit cell-local matrix normalization without
-  changing original rendering or touch propagation. Its zero-fuzz/offset two-file application
-  and complete offline build pass; native matrix regression and combined public acceptance
-  remain pending under tickets82/84.
-- Original custom-emoji UI06 completes real bot edit, original settings enable, native animation
-  download and unchanged cold restart. The reviewed sampled visual checker passes 32 focused
-  controls and full immutable retained lifecycle revalidation, including all 72 burst frames,
-  exact cache bytes and isolation. The separate report is inspected at desktop/mobile sizes;
-  the original failed JUnit remains failed. Fresh UI07 also completes the lifecycle but rejects
-  one 500.3 ms capture interval. Integrated ticket83 batches original guest screenshots before
-  transfer and passes 58 combined helper/oracle checks; fresh native acceptance remains pending.
-- Immutable archived APK tooling passes 20 integrated filesystem cases and scoped static checks;
-  contributor/CI checks include it. It performs no automatic cleanup. Ticket15 prepares a small
-  private-only Android patch staging helper to replace repeated version-specific scripts.
+- Normal26 passes 25 actual native-buffer/SQLite provenance cases. Normal27 preserves original
+  drawing/input and normalizes observer coordinates; seven real Android Canvas/Matrix cases now
+  pass, including a verified first-corner overflow. The original projective fixture red remains.
+- Normal27's public native test passes without tracing in 106.49 seconds: all six visible row/
+  inline callback, copy and disabled controls succeed; hidden/offscreen reject before dispatch;
+  repeated receipts remain unchanged. Passive12 also passes in 151.69 seconds. The owned-popup
+  correction has 108 focused host/simulation checks and actual native acceptance. Earlier
+  native10/11 readiness failures remain incompletely diagnosed; source review finds arm ACKs can
+  reference old draws. Wider independent clipboard paste/full-state and placement/recovery gates
+  remain open under ticket74. Do not infer those from the current receipt-status test.
+- Custom-emoji UI06 retains complete successful lifecycle revalidation. Fresh UI08 completes bot
+  edit, animation download and cold restart, but actual guest screencap intervals include 500 and
+  580 ms, so the unchanged temporal oracle fails. Batching removes transfer overhead but does not
+  eliminate PNG acquisition latency. A fixed eight-capture experiment measures median raw/PNG
+  durations of 335/515 ms; one raw frame equals the separately decoded PNG pixel-for-pixel.
+  Ticket86 implements verified raw capture and lossless host PNG derivatives in a separate
+  worker branch. Fresh animation acceptance and ticket66 resolver faults remain pending.
+- Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
+  integrated with 15 passing checks, including all-new patches and bounded descendant-held
+  output cleanup; contributor/CI checks include it. It never mutates the live source tree.
+
+The combined core gate now passes all 894 tests at 87.07% coverage in 111.25 seconds with four
+isolated workers and no simultaneous guest. Run the remaining native gates serially and reuse
+the exact immutable APK provenance. Any live handles stay in ignored coordinator notes.
 
 ## First action
 
@@ -223,8 +219,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 780 passed at 86.71% coverage in 99.12 seconds using four isolated workers, verified primary imports and no simultaneous guest. Subsequent startup/fixture corrections pass focused integration; repeat the combined gate after the current fix batch. |
-| Latest static/workflow | The 780-test checkpoint passes full Ruff lint/format across 448 files, production/scoped strict typing, 213-document link validation and the pinned offline workflow check. Later worker changes still need combined verification. |
+| Latest core | 894 passed at 87.07% coverage in 111.25 seconds using four isolated workers, verified primary imports and no simultaneous guest. This includes the latest host, visual capture and developer tooling integrations; native gates remain separate. |
+| Latest static/workflow | The 894-test checkpoint passes 53 documented static commands, Ruff lint/format across 471 files, production/scoped strict typing, 230-document link/configuration validation and the pinned offline workflow check. The separate raw-capture worker is not integrated yet. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable

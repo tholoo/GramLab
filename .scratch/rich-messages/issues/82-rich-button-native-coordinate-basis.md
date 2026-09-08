@@ -1,9 +1,9 @@
 # Normalize observed button bounds to the original cell coordinate system
 
 Type: task
-Status: ready-for-review
-Work state: frozen on task/rich-button-coordinate-basis
-Blocked by: coordinator source review, compilation and native acceptance
+Status: ready-for-agent
+Work state: resolved
+Blocked by: none
 
 Own this ticket, one new GPL patch `clients/android/patches/0027-rich-button-coordinate-basis.patch`
 and its entry in `clients/android/patches/series`. Coordinator owns host readiness, integration,
@@ -46,3 +46,11 @@ The capture occurs after `layoutTextXY(false)`, which computes layout fields wit
 Canvas, and immediately after the cell-owned save/saveLayer. It precedes the explicit
 `canvas.translate(textX, textY)` and every rich block/button translation, so the saved entry matrix
 contains only the caller's outer basis.
+
+## Coordinator acceptance
+
+The complete normal27 offline build passes after exact zero-fuzz/offset application. Original
+native09 retains stable row/inline screen bounds across the popup redraw; seven actual Android
+Canvas/Matrix controls pass under ticket84, including the first-corner overflow guard. The
+public normal27 native13 test passes all six visible control operations and expected hidden/
+offscreen rejections without diagnostic tracing. Original rendering and input remain upstream.

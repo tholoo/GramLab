@@ -77,3 +77,12 @@ capture-helper and visual-oracle checks pass in `artifacts/custom-emoji-guest-bu
 scoped Ruff/format and strict typing pass. Helper tests and native probe typing run separately to
 preserve their intentionally different import roots. Fresh original Android execution remains
 pending; no earlier failed native JUnit is relabeled.
+
+## Fresh native measurement
+
+UI08 completes original bot edit, animation download and cold restart in a 182-second run,
+but its guest-side screenshot acquisition bounds still include 500 and 580 ms. The unchanged
+temporal oracle rejects them. Transfer is no longer in the interval; at least one actual
+screencap command exceeds half a period even accounting for clock quantization. Ticket86
+investigates original raw capture followed by lossless host PNG encoding. No existing failed
+result is relabeled, and all original pixels and timings remain retained.
