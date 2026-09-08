@@ -17,6 +17,34 @@ The user clarified the [first operational milestone](operational-milestone.md): 
 rich messages, photos/files and custom emoji are required. Mini Apps may follow later and remain
 in the full goal. A text-only subset is not the operational milestone.
 
+## Latest integration checkpoint
+
+This checkpoint supersedes the older native blockers described below. The full operational
+milestone remains incomplete; the last combined core gate is still 780 passed at 86.71% coverage.
+
+- Normal26 fixes reconstructed rich-button provenance. Independent execution against actual
+  Android native buffers and SQLite passes all 25 reload, reopen, stale-update, A→B→A and
+  malformed-record cases; the same probe demonstrates the original normal25 identity loss.
+- Public native targeting now returns all eight canonical targets. Two host readiness fixes
+  pass 88 focused checks and let the subsequent diagnostic execute the actual row callback and
+  original row copy. A disabled row opens Telegram's original message context menu; its popup
+  focus makes confirmation uncertain and blocks later targets. Preserve that original behavior.
+  App-owned popup confirmation requires actual ownership evidence, not a matching title.
+- Normal27 applies the coordinate observer's explicit cell-local matrix normalization without
+  changing original rendering or touch propagation. Its zero-fuzz/offset two-file application
+  and complete offline build pass; native matrix regression and combined public acceptance
+  remain pending under tickets82/84.
+- Original custom-emoji UI06 completes real bot edit, original settings enable, native animation
+  download and unchanged cold restart. The reviewed sampled visual checker passes 32 focused
+  controls and full immutable retained lifecycle revalidation, including all 72 burst frames,
+  exact cache bytes and isolation. The separate report is inspected at desktop/mobile sizes;
+  the original failed JUnit remains failed. Fresh UI07 also completes the lifecycle but rejects
+  one 500.3 ms capture interval. Ticket83 batches original guest screenshots before transfer to
+  remove host transfer latency from sampling; its fresh native acceptance remains pending.
+- Immutable archived APK tooling passes 20 integrated filesystem cases and scoped static checks;
+  contributor/CI checks include it. It performs no automatic cleanup. Ticket15 prepares a small
+  private-only Android patch staging helper to replace repeated version-specific scripts.
+
 ## First action
 
 Read [AGENTS.md](../../AGENTS.md) and the assigned ticket. Follow its linked testing, architecture,
