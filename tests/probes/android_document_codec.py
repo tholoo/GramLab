@@ -56,6 +56,15 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         except json.JSONDecodeError as error:
             raise RuntimeError("Native document-codec probe returned invalid JSON") from error
         require_success("pull", _OUTPUT, "/work/document-codec-native", timeout=30)
+        retained_path = Path("document-codec-native/summary.json")
+        if not retained_path.is_file() or retained_path.stat().st_size > _LIMIT:
+            raise RuntimeError("Pulled native document-codec summary is missing or too large")
+        try:
+            retained = json.loads(retained_path.read_text())
+        except json.JSONDecodeError as error:
+            raise RuntimeError("Pulled native document-codec summary is invalid JSON") from error
+        if retained != decoded:
+            raise RuntimeError("Pulled native document-codec summary disagrees with process output")
         return {"returncode": result.returncode, "result": decoded}
     finally:
         guest("shell", "rm", "-rf", _OUTPUT, _CLIENT, _PROBE, _NATIVE)

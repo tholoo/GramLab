@@ -71,3 +71,12 @@ with `javac -Xlint:all -Werror` and D8; its probe APK SHA-256 is
 Mypy and two non-Android tests pass. The worker did not build an APK or run a guest. The required
 pre-0029 missing-class red and post-0029 real `TLRPC`/`NativeByteBuffer` green remain coordinator
 acceptance, so this ticket stays claimed until integration succeeds.
+
+Review follow-up binds every parsed `Entry` field to independent literals before projection,
+including distinct `a`/`b`/`c`/`d`/`e` SHA-256 values, and requires the pulled native
+`summary.json` to parse exactly equal to process stdout. A disagreement host control rejects. The
+updated fixture source SHA-256 is
+`c8faa83decccee5a5bd1d3d0fe9b75daf81b286a42a8286d7ebe3e038a0178bb`; retained probe04 APK
+SHA-256 is `d32f21950413e179fa7a2c72a92b17ecdfe8e1cb74382c6fc43ac04addd7511a`.
+Probe03 remains retained as prior evidence. Updated focused Ruff, formatting, strict Mypy,
+ShellCheck, and three non-Android tests pass; native execution remains coordinator-owned.

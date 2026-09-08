@@ -207,6 +207,12 @@ def test_patch_and_fixture_freeze_the_bounded_document_codec() -> None:
     assert 'Class.forName("org.telegram.messenger.FileLoader")' in fixture
     assert "nativeBufferConstructor.newInstance" in fixture
     assert "deserialize.invoke" in fixture
+    assert 'entry.getField("id")' in fixture
+    assert 'entry.getField("size")' in fixture
+    assert 'entry.getField("fileName")' in fixture
+    assert 'entry.getField("mimeType")' in fixture
+    assert 'entry.getField("sha256")' in fixture
+    assert "retained != decoded" in Path("tests/probes/android_document_codec.py").read_text()
 
 
 def test_probe_collects_the_actual_app_process_result(
@@ -220,6 +226,10 @@ def test_probe_collects_the_actual_app_process_result(
         calls.append(arguments)
         if "/system/bin/app_process" in arguments:
             return subprocess.CompletedProcess(arguments, 0, json.dumps(expected), "")
+        if arguments[0] == "pull":
+            retained = Path("document-codec-native")
+            retained.mkdir()
+            (retained / "summary.json").write_text(json.dumps(expected, indent=2))
         return subprocess.CompletedProcess(arguments, 0, "", "")
 
     observed = probe(guest)
@@ -228,6 +238,26 @@ def test_probe_collects_the_actual_app_process_result(
     assert any("/work/libtmessages.49.so" in call for call in calls)
     retained = json.loads(Path("document-codec-process.json").read_text())
     assert retained == {"returncode": 0, "stdout": json.dumps(expected), "stderr": ""}
+    assert json.loads(Path("document-codec-native/summary.json").read_text()) == expected
+
+
+def test_probe_rejects_disagreement_between_process_and_pulled_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    expected = expected_native()
+
+    def guest(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if "/system/bin/app_process" in arguments:
+            return subprocess.CompletedProcess(arguments, 0, json.dumps(expected), "")
+        if arguments[0] == "pull":
+            retained = Path("document-codec-native")
+            retained.mkdir()
+            (retained / "summary.json").write_text('{"schema": 0}')
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    with pytest.raises(RuntimeError, match="summary disagrees with process output"):
+        probe(guest)
 
 
 @pytest.mark.android

@@ -227,11 +227,46 @@ public final class DocumentCodecProbe {
                     row(MAX_ID, "maximum", "", 50_000_000, repeat("e", 64)));
             Map<?, ?> entries = decode(input);
             require(entries.size() == 5, "wrong_entry_count");
+            long[] expectedIds = {1L, 2L, 10L, 2_147_483_648L, Long.MAX_VALUE};
+            long[] expectedSizes = {1L, 50_000_000L, 2L, 123L, 50_000_000L};
+            String[] expectedFileNames = {
+                    "گزارش🙂.pdf",
+                    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🙂",
+                    "archive.tar",
+                    "sentinel.bin",
+                    "maximum"
+            };
+            String[] expectedMimeTypes = {
+                    "application/pdf", "", "application/x-tar", "application/octet-stream", ""
+            };
+            String[] expectedDigests = {
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+            };
             List<String> order = new ArrayList<>();
+            int entryIndex = 0;
             for (Map.Entry<?, ?> item : entries.entrySet()) {
+                Object parsedEntry = item.getValue();
+                require(((Long) entry.getField("id").get(parsedEntry)).longValue()
+                        == expectedIds[entryIndex], "wrong_entry_id_" + entryIndex);
+                require(((Long) entry.getField("size").get(parsedEntry)).longValue()
+                        == expectedSizes[entryIndex], "wrong_entry_size_" + entryIndex);
+                require(expectedFileNames[entryIndex].equals(entry.getField("fileName").get(parsedEntry)),
+                        "wrong_entry_file_name_" + entryIndex);
+                require(expectedMimeTypes[entryIndex].equals(entry.getField("mimeType").get(parsedEntry)),
+                        "wrong_entry_mime_type_" + entryIndex);
+                require(expectedDigests[entryIndex].equals(entry.getField("sha256").get(parsedEntry)),
+                        "wrong_entry_sha256_" + entryIndex);
+                require(((Long) item.getKey()).longValue() == expectedIds[entryIndex],
+                        "wrong_entry_key_" + entryIndex);
                 order.add(item.getKey().toString());
-                documents.put(describe(project.invoke(null, item.getValue())));
+                documents.put(describe(project.invoke(null, parsedEntry)));
+                entryIndex++;
             }
+            require(entryIndex == expectedIds.length, "wrong_asserted_entry_count");
             require(
                     order.toString().equals("[1, 2, 10, 2147483648, 9223372036854775807]"),
                     "wrong_numeric_order");
