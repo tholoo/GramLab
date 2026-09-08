@@ -168,20 +168,22 @@ class NativeAssetProxy:
                             self.send_header(name, value)
                     self.send_header("Connection", "close")
                     self.end_headers()
-                    while chunk := response.read(65536):
+                    while chunk := response.read1(65536):
                         self.wfile.write(chunk)
+                        self.wfile.flush()
                         if record is not None:
                             with owner._lock:
                                 record["bytes"] += len(chunk)
-                    if document_ids is not None and response.length not in (None, 0):
+                    if response.length not in (None, 0):
                         if record is not None:
                             with owner._lock:
                                 record["error"] = "transport_error"
                         self.close_connection = True
                 except http.client.IncompleteRead as exc:
-                    if document_ids is not None and exc.partial:
+                    if exc.partial:
                         try:
                             self.wfile.write(exc.partial)
+                            self.wfile.flush()
                         except OSError:
                             pass
                         else:

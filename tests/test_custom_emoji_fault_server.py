@@ -5,6 +5,7 @@ import importlib
 import json
 import subprocess
 import threading
+import time
 from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,6 +15,7 @@ from urllib.parse import urlsplit
 
 import pytest
 from probes.custom_emoji_fault_server import CustomEmojiFaultServer, DocumentFault
+from probes.native_asset_proxy import NativeAssetProxy
 
 CAPABILITY = "gramlab-client_" + "f" * 43
 AUTHORIZATION = {"Authorization": "Bearer " + CAPABILITY}
@@ -160,6 +162,9 @@ def upstream() -> Generator[tuple[ThreadingHTTPServer, list[tuple[str, bytes, st
             elif self.path == "/v4/assets/2":
                 payload = b"shared-thumbnail-bytes"
                 mime = "image/webp"
+            elif self.path == "/v4/assets/4":
+                payload = b""
+                mime = "application/octet-stream"
             else:
                 payload = b'{"schema":4,"world_id":"fault-world"}'
                 mime = "application/json"
@@ -293,6 +298,105 @@ def test_held_shared_asset_completes_after_one_consumer_is_removed(
         rows = peer.requests()
         assert [(row["operation"], row["asset_id"], row["bytes"]) for row in rows] == [
             ("asset", 2, len(b"shared-thumbnail-bytes"))
+        ]
+
+
+def test_progressive_hold_crosses_proxy_timeout_and_reserves_completion_for_release(
+    upstream: tuple[ThreadingHTTPServer, list[tuple[str, bytes, str | None]]],
+) -> None:
+    server, _ = upstream
+    body = b"shared-thumbnail-bytes"
+    with CustomEmojiFaultServer(f"http://127.0.0.1:{server.server_port}", CAPABILITY) as peer:
+        hold = peer.hold_asset(2, progress_interval=3.0)
+        with NativeAssetProxy(peer.base_url, CAPABILITY) as proxy:
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", urlsplit(proxy.base_url).port, timeout=8
+            )
+            try:
+                connection.request("GET", "/v4/assets/2", headers=AUTHORIZATION)
+                response = connection.getresponse()
+                assert hold.partial_sent.wait(timeout=2)
+                prefix = response.read1(len(body) // 2)
+                assert prefix == body[: len(body) // 2]
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    remaining = pool.submit(response.read)
+                    time.sleep(5.25)
+                    assert not remaining.done()
+                    # Scheduling may resume after more than one progress interval. Require
+                    # real forwarded progress while final bytes still await explicit release.
+                    assert hold.progress_bytes_sent >= 1
+                    assert len(prefix) < proxy.requests()[0]["bytes"] < len(body)
+                    hold.release.set()
+                    assert prefix + remaining.result(timeout=5) == body
+            finally:
+                hold.release.set()
+                connection.close()
+        assert hold.finished.wait(timeout=5)
+        assert [(row["status"], row["bytes"], row["error"]) for row in proxy.requests()] == [
+            (200, len(body), None)
+        ]
+
+
+def test_default_hold_still_stalls_until_proxy_rejects_the_truncated_body(
+    upstream: tuple[ThreadingHTTPServer, list[tuple[str, bytes, str | None]]],
+) -> None:
+    server, _ = upstream
+    body = b"shared-thumbnail-bytes"
+    with CustomEmojiFaultServer(f"http://127.0.0.1:{server.server_port}", CAPABILITY) as peer:
+        hold = peer.hold_asset(2)
+        with NativeAssetProxy(peer.base_url, CAPABILITY) as proxy:
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", urlsplit(proxy.base_url).port, timeout=8
+            )
+            try:
+                connection.request("GET", "/v4/assets/2", headers=AUTHORIZATION)
+                response = connection.getresponse()
+                assert hold.partial_sent.wait(timeout=2)
+                started = time.monotonic()
+                with pytest.raises(http.client.IncompleteRead) as interrupted:
+                    response.read()
+                elapsed = time.monotonic() - started
+                assert interrupted.value.partial == body[: len(body) // 2]
+                assert 4.5 <= elapsed < 7
+                assert not hold.release.is_set()
+            finally:
+                hold.release.set()
+                connection.close()
+        assert hold.finished.wait(timeout=5)
+        assert [(row["status"], row["bytes"], row["error"]) for row in proxy.requests()] == [
+            (200, len(body) // 2, "transport_error")
+        ]
+
+
+def test_progressive_hold_rejects_invalid_schedule_and_short_body(
+    upstream: tuple[ThreadingHTTPServer, list[tuple[str, bytes, str | None]]],
+) -> None:
+    server, _ = upstream
+    with CustomEmojiFaultServer(f"http://127.0.0.1:{server.server_port}", CAPABILITY) as peer:
+        for interval in (0.0, 5.0):
+            with pytest.raises(ValueError, match="Progress"):
+                peer.hold_asset(2, progress_interval=interval)
+        hold = peer.hold_asset(
+            2,
+            progress_interval=1.0,
+            final_bytes=len(b"shared-thumbnail-bytes"),
+        )
+        status, _, body = request(peer.base_url, "GET", "/v4/assets/2")
+        assert status == 500
+        assert json.loads(body) == {"schema": 4, "error": "unsupported_progressive_body"}
+        assert hold.finished.wait(timeout=1) and not hold.started.is_set()
+        assert hold.error == "unsupported_progressive_body"
+        assert [(row["fault"], row["status"], row["bytes"]) for row in peer.requests()] == [
+            ("unsupported_progressive_body", 500, len(body))
+        ]
+        empty = peer.hold_asset(4, progress_interval=1.0)
+        status, _, body = request(peer.base_url, "GET", "/v4/assets/4")
+        assert status == 500
+        assert json.loads(body) == {"schema": 4, "error": "unsupported_progressive_body"}
+        assert empty.finished.wait(timeout=1) and empty.error == "unsupported_progressive_body"
+        assert [(row["fault"], row["status"]) for row in peer.requests()] == [
+            ("unsupported_progressive_body", 500),
+            ("unsupported_progressive_body", 500),
         ]
 
 

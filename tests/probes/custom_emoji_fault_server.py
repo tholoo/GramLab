@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import http.client
 import json
+import math
 import re
 import socket
 import threading
+import time
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import TracebackType
@@ -21,10 +23,14 @@ class HeldAsset:
     """One explicitly delayed asset response controlled without timing sleeps."""
 
     asset_id: int
+    progress_interval: float | None = None
+    final_bytes: int = 1
     started: threading.Event = field(default_factory=threading.Event)
     partial_sent: threading.Event = field(default_factory=threading.Event)
     release: threading.Event = field(default_factory=threading.Event)
     finished: threading.Event = field(default_factory=threading.Event)
+    progress_bytes_sent: int = 0
+    error: str | None = None
 
 
 class CustomEmojiFaultServer:
@@ -187,16 +193,51 @@ class CustomEmojiFaultServer:
                     ]
                 record["status"] = status
                 record["bytes"] = len(body)
-                if hold is None or status != 200 or not body:
+                if hold is None or status != 200:
+                    self.reply(status, headers, body)
+                    return
+                split = max(1, len(body) // 2)
+                if hold.progress_interval is not None and (
+                    not body
+                    or len(body) - split - hold.final_bytes < math.ceil(30 / hold.progress_interval)
+                ):
+                    hold.error = "unsupported_progressive_body"
+                    record["fault"] = hold.error
+                    failure = json.dumps(
+                        {"schema": 4, "error": hold.error}, separators=(",", ":")
+                    ).encode()
+                    record["status"] = 500
+                    record["bytes"] = len(failure)
+                    self.reply(500, [("Content-Type", "application/json")], failure)
+                    hold.finished.set()
+                    return
+                if not body:
                     self.reply(status, headers, body)
                     return
                 hold.started.set()
-                split = max(1, len(body) // 2)
                 self.reply(status, headers, body[:split], length=len(body))
                 hold.partial_sent.set()
                 try:
-                    if hold.release.wait(timeout=30):
-                        self.wfile.write(body[split:])
+                    cursor = split
+                    deadline = time.monotonic() + 30
+                    if hold.progress_interval is not None:
+                        progressive_end = len(body) - hold.final_bytes
+                        while cursor < progressive_end and not hold.release.is_set():
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0 or hold.release.wait(
+                                timeout=min(hold.progress_interval, remaining)
+                            ):
+                                break
+                            self.wfile.write(body[cursor : cursor + 1])
+                            self.wfile.flush()
+                            cursor += 1
+                            hold.progress_bytes_sent += 1
+                    if not hold.release.is_set():
+                        remaining = deadline - time.monotonic()
+                        if remaining > 0:
+                            hold.release.wait(timeout=remaining)
+                    if hold.release.is_set():
+                        self.wfile.write(body[cursor:])
                         self.wfile.flush()
                 except (ConnectionError, OSError):
                     pass
@@ -243,10 +284,20 @@ class CustomEmojiFaultServer:
             self._document_fault = value
             self._missing_ids = selected
 
-    def hold_asset(self, asset_id: int) -> HeldAsset:
+    def hold_asset(
+        self,
+        asset_id: int,
+        *,
+        progress_interval: float | None = None,
+        final_bytes: int = 1,
+    ) -> HeldAsset:
         if asset_id <= 0:
             raise ValueError("Held asset ID must be positive")
-        hold = HeldAsset(asset_id)
+        if progress_interval is not None and not 0.05 <= progress_interval <= 4.0:
+            raise ValueError("Progress interval must be between 0.05 and 4 seconds")
+        if not 1 <= final_bytes <= 65536 or (progress_interval is None and final_bytes != 1):
+            raise ValueError("Progress final-byte reservation is invalid")
+        hold = HeldAsset(asset_id, progress_interval, final_bytes)
         with self._lock:
             self._held_assets.setdefault(asset_id, []).append(hold)
             self._holds.append(hold)
