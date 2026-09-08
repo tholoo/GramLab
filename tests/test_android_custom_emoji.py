@@ -4,7 +4,9 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import shutil
+import struct
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -78,6 +80,45 @@ def test_original_custom_emoji_edit_animation_and_cold_cache(tmp_path: Path) -> 
     assert_native_lifecycle(tmp_path, full["extra_probe"], apk)
 
 
+def assert_burst_derivation(directory: Path, starts: list[int], ends: list[int]) -> dict[str, Any]:
+    """Independently decode every native PNG and compare it to retained original pixels."""
+    metadata: dict[str, Any] = json.loads((directory / "edited-burst-derivation.json").read_text())
+    assert metadata["schema"] == 1
+    assert metadata["input_format"] == "android-screencap-raw"
+    assert metadata["raw_header_le_uint32"] == [320, 640, 1, 1]
+    assert metadata["opaque"] is True and metadata["derivation"] == "lossless-png-rgba8"
+    assert metadata["manifest_path"] == "edited-burst-manifest.txt"
+    assert (
+        hashlib.sha256((directory / metadata["manifest_path"]).read_bytes()).hexdigest()
+        == (metadata["manifest_sha256"])
+    )
+    frames = metadata["frames"]
+    assert len(frames) == len(starts) == len(ends) == 24
+    raw_directories = set()
+    for index, (frame, start, end) in enumerate(zip(frames, starts, ends, strict=True)):
+        assert re.fullmatch(
+            rf"custom-emoji-burst-[a-f0-9]{{32}}/edited-burst-{index:02d}\.raw", frame["raw_path"]
+        )
+        assert frame["png_path"] == f"edited-burst-{index:02d}.png"
+        raw_directories.add(Path(frame["raw_path"]).parent)
+        raw = (directory / frame["raw_path"]).read_bytes()
+        assert len(raw) == frame["raw_size"] == 16 + 320 * 640 * 4
+        assert struct.unpack("<4I", raw[:16]) == (320, 640, 1, 1)
+        assert hashlib.sha256(raw).hexdigest() == frame["raw_sha256"]
+        rgba = raw[16:]
+        assert rgba[3::4] == bytes([255]) * (320 * 640)
+        assert hashlib.sha256(rgba).hexdigest() == frame["rgba_sha256"]
+        png = (directory / frame["png_path"]).read_bytes()
+        assert len(png) == frame["png_size"]
+        assert hashlib.sha256(png).hexdigest() == frame["png_sha256"]
+        with Image.open(directory / frame["png_path"]) as image:
+            assert image.format == "PNG" and image.mode == "RGBA" and image.size == (320, 640)
+            assert image.tobytes() == rgba
+        assert (frame["start_ns"], frame["end_ns"]) == (start, end)
+    assert len(raw_directories) == 1
+    return metadata
+
+
 def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) -> None:
     client = observed["client"]["observed"]
     assert set(client["captures"]) == {"initial", "edited", "restarted"}
@@ -124,7 +165,8 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     burst = []
     timestamps = client["burst_timestamps_ns"]
     assert len(timestamps) == 24
-    intervals = capture_intervals(timestamps, client.get("burst_end_timestamps_ns"))
+    derivation = assert_burst_derivation(tmp_path, timestamps, client["burst_end_timestamps_ns"])
+    intervals = capture_intervals(timestamps, client["burst_end_timestamps_ns"])
     for index in range(24):
         with Image.open(tmp_path / f"edited-burst-{index:02d}.png") as opened:
             burst.append(opened.copy())
@@ -177,10 +219,16 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
             seed=31,
             profile={"APK SHA-256": hashlib.sha256(Path(apk).read_bytes()).hexdigest()},
             summary="Original static and animated custom emoji survive an edit and cold restart.",
-            evidence={"Assets": requests, "Documents": documents, "Cache": client["cache"]},
+            evidence={
+                "Assets": requests,
+                "Documents": documents,
+                "Cache": client["cache"],
+                "Animation capture derivation": derivation,
+            },
             limitations=(
                 "Synthetic local catalog evidence does not establish production entitlement.",
                 "Broader resolver fault and cancellation coverage remains separate.",
+                "Animation burst PNGs are lossless copies of retained original raw screen pixels.",
             ),
             screenshots=tuple(
                 Screenshot(caption=phase, png=(tmp_path / f"{phase}.png").read_bytes())
