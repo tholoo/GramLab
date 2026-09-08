@@ -116,3 +116,19 @@ upstream export, HTTP/World/native/shared-doc edit or dependency change ran. Nar
 source acquisition was separate and authorized. Coordinator owns integration and shared-document
 updates. Remaining document API, service classification, upload ceilings and albums stay open;
 these metadata functions do not close those milestones.
+
+
+## Create-only oracle review follow-up
+
+The offline generator now rejects existing files and symlinks before reading sources or compiling,
+and exclusively creates its result after successful generation. The CLI preserves the output
+path for the symlink check. Existing evidence cannot be overwritten by a repeated invocation
+or a file appearing during compilation. Repetitions use a fresh path; this does not claim atomic
+publication across process death. The generator SHA in provenance was refreshed after formatting.
+
+Two controls independently failed before the correction (`artifacts/ticket97-create-only-red.xml`):
+a preserved regular evidence file and a dangling symlink, both with deliberately absent sources
+and compiler. All 32 focused tests now pass (`artifacts/ticket97-create-only-green.xml`), with
+strict mypy and Ruff lint/format passing. Fresh-path source regeneration remains byte-identical
+to the committed reference (`artifacts/ticket97-reference-create-only-repeat.json`; generator
+log `artifacts/ticket97-create-only-oracle.log`). Production metadata behavior is unchanged.

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import runpy
 from pathlib import Path
 
 import pytest
@@ -106,3 +107,23 @@ def test_pinned_new_letter_and_ascii_only_case_matching() -> None:
     assert "\u212amz".lower() == "kmz"
     assert document_mime_type("file.\u212amz") == ""
     assert document_mime_type("file.kmz") == "application/vnd.google-earth.kmz"
+
+
+@pytest.mark.parametrize("symlink", [False, True])
+def test_reference_regeneration_refuses_existing_output_before_reading_sources(
+    tmp_path: Path, symlink: bool
+) -> None:
+    output = tmp_path / "reference.json"
+    if symlink:
+        output.symlink_to(tmp_path / "missing-target")
+    else:
+        output.write_bytes(b"original reference evidence")
+    generator = runpy.run_path(str(REFERENCE / "regenerate.py"))
+    with pytest.raises(FileExistsError):
+        generator["regenerate"](tmp_path / "absent-sources", output, "absent-compiler")
+    if symlink:
+        assert output.is_symlink()
+        assert not output.exists()
+    else:
+        assert output.read_bytes() == b"original reference evidence"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["reference.json"]

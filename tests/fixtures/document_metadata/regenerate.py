@@ -37,6 +37,8 @@ def packed(value: Any) -> str:
 
 
 def regenerate(source: Path, output: Path, compiler: str) -> None:
+    if output.exists() or output.is_symlink():
+        raise FileExistsError("Reference output already exists: " + str(output))
     # No network or production-module import. Compile actual pinned source, not Python behavior.
     sources: dict[str, bytes] = {}
     for name, expected in SOURCES.items():
@@ -155,7 +157,8 @@ int main() {
             "unicode_translation_unit_sha256": digest(unit.read_bytes()),
             "extension_gperf_sha256": digest(reverse.read_bytes()),
         }
-        output.write_text(json.dumps(result, ensure_ascii=True, indent=2) + "\n")
+        with output.open("x", encoding="utf-8") as destination:
+            destination.write(json.dumps(result, ensure_ascii=True, indent=2) + "\n")
         print(
             json.dumps(
                 {key: value for key, value in result.items() if key not in {"packed_data", "mime"}}
@@ -169,4 +172,4 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     parser.add_argument("--compiler", default="c++")
     arguments = parser.parse_args()
-    regenerate(arguments.source.resolve(), arguments.output.resolve(), arguments.compiler)
+    regenerate(arguments.source.resolve(), arguments.output.absolute(), arguments.compiler)

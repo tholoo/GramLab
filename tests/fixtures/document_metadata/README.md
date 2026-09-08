@@ -20,6 +20,10 @@ tools/dev default --offline --command .venv/bin/python \
   tests/fixtures/document_metadata/regenerate.py RAW_SOURCE_DIRECTORY OUTPUT_JSON
 ```
 
+Output is create-only: choose a fresh output path for each repetition. An existing file or
+symlink is rejected before source reads or compilation, and exclusive creation prevents
+overwriting evidence if the path appears during compilation.
+
 The generator verifies source hashes, compiles and executes the original Unicode predicates for
 all1,114,112 code points, and executes the unchanged upstream MIME-table generator. It uses the
 original `filesystem.cpp` ASCII/category-admission lambda. The standalone translation unit removes

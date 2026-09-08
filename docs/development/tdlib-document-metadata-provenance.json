@@ -87,13 +87,14 @@
   "scope": "Filename sanitizer/PathView semantics, pinned Unicode filename predicates and extension-to-MIME data only; no server classification, multipart decoding, or Android-derived code.",
   "generator": {
     "path": "tests/fixtures/document_metadata/regenerate.py",
-    "sha256": "bbc3e53eef7227df408d0b740a69f60e66514192d93718330404715e7d43f20d",
+    "sha256": "70001c4045639dec51100d4534beb1092c3a3cb03e654f8e2a70cd6e7678f670",
     "command": "tools/dev default --offline --command .venv/bin/python tests/fixtures/document_metadata/regenerate.py RAW_SOURCE_DIRECTORY OUTPUT_JSON",
     "network": "none; acquire exact source URLs separately and verify hashes",
     "compiler": "c++ -std=c++17 -O2",
     "compiler_observed": "clang version 21.1.8",
     "reference_boundary": "Original unicode.cpp tables/functions with only includes removed, standard fixed-width integer aliases, original enum, fatal-log abort shim, and original filesystem.cpp is_ok lambda. Original generate_mime_types_gperf.cpp is compiled unchanged. No Python production helper supplies expected values.",
-    "temporary_outputs": "TemporaryDirectory removes both executables and assembled translation unit after reference output is preserved."
+    "temporary_outputs": "TemporaryDirectory removes both executables and assembled translation unit after reference output is preserved.",
+    "output_policy": "Create-only; existing files or symlinks rejected before compilation, exclusive creation at publication. Repeat into a separate fresh path."
   },
   "derived_data": {
     "module": "src/gramlab/_document_metadata.py",
