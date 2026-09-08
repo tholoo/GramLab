@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
+Work state: implemented on `task/rich-auto-detection-policy-proposal`; coordinator review pending
 Blocked by: user consultation before implementation
 
 Own this ticket and new `docs/development/rich-auto-detection-proposal.md` only. No runtime,
@@ -25,3 +25,14 @@ observations versus an explicit local policy versus a separately reviewed reusab
 Recommend one coherent policy and surface the most consequential tradeoffs in plain language.
 Link existing source evidence rather than duplicating large extracts. Validate local Markdown
 links/diff and return a clean frozen branch. This is a proposal, not permission to implement.
+
+## Worker result
+
+The new proposal separates the limited pinned facts from every selected local rule, covers the
+complete candidate and admitted text-role inventory, and makes send/edit/equality/persistence and
+original-renderer acceptance reviewable with concrete examples. It records the absence of a pinned
+runtime scanner and keeps dependency/source adaptation behind a separate licensing review.
+
+The fidelity policy remains unapproved. No runtime, test, dependency, ADR or implementation file
+was changed, and exact Telegram server parity remains unresolved. The repository configuration and
+all local links in 239 Markdown files validate with the documented CI check.
