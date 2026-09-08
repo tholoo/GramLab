@@ -1,9 +1,9 @@
 # Honor current message shapes in Android host interactions
 
 Type: bug
-Status: ready-for-agent
-Work state: frozen for coordinator review on `task/current-android-host-interactions`
-Blocked by: coordinator native execution result
+Status: resolved
+Work state: integrated; host and fresh native acceptance passed
+Blocked by: none
 
 Own this ticket, `src/gramlab/_android.py`, new `tests/test_android_current_message_interactions.py`
 and, if needed, one new self-contained `tests/fixtures/current_message_interactions_bot.py`.
@@ -94,3 +94,14 @@ then fails in 83.41 seconds because the test compares a creation event to a rece
 `answer: null`. The independent expected callback now explicitly separates the six creation
 fields from the receipt answer field. Scoped lint/format/strict typing pass; the fresh corrected
 native run remains the acceptance boundary. The original failed JUnit is retained.
+
+## Fresh native acceptance
+
+The corrected original Android run passes in 84.80 seconds on immutable normal27. It verifies
+the independently specified six-message history, complete callback creation/answer records,
+composer send journal and rendered current-content capture through the public runner. The actual
+photo caption/credit, mention, custom emoji and inline keyboard screenshot was inspected.
+Evidence: `artifacts/current-messages-native-02.xml` and the dedicated run's `result.json`,
+`report.html` and `captures/current-messages.png`. The first failed JUnit remains retained;
+this pass follows only the expected-event shape correction, with no runtime change. Successful
+guest disks were retired after preserving the evidence. Wider rich-button acceptance is separate.

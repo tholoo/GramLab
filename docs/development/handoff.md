@@ -48,9 +48,10 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   failed, so their full acceptance remains unproven. Ticket87 preserves those checkpoints and
   failure traces. Cancellation is unproven; the adapter's read timeout during the intentional
   partial-response hold is another hypothesis. Do not change original loader ownership on
-  speculation. Ticket69's native mixed-content run completes its six-message history, callback
-  and composer send but exposes an expected-event shape error; the corrected assertion is being
-  checked in a fresh run.
+  speculation. Ticket69's fresh native mixed-content run passes in 84.80 seconds after correcting
+  the expected callback-event shape. Complete six-message history, callback creation/answer and
+  composer-send comparisons pass; the original photo/mention/emoji capture was inspected. The
+  first failed JUnit remains retained and the successful guest disks have been retired.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
@@ -195,7 +196,7 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
 | Latest core | 894 passed at 87.07% coverage in 111.25 seconds using four isolated workers, verified primary imports and no simultaneous guest. This includes the latest host, visual capture and developer tooling integrations; native gates remain separate. |
-| Latest static/workflow | The 894-test checkpoint passes 53 documented static commands, Ruff lint/format across 471 files, production/scoped strict typing, 230-document link/configuration validation and the pinned offline workflow check. The separate raw-capture worker is not integrated yet. |
+| Latest static/workflow | The 894-test checkpoint passes 53 documented static commands, Ruff lint/format across 471 files, production/scoped strict typing, 230-document link/configuration validation and the pinned offline workflow check. The subsequently integrated raw-capture batch has separate focused and native evidence above. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable
