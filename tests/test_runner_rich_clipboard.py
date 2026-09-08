@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
+import shutil
+import sqlite3
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -20,14 +23,24 @@ from probes.rich_native_clipboard_supervisor import (
     semantic_state,
 )
 from test_runner_rich_targets import (
-    assert_complete_endpoint,
-    assert_native_prefix,
-    execute,
+    EXPECTED_SNAPSHOT,
+    PRIMARY_MESSAGE,
+    UNRELATED_MESSAGE,
+    api_message,
+    assert_native_evidence,
+    assert_observation,
+    expected_receipt_target,
+    initial_events,
+    initial_history,
+    ordinary_message,
     process_json,
+    project,
+    token,
 )
 
 from gramlab._android import Android
 from gramlab._android_rich_buttons import AndroidRichInput
+from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
 from gramlab.world import World
 
@@ -89,54 +102,396 @@ def test_semantic_snapshot_detects_real_world_messages_and_updates(tmp_path: Pat
         assert after["update_counters"] != before["update_counters"]
 
 
+def execute_clipboard(directory: Path, *, native: bool) -> dict[str, Any]:
+    mode = "headless-android" if native else "simulation-only"
+    arguments: dict[str, Any] = {}
+    if native:
+        profile, apk = (
+            os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE"),
+            os.environ.get("GRAMLAB_ANDROID_PROBE_APK"),
+        )
+        if profile is None or apk is None or not os.access("/dev/kvm", os.R_OK | os.W_OK):
+            pytest.skip("Requires reviewed Android profile/APK and accessible KVM")
+        arguments = {
+            "android_profile": RuntimeProfile.load(Path(profile)),
+            "android_apk": Path(apk),
+            "bridge_version": 4,
+        }
+    manifest = project(directory, mode=mode, variant="clipboard-four-phases")
+    shutil.copy2("tests/rich_clipboard_scenario.py", directory / "scenario.py")
+    output = directory.parent / (mode + "-run")
+    outcome = run(
+        manifest,
+        output,
+        profile=RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"])),
+        **arguments,
+    )
+    recorded: dict[str, Any] = json.loads((output / "result.json").read_text())
+    assert outcome == "passed", recorded
+    return recorded
+
+
+# Independently authored scenario expectations; do not import the executing phase plan.
+EXPECTED_PHASES = [
+    ("row_copy", [("row_copy", 2, "row copied / ردیف")]),
+    ("inline_copy", [("inline_copy", 5, "inline copied / درون")]),
+    (
+        "inline_disabled",
+        [
+            ("inline_baseline", 5, "inline copied / درون"),
+            ("inline_disabled", 6, "inline copied / درون"),
+        ],
+    ),
+    (
+        "row_disabled",
+        [("row_baseline", 2, "row copied / ردیف"), ("row_disabled", 3, "row copied / ردیف")],
+    ),
+]
+
+
+def assert_clipboard_exchange(api: list[dict[str, Any]]) -> None:
+    def entry(method: str, parameters: dict[str, Any], result: Any) -> dict[str, Any]:
+        return {
+            "method": method,
+            "parameters": parameters,
+            "status": 200,
+            "body": {"ok": True, "result": result},
+        }
+
+    assert api[:3] == [
+        entry(
+            "getUpdates",
+            {"timeout": 10},
+            [{"update_id": 1, "message": api_message(initial_history()[0])}],
+        ),
+        *[
+            entry(
+                "sendRichMessage",
+                {
+                    "chat_id": 2,
+                    "rich_message": message["rich_message"] | {"skip_entity_detection": True},
+                },
+                api_message(message),
+            )
+            for message in (PRIMARY_MESSAGE, UNRELATED_MESSAGE)
+        ],
+    ]
+    # Only empty polls at offset2 can intervene before the sole finish delivery.
+    position = 3
+    empty = entry("getUpdates", {"offset": 2, "timeout": 10}, [])
+    while position < len(api) and api[position] == empty:
+        position += 1
+    assert api[position:] == [
+        entry(
+            "getUpdates",
+            {"offset": 2, "timeout": 10},
+            [
+                {
+                    "update_id": 2,
+                    "message": api_message(ordinary_message(4, 2, "finish rich targets")),
+                }
+            ],
+        ),
+        entry("getUpdates", {"offset": 3}, []),
+    ]
+
+
+def assert_clipboard_endpoint(
+    recorded: dict[str, Any], directory: Path, *, native: bool
+) -> dict[str, Any]:
+    assert recorded["outcome"] == "passed" and recorded["failure"] is None
+    assert recorded["mode"] == ("headless-android" if native else "simulation-only")
+    assert recorded["world"] == EXPECTED_SNAPSHOT
+    assert set(recorded["processes"]) == {"scenario", "bot:targets"}
+    for process in recorded["processes"].values():
+        assert {key: value for key, value in process.items() if key != "stdout"} == {
+            "exit_code": 0,
+            "stderr": "",
+            "stopped_by_runner": False,
+            "stopped_by_scenario": False,
+            "generation": 1,
+            "stdout_complete": True,
+            "stderr_complete": True,
+        }
+    assert recorded["sources"] == {
+        "scenario": {
+            "scenario.py": hashlib.sha256(
+                Path("tests/rich_clipboard_scenario.py").read_bytes()
+            ).hexdigest(),
+            "fixture-variant.json": hashlib.sha256(
+                json.dumps("clipboard-four-phases").encode()
+            ).hexdigest(),
+        },
+        "bots/targets": {
+            "bot.py": hashlib.sha256(
+                Path("tests/fixtures/rich_targets_bot.py").read_bytes()
+            ).hexdigest()
+        },
+    }
+    output = process_json(recorded, "scenario")
+    assert len(output) == 1
+    scenario = output[0]
+    assert scenario.keys() == {"variant", "phases", "final"}
+    assert scenario["variant"] == "clipboard-four-phases"
+    quiet = {
+        "snapshot": EXPECTED_SNAPSHOT,
+        "events": initial_events(),
+        "history": initial_history(),
+    }
+    target_ids: set[str] = set()
+    operation_ids: set[str] = set()
+    identities = []
+    assert len(scenario["phases"]) == 4
+    clipboard: str | None = None
+    for phase, (name, actions) in zip(scenario["phases"], EXPECTED_PHASES, strict=True):
+        assert phase.keys() == {"name", "observation", "before", "observed", "actions", "after"}
+        assert phase["name"] == name
+        assert phase["before"] == phase["observed"] == phase["after"] == quiet
+        observation = phase["observation"]
+        assert_observation(observation, revision=5)
+        new_ids = {target["target_id"] for target in observation["targets"]}
+        assert target_ids.isdisjoint(new_ids)
+        target_ids.update(new_ids)
+        phase_identity = set()
+        assert len(phase["actions"]) == len(actions)
+        for action, (action_name, index, text) in zip(phase["actions"], actions, strict=True):
+            assert action.keys() == {"name", "receipt", "before", "after"}
+            assert action["name"] == action_name and action["before"] == action["after"] == quiet
+            receipt = action["receipt"]
+            assert receipt.keys() == {
+                "operation_id",
+                "target",
+                "status",
+                "dispatch",
+                "effect",
+                "reason",
+                "evidence",
+            }
+            token(receipt["operation_id"])
+            assert receipt["operation_id"] not in operation_ids
+            operation_ids.add(receipt["operation_id"])
+            assert receipt["target"] == expected_receipt_target(observation["targets"][index], 5)
+            assert (
+                receipt["status"] == "succeeded"
+                and receipt["dispatch"] == "dispatched"
+                and receipt["reason"] is None
+            )
+            disabled = action_name.endswith("disabled")
+            assert receipt["effect"] == (
+                {"kind": "none", "reason": "disabled"}
+                if disabled
+                else {"kind": "copy", "text": text}
+            )
+            pair = receipt["evidence"]["clipboard_observation"]
+            assert type(pair) is dict and pair.keys() == {"before", "after"}
+            # Across cold launches only the actual baseline is evidence; disabled pairs must
+            # preserve this phase's established exact copy, not a previous phase's clipboard.
+            assert pair["before"] is None or type(pair["before"]) is str
+            assert pair["after"] == text
+            if disabled:
+                assert pair == {"before": text, "after": text}
+            elif not native:
+                assert pair["before"] == clipboard
+            clipboard = text
+            assert receipt["evidence"]["world_event_sequences"] == []
+            if native:
+                phase_identity.add(assert_native_evidence(directory, receipt, clipboard=pair))
+            else:
+                assert receipt["evidence"] == {
+                    "mode": "simulation",
+                    "world_event_sequences": [],
+                    "clipboard_observation": pair,
+                }
+        if native:
+            assert len(phase_identity) == 1
+            identities.append(phase_identity.pop())
+    assert len(target_ids) == 32 and len(operation_ids) == 6
+    finish = ordinary_message(4, 2, "finish rich targets")
+    history = [*initial_history(), finish]
+    events = [*initial_events(), {"sequence": 7, "type": "message.created", "data": finish}]
+    assert scenario["final"] == {
+        "snapshot": EXPECTED_SNAPSHOT,
+        "events": events,
+        "history": history,
+    }
+    assert recorded["histories"] == {"1": history} and recorded["events"] == events
+    actual = json.loads(json.dumps(semantic_state(directory / "world")))
+    assert actual == {
+        "snapshot": EXPECTED_SNAPSHOT,
+        "histories": {"1": history},
+        "events": events,
+        "callbacks": [],
+        "client_sends": [],
+        "update_counters": [[1, 3]],
+    }
+    if native:
+        database = sqlite3.connect(
+            (directory / "world/world.sqlite3").as_uri() + "?mode=ro", uri=True
+        )
+        try:
+            world_id = database.execute("SELECT world_id FROM configuration").fetchone()[0]
+        finally:
+            database.close()
+        assert {identity[0] for identity in identities} == {world_id}
+        assert (
+            len({identity[1] for identity in identities})
+            == len({identity[2] for identity in identities})
+            == 4
+        )
+    bot = process_json(recorded, "bot:targets")
+    assert len(bot) == 2 and bot[0] == {
+        "event": "published",
+        "primary": api_message(PRIMARY_MESSAGE),
+        "unrelated": api_message(UNRELATED_MESSAGE),
+    }
+    assert bot[1].keys() == {"event", "callbacks", "api"}
+    assert bot[1]["event"] == "finished" and bot[1]["callbacks"] == []
+    assert_clipboard_exchange(bot[1]["api"])
+    return scenario
+
+
+def test_real_contained_clipboard_phases_have_exact_effects_and_quiet_state(
+    tmp_path: Path, trace_runner: Any
+) -> None:
+    recorded = execute_clipboard(tmp_path / "project", native=False)
+    assert_clipboard_endpoint(recorded, tmp_path / "simulation-only-run", native=False)
+    # Mutate this real contained result, never generate or relabel native evidence.
+    for defect in (
+        "reused_targets",
+        "extra_action",
+        "wrong_copy",
+        "wrong_disabled_baseline",
+        "history_mutation",
+    ):
+        corrupted = copy.deepcopy(recorded)
+        scenario = process_json(corrupted, "scenario")[0]
+        phases = scenario["phases"]
+        if defect == "reused_targets":
+            phases[1]["observation"] = copy.deepcopy(phases[0]["observation"])
+        elif defect == "extra_action":
+            phases[2]["actions"].append(copy.deepcopy(phases[2]["actions"][0]))
+        elif defect == "wrong_copy":
+            phases[0]["actions"][0]["receipt"]["effect"]["text"] = "inline copied / درون"
+        elif defect == "wrong_disabled_baseline":
+            phases[3]["actions"][1]["receipt"]["evidence"]["clipboard_observation"] = {
+                "before": "inline copied / درون",
+                "after": "inline copied / درون",
+            }
+        else:
+            phases[2]["actions"][0]["after"]["history"][1]["text"] = "unexpected edit"
+        corrupted["processes"]["scenario"]["stdout"] = json.dumps(scenario)
+        with pytest.raises(AssertionError):
+            assert_clipboard_endpoint(corrupted, tmp_path / "simulation-only-run", native=False)
+    api = process_json(recorded, "bot:targets")[-1]["api"]
+    for defect in ("poll_before_publication", "wrong_offset", "callback_update", "extra_write"):
+        corrupted_api = copy.deepcopy(api)
+        if defect == "poll_before_publication":
+            corrupted_api[1], corrupted_api[3] = corrupted_api[3], corrupted_api[1]
+        elif defect == "wrong_offset":
+            corrupted_api[3]["parameters"]["offset"] = 1
+        elif defect == "callback_update":
+            corrupted_api[-2]["body"]["result"] = [
+                {"update_id": 2, "callback_query": {"data": "unexpected"}}
+            ]
+        else:
+            corrupted_api.insert(-1, copy.deepcopy(corrupted_api[1]))
+        with pytest.raises(AssertionError):
+            assert_clipboard_exchange(corrupted_api)
+
+
 @pytest.mark.android
 @pytest.mark.usefixtures("clipboard_supervisor")
 def test_public_native_rich_clipboard_paste_clear_and_disabled_preservation(tmp_path: Path) -> None:
-    recorded = execute(tmp_path / "project", mode="headless-android")
-    scenario = process_json(recorded, "scenario")[-1]
+    recorded = execute_clipboard(tmp_path / "project", native=True)
     directory = tmp_path / "headless-android-run"
-    callbacks, events = assert_native_prefix(scenario, directory)
-    assert_complete_endpoint(recorded, scenario, callbacks, events)
+    scenario = assert_clipboard_endpoint(recorded, directory, native=True)
     source = Path("tests/probes/rich_native_clipboard_supervisor.py").read_bytes()
-    staged = (directory / "rich_native_clipboard_supervisor.py").read_bytes()
-    assert staged == source
+    assert (directory / "rich_native_clipboard_supervisor.py").read_bytes() == source
     assert (directory / "clipboard-probe-source.sha256").read_text() == hashlib.sha256(
         source
     ).hexdigest()
-    expected = [
-        ("row_copy", "row copied / ردیف"),
-        ("inline_copy", "inline copied / درون"),
-        ("inline_disabled", "inline copied / درون"),
-        ("row_disabled", "inline copied / درون"),
-    ]
     paths = list((directory / "clipboard-probes").glob("*/result.json"))
-    assert len(paths) == 4
-    for name, text in expected:
-        receipt = scenario["receipts"][name]
-        operation = directory / "clipboard-probes" / receipt["operation_id"]
-        evidence: dict[str, Any] = json.loads((operation / "result.json").read_text())
-        assert evidence["name"] == name
-        assert evidence["operation_id"] == receipt["operation_id"]
-        assert evidence["target"] == receipt["target"]
-        assert evidence["dispatch_result"] == {
-            key: receipt[key] for key in ("status", "dispatch", "effect", "reason", "evidence")
-        }
-        assert evidence["status"] == "passed"
-        assert evidence["ui_representation"] == "xml_with_redacted_attribute_and_text_values"
-        assert evidence["pasted_text"] == text and evidence["cleared"] is True
-        assert evidence["before"] == evidence["after"]
-        for phase, value in (("empty", "Message"), ("pasted", text), ("cleared", "Message")):
-            assert composer((operation / f"{phase}.xml").read_text(), value)["text"] == value
-            from PIL import Image
+    assert len(paths) == 6
+    quiet = {
+        "snapshot": EXPECTED_SNAPSHOT,
+        "histories": {"1": initial_history()},
+        "events": initial_events(),
+        "callbacks": [],
+        "client_sends": [],
+        "update_counters": [[1, 2]],
+    }
+    terminal_count = 0
+    for phase_index, (phase, (_, actions)) in enumerate(
+        zip(scenario["phases"], EXPECTED_PHASES, strict=True)
+    ):
+        for action, (name, _, text) in zip(phase["actions"], actions, strict=True):
+            receipt = action["receipt"]
+            operation = directory / "clipboard-probes" / receipt["operation_id"]
+            evidence = json.loads((operation / "result.json").read_text())
+            assert evidence["name"] == name and evidence["phase_index"] == phase_index
+            assert (
+                evidence["operation_id"] == receipt["operation_id"]
+                and evidence["target"] == receipt["target"]
+            )
+            assert evidence["dispatch_result"] == {
+                key: receipt[key] for key in ("status", "dispatch", "effect", "reason", "evidence")
+            }
+            assert evidence["status"] == "passed"
+            assert evidence["action_before"] == evidence["action_after"] == quiet
+            identity = assert_native_evidence(
+                directory, receipt, clipboard=receipt["evidence"]["clipboard_observation"]
+            )
+            assert evidence["client_nonce"] == identity[2]
+            terminal = not name.endswith("baseline")
+            assert evidence["terminal"] is terminal
+            if not terminal:
+                assert {p.name for p in operation.iterdir()} == {"result.json"}
+                assert (
+                    not {"commands", "before", "after", "pasted_text", "cleared"} & evidence.keys()
+                )
+                continue
+            terminal_count += 1
+            assert evidence["ui_representation"] == "xml_with_redacted_attribute_and_text_values"
+            assert evidence["pasted_text"] == text and evidence["cleared"] is True
+            assert evidence["before"] == evidence["after"] == quiet
+            commands = evidence["commands"]
+            assert len(commands) <= 32
+            inputs = [
+                command["arguments"]
+                for command in commands
+                if command["arguments"][:2] == ["shell", "input"]
+            ]
+            keys = [
+                ["shell", "input", "keyevent", "279"],
+                ["shell", "input", "keyevent", "123"],
+                ["shell", "input", "keyevent", *(["67"] * len(text))],
+            ]
+            if name == "row_disabled" and inputs[:1] == [["shell", "input", "keyevent", "4"]]:
+                keys.insert(0, ["shell", "input", "keyevent", "4"])
+            assert inputs == keys
+            assert {p.name for p in operation.iterdir()} == {
+                "result.json",
+                "empty.xml",
+                "empty.png",
+                "pasted.xml",
+                "pasted.png",
+                "cleared.xml",
+                "cleared.png",
+            }
+            for stage, value in (("empty", "Message"), ("pasted", text), ("cleared", "Message")):
+                assert composer((operation / f"{stage}.xml").read_text(), value)["text"] == value
+                from PIL import Image
 
-            with Image.open(operation / f"{phase}.png") as image:
-                assert image.format == "PNG" and image.size == (320, 640)
-                image.verify()
+                with Image.open(operation / f"{stage}.png") as image:
+                    assert image.format == "PNG" and image.size == (320, 640)
+                    image.verify()
+    assert terminal_count == 4
 
 
 @pytest.fixture
 def native_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AndroidRichInput:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(AndroidRichInput, "observe", AndroidRichInput.observe)
     with World.create(tmp_path / "world", seed=41, now=1700000000) as world:
         user = world.create_user(first_name="Sara")
         bot = world.create_user(first_name="Targets", is_bot=True)
@@ -164,7 +519,7 @@ def test_post_probe_preserves_original_return_and_fails_incorrect_effects(
     if mode == "uncertain":
         outcome.update(status="uncertain", effect=None, reason={"code": "effect_timeout"})
     receipt = {"operation_id": "1" * 32, "target": {"path": ["blocks", 16, "buttons", 1]}}
-    prepared = {"control": "original preparation"}
+    prepared = {"control": "original preparation", "context": {"arm": {"client_nonce": "first"}}}
     order: list[str] = []
 
     def original(
@@ -186,8 +541,10 @@ def test_post_probe_preserves_original_return_and_fails_incorrect_effects(
         self.record.update(pasted_text=expected, cleared=True)
 
     monkeypatch.setattr(AndroidRichInput, "dispatch", original)
+    monkeypatch.setattr(AndroidRichInput, "observe", lambda self, record: "first")
     monkeypatch.setattr(ClipboardProbe, "run", external_ui)
     install()
+    assert native_host.observe({}) == "first"
     assert native_host.dispatch(receipt, prepared) is outcome
     raw = Path("clipboard-probes", "1" * 32, "result.json").read_text()
     assert SECRET not in raw
@@ -424,3 +781,115 @@ def test_fresh_diagnostic_preserves_actual_frame_return_exception_and_existing_e
     with pytest.raises(ValueError) as repeated:
         native_host._fresh(state)
     assert repeated.value is failure and calls == 2 and path.read_bytes() == raw
+
+
+@pytest.mark.parametrize("fault", [None, "same_lifetime", "wrong_order", "baseline_mutation"])
+def test_four_phases_keep_baselines_unprobed_and_reject_invalid_progression(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch, fault: str | None
+) -> None:
+    # Only native observation/dispatch/UI evidence is substituted; World/retention are real.
+    phase = 0
+    probes: list[str] = []
+    outcomes: list[dict[str, Any]] = []
+    plan = [
+        [("row_copy", ["blocks", 16, "buttons", 1], "row copied / ردیف")],
+        [("inline_copy", ["blocks", 17, "text", 1, "text", 2, "button"], "inline copied / درون")],
+        [
+            (
+                "inline_baseline",
+                ["blocks", 17, "text", 1, "text", 2, "button"],
+                "inline copied / درون",
+            ),
+            ("inline_disabled", ["blocks", 17, "text", 2, "button"], "inline copied / درون"),
+        ],
+        [
+            ("row_baseline", ["blocks", 16, "buttons", 1], "row copied / ردیف"),
+            ("row_disabled", ["blocks", 16, "buttons", 2], "row copied / ردیف"),
+        ],
+    ]
+
+    def observation(self: AndroidRichInput, record: dict[str, Any]) -> str:
+        return "lifetime-0" if fault == "same_lifetime" else f"lifetime-{phase}"
+
+    def original(
+        self: AndroidRichInput, receipt: dict[str, Any], prepared: dict[str, Any]
+    ) -> dict[str, Any]:
+        if fault == "baseline_mutation" and len(outcomes) == 2:
+            with World.open(Path("world")) as world:
+                world.send_message(chat_id=1, sender_id=1, text="unexpected baseline send")
+        return prepared["outcome"]  # type: ignore[no-any-return]
+
+    def external_ui(self: ClipboardProbe, name: str, expected: str) -> None:
+        probes.append(name)
+        self.record.update(pasted_text=expected, cleared=True)
+
+    monkeypatch.setattr(AndroidRichInput, "observe", observation)
+    monkeypatch.setattr(AndroidRichInput, "dispatch", original)
+    monkeypatch.setattr(ClipboardProbe, "run", external_ui)
+    install()
+    for phase, actions in enumerate(plan):
+        if fault == "same_lifetime" and phase == 1:
+            with pytest.raises(ValueError):
+                native_host.observe({})
+            break
+        lifetime = native_host.observe({})
+        for name, path, expected in actions:
+            receipt: dict[str, Any] = {
+                "operation_id": f"{len(outcomes) + 1:032x}",
+                "target": {"path": path},
+            }
+            if fault == "wrong_order":
+                receipt["target"]["path"] = ["blocks", 16, "buttons", 2]
+            result = {
+                "status": "succeeded",
+                "dispatch": "dispatched",
+                "reason": None,
+                "effect": {"kind": "none", "reason": "disabled"}
+                if name.endswith("disabled")
+                else {"kind": "copy", "text": expected},
+                "evidence": {},
+            }
+            prepared = {"outcome": result, "context": {"arm": {"client_nonce": lifetime}}}
+            assert native_host.dispatch(receipt, prepared) is result
+            evidence = json.loads(
+                Path("clipboard-probes", receipt["operation_id"], "result.json").read_text()
+            )
+            failed = fault == "wrong_order" or (
+                fault == "baseline_mutation" and name == "inline_baseline"
+            )
+            assert evidence["status"] == ("failed" if failed else "passed")
+            if failed:
+                with pytest.raises(ValueError):
+                    native_host.observe({})
+                return
+            assert evidence["name"] == name
+            assert evidence["terminal"] is (not name.endswith("baseline"))
+            assert evidence["action_before"] == evidence["action_after"]
+            if name.endswith("baseline"):
+                assert "commands" not in evidence and "pasted_text" not in evidence
+            outcomes.append(result)
+    if fault is None:
+        assert len(outcomes) == 6
+        assert probes == ["row_copy", "inline_copy", "inline_disabled", "row_disabled"]
+
+
+def test_original_observation_failure_is_not_retried(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    failure = RuntimeError("Original observation failure")
+    calls = 0
+
+    def original(self: AndroidRichInput, record: dict[str, Any]) -> str:
+        nonlocal calls
+        calls += 1
+        raise failure
+
+    monkeypatch.setattr(AndroidRichInput, "observe", original)
+    monkeypatch.setattr(AndroidRichInput, "dispatch", AndroidRichInput.dispatch)
+    install()
+    with pytest.raises(RuntimeError) as raised:
+        native_host.observe({})
+    assert raised.value is failure and calls == 1
+    with pytest.raises(ValueError):
+        native_host.observe({})
+    assert calls == 1
