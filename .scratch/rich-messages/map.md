@@ -63,3 +63,8 @@ the full product scope documented in the handoff.
 - [104: original document loading](issues/104-ordinary-document-native-delivery.md) and
   [105: real-bot document UI](issues/105-ordinary-document-native-ui.md): active implementation;
   original external-files publication and complete native acceptance remain pending.
+
+- [106: standalone media edits](issues/106-standalone-media-edits.md): resolved at the World/HTTP
+  boundary with core18/static17; native acceptance is assigned separately.
+- [108: native media-edit workflow](issues/108-native-standalone-media-edits.md): extend the existing
+  real-bot document scenario; original Android execution remains gated on104 delivery.
