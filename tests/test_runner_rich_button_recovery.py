@@ -103,7 +103,7 @@ def test_runner_retains_offline_recovery_after_abrupt_supervisor_exit(
         "chat_id": 1,
         "message_id": 2,
         "message_revision": 5,
-        "path": ["blocks", 0, "buttons", 0],
+        "path": ["blocks", 16, "buttons", 0],
         "button": {"text": "Same / همان", "callback_data": "same:payload"},
         "label": "Same / همان",
     }

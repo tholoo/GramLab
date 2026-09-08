@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: unclaimed
+Work state: implemented on task/rich-button-native-fixture-framing; native verification pending
 Blocked by: native coordinator verification after focused fixture checks
 
 Own this ticket, `tests/fixtures/rich_targets_bot.py`, `tests/rich_targets_scenario.py` and
@@ -26,3 +26,25 @@ the test. Keep the real missing behavior failure if the original viewport still 
 Run the focused actual contained simulation scenario and strict typing/lint/format. Retain the
 initial original screenshot as red framing evidence; native green remains coordinator-owned.
 Do not run a guest, APK build or full gate. Return a clean frozen branch and structured handoff.
+
+## Worker evidence
+
+The independently authored message now places the intended offscreen callback first, followed by
+the same fifteen filler paragraphs. The visible row and nested inline callback/copy/disabled
+controls and closed details block are last, matching the original bottom-aligned resting viewport
+without scrolling. Canonical expectations retain all eight targets and explicitly use blocks 0,
+16, 17 and 18. Scenario actions still select the visible row callback for stale/ABA and unrelated
+edit checks, preserving three eight-target observations, duplicate payloads, callback ordering and
+clipboard sequencing.
+
+The focused real-bot simulation passes under the outer loopback-only namespace; retained JUnit is
+`artifacts/rich-button-framing-simulation.xml`. Collection finds both public tests. Scoped Ruff
+lint and format checks pass, and strict mypy with the repository's explicit-package-bases
+convention reports no issues in the three Python files. The assigned environment was provisioned
+from a copied local uv cache with locked offline resolution. No Android guest, APK build or full
+gate ran. The original screenshot remains the framing red; native acceptance is coordinator-owned.
+
+Coordinator integration updates the dependent abrupt-recovery oracle to the new visible row
+path. The real public scenario and all six interruption phases pass together: seven passed,
+one native case deselected (`artifacts/rich-button-framing-integrated-02.xml`). The earlier
+three old-path assertion failures remain retained. Native viewport acceptance remains pending.

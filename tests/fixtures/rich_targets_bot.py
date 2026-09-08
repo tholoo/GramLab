@@ -49,6 +49,14 @@ initial = {
     "skip_entity_detection": True,
     "blocks": [
         {
+            "type": "paragraph",
+            "text": {
+                "type": "button",
+                "button": button("Offscreen callback / دور", callback_data="offscreen"),
+            },
+        },
+        *filler,
+        {
             "type": "buttons",
             "buttons": [
                 button("Same / همان", callback_data="same:payload"),
@@ -94,14 +102,6 @@ initial = {
                     },
                 }
             ],
-        },
-        *filler,
-        {
-            "type": "paragraph",
-            "text": {
-                "type": "button",
-                "button": button("Offscreen callback / دور", callback_data="offscreen"),
-            },
         },
     ],
 }
