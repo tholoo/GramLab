@@ -40,19 +40,21 @@ not establish the cause of an unrelated earlier failure.
 ## Active work and next actions
 
 1. Review [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
-   in its assigned worktree after the independent review. Preserve distinct
+   is reviewed and integrated with 41 affected host checks, strict typing and Ruff passing.
+   Source reconstruction matches all 29 prior patches; private staging verifies all five changed
+   files. Build normal30 next, then run the 35-case original loader suite and cold restart. Preserve distinct
    document/emoji identities, exact v5 dependencies, rejected-response atomicity, original
    destinations, cancellation, cache and notifications. Review found same-world authority rotation,
    cache10 lifecycle and missing v4/v5 native controls. Corrections are prepared; the publication
-   primitive is now being replaced before the complete production/native review.
+   primitive is now replaced in the integrated code; actual production/native acceptance is pending.
 2. Actual target-process filesystem07 now establishes the publication blocker: app external files
    are writable, but Java and Os hard-link creation both fail with access denied. The original
    draft therefore cannot publish downloads there. A sequential Files.move control rejects an
    existing destination but does not establish race safety. A narrow atomic no-replace
    rename primitive was then verified in rename01: absent/Unicode targets succeed, an occupied
    target returns EEXIST unchanged, and eight two-source races retain exactly one complete winner
-   and the unchanged losing source. Invalid/missing paths reject. The worker is adapting this
-   bounded UTF-8/API26 syscall primitive into the existing GPL JNI library; the production loader
+   and the unchanged losing source. Invalid/missing paths reject. The integrated patch uses this
+   bounded UTF-8 syscall primitive in the existing GPL JNI library; the production loader
    suite and new APK remain pending. Runtime evidence is limited to the pinned x86_64 guest.
    Earlier standalone probes used a different process/storage context; target instrumentation suppresses Application.onCreate explicitly,
    verifies public Context/Application identity and retains zero-account/isolation evidence.

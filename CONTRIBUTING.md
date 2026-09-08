@@ -130,6 +130,7 @@ MYPYPATH=tests uv run --locked mypy --strict src/gramlab/bot_api.py tests/test_d
 MYPYPATH=tests uv run --locked mypy --strict src/gramlab/client_bridge.py tests/test_document_bridge.py
 uv run --locked mypy --strict src/gramlab/world.py tests/test_world_creation.py
 uv run --locked mypy --strict tests/fixtures/document_bot.py tests/probes/document_round_trip.py tests/probes/android_document_ui.py tests/test_document_round_trip.py tests/test_android_document_ui.py
+uv run --locked mypy --strict tests/probes/android_document_delivery.py tests/test_android_document_delivery.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
 

@@ -1,0 +1,725 @@
+diff --git a/TMessagesProj/jni/TgNetWrapper.cpp b/TMessagesProj/jni/TgNetWrapper.cpp
+--- a/TMessagesProj/jni/TgNetWrapper.cpp
++++ b/TMessagesProj/jni/TgNetWrapper.cpp
+@@ -12,6 +12,40 @@
+ #include <openssl/bn.h>
+ #include <openssl/pem.h>
+ #include <openssl/aes.h>
++
++// Ordinary-file publication must not replace a concurrent original destination.
++// API26 exports syscall; renameat2's libc wrapper itself requires API30.
++#include <errno.h>
++#include <fcntl.h>
++#include <string.h>
++#include <sys/syscall.h>
++#include <unistd.h>
++#include <linux/fs.h>
++
++static int gramLabDocumentPath(JNIEnv *env, jbyteArray value, char output[4096]) {
++    if (value == nullptr) return EINVAL;
++    jsize size = env->GetArrayLength(value);
++    if (size <= 0 || size >= 4096) return EINVAL;
++    env->GetByteArrayRegion(value, 0, size, reinterpret_cast<jbyte *>(output));
++    if (env->ExceptionCheck()) return EINVAL;
++    if (memchr(output, 0, static_cast<size_t>(size)) != nullptr) return EINVAL;
++    output[size] = 0;
++    return 0;
++}
++
++extern "C" JNIEXPORT jint JNICALL
++Java_org_telegram_messenger_FileLoader_nativeRenameDocument(
++        JNIEnv *env, jclass, jbyteArray source, jbyteArray destination) {
++    char oldPath[4096], newPath[4096];
++    int invalid = gramLabDocumentPath(env, source, oldPath);
++    if (invalid != 0) return invalid;
++    invalid = gramLabDocumentPath(env, destination, newPath);
++    if (invalid != 0) return invalid;
++    long result = syscall(SYS_renameat2, AT_FDCWD, oldPath, AT_FDCWD,
++                          newPath, RENAME_NOREPLACE);
++    int failure = errno;
++    return result == 0 ? 0 : failure;
++}
+ 
+ JavaVM *java;
+ 
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -101,12 +101,15 @@
+     }
+ 
+     private static TLRPC.TL_message message(JSONObject record, long persona, long bot, Set<Long> mentionUsers, long revision) throws JSONException {
+-        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
++        fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities", "document");
+         boolean hasPhoto = record.has("photo");
+-        require(!record.has("caption") || hasPhoto);
+-        require(!record.has("caption_entities") || hasPhoto);
+-        require(!hasPhoto || !record.has("entities"));
+-        require(!record.has("rich_message") || !hasPhoto && !record.has("caption") && !record.has("caption_entities"));
++        boolean hasDocument = record.has("document");
++        boolean hasMedia = hasPhoto || hasDocument;
++        require(!hasPhoto || !hasDocument);
++        require(!record.has("caption") || hasMedia);
++        require(!record.has("caption_entities") || hasMedia);
++        require(!hasMedia || !record.has("entities"));
++        require(!record.has("rich_message") || !hasMedia && !record.has("caption") && !record.has("caption_entities"));
+         long sender = identifier(record, "sender_id");
+         require(sender == persona || sender == bot);
+         TLRPC.TL_message message = new TLRPC.TL_message();
+@@ -125,7 +128,7 @@
+             require(sender == bot && message.message.isEmpty() && !record.has("entities"));
+             message.rich_message = GramLabRichMessage.decode(record.getJSONObject("rich_message"), mentionUsers, revision);
+             message.flags2 |= 1 << 13;
+-        } else require(record.has("photo") || !message.message.isEmpty());
++        } else require(hasMedia || !message.message.isEmpty());
+         if (record.has("photo")) {
+             require(sender == bot && message.message.isEmpty() && !record.has("rich_message"));
+             JSONObject photoRecord = record.getJSONObject("photo");
+@@ -138,10 +141,23 @@
+                 require(record.get("caption") instanceof String);
+                 message.message = record.getString("caption");
+             }
++        } else if (hasDocument) {
++            require(sender == bot && message.message.isEmpty() && !record.has("rich_message"));
++            JSONObject documentRecord = record.getJSONObject("document");
++            fields(documentRecord, "document_id");
++            require(documentRecord.length() == 1);
++            TLRPC.TL_messageMediaDocument media = new TLRPC.TL_messageMediaDocument();
++            media.document = GramLabMedia.requireDocument(documentRecord.get("document_id"));
++            media.flags |= 1;
++            message.media = media;
++            if (record.has("caption")) {
++                require(record.get("caption") instanceof String);
++                message.message = record.getString("caption");
++            }
+         } else message.media = new TLRPC.TL_messageMediaEmpty();
+         message.flags = (1 << 8) | (1 << 9);
+         if (record.has("caption_entities")) {
+-            require(record.has("photo") && !record.has("entities"));
++            require(hasMedia && !record.has("entities"));
+             message.entities = entities(record.getJSONArray("caption_entities"), message.message);
+             if (!message.entities.isEmpty()) message.flags |= 1 << 7;
+         }
+@@ -337,7 +353,7 @@
+         } finally {
+             connection.disconnect();
+         }
+-        int expectedSchema = path.startsWith("/v4/") ? 4 : path.startsWith("/v3/") ? 3 : path.startsWith("/v2/") ? 2 : 1;
++        int expectedSchema = path.startsWith("/v5/") ? 5 : path.startsWith("/v4/") ? 4 : path.startsWith("/v3/") ? 3 : path.startsWith("/v2/") ? 2 : 1;
+         require(integer(body, "schema") == expectedSchema && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+         return body;
+@@ -351,19 +367,20 @@
+         if (previousSnapshot != null) boundState(configuration, previousSnapshot);
+         IdentityKnowledge identities = previousSnapshot == null ? new IdentityKnowledge() : previousSnapshot.identities;
+         int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
+-        require(version == 2 || version == 3 || version == 4);
++        require(version == 2 || version == 3 || version == 4 || version == 5);
+         JSONObject body = exchange(configuration, "/v" + version + "/snapshot", null);
+         String worldId = configuration.getString("world_id");
+         long persona = identifier(configuration, "user_id");
+         fields(body, "schema", "world_id", "user_id", "cursor", "now", "users", "chats", "messages",
+-                "message_position", "sends", "assets", "message_revisions", "custom_emoji");
++                "message_position", "sends", "assets", "message_revisions", "custom_emoji", "documents");
+         require(integer(body, "schema") == version && worldId.equals(body.getString("world_id"))
+                 && identifier(body, "user_id") == persona);
+-        require(version == 4 || !body.has("custom_emoji"));
+-        try (GramLabMedia.Scope mediaScope = version == 4 ? GramLabMedia.scope(configuration,
+-                body.getJSONArray("assets"), body.getJSONArray("custom_emoji")) : null) {
+-        if (version != 4) GramLabMedia.beginWorld(configuration, worldId);
+-        if (version >= 3) { if (version != 4) GramLabMedia.install(body.getJSONArray("assets")); body.getJSONArray("message_revisions"); }
++        require(version >= 4 || !body.has("custom_emoji"));
++        require(version == 5 || !body.has("documents"));
++        try (GramLabMedia.Scope mediaScope = version >= 4 ? GramLabMedia.scope(configuration,
++                body.getJSONArray("assets"), body.getJSONArray("custom_emoji"), version == 5 ? body.getJSONArray("documents") : new JSONArray()) : null) {
++        if (version < 4) GramLabMedia.beginWorld(configuration, worldId);
++        if (version >= 3) { if (version < 4) GramLabMedia.install(body.getJSONArray("assets")); body.getJSONArray("message_revisions"); }
+         else require(!body.has("assets") && !body.has("message_revisions"));
+         long cursor = nonnegative(body, "cursor");
+         int now = integer(body, "now");
+@@ -413,7 +430,7 @@
+         }
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities");
++            fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date", "entities", "rich_message", "photo", "caption", "caption_entities", "document");
+             long revisionValue = 0;
+             if (revisions != null) {
+                 JSONObject revision = revisions.getJSONObject(index);
+@@ -620,13 +637,14 @@
+         boundState(configuration, state);
+         require(after >= 0 && after <= Integer.MAX_VALUE && limit > 0 && limit <= 1000);
+         int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
+-        if (version != 4) GramLabMedia.beginRequest(configuration);
++        if (version < 4) GramLabMedia.beginRequest(configuration);
+         JSONObject body = exchange(configuration, ("/v" + version + "/changes") + "?after=" + after + "&limit=" + limit, null);
+-        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes", "users", "assets", "custom_emoji");
+-        require(version == 4 || !body.has("custom_emoji"));
+-        try (GramLabMedia.Scope mediaScope = version == 4 ? GramLabMedia.scope(configuration, body.getJSONArray("assets"), body.getJSONArray("custom_emoji")) : null) {
++        fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes", "users", "assets", "custom_emoji", "documents");
++        require(version >= 4 || !body.has("custom_emoji"));
++        require(version == 5 || !body.has("documents"));
++        try (GramLabMedia.Scope mediaScope = version >= 4 ? GramLabMedia.scope(configuration, body.getJSONArray("assets"), body.getJSONArray("custom_emoji"), version == 5 ? body.getJSONArray("documents") : new JSONArray()) : null) {
+         UserDependencies dependencies = version >= 3 ? dependencyUsers(body.getJSONArray("users"), state) : null;
+-        if (version >= 3) { if (version != 4) GramLabMedia.install(body.getJSONArray("assets")); }
++        if (version >= 3) { if (version < 4) GramLabMedia.install(body.getJSONArray("assets")); }
+         else require(!body.has("users") && !body.has("assets"));
+         // Share one immutable batch list; each original envelope receives its own vector copy.
+         List<TLRPC.User> users = Collections.unmodifiableList(new ArrayList<>(
+@@ -762,13 +780,27 @@
+         String id = Long.toString(query.random_id);
+         JSONObject parameters = new JSONObject().put("request_id", id).put("chat_id", chat)
+                 .put("text", query.message).put("entities", entities);
+-        JSONObject body = exchange(configuration, "/v2/messages", parameters);
+-        fields(body, "schema", "world_id", "user_id", "send");
++        int version = configuration.optInt("bridge_version", 2);
++        boundState(configuration, state);
++        JSONObject body = exchange(configuration, version == 5 ? "/v5/messages" : "/v2/messages", parameters);
++        fields(body, "schema", "world_id", "user_id", "send", "users", "assets", "custom_emoji", "documents", "message_revision");
++        require(version == 5 || body.length() == 4);
++        if (version == 5) identifier(body, "message_revision");
++        try (GramLabMedia.Scope mediaScope = version == 5 ? GramLabMedia.scope(configuration,
++                body.getJSONArray("assets"), body.getJSONArray("custom_emoji"), body.getJSONArray("documents")) : null) {
++        UserDependencies dependencies = version == 5 ? dependencyUsers(body.getJSONArray("users"), state) : null;
+         SendResult result = sendResult(body.getJSONObject("send"), state);
+         require(result.requestId.equals(id) && result.peer == query.peer.user_id
+                 && result.message.message.equals(query.message));
+         require(outgoingEntities(result.message.entities, result.message.message).toString().equals(entities.toString()));
+-        return result;
++        if (mediaScope != null) mediaScope.requireExactDependencies();
++        synchronized (state.identities) {
++            if (dependencies != null) state.identities.validate(dependencies);
++            if (mediaScope != null) mediaScope.commit();
++            if (dependencies != null) state.identities.remember(dependencies);
++        }
++        return result;
++        }
+     }
+ 
+     private static TLRPC.TL_messages_botCallbackAnswer answer(JSONObject data) throws JSONException {
+@@ -801,17 +833,18 @@
+         JSONObject parameters = new JSONObject().put("request_id", gramLabRequestId)
+                 .put("chat_id", chat).put("message_id", query.msg_id).put("data", data);
+         int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
+-        if (version != 4) GramLabMedia.beginRequest(configuration);
++        if (version < 4) GramLabMedia.beginRequest(configuration);
+         String callbackPath = version >= 3 ? "/v" + version + "/callbacks" : "/v1/callbacks";
+         JSONObject body = exchange(configuration, callbackPath, parameters);
+         long deadline = SystemClock.elapsedRealtime() + 15000;
+         String id = null;
+         while (true) {
+-            fields(body, "schema", "world_id", "user_id", "callback", "users", "assets", "message_revision", "custom_emoji");
+-            require(version == 4 || !body.has("custom_emoji"));
+-            try (GramLabMedia.Scope mediaScope = version == 4 ? GramLabMedia.scope(configuration, body.getJSONArray("assets"), body.getJSONArray("custom_emoji")) : null) {
++            fields(body, "schema", "world_id", "user_id", "callback", "users", "assets", "message_revision", "custom_emoji", "documents");
++            require(version >= 4 || !body.has("custom_emoji"));
++        require(version == 5 || !body.has("documents"));
++            try (GramLabMedia.Scope mediaScope = version >= 4 ? GramLabMedia.scope(configuration, body.getJSONArray("assets"), body.getJSONArray("custom_emoji"), version == 5 ? body.getJSONArray("documents") : new JSONArray()) : null) {
+             UserDependencies dependencies = version >= 3 ? dependencyUsers(body.getJSONArray("users"), state) : null;
+-            if (version >= 3) { if (version != 4) GramLabMedia.install(body.getJSONArray("assets")); identifier(body, "message_revision"); }
++            if (version >= 3) { if (version < 4) GramLabMedia.install(body.getJSONArray("assets")); identifier(body, "message_revision"); }
+             else require(!body.has("users") && !body.has("assets") && !body.has("message_revision"));
+             JSONObject record = body.getJSONObject("callback");
+             fields(record, "id", "user_id", "chat_id", "message", "data", "chat_instance", "answer");
+@@ -844,12 +877,13 @@
+     public static org.telegram.tgnet.Vector customEmojiDocuments(JSONObject configuration, Snapshot state,
+             java.util.List<Long> requested) throws Exception {
+         boundState(configuration, state);
+-        require(integer(configuration, "bridge_version") == 4 && requested != null
++        int version = integer(configuration, "bridge_version");
++        require((version == 4 || version == 5) && requested != null
+                 && !requested.isEmpty() && requested.size() <= 200);
+         java.util.TreeSet<Long> ids = new java.util.TreeSet<>();
+         for (Long id : requested) { require(id != null && id > 0); ids.add(id); }
+         JSONArray encoded = new JSONArray(); for (long id : ids) encoded.put(Long.toString(id));
+-        JSONObject body = exchange(configuration, "/v4/custom-emoji-documents",
++        JSONObject body = exchange(configuration, "/v" + version + "/custom-emoji-documents",
+                 new JSONObject().put("custom_emoji_ids", encoded));
+         fields(body, "schema", "world_id", "user_id", "custom_emoji", "assets");
+         require(body.length() == 5);
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabMedia.java
+@@ -33,12 +33,13 @@
+     private static final Map<Long, Asset> assets = new LinkedHashMap<>();
+ 
+     private static final Map<Long, GramLabCustomEmoji.Entry> documents = new LinkedHashMap<>();
++    private static final Map<Long, GramLabDocument.Entry> ordinaryDocuments = new LinkedHashMap<>();
+     private static final ThreadLocal<Scope> decoding = new ThreadLocal<>();
+     private static long bindingEpoch;
+ 
+     private GramLabMedia() {}
+ 
+-    /** v4 response-local dependencies. Failed parsing never publishes transfer metadata. */
++    /** v4/v5 response-local dependencies. Failed parsing never publishes transfer metadata. */
+     public static final class Scope implements AutoCloseable {
+         private final JSONObject config;
+         private final String world;
+@@ -46,22 +47,30 @@
+         private final long epoch;
+         final Map<Long, Asset> incomingAssets;
+         final Map<Long, GramLabCustomEmoji.Entry> incomingDocuments;
++        final Map<Long, GramLabDocument.Entry> incomingOrdinary;
++        final java.util.Set<Long> usedOrdinary = new java.util.HashSet<>();
+         final java.util.Set<Long> usedAssets = new java.util.HashSet<>();
+         final java.util.Set<Long> usedDocuments = new java.util.HashSet<>();
+-        private Scope(JSONObject config, JSONArray records, JSONArray emoji) throws JSONException {
++        private Scope(JSONObject config, JSONArray records, JSONArray emoji, JSONArray ordinary) throws JSONException {
+             if (decoding.get() != null) throw new IllegalStateException("GRAMLAB_NESTED_MEDIA_SCOPE");
+             this.config = new JSONObject(config.toString());
+             this.world = config.getString("world_id");
+             this.user = GramLabBridge.identifier(config, "user_id");
+-            if (GramLabBridge.integer(config, "bridge_version") != 4) throw invalid();
++            int version = GramLabBridge.integer(config, "bridge_version");
++            if (version != 4 && version != 5 || version != 5 && ordinary.length() != 0) throw invalid();
+             synchronized (GramLabMedia.class) { epoch = bindingEpoch; }
+             incomingAssets = parseAssets(records);
+             incomingDocuments = GramLabCustomEmoji.parse(emoji, incomingAssets);
++            incomingOrdinary = GramLabDocument.parse(ordinary);
+             synchronized (GramLabMedia.class) { validate(); }
+             decoding.set(this);
+         }
+         private void validate() {
+             if (world.equals(worldId) && user == persona) {
++                for (GramLabDocument.Entry entry : incomingOrdinary.values()) {
++                    GramLabDocument.Entry old = ordinaryDocuments.get(entry.id);
++                    if (old != null && !same(old, entry)) throw invalidDocument();
++                }
+                 for (Asset asset : incomingAssets.values()) {
+                     Asset old = assets.get(asset.id);
+                     if (old != null && !same(old, asset)) throw invalid();
+@@ -73,17 +82,21 @@
+             }
+         }
+         public void requireExactDependencies() {
+-            if (!incomingAssets.keySet().equals(usedAssets) || !incomingDocuments.keySet().equals(usedDocuments)) throw invalid();
++            if (!incomingAssets.keySet().equals(usedAssets) || !incomingDocuments.keySet().equals(usedDocuments)
++                    || !incomingOrdinary.keySet().equals(usedOrdinary)) throw invalid();
+         }
+         public void commit() {
+             synchronized (GramLabMedia.class) {
+                 if (epoch != bindingEpoch) throw new IllegalStateException("GRAMLAB_STALE_MEDIA_SCOPE");
+                 validate();
+                 if (!world.equals(worldId) || user != persona) {
+-                    assets.clear(); documents.clear(); bindingEpoch++;
++                    assets.clear(); documents.clear(); ordinaryDocuments.clear(); bindingEpoch++;
+                     worldId = world; persona = user;
++                } else if (!sameAuthority(configuration, config)) {
++                    bindingEpoch++;
+                 }
+                 assets.putAll(incomingAssets); documents.putAll(incomingDocuments);
++                ordinaryDocuments.putAll(incomingOrdinary);
+                 configuration = config;
+             }
+         }
+@@ -91,7 +104,66 @@
+     }
+ 
+     public static Scope scope(JSONObject config, JSONArray assets, JSONArray documents) throws JSONException {
+-        return new Scope(config, assets, documents);
++        return new Scope(config, assets, documents, new JSONArray());
++    }
++    public static Scope scope(JSONObject config, JSONArray assets, JSONArray emoji, JSONArray ordinary) throws JSONException {
++        return new Scope(config, assets, emoji, ordinary);
++    }
++    private static IllegalArgumentException invalidDocument() {
++        return new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_DOCUMENT");
++    }
++    private static boolean same(GramLabDocument.Entry a, GramLabDocument.Entry b) {
++        return a.id == b.id && a.size == b.size && a.fileName.equals(b.fileName)
++                && a.mimeType.equals(b.mimeType) && a.sha256.equals(b.sha256);
++    }
++    public static TLRPC.TL_document requireDocument(Object id) {
++        Scope scope = decoding.get();
++        if (scope == null || scope.config.optInt("bridge_version") != 5) throw invalidDocument();
++        long key = GramLabDocument.identifier(id);
++        GramLabDocument.Entry entry = scope.incomingOrdinary.get(key);
++        if (entry == null) throw invalidDocument();
++        scope.usedOrdinary.add(key);
++        return GramLabDocument.project(entry);
++    }
++    private static boolean sameAuthority(JSONObject a, JSONObject b) {
++        return a != null && b != null
++                && java.util.Objects.equals(a.opt("endpoint"), b.opt("endpoint"))
++                && java.util.Objects.equals(a.opt("capability"), b.opt("capability"))
++                && java.util.Objects.equals(a.opt("world_id"), b.opt("world_id"))
++                && a.optLong("user_id") == b.optLong("user_id")
++                && a.optInt("bridge_version", 2) == b.optInt("bridge_version", 2);
++    }
++    /** A transfer holds the exact validated authority and immutable descriptor together. */
++    public static final class OrdinaryTransfer {
++        public final GramLabDocument.Entry entry;
++        public final JSONObject configuration;
++        private final long epoch;
++        private OrdinaryTransfer(GramLabDocument.Entry entry) throws JSONException {
++            this.entry = entry;
++            configuration = GramLabMedia.configuration();
++            epoch = bindingEpoch;
++        }
++        public boolean current() {
++            synchronized (GramLabMedia.class) {
++                GramLabDocument.Entry current = ordinaryDocuments.get(entry.id);
++                return epoch == bindingEpoch && current != null && same(current, entry)
++                        && sameAuthority(GramLabMedia.configuration, configuration);
++            }
++        }
++    }
++    public static synchronized OrdinaryTransfer transferDocument(TLRPC.Document document) {
++        if (!isReserved(document) || document.id >= 0 || document.id == Long.MIN_VALUE
++                || configuration == null || configuration.optInt("bridge_version") != 5) return null;
++        GramLabDocument.Entry entry = ordinaryDocuments.get(-document.id);
++        if (entry == null || !(document instanceof TLRPC.TL_document) || document.flags != 0 || document.date != 0
++                || document.size != entry.size || !entry.mimeType.equals(document.mime_type)
++                || document.access_hash != 0 || document.file_reference == null || document.file_reference.length != 0
++                || document.key != null || document.iv != null || document.attributes.size() != 1
++                || !(document.attributes.get(0) instanceof TLRPC.TL_documentAttributeFilename)
++                || !entry.fileName.equals(document.attributes.get(0).file_name)
++                || !document.thumbs.isEmpty() || !document.video_thumbs.isEmpty()) return null;
++        try { return new OrdinaryTransfer(entry); }
++        catch (JSONException error) { return null; }
+     }
+     private static IllegalArgumentException invalid() {
+         return new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_CUSTOM_EMOJI");
+@@ -136,7 +208,7 @@
+     public static synchronized void beginWorld(JSONObject config, String world) throws JSONException {
+         long configuredPersona = GramLabBridge.identifier(config, "user_id");
+         if (!world.equals(worldId) || persona != configuredPersona) {
+-            assets.clear(); documents.clear(); bindingEpoch++;
++            assets.clear(); documents.clear(); ordinaryDocuments.clear(); bindingEpoch++;
+             worldId = world;
+             persona = configuredPersona;
+         }
+@@ -145,7 +217,8 @@
+ 
+     public static synchronized void beginRequest(JSONObject config) throws JSONException {
+         int version = config.has("bridge_version") ? GramLabBridge.integer(config, "bridge_version") : 2;
+-        if (version != 2 && version != 3 && version != 4) throw new IllegalArgumentException("GRAMLAB_BRIDGE_VERSION");
++        if (version != 2 && version != 3 && version != 4 && version != 5) throw new IllegalArgumentException("GRAMLAB_BRIDGE_VERSION");
++        if (!sameAuthority(configuration, config)) bindingEpoch++;
+         configuration = new JSONObject(config.toString());
+     }
+ 
+@@ -209,11 +282,16 @@
+     }
+ 
+     public static boolean matches(File file, Asset asset) {
++        return matches(file, asset.size, asset.sha256);
++    }
++
++    public static boolean matches(File file, long expectedSize, String expectedDigest) {
++        if (!file.isFile() || file.length() != expectedSize) return false;
+         try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
+             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+             byte[] buffer = new byte[8192]; int count; long size = 0;
+             while ((count = input.read(buffer)) != -1) { size += count; digest.update(buffer, 0, count); }
+-            return size == asset.size && hex(digest.digest()).equals(asset.sha256);
++            return size == expectedSize && hex(digest.digest()).equals(expectedDigest);
+         } catch (Exception error) { return false; }
+     }
+ 
+@@ -224,10 +302,18 @@
+     }
+ 
+     public static synchronized void trace(String event, long assetId, String fileName, long size, boolean digestOk) {
++        traceIdentity(event, "asset_id", assetId, fileName, size, digestOk);
++    }
++
++    public static synchronized void traceDocument(String event, long id, String fileName, long size, boolean digestOk) {
++        traceIdentity(event, "document_id", Long.toString(id), fileName, size, digestOk);
++    }
++
++    private static void traceIdentity(String event, String identity, Object id, String fileName, long size, boolean digestOk) {
+         try {
+             File directory = new File(ApplicationLoader.applicationContext.getFilesDir(), "gramlab");
+             directory.mkdirs();
+-            JSONObject row = new JSONObject().put("event", event).put("asset_id", assetId)
++            JSONObject row = new JSONObject().put("event", event).put(identity, id)
+                     .put("cache_file", fileName).put("file_size", size).put("digest_ok", digestOk);
+             try (FileWriter output = new FileWriter(new File(directory, "trace.jsonl"), true)) {
+                 output.write(row.toString()); output.write("\n");
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -319,7 +319,7 @@
+                         || request instanceof TLRPC.TL_users_getFullUser
+                         || request instanceof TLRPC.TL_messages_getBotCallbackAnswer
+                         || request instanceof TLRPC.TL_messages_sendMessage
+-                        || request instanceof TLRPC.TL_messages_getCustomEmojiDocuments && configuration.optInt("bridge_version", 2) == 4
++                        || request instanceof TLRPC.TL_messages_getCustomEmojiDocuments && (configuration.optInt("bridge_version", 2) == 4 || configuration.optInt("bridge_version", 2) == 5)
+                         || request instanceof TLRPC.TL_updates_getState
+                         || request instanceof TLRPC.TL_updates_getDifference)) {
+                     throw new UnsupportedOperationException();
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java
+@@ -34,6 +34,8 @@
+ import java.util.regex.Pattern;
+ 
+ public class FileLoader extends BaseController {
++
++    private static native int nativeRenameDocument(byte[] source, byte[] destination);
+ 
+     private static final int PRIORITY_STREAM = 4;
+     public static final int PRIORITY_HIGH = 3;
+@@ -791,10 +793,15 @@
+     private final class SyntheticPhotoLoad implements Runnable {
+         final String fileName;
+         final GramLabMedia.Asset asset;
++        final GramLabMedia.OrdinaryTransfer ordinary;
++        final FilePathDatabase.PathData pathSaveData;
++        final long size;
++        final String mimeType;
++        final String sha256;
+         final JSONObject configuration;
+         final Object parentObject;
+         final File temporary;
+-        final File target;
++        File target;
+         final int mediaType;
+         final LoadOperationUIObject uiObject = new LoadOperationUIObject();
+         // Guarded exclusively by syntheticPhotoLock; no per-attempt monitor.
+@@ -805,8 +812,25 @@
+         SyntheticPhotoLoad(String fileName, GramLabMedia.Asset asset, JSONObject configuration,
+                 Object parentObject, File target, int mediaType) {
+             this.fileName = fileName; this.asset = asset; this.configuration = configuration;
++            ordinary = null; pathSaveData = null;
++            size = asset.size; mimeType = asset.mimeType; sha256 = asset.sha256;
+             this.parentObject = parentObject; this.target = target; this.mediaType = mediaType;
+             this.temporary = new File(target.getParentFile(), fileName + ".gramlab-" + java.util.UUID.randomUUID() + ".part");
++        }
++
++        SyntheticPhotoLoad(String fileName, GramLabMedia.OrdinaryTransfer ordinary,
++                Object parentObject, File target, int mediaType, FilePathDatabase.PathData pathSaveData) {
++            this.fileName = fileName; asset = null; this.ordinary = ordinary;
++            configuration = ordinary.configuration; this.pathSaveData = pathSaveData;
++            size = ordinary.entry.size; sha256 = ordinary.entry.sha256;
++            mimeType = ordinary.entry.mimeType.isEmpty() ? "application/octet-stream" : ordinary.entry.mimeType;
++            this.parentObject = parentObject; this.target = target; this.mediaType = mediaType;
++            temporary = new File(target.getParentFile(), fileName + ".gramlab-" + java.util.UUID.randomUUID() + ".part");
++        }
++
++        private void trace(String event, boolean digestOk) {
++            if (ordinary == null) GramLabMedia.trace(event, asset.id, fileName, size, digestOk);
++            else GramLabMedia.traceDocument(event, ordinary.entry.id, fileName, size, digestOk);
+         }
+ 
+         private boolean attach(java.net.HttpURLConnection value) {
+@@ -822,7 +846,7 @@
+             if (!terminal) {
+                 canceled = true;
+                 temporary.delete();
+-                if (deleteFile) target.delete();
++                if (deleteFile && ordinary == null) target.delete();
+                 finishLocked(1, "media_load_cancel");
+             }
+             return connection;
+@@ -833,7 +857,7 @@
+         private void finishLocked(int reason, String event) {
+             if (terminal) return;
+             terminal = true;
+-            GramLabMedia.trace(event, asset.id, fileName, asset.size, reason == -1);
++            trace(event, reason == -1);
+             try {
+                 if (delegate != null) {
+                     if (reason == -1) delegate.fileDidLoaded(fileName, target, parentObject, mediaType);
+@@ -847,6 +871,7 @@
+ 
+         private void fail() {
+             synchronized (syntheticPhotoLock) {
++                if (ordinary != null) temporary.delete();
+                 finishLocked(canceled ? 1 : 0, canceled ? "media_load_cancel" : "media_load_failure");
+             }
+         }
+@@ -856,15 +881,19 @@
+             try {
+                 java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                 java.net.URL endpoint = new java.net.URL(configuration.getString("endpoint"));
+-                java.net.URL targetUrl = new java.net.URL(endpoint, (configuration.optInt("bridge_version", 3) == 4 ? "/v4/assets/" : "/v3/assets/") + asset.id);
++                int version = configuration.optInt("bridge_version", 3);
++                String route = ordinary == null ? "/v" + version + "/assets/" + asset.id
++                        : "/v5/documents/" + ordinary.entry.id;
++                if (ordinary != null && !ordinary.current()) throw new java.io.IOException("document_binding");
++                java.net.URL targetUrl = new java.net.URL(endpoint, route);
+                 active = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
+                 active.setInstanceFollowRedirects(false); active.setConnectTimeout(3000); active.setReadTimeout(5000);
+                 active.setUseCaches(false); active.setRequestProperty("Authorization", "Bearer " + configuration.getString("capability"));
+-                active.setRequestProperty("Accept", asset.mimeType); active.setRequestProperty("Connection", "close");
++                active.setRequestProperty("Accept", mimeType); active.setRequestProperty("Connection", "close");
+                 if (!attach(active)) return;
+                 int status = active.getResponseCode();
+-                if (status != 200 || active.getContentLengthLong() != asset.size
+-                        || !asset.mimeType.equals(active.getContentType())) throw new java.io.IOException("asset_response");
++                if (status != 200 || active.getContentLengthLong() != size
++                        || !mimeType.equals(active.getContentType())) throw new java.io.IOException("asset_response");
+                 long count = 0; byte[] buffer = new byte[8192];
+                 try (java.io.InputStream input = active.getInputStream()) {
+                     java.io.FileOutputStream stream;
+@@ -877,22 +906,55 @@
+                         while ((read = input.read(buffer)) != -1) {
+                             synchronized (syntheticPhotoLock) {
+                                 if (terminal || canceled) return;
+-                                if (count + read > asset.size) throw new java.io.IOException("asset_oversized");
++                                if (count + read > size) throw new java.io.IOException("asset_oversized");
+                                 output.write(buffer, 0, read); digest.update(buffer, 0, read); count += read;
+-                                if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, asset.size);
++                                if (delegate != null) delegate.fileLoadProgressChanged(null, fileName, count, size);
+                             }
+                         }
+                         output.getFD().sync();
+                     }
+                 }
+-                if (count != asset.size || !GramLabMedia.hex(digest.digest()).equals(asset.sha256))
++                if (count != size || !GramLabMedia.hex(digest.digest()).equals(sha256))
+                     throw new java.io.IOException("asset_integrity");
+                 synchronized (syntheticPhotoLock) {
+                     if (terminal || canceled) return;
+-                    java.nio.file.Files.move(temporary.toPath(), target.toPath(),
+-                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+-                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+-                    finishLocked(-1, "media_load_success");
++                    if (ordinary == null) {
++                        java.nio.file.Files.move(temporary.toPath(), target.toPath(),
++                                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
++                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
++                        finishLocked(-1, "media_load_success");
++                    } else synchronized (GramLabMedia.class) {
++                        // Keep epoch validation, publication and notification indivisible
++                        // with respect to response-scope authority replacement.
++                        if (!ordinary.current()) throw new java.io.IOException("document_binding");
++                        // The complete temporary lives on the destination filesystem.
++                        // Only EEXIST may select an original collision suffix; no fallback
++                        // can replace another file or expose an incomplete final path.
++                        File intended = target;
++                        int suffix = 0;
++                        while (true) {
++                            int error = nativeRenameDocument(
++                                    temporary.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8),
++                                    target.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
++                            if (error == 0) break;
++                            if (error != android.system.OsConstants.EEXIST)
++                                throw new java.io.IOException("document_publication_errno_" + error);
++                            if (pathSaveData == null) {
++                                if (!GramLabMedia.matches(target, size, sha256))
++                                    throw new java.io.IOException("document_publication_collision");
++                                if (!temporary.delete())
++                                    throw new java.io.IOException("document_temporary_cleanup");
++                                break;
++                            }
++                            String name = intended.getName(); int dot = name.lastIndexOf('.');
++                            String extra = " (" + (++suffix) + ")";
++                            target = new File(intended.getParentFile(), dot > 0
++                                    ? name.substring(0, dot) + extra + name.substring(dot) : name + extra);
++                        }
++                        if (pathSaveData != null) getFileDatabase().putPath(pathSaveData.id, pathSaveData.dc,
++                                pathSaveData.type, 0, target.toString());
++                        finishLocked(-1, "media_load_success");
++                    }
+                 }
+             } catch (Exception error) {
+                 fail();
+@@ -904,7 +966,12 @@
+     }
+ 
+     private void loadSyntheticPhoto(ImageLocation location, Object parentObject, String ext, int cacheType) {
+-        if (location.document != null && location.location == null) {
++        if (location.isEncrypted() || cacheType == ImageLoader.CACHE_TYPE_ENCRYPTED) {
++            String name = location.document != null ? getAttachFileName(location.document) : getAttachFileName(location.location, ext);
++            if (delegate != null) delegate.fileDidFailedLoad(name, 0);
++            return;
++        }
++        if (GramLabMedia.isReserved(location.document)) {
+             loadSyntheticDocument(location.document, parentObject, cacheType);
+             return;
+         }
+@@ -913,8 +980,82 @@
+     }
+ 
+     private void loadSyntheticDocument(TLRPC.Document document, Object parentObject, int cacheType) {
++        if (cacheType == ImageLoader.CACHE_TYPE_ENCRYPTED || document.key != null || document.iv != null) {
++            if (delegate != null) delegate.fileDidFailedLoad(getAttachFileName(document), 0);
++            return;
++        }
++        if (document.id < 0) {
++            loadOrdinaryDocument(document, parentObject, cacheType);
++            return;
++        }
+         loadSyntheticMedia(getAttachFileName(document), GramLabMedia.transferAsset(document), 0,
+                 parentObject, cacheType, MessageObject.isVideoDocument(document) ? MEDIA_DIR_VIDEO : MEDIA_DIR_DOCUMENT);
++    }
++
++    private void loadOrdinaryDocument(TLRPC.Document document, Object parentObject, int cacheType) {
++        String fileName = getAttachFileName(document);
++        long id = document.id == Long.MIN_VALUE ? 0 : -document.id;
++        synchronized (syntheticPhotoLock) {
++            GramLabMedia.OrdinaryTransfer ordinary = GramLabMedia.transferDocument(document);
++            try {
++                if (ordinary == null || !ordinary.current()) throw new java.io.IOException("document_binding");
++                // Stock cache10 above 2 MiB requires video preload state. Ordinary
++                // filename-only documents have no preload stream; reject locally.
++                if (cacheType == 10 && ordinary.entry.size > 2 * 1024 * 1024)
++                    throw new java.io.IOException("document_preload_unsupported");
++                SyntheticPhotoLoad existing = syntheticPhotoLoads.get(fileName);
++                if (existing != null) {
++                    if (existing.ordinary == null || !existing.ordinary.current()
++                            || !existing.configuration.getString("world_id").equals(ordinary.configuration.getString("world_id"))
++                            || existing.configuration.getLong("user_id") != ordinary.configuration.getLong("user_id"))
++                        throw new java.io.IOException("document_binding");
++                    if (cacheType != 10) loadOperationPathsUI.put(fileName, existing.uiObject);
++                    existing.trace("media_load_coalesced", false);
++                    return;
++                }
++                int type = MEDIA_DIR_DOCUMENT;
++                File directory = getDirectory(cacheType == 0 || cacheType == 10 ? type : MEDIA_DIR_CACHE);
++                File target = new File(directory, fileName);
++                FilePathDatabase.PathData saved = null;
++                boolean associated = true;
++                if (cacheType == 0 || cacheType == 10) {
++                    String path = getFileDatabase().getPath(document.id, document.dc_id, type, true);
++                    if (path != null && new File(path).isFile()) {
++                        target = new File(path);
++                        saved = new FilePathDatabase.PathData(document.id, document.dc_id, type);
++                    } else if (canSaveAsFile(parentObject) && !TextUtils.isEmpty(getDocumentFileName(document))) {
++                        File files = getDirectory(MEDIA_DIR_FILES);
++                        if (files != null) {
++                            target = new File(files, getDocumentFileName(document));
++                            associated = false;
++                            saved = new FilePathDatabase.PathData(document.id, document.dc_id, type);
++                        }
++                    }
++                }
++                if (associated && GramLabMedia.matches(target, ordinary.entry.size, ordinary.entry.sha256)) {
++                    synchronized (GramLabMedia.class) {
++                        if (!ordinary.current()) throw new java.io.IOException("document_binding");
++                        if (saved != null) getFileDatabase().putPath(saved.id, saved.dc, saved.type, 0, target.toString());
++                        GramLabMedia.traceDocument("media_cache_hit", id, fileName, ordinary.entry.size, true);
++                        if (delegate != null) delegate.fileDidLoaded(fileName, target, parentObject, type);
++                    }
++                    return;
++                }
++                if (!ordinary.current()) throw new java.io.IOException("document_binding");
++                // Only keyed caches belong exclusively to this document; presentation files
++                // are preserved and receive the stock collision suffix at publication.
++                if (saved == null && target.exists() && !target.delete()) throw new java.io.IOException("document_cache");
++                SyntheticPhotoLoad load = new SyntheticPhotoLoad(fileName, ordinary, parentObject, target, type, saved);
++                syntheticPhotoLoads.put(fileName, load);
++                if (cacheType != 10) loadOperationPathsUI.put(fileName, load.uiObject);
++                load.trace("media_load_start", false);
++                try { syntheticPhotoExecutor.execute(load); }
++                catch (RuntimeException error) { load.fail(); }
++            } catch (Exception error) {
++                GramLabMedia.traceDocument("media_load_failure", id, fileName, 0, false);
++                if (delegate != null) delegate.fileDidFailedLoad(fileName, 0);
++            }
++        }
+     }
+ 
+     private void loadSyntheticMedia(String fileName, GramLabMedia.Asset asset, long unknownAssetId,
+@@ -923,7 +1064,7 @@
+             // Coalesce before inspecting or deleting a target another attempt may publish.
+             SyntheticPhotoLoad existing = syntheticPhotoLoads.get(fileName);
+             if (existing != null) {
+-                GramLabMedia.trace("media_load_coalesced", existing.asset.id, fileName, existing.asset.size, false);
++                existing.trace("media_load_coalesced", false);
+                 return;
+             }
+             if (asset == null) {

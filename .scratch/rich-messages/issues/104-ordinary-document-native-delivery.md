@@ -1,13 +1,13 @@
 # Deliver ordinary documents through the original Android loader
 
 Type: task
-Status: ready-for-agent
-Work state: unassigned
-Blocked by: none for implementation; actual codec101 native acceptance remains pending
+Status: in-progress
+Work state: claimed
+Owner: task/ordinary-document-native-delivery
+Blocked by: original production delivery/UI native acceptance pending
 
 Implement the GPL adapter side of the [frozen document contract](../../../docs/development/documents-implementation-contract.md).
-World99, Bot API102, v5 HTTP103 and codec101 are integrated. The codec's host checks pass; its actual
-native gate remains coordinator-owned. Preserve the complete operational scope; this is the next
+World99, Bot API102, v5 HTTP103 and codec101 are integrated. The codec's host checks and coordinator-run 34-case actual native gate pass. Preserve the complete operational scope; this is the next
 single-document delivery slice, not completion of classification, edits, albums or the full goal.
 
 ## Ownership and dependencies
@@ -84,3 +84,73 @@ Keep red/green evidence and explain unavailable native checks honestly. Report s
 required native run plan and exact frozen branch tip; stop all owned processes before handoff.
 Coordinator reviews/merges, builds and runs native acceptance, then enables the host's explicit v5
 selector in runner, CLI and Android orchestration only after the delivery contract is verified.
+
+Coordinator-approved narrow extension: patch0030 also changes only GramLabRuntime’s custom-emoji
+request admission predicate to accept explicit versions4/5; every other predicate is preserved.
+
+
+## Source-confirmed ordinary preload boundary
+
+Cache type10 at or below 2 MiB retains the original full-file completion behavior and omits
+initial UI loading registration; an ordinary coalesced request enables that registration.
+Above 2 MiB it fails locally before HTTP or writing. Independent source review found that stock
+cache10 is a video-only caller path: filename-only ordinary documents lack supportsPreloading,
+so the stock large-file path has no preload stream and fails on its first data response. The
+coordinator therefore confirmed local unsupported behavior, without inventing generic preload
+or a Range protocol. Native boundary acceptance must still prove both entrypoint rejections,
+zero HTTP/UI/files/sidecars and a normal successful retry of the same oversized descriptor.
+The ticket remains in progress until the actual delivery/UI gates are completed.
+
+
+## Atomic publication capability checkpoint
+
+Actual target-process filesystem diagnostic07 reached the original writable external-files directory.
+Both Java createLink and Os.link failed with access denial (EACCES13); this rules out the draft
+hardlink publication on the actual profile. Sequential Files.move rejects an occupied destination,
+but that does not establish race-safe no-replace behavior. Production remains unchanged pending a
+supported atomic primitive; no replacement rename, final-path copy or destination workaround is allowed.
+
+Coordinator approved a fixture-only JNI capability check using cached NDK27.2.12479018, compiled
+for all four Android ABIs at API26. It calls syscall(SYS_renameat2, ..., RENAME_NOREPLACE) directly,
+returns exact errno and has no fallback. Bounded byte-array paths preserve UTF-8 including non-BMP
+characters and reject null/empty/embedded-NUL/oversize inputs. Native acceptance checks absent and
+occupied destinations, missing source, invalid paths, Unicode names, and eight two-contender races
+with one complete winner and unchanged loser. Only the actual x86_64 target guest can prove runtime
+support; other ABIs are compile/ELF evidence only. Any production JNI extension awaits that evidence
+and explicit coordinator review. Instrumentation05 and all prior diagnostic sources remain frozen.
+
+
+Coordinator-authorized production extension: patch0030 now includes only the existing
+`TMessagesProj/jni/TgNetWrapper.cpp` JNI file in addition to the four Java files. Actual rename01
+on the original target app's x86_64 external mount passed absent/Unicode publication, occupied
+EEXIST, missing ENOENT, invalid EINVAL, and eight complete-winner races with both winning orders.
+This supports the bounded API26 syscall primitive, not other-device runtime claims. The loader
+uses UTF-8 bytes and retries collision suffixes only on EEXIST; every other errno fails locally.
+Image/custom-emoji publication is unchanged. The full native suite must exercise the original
+FileLoader JNI method from the built production APK, independently of the diagnostic library.
+
+
+## Worker verification checkpoint
+
+The current five-file patch applies to the normal29 baseline with exact before/after hashes.
+All four staged Java classes and the complete original TgNetWrapper translation unit compile;
+the latter uses the original API21 command, while the diagnostic syscall also compiles at API26
+for all four ABIs. The signed instrumentation passes javac/D8/NDK/signature checks. Host verification
+is35 passes; the preceding red retained the rejected legitimate alternate race winner (1 failed,
+34 passed), corrected by allowing only the two exact single-winner errno pairs. Strict typing,
+Ruff check/format, shell syntax/ShellCheck and Android collection (one selected test) pass.
+
+The implemented production path and full35-case suite plus cold-process cache have not yet run
+on a rebuilt application. Coordinator owns that build, native execution and separate UI105 gate.
+The branch is an implementation handoff, not closure of the ticket's native acceptance.
+
+## Coordinator integration checkpoint
+
+The reviewed frozen branch is integrated. All41 affected host cases pass together under the
+offline namespace, including the document scenario and codec controls; strict typing, Ruff and
+shell checks pass. JUnit is retained as `artifacts/document-delivery-integrated-01.xml`.
+A bounded reconstruction from the pinned upstream revision reproduces all29 prior patches and
+the sanitized preparation input across40 source paths. Every cached byte matches, including the
+five patch0030 preimages; coordinator private staging then matches every expected postimage.
+The complete ordered patch identities will be bound into the new APK source record.
+Production native and original UI acceptance remain pending; this ticket is not resolved.
