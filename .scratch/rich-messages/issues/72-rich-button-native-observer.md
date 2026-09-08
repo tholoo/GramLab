@@ -60,9 +60,20 @@ baselines remain immutable from arm acknowledgement through DOWN/action; later o
 comparisons only. The single effect file advances generation when its published operation identity
 changes between a cached conflict and the live arm, without rewriting unchanged polls.
 
+Decode/object-map publication and cleanup share the observer lock with UI drawing and command
+polling; thread-local traversal stays isolated until its exact objects are bound. Retention skips
+the live armed group while evicting older mappings. Every output is measured as UTF-8 before the
+serialized write; an oversized observation becomes a closed-schema `not_bound` result and an
+oversized effect becomes `unavailable_target` evidence, both below the private 1 MiB limit.
+
 The patch dry-applies with `patch --dry-run -p1` to the selected normal24 inputs. Their SHA-256s
 are `9a2aafbc...5721a` (GramLabBridge), `fa0d15a2...57dc` (GramLabRichMessage),
 `a240f8db...e4a` (GramLabRuntime), `f231ba1c...1ffa9` (RichMessageLayout) and
 `de93c9d8...6968b` (SendMessagesHelper), and `54511290...25b5`
-(ChatActivityEnterView). Compilation and native behavior remain coordinator
-acceptance work; this worker did not run Gradle or a guest.
+(ChatActivityEnterView). An isolated `javac -proc:none` check compiled
+`GramLabButtonObserver.java` into seven class files against the normal24 compiled classes, Android
+36 API jar and 294 cached dependency/project jars. The same compile found and prompted correction
+of an invalid inline-span owner reference. Compiling all seven changed sources together then
+reached the authored hooks but stopped on 100 missing/incompatible transitive AndroidX/project
+classes in the assembled cache classpath, so it is not APK compilation proof. Native behavior
+remains coordinator acceptance work; this worker did not run Gradle or a guest.
