@@ -123,7 +123,7 @@ the local parser's different limit. Preserve this distinction and the unresolved
 Document Bot API102 is integrated with50 affected real HTTP checks and strict typing/Ruff.
 Explicit forced-file upload, typed reuse/download, caption custom emoji and the local inclusive
 50,000,000-byte bound pass; default classification, edits, albums and Android loading remain open.
-The v5 HTTP delivery branch103 is under review. Native codec101 has three integrated host checks;
+The v5 HTTP delivery branch103 is integrated with78 affected HTTP/World checks and strict typing/Ruff. Native codec101 has three integrated host checks;
 its actual native gate is pending. These integrations postdate core13/static13.
 
 Exact run paths, cleanup identities and current process handles stay in ignored coordinator notes.
