@@ -103,9 +103,10 @@ exactly one tap at the retained target center while preserving the zero-call pre
   original preparation capture after success without another guest call. If original preparation
   fails, it preserves the partial barrier and a bounded, redacted diagnostic from the original
   `_fresh` traceback frame without a second guest, World or clock read. The canonical contained
-  non-Android command now passes all three focused cases. Scoped Ruff check/format and strict mypy
-  pass all four files, and Android-only collection still selects exactly one case. A fresh native
-  acceptance run remains coordinator-owned and pending.
+  non-Android command now passes all four focused cases, including preservation of the original
+  prepare exception when diagnostic publication itself fails. Scoped Ruff check/format and strict
+  mypy pass all four files, and Android-only collection still selects exactly one case. A fresh
+  native acceptance run remains coordinator-owned and pending.
 - Early `ticket95-simulation-red.xml` and `ticket95-simulation-green.xml` retain two test-oracle
   projection failures discovered while authoring the independent expected state. They are not
   claimed as behavioral reds; no production behavior changed in this test-only task.

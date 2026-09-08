@@ -193,16 +193,23 @@ def prepare(
     try:
         prepared = original_prepare(self, receipt, client_nonce=client_nonce)
     except BaseException as error:
-        record["events"].append(
-            {
-                "kind": "prepare_failed",
-                "target_id": receipt["target"]["target_id"],
-                "operation_id": receipt["operation_id"],
-                "exception_class": type(error).__name__,
-                "guest_calls": guest_calls,
-            }
-        )
-        persist(self.android.secrets)
+        try:
+            record["events"].append(
+                {
+                    "kind": "prepare_failed",
+                    "target_id": receipt["target"]["target_id"],
+                    "operation_id": receipt["operation_id"],
+                    "exception_class": type(error).__name__,
+                    "guest_calls": guest_calls,
+                }
+            )
+            persist(self.android.secrets)
+        except Exception as diagnostic_error:
+            print(
+                "Unrelated-target prepare diagnostic unavailable: "
+                + type(diagnostic_error).__name__,
+                file=sys.stderr,
+            )
         raise
     prepared_guest_calls = guest_calls
     state = prepared["context"]

@@ -666,6 +666,46 @@ def test_fresh_failure_retains_original_frame_without_another_guest_call(
     assert event["state"]["target"]["label"] == "[REDACTED]"
 
 
+def test_prepare_failure_survives_diagnostic_publication_failure(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = Path(__file__).resolve().parent / "probes/unrelated_target_supervisor.py"
+    namespace = runpy.run_path(source.as_posix())
+    prepare = namespace["prepare"]
+    failure = ValueError("original preparation detail")
+    diagnostic_failure = OSError("diagnostic publication detail")
+    calls = {"prepare": 0, "persist": 0}
+
+    def failing_prepare(self: Any, receipt: dict[str, Any], *, client_nonce: str) -> dict[str, Any]:
+        del self, receipt, client_nonce
+        calls["prepare"] += 1
+        raise failure
+
+    def failing_persist(secrets: list[str]) -> None:
+        assert secrets == []
+        calls["persist"] += 1
+        raise diagnostic_failure
+
+    class FakeAndroid:
+        def __init__(self) -> None:
+            self.secrets: list[str] = []
+
+    class FakeHost:
+        android = FakeAndroid()
+
+    prepare.__globals__.update(
+        original_prepare=failing_prepare,
+        persist=failing_persist,
+        barrier_used=True,
+    )
+    receipt = {"operation_id": "d" * 32, "target": {"target_id": "e" * 32}}
+    with pytest.raises(ValueError) as caught:
+        prepare(FakeHost(), receipt, client_nonce="f" * 32)
+    assert caught.value is failure
+    assert calls == {"prepare": 1, "persist": 1}
+    assert capsys.readouterr().err == "Unrelated-target prepare diagnostic unavailable: OSError\n"
+
+
 @pytest.mark.android
 def test_native_target_survives_applied_unrelated_edit_without_lifetime_renewal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
