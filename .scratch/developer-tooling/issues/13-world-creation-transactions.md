@@ -1,15 +1,14 @@
 # Batch fresh World creation without weakening durability
 
 Type: task
-Status: in-progress
-Work state: prepared for coordinator review
+Status: ready-for-agent
+Work state: resolved
 Owner: `world-creation-transactions` worker on `task/world-creation-transactions`
 
 The combined core15 runner-timeout case ended with an empty process record and no descendant
 heartbeat. Its one-second whole-run budget includes World initialization. The exact timeout cause
-is not established. Separate measurements of unmodified World.create found a2.94-second outlier
-among eight serial creations, with111ms median;32 creations on four workers had197ms median.
-Host-specific samples and source hashes remain ignored. This is a measured startup cost, not proof
+is not established. Separate serial and four-worker measurements found variable startup cost in unmodified
+World.create. Host-specific timings and raw samples remain ignored. This is a measured startup cost, not proof
 that storage caused that particular test failure.
 
 Fresh World.create enables WAL, then executes its schema without an explicit transaction, so
@@ -54,13 +53,10 @@ integrity and foreign keys through an independent connection, then exercises use
 message operations through `World` and reopens the result.
 
 Comparable local samples used the same 8-serial/32-four-worker `World.create` operation and removed
-all temporary databases after close. The original source
-`ade4d206fd601f2601c3a214ed63ba9515482cda10e2428785ee48b83f03be31` measured a 97.04 ms serial
-median (106.52 ms maximum) and 182.30 ms four-worker median (197.07 ms maximum). The changed source
-`c876a6c5b0781e89e1278ed79f56c4c6bea057cc1a7802d08a15b0edd3bb1852` measured a 16.71 ms serial
-median (17.31 ms maximum) and 39.94 ms four-worker median (45.17 ms maximum). Raw samples remain in
-ignored `.cache/local-notes/world-create-profile-{before,after}.json`. These samples have no test
-threshold and do not establish the exact cause of core15.
+all temporary databases after close. Before/after source identities and timing results remain in
+ignored `.cache/local-notes/world-create-profile-{before,after}.json`. The same operation and sample
+counts were used on both revisions. These measurements have no test threshold and do not
+establish the exact cause of core15.
 
 The expanded World/storage/migration check passes 106 cases, and the separately contained public
 runner check passes 31 cases with `ResourceWarning` promoted to an error. The unchanged one-second
@@ -73,3 +69,9 @@ runtime directories were removed.
 Primary integration passes55 creation, migration and public-runner cases, including the corrected
 detached-child readiness/liveness timeout test, plus strict Mypy and Ruff. JUnit
 world-creation-integrated-01.xml is retained. Combined verification remains.
+
+## Combined acceptance
+
+Core16 passes all 1,126 cases at 88.02% coverage, including the creation and real-runner
+controls. Static15 passes 64 documented commands. This resolves atomic initialization and its
+regression acceptance; the earlier timeout failure remains retained with its causal limitations.

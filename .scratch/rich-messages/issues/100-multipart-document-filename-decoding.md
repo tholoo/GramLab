@@ -1,7 +1,7 @@
 # Decode multipart filename metadata before document normalization
 
 Type: task
-Status: in-progress
+Status: ready-for-agent
 Work state: resolved
 Blocked by: none
 
@@ -116,3 +116,11 @@ Coordinator integration passes83 focused multipart/photo/metadata checks with Re
 promoted to error, plus strict typing and Ruff. The coordinator explicitly closes both new
 SQLite inspection connections. Shared CI/contributor typing coverage includes the new tests.
 This resolves decoding only; document HTTP publication remains a separate implementation task.
+
+## Integrated acceptance
+
+Core16 passes all 1,126 non-Android cases at 88.02% coverage on the integrated branch;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+The retained core16 JUnit, log and outcome establish combined verification after this slice.
+This resolves the assigned slice, preserving its focused acceptance and earlier failed evidence.
+It does not establish Android document loading, default classification, edits or albums.

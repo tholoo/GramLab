@@ -1,8 +1,8 @@
 # Project typed ordinary documents into original Android carriers
 
 Type: task
-Status: in-progress
-Work state: claimed
+Status: ready-for-agent
+Work state: resolved
 Owner: task/ordinary-document-native-codec
 Blocked by: none
 
@@ -116,3 +116,12 @@ binding. The exact same probe against normal28 produces the intended ClassNotFou
 bootstrap.document_codec_class in native05, with matching retained stdout/summary and no native
 library initialization. Earlier failures remain unchanged. Codec native acceptance is established;
 combined verification and original loader/UI acceptance under104/105 remain separate.
+
+## Integrated acceptance
+
+Core16 passes all 1,126 non-Android cases at 88.02% coverage on the integrated branch;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+The retained core16 JUnit, log and outcome establish combined verification after this slice.
+Actual native04 additionally passes all 34 codec controls; the identical probe rejects the
+old APK for the absent codec class in native05. This resolves the codec prerequisite only;
+original document loading and visible real-bot acceptance remain in tickets104/105.

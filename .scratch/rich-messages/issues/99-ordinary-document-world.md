@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by `ordinary_document_world` on `task/ordinary-document-world`
+Work state: resolved
 Blocked by: none
 
 Implement the World portion of the frozen [document contract](../../../docs/development/documents-implementation-contract.md).
@@ -132,3 +132,11 @@ tools/dev default --offline --command env MYPYPATH=tests .venv/bin/python -m myp
   tests/test_document_storage_migration.py tests/test_media_world.py \
   tests/test_media_storage_migration.py tests/fixtures/document_storage_v8/generate.py
 ```
+
+## Integrated acceptance
+
+Core16 passes all 1,126 non-Android cases at 88.02% coverage on the integrated branch;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+The retained core16 JUnit, log and outcome establish combined verification after this slice.
+This resolves the assigned slice, preserving its focused acceptance and earlier failed evidence.
+It does not establish Android document loading, default classification, edits or albums.

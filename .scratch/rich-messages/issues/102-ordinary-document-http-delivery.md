@@ -1,9 +1,9 @@
 # Expose typed documents through Bot API and client bridge HTTP
 
 Type: task
-Status: in-progress
-Work state: Bot API slice frozen for coordinator integration; client bridge assigned separately in103
-Blocked by: 99
+Status: ready-for-agent
+Work state: resolved
+Blocked by: none
 
 Complete the HTTP layer of the [frozen document contract](../../../docs/development/documents-implementation-contract.md)
 after the typed World implementation is integrated. Multipart decoding100 is resolved. This task
@@ -80,3 +80,11 @@ classification, document edits/albums or original Android file loading.
 Primary integration passes all50 affected HTTP checks with ResourceWarning fatal and strict
 Mypy/Ruff. The retained integrated JUnit is document-http-integrated-01.xml. Combined verification
 remains; client HTTP103 and native delivery have separate acceptance.
+
+## Integrated acceptance
+
+Core16 passes all 1,126 non-Android cases at 88.02% coverage on the integrated branch;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+The retained core16 JUnit, log and outcome establish combined verification after this slice.
+This resolves the assigned slice, preserving its focused acceptance and earlier failed evidence.
+It does not establish Android document loading, default classification, edits or albums.

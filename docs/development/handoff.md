@@ -22,6 +22,16 @@ in the full goal. A text-only subset is not the operational milestone.
 The full operational milestone remains incomplete. Earlier failures remain retained and are not
 superseded by a later pass unless the specific correction is demonstrated.
 
+Current combined checkpoint: core16 passes all 1,126 non-Android tests at 88.02% coverage;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+This includes typed documents99, multipart100, native codec101 host orchestration, Bot API102,
+v5 HTTP103 and atomic World creation13. Those bounded tickets are resolved; actual codec101
+acceptance separately passes all 34 original native cases with the intended old-APK rejection.
+The required original Android loader and real-bot UI workflow remain active in104/105. Review
+is addressing authority rotation, original preload notifications and publication on the actual
+external-files filesystem before building/enabling v5. Default classification, edits, albums,
+automatic rich detection and broader native regression remain required.
+
 Current document batch: typed World99, Bot API102, client HTTP103 and native codec101 are integrated.
 The HTTP slices pass50 and78 affected checks respectively; static14 passes63 documented scopes and
 configuration/links in256 documents. Core14 passed1123 cases but failed an obsolete last-patch
@@ -82,7 +92,7 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The current core13 checkpoint passes1054 tests at87.49% coverage in134.14 seconds with four
+The historical core13 checkpoint passes1054 tests at87.49% coverage in134.14 seconds with four
 isolated workers and no guest. All59 documented static commands, Ruff lint/format across510 files
 and configuration/links in252 Markdown documents pass. This includes integrated metadata97,
 multipart decoding100, native disarm98 and the final clipboard92 popup-settling correction. No

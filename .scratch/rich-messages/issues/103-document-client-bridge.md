@@ -1,8 +1,8 @@
 # Deliver ordinary documents through authenticated version-5 client HTTP
 
 Type: task
-Status: in-progress
-Work state: claimed by `document_client_bridge` on `task/document-client-bridge`
+Status: ready-for-agent
+Work state: resolved
 Blocked by: none
 
 World99 is integrated. Implement only the client HTTP slice from
@@ -106,3 +106,11 @@ tools/dev default --offline --command env MYPYPATH=tests .venv/bin/python -m myp
 
 Primary integration passes the same78 affected checks with fatal ResourceWarning plus strict
 Mypy/Ruff. JUnit document-bridge-integrated-01.xml is retained. Combined verification remains.
+
+## Integrated acceptance
+
+Core16 passes all 1,126 non-Android cases at 88.02% coverage on the integrated branch;
+static15 passes all 64 documented commands and configuration/links in 259 Markdown files.
+The retained core16 JUnit, log and outcome establish combined verification after this slice.
+This resolves the assigned slice, preserving its focused acceptance and earlier failed evidence.
+It does not establish Android document loading, default classification, edits or albums.

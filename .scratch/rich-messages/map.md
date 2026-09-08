@@ -50,6 +50,16 @@ the full product scope documented in the handoff.
   clipboard native07 and1054-test combined core gate pass.
 
 - [99: ordinary document World](issues/99-ordinary-document-world.md): typed storage, schema9
-  migration and v5 dependencies are assigned under the frozen document contract.
+  migration and v5 dependencies are integrated; the 1,126-case core16 gate passes.
 - [100: multipart filename decoding](issues/100-multipart-document-filename-decoding.md):
   integrated;83 multipart/photo/metadata checks pass with explicit inspection-connection cleanup.
+
+- [101: ordinary native codec](issues/101-ordinary-document-native-codec.md): resolved with
+  34 actual native cases, the intended old-client rejection and combined core16/static15.
+- [102: document Bot API](issues/102-ordinary-document-http-delivery.md): resolved for explicit
+  forced-file upload/reuse/download, with 50 affected HTTP checks and combined core16/static15.
+- [103: document client bridge](issues/103-document-client-bridge.md): resolved with 78 affected
+  HTTP/World checks and combined core16/static15.
+- [104: original document loading](issues/104-ordinary-document-native-delivery.md) and
+  [105: real-bot document UI](issues/105-ordinary-document-native-ui.md): active implementation;
+  original external-files publication and complete native acceptance remain pending.
