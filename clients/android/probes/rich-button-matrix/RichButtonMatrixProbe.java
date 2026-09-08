@@ -166,10 +166,10 @@ public final class RichButtonMatrixProbe {
             Canvas canvas = new Canvas();
             begin.invoke(null, cellA, canvas);
             try {
-                Matrix projective = new Matrix();
-                projective.setValues(new float[] {1, 0, 1, 0, 1, 1, 1, 1, 0});
-                canvas.setMatrix(projective);
-                float[] mapped = {0, 0, 2, 0, 2, 2, 0, 2};
+                Matrix overflow = new Matrix();
+                overflow.setValues(new float[] {-1e38f, -1e38f, 0, 0, 1, 0, 0, 0, 1});
+                canvas.setMatrix(overflow);
+                float[] mapped = {-2, -2, 0, -2, 0, 0, -2, 0};
                 canvas.getMatrix().mapPoints(mapped);
                 JSONArray actual = new JSONArray();
                 boolean nonfinite = false;
@@ -183,7 +183,10 @@ public final class RichButtonMatrixProbe {
                 require(nonfinite, "fixture_did_not_produce_nonfinite");
                 require(!Float.isFinite(mapped[0]) || !Float.isFinite(mapped[1]),
                         "fixture_nonfinite_not_in_first_corner");
-                require(normalized(cellA, canvas, new RectF(0, 0, 2, 2)) == null,
+                for (int index = 2; index < mapped.length; index++) {
+                    require(Float.isFinite(mapped[index]), "fixture_nonfinite_outside_first_corner");
+                }
+                require(normalized(cellA, canvas, new RectF(-2, -2, 0, 0)) == null,
                         "accepted_nonfinite_first_corner");
             } finally { end.invoke(null, cellA); }
         });

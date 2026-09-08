@@ -29,19 +29,21 @@ The probe compiles and dexes against the reviewed normal27 APK and exact cached 
 It reflectively invokes the production helper while using Android's real Canvas, Matrix and RectF.
 Seven independently specified cases cover outer-basis invariance with an expected-only reference cell origin, missing
 and mismatched contexts, nested restoration, mismatched-end cleanup, singular entry, empty bounds and
-a projective nonfinite first corner. Cell identities are constructor-free; rendering and touch remain
+an affine finite-input overflow at the first corner. Cell identities are constructor-free; rendering and touch remain
 for the public native gate. No guest was run.
 
 Coordinator reproduction uses the README commands and a fresh app-private output directory. The
 worker compile output and complete input hashes are retained under the ignored
-`.cache/rich-button-matrix-probe-04/`; compilation used javac 17.0.20.1, Android API/build tools 36,
-probe source SHA-256 `cbd33c18f6c38c5bcf20abfcef27fc56c7a261361e36a3e206c53b83dc962dba`,
-probe APK SHA-256 `88865fbee76c1cd7daf12e9325c3e62c96fbeaa3d9aac05f892144056fcbddd1`,
+`.cache/rich-button-matrix-probe-05/`; compilation used javac 17.0.20.1, Android API/build tools 36,
+probe source SHA-256 `71b8a5cd988e25b92367d76a7263561c38a4d673f661614a5d61734959dda418`,
+probe APK SHA-256 `42ca5f29e96e33c56854cc0f873c40ab46d7c51d5e3d027eea871fd8947bdf83`,
 normal27 classes SHA-256 `f52d2fdff65e5c9bd59689bf0c00d30742dacb5d7d057001ee388cdf4bad5b46`
 and normal27 APK SHA-256 `141415076e8727cfbffc6eacfe759f339e3640fa363ba5932e95cd7dc4a52375`.
 
 The probe does not invoke production `getLocationOnScreen`; its expected screen bounds are explicitly
-labeled `reference_only`. The projective negative records Android's raw eight mapped coordinates and
-requires the first corner itself to be nonfinite before testing helper rejection. A failed premise is
+labeled `reference_only`. The overflow negative records Android's raw eight mapped coordinates and
+requires only the first corner to be nonfinite before testing helper rejection. It replaces the
+projective zero-denominator fixture rejected by native matrix-suite-01 because Android mapped every
+corner to finite zero. A failed premise is
 a fixture/precondition failure, not a helper regression. Public native09 separately covers stable
 production screen bounds across the popup redraw.
