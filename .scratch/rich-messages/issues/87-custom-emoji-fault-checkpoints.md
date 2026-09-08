@@ -46,8 +46,12 @@ records host monotonic observations for partial response, release and finished b
 eight-second failure-only budget attempts the private trace, current selected cache inventory and
 the existing 2,000-line logcat capture; failures retain exception classes without messages. The
 normal successful path has no additional guest command and its returned result shape is unchanged.
+Every retained text artifact is checked against every case capability, including earlier document
+cases that may appear in accumulated logcat. Each failure-only guest call obtains its remaining
+positive timeout immediately before invocation; after the shared deadline, later diagnostic stages
+record `TimeoutError` as unavailable without calling the guest.
 
 Focused evidence is retained in `artifacts/custom-emoji-fault-checkpoints.xml`. The real loopback
-server suite passes six tests under an isolated namespace. Android collection finds all three
+server suite passes seven tests under an isolated namespace. Android collection finds all three
 existing cases. Ruff, format and strict mypy with the repository's separate probe/test package-root
 convention pass. No guest, APK build or full gate ran; coordinator native execution remains required.

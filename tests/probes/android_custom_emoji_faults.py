@@ -32,6 +32,25 @@ MAX_CHECKPOINT_BYTES = 4 * 1024 * 1024
 MAX_FAILURE_OUTPUT_BYTES = 1024 * 1024
 
 
+def _retain_text(path: Path, value: str, secrets: list[str]) -> str:
+    if any(secret and secret in value for secret in secrets):
+        raise RuntimeError("Custom emoji fault diagnostics contained a capability")
+    path.write_text(value)
+    return value
+
+
+def _guest_before_deadline(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+    arguments: tuple[str, ...],
+    options: dict[str, Any],
+    deadline: float,
+) -> subprocess.CompletedProcess[str]:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("Custom emoji fault diagnostic deadline expired")
+    return guest(*arguments, **(options | {"timeout": remaining}))
+
+
 def _write_checkpoint(path: Path, value: object, secrets: list[str]) -> None:
     """Atomically retain one bounded record without replacing earlier evidence."""
     serialized = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
@@ -60,19 +79,20 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     capabilities = [case["capability"] for case in manifest["document_cases"]] + [
         manifest["shared_case"]["capability"]
     ]
-    capability = ""
     active_phase = "install"
     shared_failure: dict[str, Any] = {}
 
     def retain(name: str, value: str) -> str:
-        if capability and capability in value:
-            raise RuntimeError("Custom emoji fault diagnostics contained a capability")
-        Path(name).write_text(value)
-        return value
+        return _retain_text(Path(name), value, capabilities)
 
     def adb(name: str, *arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         diagnostic_bound = kwargs.pop("diagnostic_bound", None)
-        result = guest(*arguments, **kwargs)
+        deadline = kwargs.pop("deadline", None)
+        result = (
+            guest(*arguments, **kwargs)
+            if deadline is None
+            else _guest_before_deadline(guest, arguments, kwargs, deadline)
+        )
         if diagnostic_bound is not None and (
             len(result.stdout.encode()) > diagnostic_bound
             or len(result.stderr.encode()) > diagnostic_bound
@@ -97,12 +117,10 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         adb(case + "-clear", "shell", "pm", "clear", PACKAGE)
 
     def configure(endpoint: str, case: dict[str, Any]) -> None:
-        nonlocal capability
-        capability = case["capability"]
         body = json.dumps(
             {
                 "endpoint": endpoint.replace("127.0.0.1", "10.0.2.2"),
-                "capability": capability,
+                "capability": case["capability"],
                 "world_id": case["world_id"],
                 "user_id": 1,
                 "bridge_version": 4,
@@ -143,7 +161,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             {}
             if deadline is None
             else {
-                "timeout": max(0.1, deadline - time.monotonic()),
+                "deadline": deadline,
                 "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
             }
         )
@@ -260,7 +278,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 {}
                 if deadline is None
                 else {
-                    "timeout": max(0.1, deadline - time.monotonic()),
+                    "deadline": deadline,
                     "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
                 }
             )
@@ -275,7 +293,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     {}
                     if deadline is None
                     else {
-                        "timeout": max(0.1, deadline - time.monotonic()),
+                        "deadline": deadline,
                         "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
                     }
                 )
@@ -294,7 +312,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                     {}
                     if deadline is None
                     else {
-                        "timeout": max(0.1, deadline - time.monotonic()),
+                        "deadline": deadline,
                         "diagnostic_bound": MAX_FAILURE_OUTPUT_BYTES,
                     }
                 )
@@ -334,23 +352,22 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 observed[name + "_path"] = path
             except BaseException as error:
                 observed[name] = {"unavailable_exception_class": type(error).__name__}
-        if time.monotonic() < deadline:
-            try:
-                logcat = adb(
-                    case + "-failure-logcat",
-                    "logcat",
-                    "-d",
-                    "-t",
-                    "2000",
-                    timeout=max(0.1, deadline - time.monotonic()),
-                    diagnostic_bound=MAX_FAILURE_OUTPUT_BYTES,
-                ).stdout
-                if len(logcat.encode()) > MAX_FAILURE_OUTPUT_BYTES:
-                    raise ValueError("Custom emoji fault logcat exceeds its bound")
-                retain(case + "-failure-logcat.txt", logcat)
-                observed["logcat_path"] = case + "-failure-logcat.txt"
-            except BaseException as error:
-                observed["logcat"] = {"unavailable_exception_class": type(error).__name__}
+        try:
+            logcat = adb(
+                case + "-failure-logcat",
+                "logcat",
+                "-d",
+                "-t",
+                "2000",
+                deadline=deadline,
+                diagnostic_bound=MAX_FAILURE_OUTPUT_BYTES,
+            ).stdout
+            if len(logcat.encode()) > MAX_FAILURE_OUTPUT_BYTES:
+                raise ValueError("Custom emoji fault logcat exceeds its bound")
+            retain(case + "-failure-logcat.txt", logcat)
+            observed["logcat_path"] = case + "-failure-logcat.txt"
+        except BaseException as error:
+            observed["logcat"] = {"unavailable_exception_class": type(error).__name__}
         return observed
 
     def wait_cache(case: str, stage: str, names: set[str]) -> dict[str, list[dict[str, Any]]]:
