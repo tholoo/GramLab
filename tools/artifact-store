@@ -252,6 +252,8 @@ def inventory_record(root: Path, relative: str, path: Path) -> dict[str, Any]:
     with stream:
         if before.st_size > MAX_FILE_BYTES:
             fail(f"APK exceeds {MAX_FILE_BYTES} bytes: {relative}")
+        if before.st_nlink != 1:
+            fail(f"APK already has multiple hardlinks: {relative}")
         digest, size = sha256_stream(stream)
         after = os.fstat(stream.fileno())
     if any(

@@ -175,6 +175,21 @@ def test_plan_rejects_symlinks_without_following_them(tmp_path: Path, kind: str)
     assert (outside / ("escape.apk" if kind == "apk" else "hidden.apk")).read_bytes() == b"outside"
 
 
+def test_plan_rejects_preexisting_unmanaged_hardlinks(tmp_path: Path) -> None:
+    root = tmp_path / "archive"
+    store = tmp_path / "store"
+    root.mkdir()
+    store.mkdir()
+    first = root / "first.apk"
+    first.write_bytes(b"shared elsewhere")
+    os.link(first, root / "second.apk")
+
+    result = plan(root, store, tmp_path / "plan.json")
+    assert result.returncode == 2
+    assert "already has multiple hardlinks" in result.stderr
+    assert first.read_bytes() == b"shared elsewhere"
+
+
 def test_apply_rejects_plan_path_escape_without_mutation(tmp_path: Path) -> None:
     root, store, _ = archive(tmp_path)
     plan_path = tmp_path / "plan.json"

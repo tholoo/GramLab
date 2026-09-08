@@ -21,8 +21,9 @@ tools/artifact-store plan \
 
 The create-only plan records the canonical roots and every regular `.apk` path, SHA-256, size,
 device/inode identity, ownership, permissions, link count and nanosecond timestamps. Planning
-rejects symlinks and an empty or oversized inventory. Keep plans in ignored local storage because
-they contain host paths and local inventory.
+rejects symlinks, preexisting unmanaged hardlinks and an empty or oversized inventory. Reuse the
+original plan and receipt to resume or verify an archive already linked to this store. Keep plans
+in ignored local storage because they contain host paths and local inventory.
 
 After checking the root, store and full plan, apply it explicitly:
 
