@@ -38,7 +38,7 @@ the full product scope documented in the handoff.
 - [92: clipboard acceptance](issues/92-rich-button-native-clipboard-acceptance.md): row-copy actual
   paste/clear passes in native02; later freshness rejections keep complete acceptance open.
 - [94: multipart metadata](issues/94-multipart-upload-metadata.md): integrated with 12 affected
-  checks passing; complete batch verification remains pending.
+  checks passing and the 948-test combined core gate passing.
 - [95: unrelated target survival](issues/95-native-unrelated-edit-target-survival.md): review
   corrections before integration and native execution.
 - [96: shared immutable bytes](issues/96-neutral-media-byte-storage.md): internal migration in

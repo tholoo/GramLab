@@ -62,13 +62,14 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The corrected combined core checkpoint passes 924 tests at 87.07% coverage in 157.96 seconds
-with four isolated workers and no simultaneous guest. All 53 documented static commands, Ruff
-lint/format across 479 files and configuration/links in 238 Markdown documents pass. This includes
-integrated88/89/90 and the recovery-fixture correction. Core08's six failures remain recorded: its
-standalone abrupt-exit harness omitted88's new fixture-variant file, so the scenario failed before
-reaching the intended interruption boundary. The explicit full variant restores all six unchanged
-recovery checks. No production timeout, rendering or recovery behavior changed.
+The current combined core10 checkpoint passes 948 tests at 87.25% coverage in 189.00 seconds
+with four isolated workers and no simultaneous guest. All 55 documented static commands, Ruff
+lint/format across 487 files and configuration/links in 242 Markdown documents pass. This includes
+integrated92 XML correction and94 multipart metadata; pending95/96 and the next92 diagnostic are
+not included. The earlier924-test checkpoint included88/89/90 and the recovery-fixture correction.
+Core08's six failures remain recorded: its standalone abrupt-exit harness omitted88's new
+fixture-variant file and failed before the intended interruption boundary. The explicit full
+variant restored all six recovery checks. No production timeout, rendering or recovery behavior changed.
 
 Document research91 now establishes the pinned upload filename/MIME path and empty-file rejection.
 Multipart metadata94 is integrated: filename and declared content type survive HTTP parsing while
@@ -83,8 +84,8 @@ later targets reject during their first freshness check before arming/input. Ori
 show the same layout; the exact failed sample/guard was not retained. A bounded diagnostic
 follow-up is active; do not infer an input defect, stale-draw cause or complete clipboard support.
 Ticket95's separate unrelated-edit scenario is undergoing review corrections before integration
-and native execution. The combined 924-test checkpoint above predates92/94; a new batch gate remains
-required. Successful core temporary fixtures and diagnosed guest disks are retired after retaining
+and native execution. The 948-test checkpoint above includes the integrated92/94 code, while these
+worker follow-ups remain pending. Successful core temporary fixtures and diagnosed guest disks are retired after retaining
 JUnit, logs, screenshots and reports; cleanup identities remain in ignored local notes.
 Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
 for user consultation; changing

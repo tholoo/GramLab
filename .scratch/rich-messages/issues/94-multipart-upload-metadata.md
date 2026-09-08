@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: implemented on `task/multipart-upload-metadata`; coordinator review pending
+Work state: resolved
 Blocked by: none
 
 Own this ticket, `src/gramlab/bot_api.py`, and new `tests/test_multipart_uploads.py` only.
@@ -65,3 +65,9 @@ Coordinator integration of frozen530133e passes all12 affected parser/mediaHTTP/
 checks in 5.54 seconds, plus scoped lint/format/strict typing. Contributor and CI commands now
 include the new parser scope. Evidence: `artifacts/multipart-metadata-integrated-01.xml`.
 This preserves upload metadata and existing photo behavior; document support remains pending.
+
+## Answer
+
+Integrated acceptance is complete for this metadata-only ticket: all 12 affected checks and the
+combined core10 gate pass (948 tests, 87.25% coverage, 189.00 seconds). All 55 documented static
+commands pass. General document APIs, metadata projection and albums remain separate required work.
