@@ -47,6 +47,7 @@ def test_original_custom_emoji_edit_animation_and_cold_cache(tmp_path: Path) -> 
         "emulator_process.py",
         "android_guest.py",
         "android_custom_emoji.py",
+        "guest_screenshot_burst.py",
         "native_asset_proxy.py",
     ):
         shutil.copy2(Path("tests/probes") / name, tmp_path / name)

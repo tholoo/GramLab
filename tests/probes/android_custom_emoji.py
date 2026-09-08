@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from android_guest import main
 from custom_emoji_round_trip import run
+from guest_screenshot_burst import capture_burst
 from native_asset_proxy import NativeAssetProxy
 
 PACKAGE = "org.gramlab.android"
@@ -332,11 +333,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         settle(name)
         ui = screen(name)
         if name == "edited":
-            for index in range(24):
-                burst_timestamps_ns.append(time.monotonic_ns())
-                screenshot(f"edited-burst-{index:02d}")
-                burst_end_timestamps_ns.append(time.monotonic_ns())
-                time.sleep(0.08)
+            starts, ends = capture_burst(guest, Path("/work"))
+            burst_timestamps_ns.extend(starts)
+            burst_end_timestamps_ns.extend(ends)
         return ui
 
     def tap(name: str, label: str) -> None:

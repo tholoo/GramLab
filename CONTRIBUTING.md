@@ -106,7 +106,8 @@ uv run --locked mypy tests/probes/android_rich_mentions_codec.py tests/test_andr
 uv run --locked mypy tests/fixtures/rich_mentions_bot.py tests/probes/rich_mentions_round_trip.py tests/probes/android_rich_mentions.py tests/test_rich_mentions_round_trip.py tests/test_android_rich_mentions.py
 uv run --locked mypy --strict tests/test_custom_emoji_media.py tests/test_custom_emoji_world.py tests/test_custom_emoji_api.py tests/test_custom_emoji_bridge.py tests/test_custom_emoji_text.py tests/test_custom_emoji_scenario.py tests/test_emoji_runtime_selection.py tests/test_custom_emoji_isolation.py tests/test_runner_custom_emoji_registration.py
 uv run --locked mypy tests/probes/android_custom_emoji_codec.py tests/test_android_custom_emoji_codec.py
-uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py
+uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py tests/probes/guest_screenshot_burst.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/test_guest_screenshot_burst.py
 uv run --locked mypy --strict src/gramlab/_captures.py tests/test_runner_custom_emoji_captures.py
 uv run --locked mypy --strict src/gramlab/_interactions.py tests/test_runner_current_inline_callbacks.py
 uv run --locked mypy --strict src/gramlab/_android.py tests/test_android_current_message_interactions.py tests/fixtures/current_message_interactions_bot.py

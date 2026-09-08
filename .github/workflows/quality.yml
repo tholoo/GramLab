@@ -80,6 +80,8 @@ jobs:
               raise SystemExit("Broken local links:\n" + "\n".join(errors))
           print(f"Validated configuration and links in {len(files)} Markdown files.")
           PY
+      - name: Screenshot burst helper tests typing
+        run: MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/test_guest_screenshot_burst.py
       - name: Guest startup diagnostics typing
         run: MYPYPATH=tests uv run --locked mypy --explicit-package-bases tests/probes/android_guest.py tests/test_guest_startup_diagnostics.py
       - name: Real bot media scenario typing
@@ -103,7 +105,7 @@ jobs:
         run: |
           uv run --locked mypy --strict tests/test_custom_emoji_media.py tests/test_custom_emoji_world.py tests/test_custom_emoji_api.py tests/test_custom_emoji_bridge.py tests/test_custom_emoji_text.py tests/test_custom_emoji_scenario.py tests/test_emoji_runtime_selection.py tests/test_custom_emoji_isolation.py tests/test_runner_custom_emoji_registration.py
           uv run --locked mypy tests/probes/android_custom_emoji_codec.py tests/test_android_custom_emoji_codec.py
-          uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py
+          uv run --locked mypy --strict tests/probes/android_custom_emoji.py tests/test_android_custom_emoji.py tests/custom_emoji_visual.py tests/test_custom_emoji_visual.py tests/probes/guest_screenshot_burst.py
           uv run --locked mypy --strict src/gramlab/_captures.py tests/test_runner_custom_emoji_captures.py
           uv run --locked mypy --strict src/gramlab/_interactions.py tests/test_runner_current_inline_callbacks.py
           uv run --locked mypy --strict src/gramlab/_android.py tests/test_android_current_message_interactions.py tests/fixtures/current_message_interactions_bot.py
