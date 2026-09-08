@@ -65,3 +65,9 @@ review. All 41 original assertions remain identical; focused shared execution pr
 zero-account, cache, trace, pixel and report acceptance. Integrated focused checks pass 13 tests
 with two native tests deselected; scoped lint/format and strict typing pass. Fresh focused native
 execution and the complete original native regression remain required.
+
+Fresh focused normal24 Android acceptance passes in 66.59 seconds, including the original
+shared-case assertions, isolation, zero accounts and report generation. The original complete
+capture was inspected and disposable successful guest disks retired. Evidence:
+`artifacts/custom-emoji-shared-native-01.xml`. The original full fault regression remains required
+under66, with earlier failures preserved.

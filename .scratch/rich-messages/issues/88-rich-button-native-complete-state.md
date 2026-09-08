@@ -129,3 +129,12 @@ findings are resolved: precisely one original before.png is required, and a poll
 preserves complete write/update ordering while allowing legitimate empty waits and batching.
 Evidence: `artifacts/rich-button-native-complete-state-integrated-01.xml`. Fresh native14 remains
 required; retained native13 prefix validation is not full acceptance of this new endpoint.
+
+## First fresh complete-state attempt
+
+Native14 fails in 126.13 seconds during the existing 120-second guest boot deadline, before APK
+installation, bot/component startup or scenario execution. The retained result has no processes,
+Android interactions or captures; emulator startup output is retained separately. This does not
+exercise the expanded acceptance oracle. Startup-only diagnostics and synchronized host-pressure
+sampling are prepared for the next run; no runtime deadline or profile is changed. Evidence:
+`artifacts/rich-button-native-14.xml`. The disposable failed guest disks have been retired.

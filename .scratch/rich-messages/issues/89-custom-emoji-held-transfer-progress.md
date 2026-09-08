@@ -76,3 +76,15 @@ forwarded progress across five seconds, an incomplete response before explicit r
 exact complete body afterward, and passes independently in 6.17 seconds. Evidence:
 `artifacts/custom-emoji-held-transfer-integrated-01.xml` and
 `artifacts/custom-emoji-held-transfer-progress-integrated-02.xml`. Fresh native03 remains required.
+
+## Original Android shared-transfer acceptance
+
+The third full fault run fails before reaching the shared case (see66), so it cannot judge this
+correction. After90 exposes the unchanged shared assertions as a focused gate, fresh normal24
+acceptance passes in 66.59 seconds. Exactly one 70-byte transfer completes without proxy error,
+its cache length/digest match, the actual trace records success without cancellation, and the
+original surviving-carrier pixel check passes after removal of the first carrier. Isolation and
+zero-account checks pass. The original screenshot was inspected; its completed guest disks are
+removed. Evidence: `artifacts/custom-emoji-shared-native-01.xml` and the dedicated run's JSON,
+original captures and report. This accepts the bounded transfer correction; the complete original
+fault regression remains independently required under66.
