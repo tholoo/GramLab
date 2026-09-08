@@ -1,7 +1,7 @@
 # Project typed ordinary documents into original Android carriers
 
 Type: task
-Status: ready-for-agent
+Status: in-progress
 Work state: claimed
 Owner: task/ordinary-document-native-codec
 Blocked by: none
@@ -80,3 +80,16 @@ updated fixture source SHA-256 is
 SHA-256 is `d32f21950413e179fa7a2c72a92b17ecdfe8e1cb74382c6fc43ac04addd7511a`.
 Probe03 remains retained as prior evidence. Updated focused Ruff, formatting, strict Mypy,
 ShellCheck, and three non-Android tests pass; native execution remains coordinator-owned.
+
+
+## Coordinator native checkpoint
+
+The integrated host probe passes three cases; its patch-order follow-up additionally preserves
+future queue appends. Normal29 compiles offline in2m39s, with exact staged codec source/provenance.
+Probe04 is bound to reviewed Java/compiler/API/DEX/APK hashes. Fresh normal29 native02 returns
+complete matching stdout/pulled summaries:33 of34 cases pass, but numeric_ordering_and_projection
+fails as InvocationTargetException before any described carrier is retained. The fixture currently
+hides its underlying cause. Probe-only bounded diagnostic follow-up is assigned; no production
+codec defect has been demonstrated. The prior normal28 native01 exited137 with empty stdout and
+Killed stderr; its initiator is unknown and this is not the intended missing-class regression red.
+Original results remain retained; actual native acceptance and combined gate closure remain open.

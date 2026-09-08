@@ -22,6 +22,22 @@ in the full goal. A text-only subset is not the operational milestone.
 The full operational milestone remains incomplete. Earlier failures remain retained and are not
 superseded by a later pass unless the specific correction is demonstrated.
 
+Current document batch: typed World99, Bot API102, client HTTP103 and native codec101 are integrated.
+The HTTP slices pass50 and78 affected checks respectively; static14 passes63 documented scopes and
+configuration/links in256 documents. Core14 passed1123 cases but failed an obsolete last-patch
+assertion; corrected order/uniqueness checks pass five focused cases. Core15 then passed1123 cases
+but failed the runner timeout test because its expected descendant heartbeat file was absent.
+That failure is under diagnosis; neither combined run is a green gate.
+
+Normal29 builds offline in2m39s using the existing incremental cache. The actual native codec run
+passes33 of34 cases, but the carrier case fails with an unexpanded reflection exception. A bounded
+probe diagnostic is in progress; no production codec cause is established. The old normal28 run
+exited137 with no JSON and cannot yet serve as the intended missing-class red. Both results remain
+retained. Original Android document loading is assigned independently in ticket104; host v5 mode
+remains unavailable until that delivery is verified. The automatic rich-detection policy has been
+sent for separate user consultation and remains unapproved.
+
+
 The user requested disk cleanup. Old guest disks, archives and reproducible caches were removed. Follow [run retention](artifact-storage.md#run-retention): save review
 artifacts, remove successful guest disks immediately, and retain at most two failed guests only
 while their disks help diagnosis. Historical disk paths may be absent; screenshots, logs, native
@@ -74,9 +90,9 @@ Document research91 establishes pinned upload filename/MIME derivation and empty
 Multipart metadata94 is resolved, preserving filename/type and exact image bytes. Storage96 is
 resolved: schema 8 shares immutable bytes while preserving existing photo/emoji identities, grants,
 callbacks and v3/v4 results. Its 53 affected World/migration/HTTP/bridge/real-bot checks pass together,
-with authentic populated schema-7 fixture provenance. General documents and albums remain unsupported;
-the next file implementation still needs typed document metadata/identity/grants and negotiated
-client delivery, rather than treating this migration as file support.
+with authentic populated schema-7 fixture provenance. Typed document metadata/identity/grants and v5 HTTP delivery are now integrated separately in99/103.
+Original Android document loading, default classification and albums remain unsupported; the
+neutral byte migration alone does not establish file support.
 
 Clipboard92's XML correction passes actual row-copy paste/clear in native02. Diagnostic native03
 also passes inline-copy and inline-disabled paste/clear with complete unchanged semantic snapshots.
@@ -116,7 +132,8 @@ pinned-source links and original file destination/deconfliction requirements are
 Unicode/MIME data and filename normalization. The frozen [document implementation contract](documents-implementation-contract.md)
 now has integrated World99 typed storage/schema9/v5 dependencies with102 focused checks. Multipart decoding100 is integrated with
 83 focused multipart/photo/metadata checks and strict typing;
-general document API/native delivery and albums remain open.
+explicit forced-file API delivery is integrated in102, while default classification, native delivery
+and albums remain open.
 Multipart quote/percent rules are now pinned; exact cloud50MB byte admission remains unproven by
 the local parser's different limit. Preserve this distinction and the unresolved server detector.
 
