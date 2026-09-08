@@ -2,8 +2,8 @@
 
 Type: feature
 Status: ready-for-agent
-Work state: ready for coordinator review; native execution remains coordinator-owned
-Blocked by: none; ticket63 frozen at e0fb984c0230c28f579c58b88dbf2dd47f3a934f
+Work state: resolved
+Blocked by: none
 
 Coordinator owns this ticket, new `tests/probes/android_custom_emoji.py`,
 `tests/test_android_custom_emoji.py`, optional original pixel-oracle helper/test, and native execution.
@@ -77,3 +77,16 @@ control is unchanged after one text-child tap, so it fails before animated edit/
 Original before/after PNG and XML are identical; they do not establish why input had no observed
 effect. Ticket79 owns the narrow checkbox-side, state-observed diagnostic correction and failure
 preference evidence. The renderer, normal24 APK and profile remain unchanged.
+
+## Fresh native lifecycle acceptance
+
+`artifacts/custom-emoji-ui-09.xml` records one passing original Android lifecycle test in
+130.06 seconds on unchanged normal24. Initial static carriers, actual bot callback edit, original
+settings enable, all three animated carriers, native download and unchanged cold-cache restart
+pass. All 24 conservative raw acquisition intervals are 140–210 ms (median 160 ms), below the
+unchanged half-period bound; the unchanged spatial/phase oracle accepts all 72 carrier frames.
+Independent Pillow decoding verifies every derived PNG against its exact retained raw pixels.
+Original initial/edited/restarted PNGs and desktop/mobile report previews are inspected. Raw
+frames, derivation metadata, JSON/logs and the passing report remain; the successful guest disk
+is removed. Earlier failed JUnits remain failed. Resolver/shared-transfer faults and wider
+current-message/native coverage remain separate gates.

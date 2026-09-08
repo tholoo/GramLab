@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: implemented on `task/custom-emoji-raw-capture`; coordinator review pending
-Blocked by: coordinator native acceptance
+Work state: resolved
+Blocked by: none
 
 Own this ticket, `tests/probes/guest_screenshot_burst.py` and its focused tests in
 `tests/test_guest_screenshot_burst.py`. Coordinator owns the caller/staging list, animation
@@ -125,3 +125,16 @@ pass. The native acceptance caller independently decodes each of the 24 PNG deri
 Pillow and compares every RGBA byte to the retained raw payload, as well as checking frame/hash/
 timing bindings. Reports retain derivation metadata and distinguish these burst PNGs from
 original PNG screencap output. Fresh native UI09 is the next acceptance gate.
+
+## Fresh native lifecycle acceptance
+
+`artifacts/custom-emoji-ui-09.xml` records one passing original Android lifecycle test in
+130.06 seconds on unchanged normal24. Initial static carriers, actual bot callback edit, original
+settings enable, all three animated carriers, native download and unchanged cold-cache restart
+pass. All 24 conservative raw acquisition intervals are 140–210 ms (median 160 ms), below the
+unchanged half-period bound; the unchanged spatial/phase oracle accepts all 72 carrier frames.
+Independent Pillow decoding verifies every derived PNG against its exact retained raw pixels.
+Original initial/edited/restarted PNGs and desktop/mobile report previews are inspected. Raw
+frames, derivation metadata, JSON/logs and the passing report remain; the successful guest disk
+is removed. Earlier failed JUnits remain failed. Resolver/shared-transfer faults and wider
+current-message/native coverage remain separate gates.

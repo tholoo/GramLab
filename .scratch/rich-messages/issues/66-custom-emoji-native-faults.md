@@ -3,7 +3,7 @@
 Type: feature
 Status: ready-for-agent
 Work state: claimed; host harness integrated, native acceptance pending
-Blocked by: native execution result
+Blocked by: shared-thumbnail failure diagnosis
 
 Own this ticket and new `tests/probes/android_custom_emoji_faults.py`,
 `tests/test_android_custom_emoji_faults.py`, `tests/probes/custom_emoji_fault_server.py`, and
@@ -71,3 +71,15 @@ case. Same-process refetch remains a bounded diagnostic, and callback owner iden
 receiver delivery remain separate observation gaps. The earlier disk-space cleanup requirement is satisfied. The coordinator has started the first
 serial native execution on the verified immutable normal24 APK. No failure/recovery screenshots
 or native report are accepted until that run completes and its assertions are reviewed.
+
+## First native run
+
+The first normal24 native run fails in 296.73 seconds during shared-thumbnail cache settlement,
+after the three document-case functions returned. Complete per-case result objects were only
+held in memory and are missing from the final empty result, so the earlier cases cannot be
+counted as fully accepted. Their screenshots, traces and cache artifacts remain useful evidence.
+Ticket87 adds durable completed-case checkpoints and bounded failure diagnostics before rerunning.
+Cancellation is unproven: no final native media trace was retained. Original ImageLoader aggregates
+receivers by URL before filtered keys; its global cancellation must not be changed on speculation.
+The adapter read timeout during the deliberate partial-response hold is another hypothesis that
+needs timestamps and native terminal trace evidence.

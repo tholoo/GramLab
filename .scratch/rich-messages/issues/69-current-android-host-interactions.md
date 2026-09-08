@@ -3,7 +3,7 @@
 Type: bug
 Status: ready-for-agent
 Work state: frozen for coordinator review on `task/current-android-host-interactions`
-Blocked by: native execution requires coordinator disk-space cleanup approval
+Blocked by: coordinator native execution result
 
 Own this ticket, `src/gramlab/_android.py`, new `tests/test_android_current_message_interactions.py`
 and, if needed, one new self-contained `tests/fixtures/current_message_interactions_bot.py`.
@@ -82,3 +82,15 @@ Python files. The combined core gate passes 652 tests at 85.44% coverage in 87.0
 unexecuted, so this ticket stays claimed. The independent review caught the empty-text history
 ambiguity guard and fixture deadline/oracle defects before integration; their corrected worker
 evidence is retained.
+
+## Current execution
+
+Disk cleanup is complete. The coordinator has started the original public native regression
+with immutable normal27, which includes the reviewed bridge-v4 support. Native acceptance is
+not claimed before that run terminates and its complete assertions pass.
+
+The first native run completes the actual callback/composer flow and exact six-message history,
+then fails in 83.41 seconds because the test compares a creation event to a receipt that includes
+`answer: null`. The independent expected callback now explicitly separates the six creation
+fields from the receipt answer field. Scoped lint/format/strict typing pass; the fresh corrected
+native run remains the acceptance boundary. The original failed JUnit is retained.

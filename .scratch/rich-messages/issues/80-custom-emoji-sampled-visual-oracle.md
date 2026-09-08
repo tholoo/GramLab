@@ -1,10 +1,10 @@
 # Validate authored animation at the original rendered scale and sampling cadence
 
 Type: task
-Status: claimed
-Work state: prepared for coordinator review and retained-evidence revalidation
+Status: ready-for-agent
+Work state: resolved
 Owner: custom-emoji-sampled-visual-oracle worker
-Blocked by: coordinator retained-evidence validation and review
+Blocked by: none
 
 Own this ticket, `tests/custom_emoji_visual.py`, `tests/test_custom_emoji_visual.py`,
 `tests/test_android_custom_emoji.py` and the burst timestamp capture portion of
@@ -109,3 +109,16 @@ original settings, static/animated carrier, native requests and exact cold-cache
 explicitly distinguishes this host revalidation from a fresh guest run. The original failed
 JUnit remains unchanged; the separate report accompanies the new assessment. Fresh native
 execution and report inspection remain next.
+
+## Fresh native lifecycle acceptance
+
+`artifacts/custom-emoji-ui-09.xml` records one passing original Android lifecycle test in
+130.06 seconds on unchanged normal24. Initial static carriers, actual bot callback edit, original
+settings enable, all three animated carriers, native download and unchanged cold-cache restart
+pass. All 24 conservative raw acquisition intervals are 140–210 ms (median 160 ms), below the
+unchanged half-period bound; the unchanged spatial/phase oracle accepts all 72 carrier frames.
+Independent Pillow decoding verifies every derived PNG against its exact retained raw pixels.
+Original initial/edited/restarted PNGs and desktop/mobile report previews are inspected. Raw
+frames, derivation metadata, JSON/logs and the passing report remain; the successful guest disk
+is removed. Earlier failed JUnits remain failed. Resolver/shared-transfer faults and wider
+current-message/native coverage remain separate gates.

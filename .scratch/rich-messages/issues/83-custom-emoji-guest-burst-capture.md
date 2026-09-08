@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: implemented on `task/custom-emoji-guest-burst-capture`; coordinator review pending
-Blocked by: coordinator integration and fresh native acceptance
+Work state: resolved
+Blocked by: none
 
 Own this ticket, the burst capture portion of `tests/probes/android_custom_emoji.py`, a small
 test-only capture helper under `tests/probes/` if needed, and focused capture-helper tests.
@@ -86,3 +86,16 @@ temporal oracle rejects them. Transfer is no longer in the interval; at least on
 screencap command exceeds half a period even accounting for clock quantization. Ticket86
 investigates original raw capture followed by lossless host PNG encoding. No existing failed
 result is relabeled, and all original pixels and timings remain retained.
+
+## Fresh native lifecycle acceptance
+
+`artifacts/custom-emoji-ui-09.xml` records one passing original Android lifecycle test in
+130.06 seconds on unchanged normal24. Initial static carriers, actual bot callback edit, original
+settings enable, all three animated carriers, native download and unchanged cold-cache restart
+pass. All 24 conservative raw acquisition intervals are 140–210 ms (median 160 ms), below the
+unchanged half-period bound; the unchanged spatial/phase oracle accepts all 72 carrier frames.
+Independent Pillow decoding verifies every derived PNG against its exact retained raw pixels.
+Original initial/edited/restarted PNGs and desktop/mobile report previews are inspected. Raw
+frames, derivation metadata, JSON/logs and the passing report remain; the successful guest disk
+is removed. Earlier failed JUnits remain failed. Resolver/shared-transfer faults and wider
+current-message/native coverage remain separate gates.

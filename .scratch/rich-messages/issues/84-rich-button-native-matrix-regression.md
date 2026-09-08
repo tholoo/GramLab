@@ -43,8 +43,8 @@ and normal27 APK SHA-256 `141415076e8727cfbffc6eacfe759f339e3640fa363ba5932e95cd
 The probe does not invoke production `getLocationOnScreen`; its expected screen bounds are explicitly
 labeled `reference_only`. The overflow negative records Android's raw eight mapped coordinates and
 requires only the first corner to be nonfinite before testing helper rejection. It replaces the
-projective zero-denominator fixture rejected by native matrix-suite-01 because Android mapped every
-corner to finite zero. A failed premise is
+projective zero-denominator fixture rejected by native matrix-suite-01 because Android mapped all
+corners to finite values, including zero at the first corner. A failed premise is
 a fixture/precondition failure, not a helper regression. Public native09 separately covers stable
 production screen bounds across the popup redraw.
 

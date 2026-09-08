@@ -1,14 +1,18 @@
 # Local custom emoji
 
-GramLab now has an immutable World catalog for original local WebP and VP9 WebM custom emoji,
-with Bot API lookup/download and version-4 client delivery. Focused catalog, media and HTTP checks
-pass, and the combined core gate passes 652 tests at 85.44% coverage. The adapter also passes
-99 independent native codec cases and the existing photo/mention codec regressions. A diagnostic
-screenshot shows four static emoji, but its readiness check fails before edit/restart. Full original
-Android rendering, animation, failure recovery and unchanged-cache reuse remain
-acceptance work; a compiled adapter or native serialization case does not establish those results.
-See the [implementation contract](custom-emoji-implementation-contract.md) for exact shapes and
-[the current handoff](handoff.md) for the latest combined verification.
+GramLab has an immutable World catalog for original local WebP and VP9 WebM custom emoji,
+with Bot API lookup/download and version-4 client delivery. The adapter passes 99 independent
+native codec cases and the photo/mention codec regressions. Fresh original Android lifecycle
+acceptance now passes: four initial static carriers, a real bot callback/edit, original animation
+settings, three animated carriers, native download and unchanged cold-cache restart. All 24
+burst captures pass the unchanged spatial/temporal checks; PNG derivatives are independently
+verified pixel-for-pixel against retained original raw frames.
+
+Failure recovery remains incomplete: the first fault suite reaches its shared-thumbnail case
+then fails cache settlement. Its cause requires additional retained diagnostics; do not infer
+successful recovery from normal rendering. Broader current-message and native regression remain
+separate acceptance gates. See the [implementation contract](custom-emoji-implementation-contract.md)
+for exact shapes and [the current handoff](handoff.md) for combined verification and limits.
 
 ## Registration
 

@@ -37,19 +37,27 @@ JSON, APKs and provenance remain. Exact paths and cleanup receipts stay in ignor
   native10/11 readiness failures remain incompletely diagnosed; source review finds arm ACKs can
   reference old draws. Wider independent clipboard paste/full-state and placement/recovery gates
   remain open under ticket74. Do not infer those from the current receipt-status test.
-- Custom-emoji UI06 retains complete successful lifecycle revalidation. Fresh UI08 completes bot
-  edit, animation download and cold restart, but actual guest screencap intervals include 500 and
-  580 ms, so the unchanged temporal oracle fails. Batching removes transfer overhead but does not
-  eliminate PNG acquisition latency. A fixed eight-capture experiment measures median raw/PNG
-  durations of 335/515 ms; one raw frame equals the separately decoded PNG pixel-for-pixel.
-  Ticket86 implements verified raw capture and lossless host PNG derivatives in a separate
-  worker branch. Fresh animation acceptance and ticket66 resolver faults remain pending.
+- Fresh original custom-emoji UI09 passes in 130.06 seconds on unchanged normal24: initial static
+  rendering, real bot callback/edit, original settings, three animated carriers and unchanged
+  cold-cache restart. All 24 conservative acquisition bounds are 140–210 ms (median 160 ms).
+  The unchanged spatial/phase oracle accepts all 72 carrier frames; independent PNG decoding
+  exactly matches every retained raw frame. Original captures and desktop/mobile reports are
+  inspected. Ticket86 has 79 combined capture/oracle checks; no renderer or fixture was changed.
+- The first ticket66 native fault suite fails shared-thumbnail cache settlement after all three
+  document-case functions return. Complete case result objects were lost when the later case
+  failed, so their full acceptance remains unproven. Ticket87 preserves those checkpoints and
+  failure traces. Cancellation is unproven; the adapter's read timeout during the intentional
+  partial-response hold is another hypothesis. Do not change original loader ownership on
+  speculation. Ticket69's native mixed-content run completes its six-message history, callback
+  and composer send but exposes an expected-event shape error; the corrected assertion is being
+  checked in a fresh run.
 - Immutable APK storage has 20 integrated filesystem checks. Private Android patch staging is
   integrated with 15 passing checks, including all-new patches and bounded descendant-held
   output cleanup; contributor/CI checks include it. It never mutates the live source tree.
 
-The combined core gate now passes all 894 tests at 87.07% coverage in 111.25 seconds with four
-isolated workers and no simultaneous guest. Run the remaining native gates serially and reuse
+The combined core checkpoint passes 894 tests at 87.07% coverage in 111.25 seconds with four
+isolated workers and no simultaneous guest. The subsequent raw-capture batch passes its 79
+focused controls and fresh native gate; repeat the combined check after the current diagnostic batch. Run the remaining native gates serially and reuse
 the exact immutable APK provenance. Any live handles stay in ignored coordinator notes.
 
 ## First action
@@ -125,60 +133,27 @@ offline safety, licensing and completion requirements before the corresponding a
 - [Checkout import preflight](../../.scratch/developer-tooling/issues/11-checkout-import-preflight.md)
   rejects another worktree's editable package before test collection. Always provision through
   the assigned checkout's `tools/dev`; inherited `UV_PROJECT_ENVIRONMENT` caused the invalid runs.
-- [Local custom emoji](custom-emoji.md) now has integrated schema-7 immutable catalog, public
-  Bot API lookup/download, atomic retained grants and v4 dependencies. Focused integrated checks
-  pass 30 media, 31 catalog/API, 31 native request-proxy and four initial scenario cases. The
-  original source predicate has pinned BSL provenance. Seven catalog isolation regressions and eight dropped-response/
-  contained-runner tests are integrated and pass focused checks. The observed integer-ID document-route
-  admission mismatch is corrected under ticket64, with its original red preserved. The combined
-  gate now passes all 652 core tests at 85.44% coverage in 87.04 seconds. A prior overlapping
-  core/Android run passed 614 and timed out during the existing large-report scenario; that
-  unchanged case passes alone in 3.09 seconds. Preserve the red; contention is not yet proven
-  causal. A rebuilt normal24 adapter passes all 99 native codec cases in 144.279 seconds, after
-  a probe-only FileLoader-thread exit correction; original red and diagnostic evidence are retained.
-  The same APK passes the two existing photo/mention codec tests (28 and 75 vectors) in
-  254.284 seconds. A diagnostic screenshot visibly renders four static emoji, but a false
-  accessibility readiness check stops the run before edit/restart. Static lifecycle acceptance,
-  transparent animation, cache reuse and fault recovery remain open.
-  Ticket63 supplies the compact real-bot fixture. Ticket65 has seven integrated pixel-oracle
-  tests and an original-settings diagnostic. The latest guest reaches the original emoji animation
-  settings but fails after an unchanged unchecked control; ticket79 corrects bounded diagnostic
-  input and retains preferences on failure. Animation and cold-cache acceptance remain open.
-  Ticket66 has seven integrated HTTP/staging/diamond tests for static resolver faults and shared
-  delivery. Both native acceptance gates remain pending. Public semantic capture and virtual
-  callback compatibility fixes are integrated under tickets67/68: eight capture controls and
-  two callback controls pass focused checks and the combined core gate. Two
-  Android host defects (composer snapshot version and photo caption matching) are corrected
-  under ticket69. Seven integrated host/capture/callback controls and scoped static checks pass;
-  the combined core gate also passes. The collected native scenario remains unexecuted.
-  The [rich-button implementation contract](rich-button-implementation-contract.md) is frozen
-  under ticket70 after independent source/recovery review. It preserves strict v4 payloads and
-  specifies a separate app-private observation protocol. Tickets71/72/74 divide core primitives,
-  GPL observation and independent public acceptance; the coordinator owns integration73.
-  The [public rich-button operations](scenario-rich-buttons.md) are now implemented: independent
-  simulation and actual abrupt supervisor recovery pass together, and the integrated Android host
-  passes 101 boundary/integration checks. Subsequent review fixes pass 41 registry/journal/recovery
-  checks, including malformed lifetime and deeply nested corruption. The combined core gate
-  passes 780 tests at 86.71% coverage in 99.12 seconds; full lint/format, scoped strict typing,
-  213-document link validation and the pinned offline workflow check pass. These host tests substitute
-  external guest files. Patch25 has passed independent source review and exact zero-fuzz/offset
-  application; the complete normal25 offline APK build passed in 3 minutes 1 second with strict dependency
-  verification and a verified APK signature. Native targeting, original
-  clipboard paste and wider placement/regression acceptance remain pending. The existing normal24
-  custom-emoji APK/provenance and exact changed source preimages are retained separately.
-  Actual normal25 execution exposed two host startup defects: ADB shell quoting and the window
-  focus query. Their narrow fixes pass 87 integrated host/public checks. The corrected original
-  viewport visibly shows row and inline controls, but no observation is published. An actual
-  Android TL round trip confirms reconstructed button objects lose their identity bindings.
-  [Ticket77](../../.scratch/rich-messages/issues/77-rich-button-native-persistence.md) implements
-  exact revision provenance through existing message-local storage; independent
-  [ticket78](../../.scratch/rich-messages/issues/78-rich-button-native-storage-regression.md)
-  checks SQLite reload, reopen, stale metadata and A→B→A. These are active fixes, not native acceptance.
+- [Local custom emoji](custom-emoji.md) has the schema-7 immutable catalog, public lookup/download,
+  atomic retained grants, version-4 dependencies and a passing original lifecycle/animation/cache
+  gate. Normal24 also passes 99 native emoji codec, 28 photo codec and 75 mention codec cases.
+  Tickets63/65 supply the real-bot lifecycle; settings79, sampled oracle80 and capture83/86 now
+  have fresh native acceptance. Ticket66 fault/shared-transfer acceptance remains failed and
+  requires the bounded diagnostic checkpoints in ticket87. Semantic captures and virtual callback
+  fixes under tickets67/68 pass core checks; ticket69 covers the combined current-message public
+  Android path and its complete native expected history/event assertions.
+- [Public rich-button targeting](scenario-rich-buttons.md) follows the frozen
+  [implementation contract](rich-button-implementation-contract.md). Core, simulation, concurrency
+  and abrupt-recovery checks pass. Normal26 preserves reconstructed provenance through actual
+  native buffers and SQLite; normal27 preserves original drawing/input while normalizing observer
+  coordinates. Seven actual matrix/context cases and the uninstrumented six-visible-control native
+  scenario now pass. Ticket74 still needs independent native clipboard paste, complete state/event
+  comparisons and wider placement/recovery. Its current status-only test does not prove the later
+  unrelated callback succeeded; retained runs reject that operation after a geometry change.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
   The synthetic catalog and shared delivery direction are approved; freeze exact schemas and
-  verify resolution/failure behavior during implementation. See the newer catalog/codec checkpoint above; native rendering is still unproven.
+  verify resolution/failure behavior during implementation. See the newer catalog, codec and original native lifecycle checkpoint above.
   The [concrete catalog proposal](custom-emoji-proposal.md) preserves caller-selected IDs and
   message fallback text, separates bot file identities from recipient document/media access,
   and requires transparent VP9 WebM. Original WebP/WebM fixtures are integrated with independent
