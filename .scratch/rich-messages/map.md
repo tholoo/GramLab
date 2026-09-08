@@ -30,3 +30,16 @@ This index covers the current integration work. The
 Contracts, host tests and collected native scenarios do not prove actual animation, rich input,
 clipboard effects or the broader operational milestone. Preserve the pending native gates and
 the full product scope documented in the handoff.
+
+## Current follow-ups
+
+- [91: document source contract](issues/91-document-source-contract.md): pinned filename/MIME
+  derivation and empty-upload rejection are researched; ordinary file implementation remains open.
+- [92: clipboard acceptance](issues/92-rich-button-native-clipboard-acceptance.md): row-copy actual
+  paste/clear passes in native02; later freshness rejections keep complete acceptance open.
+- [94: multipart metadata](issues/94-multipart-upload-metadata.md): integrated with 12 affected
+  checks passing; complete batch verification remains pending.
+- [95: unrelated target survival](issues/95-native-unrelated-edit-target-survival.md): review
+  corrections before integration and native execution.
+- [96: shared immutable bytes](issues/96-neutral-media-byte-storage.md): internal migration in
+  progress, preserving legacy identities and authorization for upcoming document support.

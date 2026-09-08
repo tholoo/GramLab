@@ -70,8 +70,22 @@ standalone abrupt-exit harness omitted88's new fixture-variant file, so the scen
 reaching the intended interruption boundary. The explicit full variant restores all six unchanged
 recovery checks. No production timeout, rendering or recovery behavior changed.
 
-Ordinary document source research is integrated under91; files/albums remain unimplemented.
-Ticket92 owns actual public native clipboard paste/clear acceptance in a separate worktree.
+Document research91 now establishes the pinned upload filename/MIME path and empty-file rejection.
+Multipart metadata94 is integrated: filename and declared content type survive HTTP parsing while
+existing image callers receive identical bytes; all 12 affected checks pass. General documents and
+albums remain unimplemented. Ticket96 prepares shared immutable byte storage while preserving
+existing photo/emoji identities, grants and public outputs; its migration is not integrated yet.
+
+Clipboard92 is integrated with 16 passing host controls after correcting value-level XML
+redaction. Native01 failed parsing before paste. Fresh native02 verifies exact row-copy paste and
+clear, unchanged semantic state and well-formed redacted XML, but fails the complete acceptance:
+later targets reject during their first freshness check before arming/input. Original screenshots
+show the same layout; the exact failed sample/guard was not retained. A bounded diagnostic
+follow-up is active; do not infer an input defect, stale-draw cause or complete clipboard support.
+Ticket95's separate unrelated-edit scenario is undergoing review corrections before integration
+and native execution. The combined 924-test checkpoint above predates92/94; a new batch gate remains
+required. Successful core temporary fixtures and diagnosed guest disks are retired after retaining
+JUnit, logs, screenshots and reports; cleanup identities remain in ignored local notes.
 Ticket93 provides the [concrete offline rich auto-detection proposal](rich-auto-detection-proposal.md)
 for user consultation; changing
 the fidelity target remains unapproved and implementation must not start on that assumption.

@@ -114,8 +114,9 @@ Therefore multipart `Content-Type` has no semantic precedence in this pinned upl
 either value of `disable_content_type_detection`.
 
 The upload sanitizer requires valid UTF-8, keeps only the path basename, limits the stem to 64 and
-the extension to 16 Unicode characters, filters control/path/shell punctuation, and trims leading
-or trailing spaces and dots
+the extension to 16 emitted Unicode characters, skips characters whose search normalization is
+empty and replaces other disallowed characters with spaces, then trims leading or trailing spaces
+and dots
 ([exact algorithm](https://github.com/tdlib/td/blob/bc9c263e2bfee06aaab41e82db51a103376030bc/tdutils/td/utils/filesystem.cpp#L102-L175)).
 This filename is untrusted presentation metadata, not a host path or storage name. The pinned
 Android client separately reads `documentAttributeFilename`, removes control characters and
