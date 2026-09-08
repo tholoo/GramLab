@@ -74,6 +74,14 @@ the route or file path. The v5 asset and custom-emoji routes reuse the existing 
 - Scoped Ruff check/format and strict mypy pass `src/gramlab/client_bridge.py` and
   `tests/test_document_bridge.py`. The environment was created separately in this checkout from
   offline cached packages. No guest, build, full gate, network, dependency or source export ran.
+- Follow-up review found that the first route parser used only the final path segment: a real HTTP
+  control proved `/v5/documents/extra/1` returned HTTP 200 and the granted ID-1 bytes. The corrected
+  handler validates the complete suffix after `/v5/documents/`; nested, doubled and trailing slash
+  variants now return schema-5 invalid-ID errors without changing the logical database.
+  `artifacts/ticket103-route-followup.xml` retains all 78 affected cases passing with fatal
+  `ResourceWarning`. Named blank and nonblank query parameters reject. A bare trailing `?` remains
+  equivalent to no query because `urlsplit` exposes both as an empty query; the real granted-byte
+  control passes, matching the inherited bridge parsing distinction.
 
 This bridge slice does not establish Android document delivery or rendering. Default content
 classification, document edits and albums remain outside this batch, so ordinary-file HTTP support

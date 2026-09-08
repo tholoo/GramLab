@@ -494,13 +494,30 @@ def test_v5_document_download_auth_syntax_isolation_and_request_limits(tmp_path:
                 "schema": 5,
                 "error": {"code": "invalid_request", "message": "Invalid document ID"},
             }
+        for path in (
+            "/v5/documents/extra/1",
+            "/v5/documents//1",
+            "/v5/documents/1/",
+        ):
+            rejected = request(bridge.base_url, token, "GET", path)
+            assert rejected.status == 400
+            assert rejected.json() == {
+                "schema": 5,
+                "error": {"code": "invalid_request", "message": "Invalid document ID"},
+            }
         for headers, path in (
             ({}, "/v5/documents/1?download=true"),
+            ({}, "/v5/documents/1?download="),
             ({"Range": "bytes=0-1"}, "/v5/documents/1"),
             ({"Transfer-Encoding": "chunked"}, "/v5/documents/1"),
         ):
             rejected = request(bridge.base_url, token, "GET", path, extra_headers=headers)
             assert rejected.status == 400 and rejected.json()["schema"] == 5
+        assert_binary(
+            request(bridge.base_url, token, "GET", "/v5/documents/1?"),
+            upload.data,
+            "text/plain",
+        )
         post = request(bridge.base_url, token, "POST", "/v5/documents/1", {})
         assert post.status == 404
         assert post.json() == {

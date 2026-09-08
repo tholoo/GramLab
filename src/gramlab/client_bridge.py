@@ -376,7 +376,9 @@ class ClientBridge:
                                 or "Transfer-Encoding" in self.headers
                             ):
                                 raise ValueError("Document download parameters are unsupported")
-                            identifier = canonical_document_id(url.path.rsplit("/", 1)[1])
+                            identifier = canonical_document_id(
+                                url.path.removeprefix("/v5/documents/")
+                            )
                             try:
                                 descriptor, data = world.granted_document(persona, str(identifier))
                             except ValueError:
