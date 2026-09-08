@@ -86,4 +86,8 @@ normal24 APK/pointer and provenance remain retained. The integrated contained of
 in 3 minutes 1 second, with strict Gradle verification (10 executed tasks, 68 up-to-date).
 `artifacts/rich-button-normal25-gradle-build-01.log` and the separate signature log retain evidence.
 The normal25 APK SHA-256 is `cb53bdc1eee3d6fa6848d82c78ca9143ed4dc75db329b8fec0ddf9a7ec142a49`.
-Original native behavior remains unexecuted; this ticket is not resolved by compilation.
+Actual native startup now shows the intended row and inline controls after separate host and
+fixture corrections, but the observation file is absent. The actual Android identity diagnostic
+confirms TL reconstruction loses both object bindings. Ticket77 implements the original local
+metadata seam and ticket78 independently checks storage/revision behavior. Native acceptance
+remains incomplete; this ticket is not resolved by compilation.

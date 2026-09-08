@@ -105,8 +105,10 @@ offline safety, licensing and completion requirements before the corresponding a
   254.284 seconds. A diagnostic screenshot visibly renders four static emoji, but a false
   accessibility readiness check stops the run before edit/restart. Static lifecycle acceptance,
   transparent animation, cache reuse and fault recovery remain open.
-  Ticket63 supplies the compact real-bot fixture. Ticket65 now has seven integrated pixel-oracle
-  tests and an original-settings diagnostic; its next guest could not start because of disk space.
+  Ticket63 supplies the compact real-bot fixture. Ticket65 has seven integrated pixel-oracle
+  tests and an original-settings diagnostic. The latest guest reaches the original emoji animation
+  settings but fails after an unchanged unchecked control; ticket79 corrects bounded diagnostic
+  input and retains preferences on failure. Animation and cold-cache acceptance remain open.
   Ticket66 has seven integrated HTTP/staging/diamond tests for static resolver faults and shared
   delivery. Both native acceptance gates remain pending. Public semantic capture and virtual
   callback compatibility fixes are integrated under tickets67/68: eight capture controls and
@@ -129,6 +131,14 @@ offline safety, licensing and completion requirements before the corresponding a
   verification and a verified APK signature. Native targeting, original
   clipboard paste and wider placement/regression acceptance remain pending. The existing normal24
   custom-emoji APK/provenance and exact changed source preimages are retained separately.
+  Actual normal25 execution exposed two host startup defects: ADB shell quoting and the window
+  focus query. Their narrow fixes pass 87 integrated host/public checks. The corrected original
+  viewport visibly shows row and inline controls, but no observation is published. An actual
+  Android TL round trip confirms reconstructed button objects lose their identity bindings.
+  [Ticket77](../../.scratch/rich-messages/issues/77-rich-button-native-persistence.md) implements
+  exact revision provenance through existing message-local storage; independent
+  [ticket78](../../.scratch/rich-messages/issues/78-rich-button-native-storage-regression.md)
+  checks SQLite reload, reopen, stale metadata and A→B→A. These are active fixes, not native acceptance.
 - [Custom-emoji source contract](../../.scratch/rich-messages/issues/28-custom-emoji-source-contract.md)
   is integrated. The [memo](custom-emoji-references.md) separates logical emoji IDs from media file
   identities and requires a resolvable original Document plus local static/animated bytes.
@@ -159,8 +169,8 @@ offline safety, licensing and completion requirements before the corresponding a
   canonical paths, journal revisions, client-lifetime-bound single-use targets, explicit uncertain
   outcomes and client-local copy effects. Independent review and a guarded same-clock edit
   experiment inform the approved contract. The shared [implementation contract](rich-button-implementation-contract.md) is now frozen.
-  The permanent GPL observation seam and public effects remain unimplemented; the experiments
-  do not establish a stable public geometry API.
+  The permanent GPL observation seam and public effects are implemented but native acceptance
+  is blocked by the storage identity defect above. The earlier experiments do not certify them.
 
 Preserve the full scope while pursuing independent work during a pending decision. No external
 runtime egress or remote publication is authorized. Provisioning and primary-source research are
@@ -174,8 +184,8 @@ separate from bot/client execution; never contact production/Test DCs or use rea
 | Normal Android inventory | The same immutable normal16 APK covers all 45 cases: two focused passes plus 43 continuation passes, with exact inventory/source/APK/profile/import equivalence independently verified. This is resumed coverage, not one uninterrupted run. Earlier invalidated results are excluded; see [acceptance](../../.scratch/rich-messages/issues/31-rich-links-acceptance.md). |
 | Experimental callbacks | Two observed original controls receive one ordinary tap each; real bot answers/edits, complete native/API/history/event comparisons, cold restart, absent/wrong opt-in, zero accounts and isolation pass. Six original PNGs and desktop/mobile report inspected. The 83.83-second run is separate from the normal inventory. See [experiment](rich-action-input-experiment.md). |
 | Experimental copy/disabled | Exact original clipboard text survives ordinary paste/delete; disabled input leaves World/API unchanged; restart passes. All native assertions pass in 98.39 seconds, but pytest fails only because report packaging exceeds eight images. Retained complete-result revalidation and two bounded reports pass in 0.28 seconds with original evidence unchanged. Do not relabel the original JUnit green. Callback regression on the new experimental APK passes in 101.82 seconds. All 13 effect PNGs, six callback PNGs and four report captures inspected. See [effects experiment](rich-action-effects-experiment.md). |
-| Latest core | 652 passed at 85.44% coverage in 87.04 seconds using four isolated workers and verified primary imports, with Android excluded and no simultaneous guest. The earlier overlapping run had one large-report timeout; the unchanged focused case passes. No production performance or causal contention conclusion follows. |
-| Latest static/workflow | Full Ruff lint/format pass across 427 files; production mypy passes all 22 source files, with strict checks for affected media/proxy modules. CI and contributor scopes cover new probes/tests. Configuration and local Markdown links are checked at each integration. Earlier complete workflow evidence remains in the linked historical checkpoint. |
+| Latest core | 780 passed at 86.71% coverage in 99.12 seconds using four isolated workers, verified primary imports and no simultaneous guest. Subsequent startup/fixture corrections pass focused integration; repeat the combined gate after the current fix batch. |
+| Latest static/workflow | The 780-test checkpoint passes full Ruff lint/format across 448 files, production/scoped strict typing, 213-document link validation and the pinned offline workflow check. Later worker changes still need combined verification. |
 | Media preparation | Four original PNGs decode independently with exact dimensions/corners. A pinned original 64×48 JPEG also reproduces byte-for-byte; independent browser decoding checks all 512 interior pixels with maximum RGB channel error 1. Both truncated photo formats reject. Original [custom-emoji fixtures](../../tests/assets/custom-emoji/README.md) repeat byte-for-byte under the recorded encoder profile and pass FFmpeg plus independent Chromium decoding, full alpha geometry, WebP colors, WebM frames/duration and invalid-input rejection. The optional pinned media shell now records FFmpeg 6.1.6, libvpx 1.16.0 and libwebp 1.6.0, reproducing all four emoji binaries unchanged. This establishes fixtures/contracts, not media API or native media/emoji support. |
 
 The normal and experimental APKs are distinct. Preserve their ignored provenance and immutable

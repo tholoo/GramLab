@@ -71,3 +71,9 @@ creation needs more free disk than available. No settings, playback or restart e
 Retain these original failures. After approved resource cleanup, run the final probe, verify all
 three animated bot carriers plus the unchanged incoming static control, exact bytes and unchanged
 cold-cache reuse, then inspect the original captures and bounded report before resolving this ticket.
+
+The later isolated guest reaches the expanded original animation settings. Its unchecked keyboard
+control is unchanged after one text-child tap, so it fails before animated edit/cache acceptance.
+Original before/after PNG and XML are identical; they do not establish why input had no observed
+effect. Ticket79 owns the narrow checkbox-side, state-observed diagnostic correction and failure
+preference evidence. The renderer, normal24 APK and profile remain unchanged.

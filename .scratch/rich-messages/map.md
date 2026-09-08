@@ -20,6 +20,10 @@ This index covers the current integration work. The
 - [72: original native observation](issues/72-rich-button-native-observer.md).
 - [73: control and client integration](issues/73-rich-button-control-integration.md).
 - [74: independent public acceptance](issues/74-rich-button-public-acceptance.md).
+- [77: exact native storage provenance](issues/77-rich-button-native-persistence.md), following
+  actual Android object-identity loss after TL reconstruction.
+- [78: independent storage regression](issues/78-rich-button-native-storage-regression.md).
+- [79: original emoji settings diagnostic](issues/79-custom-emoji-settings-input.md).
 
 ## Remaining uncertainty
 
