@@ -9,6 +9,7 @@ import json
 import stat
 import subprocess
 import sys
+import time
 import types
 from pathlib import Path
 from typing import Any
@@ -260,4 +261,50 @@ def test_patch_output_is_stopped_and_retained_at_the_runtime_bound(
     )
     assert failure == "output"
     assert stdout == b"x" * 32
+    assert stderr == b""
+
+
+def test_all_new_patch_accepts_empty_before_and_keeps_source_empty(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    patch = tmp_path / "new.patch"
+    patch.write_text(
+        """diff --git a/new/Only.java b/new/Only.java
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/new/Only.java
+@@ -0,0 +1 @@
++class Only {}
+"""
+    )
+    before = tmp_path / "before.json"
+    before.write_text("{}")
+    after = tmp_path / "after.json"
+    write_manifest(after, {"new/Only.java": b"class Only {}\n"})
+
+    result = invoke(source, patch, before, after, tmp_path / "stage")
+    assert result.returncode == 0, result.stderr
+    assert list(source.iterdir()) == []
+    assert (tmp_path / "stage/after/new/Only.java").read_bytes() == b"class Only {}\n"
+    assert json.loads((tmp_path / "stage/stage.json").read_text())["new_files"] == ["new/Only.java"]
+
+
+def test_descendant_held_output_pipe_is_terminated_within_the_deadline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helper = load_tool()
+    monkeypatch.setattr(helper, "PATCH_TIMEOUT_SECONDS", 0.2)
+    child = "import time; time.sleep(60)"
+    parent = (
+        f"import subprocess, sys; subprocess.Popen([sys.executable, '-c', {child!r}]); sys.exit(0)"
+    )
+    started = time.monotonic()
+    _returncode, stdout, stderr, failure = helper.run_patch(
+        [sys.executable, "-c", parent], tmp_path
+    )
+    elapsed = time.monotonic() - started
+    assert failure == "timeout"
+    assert elapsed < 2
+    assert stdout == b""
     assert stderr == b""

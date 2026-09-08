@@ -7,7 +7,8 @@ script cannot silently replace the expected preimage or postimage.
 
 Each manifest is a JSON object from source-relative path to lowercase SHA-256. The after manifest
 lists every path changed or created by the patch. The before manifest lists every changed path
-that must already exist; omission from before explicitly declares a new file.
+that must already exist; omission from before explicitly declares a new file. An empty before
+object is valid when every affected path is new; the after object must remain nonempty.
 
 ```sh
 tools/android-patch-stage \
@@ -28,7 +29,9 @@ source file and 64 MiB of declared source data. It invokes the system `patch` co
 30 seconds with `--batch --fuzz=0 -p1`, and rejects any reported fuzz or offset. Paths must match
 the after manifest exactly, and executable patch content before the first `diff --git` header is
 rejected before invocation. Stdout and stderr are drained while the command runs; exceeding the
-1 MiB bound stops that process and retains only the bounded prefixes. Symlinks, traversal, stale
+1 MiB bound stops the command's dedicated process group and retains only the bounded prefixes.
+The same owned-group cleanup prevents a descendant-held output pipe from extending the 30-second
+deadline. Symlinks, traversal, stale
 preimages, unexpected postimages, binary patches, renames, deletes, mode-only changes and output
 collisions fail. A created output retains `status: failed` diagnostics, while the source tree
 remains unchanged.

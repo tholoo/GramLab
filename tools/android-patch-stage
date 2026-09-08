@@ -10,6 +10,7 @@ import os
 import re
 import selectors
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -80,13 +81,14 @@ def relative_path(value: Any) -> str:
     return value
 
 
-def parse_manifest(raw: bytes, label: str) -> dict[str, str]:
+def parse_manifest(raw: bytes, label: str, *, allow_empty: bool = False) -> dict[str, str]:
     try:
         parsed = json.loads(raw, object_pairs_hook=json_object)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         fail(f"Cannot parse {label}: {exc}")
-    if not isinstance(parsed, dict) or not parsed or len(parsed) > MAX_FILES:
-        fail(f"{label} must contain between 1 and {MAX_FILES} path digests.")
+    minimum = 0 if allow_empty else 1
+    if not isinstance(parsed, dict) or len(parsed) < minimum or len(parsed) > MAX_FILES:
+        fail(f"{label} must contain between {minimum} and {MAX_FILES} path digests.")
     result: dict[str, str] = {}
     for supplied, digest in parsed.items():
         path = relative_path(supplied)
@@ -195,6 +197,7 @@ def run_patch(command: list[str], directory: Path) -> tuple[int, bytes, bytes, s
         env={**os.environ, "LC_ALL": "C"},
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        start_new_session=True,
     )
     if process.stdout is None or process.stderr is None:
         process.kill()
@@ -207,14 +210,26 @@ def run_patch(command: list[str], directory: Path) -> tuple[int, bytes, bytes, s
         os.set_blocking(stream.fileno(), False)
         selector.register(stream, selectors.EVENT_READ, name)
     deadline = time.monotonic() + PATCH_TIMEOUT_SECONDS
+    drain_deadline: float | None = None
     failure: str | None = None
+
+    def terminate_group() -> None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
     try:
         while selector.get_map():
-            remaining_time = deadline - time.monotonic()
-            if remaining_time <= 0 and failure is None:
+            now = time.monotonic()
+            if now >= deadline and failure is None:
                 failure = "timeout"
-                process.kill()
-            ready = selector.select(timeout=max(0.0, min(0.1, remaining_time)))
+                drain_deadline = now + 1
+                terminate_group()
+            active_deadline = drain_deadline if drain_deadline is not None else deadline
+            if now >= active_deadline:
+                break
+            ready = selector.select(timeout=min(0.1, active_deadline - now))
             for key, _events in ready:
                 name = str(key.data)
                 remaining_bytes = MAX_COMMAND_BYTES - len(buffers[name])
@@ -225,25 +240,31 @@ def run_patch(command: list[str], directory: Path) -> tuple[int, bytes, bytes, s
                 buffers[name].extend(chunk[:remaining_bytes])
                 if len(chunk) > remaining_bytes and failure is None:
                     failure = "output"
-                    process.kill()
-            if failure is not None and process.poll() is None:
-                process.kill()
+                    drain_deadline = time.monotonic() + 1
+                    terminate_group()
         if process.poll() is None:
-            remaining_time = deadline - time.monotonic()
             try:
-                process.wait(timeout=max(0.0, remaining_time))
+                process.wait(timeout=max(0.0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
                 failure = "timeout"
-                process.kill()
-                process.wait()
+                terminate_group()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
     finally:
+        if failure is not None or process.poll() is None:
+            terminate_group()
         selector.close()
         for stream in streams.values():
             stream.close()
         if process.poll() is None:
-            process.kill()
-            process.wait()
-    return process.returncode, bytes(buffers["stdout"]), bytes(buffers["stderr"]), failure
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                pass
+    returncode = process.returncode if process.returncode is not None else -signal.SIGKILL
+    return returncode, bytes(buffers["stdout"]), bytes(buffers["stderr"]), failure
 
 
 def stage(
@@ -294,7 +315,7 @@ def stage(
         "after_manifest": str(after_path.resolve()),
     }
     try:
-        before = parse_manifest(before_raw, "BEFORE manifest")
+        before = parse_manifest(before_raw, "BEFORE manifest", allow_empty=True)
         after = parse_manifest(after_raw, "AFTER manifest")
         affected, patch_new_files = parse_patch(patch_raw)
         if affected != set(after) or not set(before) <= affected:
