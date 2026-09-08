@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: none for contained simulation; native capture remains separate
 
 Own this ticket, `src/gramlab/_captures.py` and new
@@ -69,3 +69,9 @@ public capture regression plus existing capture/rich-action controls pass all ei
 9.34 seconds, with scoped Ruff/format and strict typing passing. The original contained red
 reached an admitted canonical message and failed in the control traversal. Combined core
 verification follows the concurrent public-callback fix; native fidelity remains separate.
+
+## Answer
+
+Combined integration passes all 647 non-Android tests at 82.90% coverage in 86.79 seconds.
+The contained public regression and required scoped checks pass; this ticket is resolved.
+Original native rendering and input acceptance remain separate.

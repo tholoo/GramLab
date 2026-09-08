@@ -37,6 +37,12 @@ inputs. Each worktree keeps its own profiles. It does not change host garbage co
 provision Python dependencies, or replace the separate runtime network boundary. Profile links
 and their local store paths remain ignored. Ordinary `nix develop` remains available.
 
+Run behavioral commands through the assigned checkout's `tools/dev`, including after provisioning
+its virtualenv. Changing directories or invoking `.venv/bin/pytest` alone can retain another
+checkout's `GRAMLAB_RUNTIME_PROFILE`: the host import can be correct while contained processes
+receive an obsolete dependency closure. The selected shell must supply both the checkout-local
+environment and its current runtime profile. Do not copy or hard-code store paths to repair this.
+
 If offline provisioning in a new worktree lacks a wheel already downloaded by another checkout,
 seed the new worktree's ignored `.cache/uv/` from that provisioned package cache while both caches
 are idle. Preserve relative cache links and keep the destination separate; never reuse another

@@ -2,7 +2,7 @@
 
 Type: bug
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: none for simulation; native regression remains separate
 
 Own this ticket, `src/gramlab/_interactions.py`, and new
@@ -55,3 +55,9 @@ photo/mention/custom-emoji callback regression and ordinary rich keyboard contro
 in 3.23 seconds, with three Android cases explicitly deselected. Scoped Ruff/format and strict
 typing pass. Combined core verification follows; this changes the internal virtual callback
 projection only and does not establish any new native input behavior.
+
+## Answer
+
+Combined integration passes all 647 non-Android tests at 82.90% coverage in 86.79 seconds.
+The contained public regression and required scoped checks pass; this ticket is resolved.
+Original native rendering and input acceptance remain separate.
