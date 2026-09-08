@@ -1092,6 +1092,166 @@ class World:
                 )
         return message
 
+    @staticmethod
+    def _media_caption(
+        caption: str | None, caption_entities: list[dict[str, Any]] | None
+    ) -> tuple[str | None, list[dict[str, Any]] | None]:
+        if caption is not None:
+            if not isinstance(caption, str) or len(caption) > 1024:
+                raise ValueError("Caption must contain 0 to 1024 characters")
+            caption.encode("utf-8", errors="strict")
+        formatting = formatting_entities(caption or "", caption_entities)
+        return (caption if caption else None, formatting or None)
+
+    def _publish_media_edit(
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        bot_id: int,
+        media: dict[str, Any] | None,
+        caption: str | None,
+        caption_entities: list[dict[str, Any]] | None,
+        reply_markup: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        message = self.get_message(chat_id, message_id)
+        chat = self.get_chat(chat_id)
+        if bot_id != chat["bot_id"]:
+            raise ValueError("Private chat is not available to this bot")
+        if message["sender_id"] != bot_id:
+            raise ValueError("Only the sending bot can edit this message")
+        if "media_group_id" in message:
+            raise ValueError("GRAMLAB_UNSUPPORTED: editing grouped media messages")
+        if ("photo" in message) == ("document" in message):
+            raise ValueError("GRAMLAB_UNSUPPORTED: editing non-media messages")
+
+        replacement = dict(message)
+        if media is not None:
+            replacement.pop("photo", None)
+            replacement.pop("document", None)
+            replacement.update(media)
+        replacement.pop("caption", None)
+        replacement.pop("caption_entities", None)
+        replacement.pop("reply_markup", None)
+        if caption is not None:
+            replacement["caption"] = caption
+        if caption_entities is not None:
+            replacement["caption_entities"] = caption_entities
+        if reply_markup is not None:
+            replacement["reply_markup"] = reply_markup
+        comparable = dict(replacement)
+        comparable.pop("edit_date", None)
+        current = dict(message)
+        current.pop("edit_date", None)
+        if comparable == current:
+            raise ValueError("MESSAGE_NOT_MODIFIED")
+        replacement["edit_date"] = self._connection.execute(
+            "SELECT now FROM configuration"
+        ).fetchone()[0]
+        self._grant_custom_emoji(chat["user_id"], replacement)
+        self._connection.execute(
+            "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
+            (json.dumps(replacement), chat_id, message_id),
+        )
+        revision = self._emit("message.edited", replacement)
+        self._connection.execute(
+            "INSERT OR REPLACE INTO message_revisions VALUES (?, ?, ?)",
+            (chat_id, message_id, revision),
+        )
+        for asset_id in self._message_assets(replacement):
+            self._connection.execute(
+                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
+                (chat["user_id"], asset_id),
+            )
+        for document_id in self._message_documents(replacement):
+            self._connection.execute(
+                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
+                (chat["user_id"], document_id),
+            )
+        return replacement
+
+    def edit_caption(
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        bot_id: int,
+        caption: str | None = None,
+        caption_entities: list[dict[str, Any]] | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        caption, formatting = self._media_caption(caption, caption_entities)
+        keyboard = _inline_keyboard(reply_markup)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            return self._publish_media_edit(
+                chat_id=chat_id,
+                message_id=message_id,
+                bot_id=bot_id,
+                media=None,
+                caption=caption,
+                caption_entities=formatting,
+                reply_markup=keyboard,
+            )
+
+    def edit_media(
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        bot_id: int,
+        media: Any,
+        uploads: Mapping[str, bytes | DocumentUpload] | None = None,
+        caption: str | None = None,
+        caption_entities: list[dict[str, Any]] | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        caption, formatting = self._media_caption(caption, caption_entities)
+        keyboard = _inline_keyboard(reply_markup)
+        if not isinstance(media, dict) or media.keys() != {"type", "media"}:
+            raise ValueError("Media input requires exactly type and media")
+        kind = media["type"]
+        if kind not in ("photo", "document"):
+            raise ValueError("GRAMLAB_UNSUPPORTED: media type")
+        value = media["media"]
+        expected = (
+            {value.removeprefix("attach://")}
+            if isinstance(value, str) and value.startswith("attach://")
+            else set()
+        )
+        if uploads is not None and not isinstance(uploads, Mapping):
+            raise TypeError("Media uploads must be a mapping")
+        if set(uploads or {}) != expected:
+            raise ValueError("Media uploads must exactly match the attachment")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            if kind == "photo":
+                if any(type(item) is not bytes for item in (uploads or {}).values()):
+                    raise TypeError("Photo attachment must contain bytes")
+                photo_uploads = {
+                    name: item for name, item in (uploads or {}).items() if type(item) is bytes
+                }
+                resolved = {"photo": self._resolve_photo(bot_id, media, photo_uploads)}
+            else:
+                document = {"media": value}
+                if any(type(item) is not DocumentUpload for item in (uploads or {}).values()):
+                    raise TypeError("Document attachment must be a DocumentUpload")
+                document_uploads = {
+                    name: item
+                    for name, item in (uploads or {}).items()
+                    if type(item) is DocumentUpload
+                }
+                resolved = {"document": self._resolve_document(bot_id, document, document_uploads)}
+            return self._publish_media_edit(
+                chat_id=chat_id,
+                message_id=message_id,
+                bot_id=bot_id,
+                media=resolved,
+                caption=caption,
+                caption_entities=formatting,
+                reply_markup=keyboard,
+            )
+
     def _message_assets(self, message: dict[str, Any]) -> set[int]:
         assets: set[int] = set()
         if "photo" in message:
