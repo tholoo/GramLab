@@ -47,6 +47,13 @@ disarm command. Callback evidence follows the exact request object through nativ
 request ID and returned callback ID/revision. Canonical button JSON is retained unchanged,
 including object-shaped `copy_text` and `disabled` members.
 
+Observation generations retain their exact completed decode group; an arm resolves only within
+that generation and rejects missing or ambiguous final objects. Each asynchronous callback stage
+retains the binding and operation captured at original dispatch, while every changed request-chain
+publication advances evidence generation. Clipboard admission accepts only one bounded plain-text
+item, records the armed baseline, and verifies the original copy handler produced the canonical
+`copy_text.text` value. Identical arm/conflict polling is idempotent.
+
 The patch dry-applies with `patch --dry-run -p1` to the selected normal24 inputs. Their SHA-256s
 are `9a2aafbc...5721a` (GramLabBridge), `fa0d15a2...57dc` (GramLabRichMessage),
 `a240f8db...e4a` (GramLabRuntime), `f231ba1c...1ffa9` (RichMessageLayout) and
