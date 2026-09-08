@@ -7,14 +7,14 @@ import os
 import shutil
 from collections import Counter
 from dataclasses import asdict
-from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
 import pytest
 from custom_emoji_visual import (
-    animation_states,
+    capture_intervals,
     locate_animation,
+    locate_animation_sequence,
     locate_static,
     require_complete_cycle,
     require_distinct_carriers,
@@ -123,7 +123,7 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     burst = []
     timestamps = client["burst_timestamps_ns"]
     assert len(timestamps) == 24
-    assert all(left < right for left, right in pairwise(timestamps))
+    intervals = capture_intervals(timestamps, client.get("burst_end_timestamps_ns"))
     for index in range(24):
         with Image.open(tmp_path / f"edited-burst-{index:02d}.png") as opened:
             burst.append(opened.copy())
@@ -131,9 +131,11 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
     edited_boxes = client["carrier_bounds"]["edited"]
     for carrier in ("ordinary", "rich", "button"):
         raw_box = edited_boxes[carrier]
-        states = animation_states(burst, [tuple(raw_box)] * len(burst))
         try:
-            require_complete_cycle(states)
+            located = locate_animation_sequence(burst, [tuple(raw_box)] * len(burst))
+            require_complete_cycle(
+                [frame.state for frame in located[: len(intervals)]], intervals_ns=intervals
+            )
         except AssertionError:
             continue
         complete += 1
