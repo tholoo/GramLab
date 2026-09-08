@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: in progress; claimed by `task/rich-button-core-primitives`
+Work state: resolved
 Blocked by: frozen contract70; no production integration dependency
 
 Own this ticket, new `src/gramlab/_rich_buttons.py`, new
@@ -23,7 +23,10 @@ Implement these independent interfaces exactly; report any required change befor
   client_nonce) -> None` validates and atomically journals the complete allocation, reserving its
   future record budget. `transition(kind, receipt, *, client_nonce) -> None` accepts only claim,
   intent or receipt and verifies progression. `evidence(operation_id, evidence, *, client_nonce)
-  -> None` appends a changed bounded evidence record. `close() -> None` releases the owned writer.
+  -> None` appends a changed bounded evidence record. `preflight_receipt(receipt, *, client_nonce)
+  -> None` validates a prospective final receipt with exact record encoding and a conservative
+  maximum future sequence width without writing or advancing state. `close() -> None` releases the
+  owned writer.
 - `recover_journal(path: Path) -> dict[str, Any]`: validate all complete records and return the
   exact offline recovery report. It neither writes to the source nor restores input capability.
   Coordinator writes the resulting recovery artifact and integrates it with runner diagnostics.
@@ -46,3 +49,17 @@ Run focused guarded non-Android tests, scoped Ruff/format/strict mypy and diff c
 checkout's tools/dev. Preserve meaningful red/green artifacts. No guest/build/full gate. Return a
 clean frozen branch, terminal processes and a structured handoff; keep this ticket claimed until
 coordinator integration succeeds.
+
+## Answer
+
+Canonical traversal now enumerates detached row and inline button occurrences through every
+admitted rich container in the frozen order. The durable journal exclusively creates and fsyncs
+its run file, validates exact identities and monotonic operation states, reserves bounded target
+capacity, poisons its writer after append failures, preflights prospective receipt framing, and
+derives interruption receipts from strictly validated complete JSONL records.
+
+The retained red report `artifacts/ticket71/journal-red.xml` fails collection because the journal
+module does not exist. The final guarded report `artifacts/ticket71/core-primitives-final.xml`
+passes all 16 traversal and journal cases. Scoped Ruff, Ruff format, and strict mypy pass for the
+four owned implementation/test files. Android, guest, integration, and full-suite checks remain
+the coordinator's separate gates.
