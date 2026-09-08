@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import gzip
 import hashlib
@@ -9,6 +10,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -23,7 +25,13 @@ from test_android_quoted_code import assert_isolation
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 sys.path.insert(0, str(Path("tests/probes").resolve()))
-from android_document_delivery import instrumentation_result, probe, unpack_evidence
+from android_document_delivery import (
+    _retain_archive,
+    decoded_archive,
+    instrumentation_result,
+    probe,
+    unpack_evidence,
+)
 
 FIXTURE = Path("tests/fixtures/android_document_delivery")
 BOOTSTRAP = Path("tests/probes/android_document_delivery.py").resolve()
@@ -383,6 +391,107 @@ def test_archive_retains_original_unicode_paths_and_bytes(tmp_path: Path) -> Non
     assert (tmp_path / "unpacked/document-delivery-probe/files/گزارش.pdf").read_bytes() == payload
 
 
+def test_app_owned_archive_commands_run_with_real_posix_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    guest_root = tmp_path / "guest"
+    evidence = guest_root / "files/document-delivery-diagnostics"
+    evidence.mkdir(parents=True)
+    payload = b'{"schema":1,"event":"case_start","phase":"original_case"}'
+    (evidence / "suite-123-event-001.json").write_bytes(payload)
+    calls: list[list[str]] = []
+
+    def guest(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        assert args[:2] == ("shell", "-T") and kwargs == {"timeout": 30}
+        command = shlex.split(args[2])
+        assert command[:4] == ["run-as", "org.gramlab.android", "sh", "-c"]
+        calls.append(command)
+        # Real POSIX archive/encoding tools; host permissions do not certify Android run-as.
+        return subprocess.run(  # noqa: S603 — reviewed probe shell in an isolated host directory.
+            command[2:], cwd=guest_root, capture_output=True, text=True, timeout=30
+        )
+
+    _retain_archive(guest)
+    assert len(calls) == 2
+    assert "head -c 4194305" in calls[1][-1]
+    assert (
+        tmp_path / "document-delivery-native/document-delivery-diagnostics/suite-123-event-001.json"
+    ).read_bytes() == payload
+    assert json.loads(Path("document-delivery-archive-status.json").read_text())["returncode"] == 0
+    pulled = json.loads(Path("document-delivery-pull-status.json").read_text())
+    encoded = base64.encodebytes(Path("native.tar.gz").read_bytes())
+    assert pulled["returncode"] == 0 and "stdout" not in pulled
+    assert pulled["stdout_encoded_bytes"] == len(encoded)
+    assert pulled["stdout_sha256"] == hashlib.sha256(encoded).hexdigest()
+
+
+def test_encoded_archive_retains_exact_diagnostic_bytes(tmp_path: Path) -> None:
+    archive = tmp_path / "transport.tar.gz"
+    payload = b'{"schema":1,"phase":"initialization","threads":[]}'
+    _archive(archive, [("document-delivery-diagnostics/suite-123-event-001.json", payload)])
+    original = archive.read_bytes()
+    assert decoded_archive(base64.encodebytes(original).decode()) == original
+    unpack_evidence(archive, tmp_path / "retained")
+    assert (
+        tmp_path / "retained/document-delivery-diagnostics/suite-123-event-001.json"
+    ).read_bytes() == payload
+
+
+@pytest.mark.parametrize("encoded", ["not!base64", "YQ", "YQ==Yg==", "é"])
+def test_encoded_archive_rejects_malformed_framing(encoded: str) -> None:
+    with pytest.raises(ValueError):
+        decoded_archive(encoded)
+
+
+def test_encoded_archive_rejects_byte_and_encoded_overflow() -> None:
+    with pytest.raises(ValueError, match="compressed bound"):
+        decoded_archive(base64.b64encode(b"x" * (4 * 1024 * 1024 + 1)).decode())
+    with pytest.raises(ValueError, match="encoded bound"):
+        decoded_archive("A" * (6 * 1024 * 1024))
+
+
+@pytest.mark.parametrize("archive_throws", [False, True])
+def test_probe_timeout_retains_original_failure_and_archive_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, archive_throws: bool
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    secret = "gramlab-client_" + "d" * 43
+    original = subprocess.TimeoutExpired(
+        "am instrument", 240, output=b"partial status", stderr=secret.encode()
+    )
+    retention = subprocess.TimeoutExpired(
+        "tar", 30, output=b"partial archive", stderr=b"archive timeout"
+    )
+
+    def guest(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        joined = " ".join(args)
+        if "am instrument" in joined:
+            raise original
+        if "tar " in joined:
+            if archive_throws:
+                raise retention
+            return subprocess.CompletedProcess(
+                args, 1, "partial archive", "permission denied " + secret
+            )
+        if args[0] == "pull" or "base64" in joined:
+            return subprocess.CompletedProcess(args, 2, "", "archive unavailable")
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        probe(guest)
+    assert caught.value is original
+    process = json.loads(Path("document-delivery-suite-process.json").read_text())
+    assert process["exception"] == "TimeoutExpired" and process["timeout"] == 240
+    assert process["stdout"] == "partial status" and process["stderr"] == "[REDACTED]"
+    packed = json.loads(Path("document-delivery-archive-status.json").read_text())
+    assert packed["stdout"] == "partial archive"
+    assert packed["stderr"] == (
+        "archive timeout" if archive_throws else "permission denied [REDACTED]"
+    )
+    assert secret not in "".join(path.read_text() for path in tmp_path.glob("*.json"))
+
+
 @pytest.mark.parametrize("disagree", [False, True])
 @pytest.mark.parametrize("failure_code", [0, 1])
 def test_probe_uses_target_processes_and_checks_retained_summaries(
@@ -406,10 +515,10 @@ def test_probe_uses_target_processes_and_checks_retained_summaries(
                 + f"\nINSTRUMENTATION_CODE: {failure_code}\n"
             )
             return subprocess.CompletedProcess(args, 0, framed, "")
-        if args[0] == "pull":
+        if "base64" in args[-1]:
             retained_suite = {"schema": 0} if disagree else suite
             _archive(
-                Path("native.tar.gz"),
+                Path("transport.tar.gz"),
                 [
                     (
                         "document-delivery-probe/suite-summary.json",
@@ -417,6 +526,9 @@ def test_probe_uses_target_processes_and_checks_retained_summaries(
                     ),
                     ("document-delivery-probe/restart-summary.json", json.dumps(restart).encode()),
                 ],
+            )
+            return subprocess.CompletedProcess(
+                args, 0, base64.encodebytes(Path("transport.tar.gz").read_bytes()).decode(), ""
             )
         return subprocess.CompletedProcess(args, 0, "", "")
 
