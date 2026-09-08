@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +122,7 @@ def test_public_native_rich_clipboard_paste_clear_and_disabled_preservation(tmp_
             key: receipt[key] for key in ("status", "dispatch", "effect", "reason", "evidence")
         }
         assert evidence["status"] == "passed"
+        assert evidence["ui_representation"] == "xml_with_redacted_attribute_and_text_values"
         assert evidence["pasted_text"] == text and evidence["cleared"] is True
         assert evidence["before"] == evidence["after"]
         for phase, value in (("empty", "Message"), ("pasted", text), ("cleared", "Message")):
@@ -287,3 +290,60 @@ def test_retention_redacts_known_capabilities_and_preserves_prior_evidence(tmp_p
     assert path.read_bytes() == original
     with pytest.raises(ValueError, match="bound"):
         retain(tmp_path, {"oversize": "x" * (4 * 1024 * 1024)}, [SECRET])
+
+
+@pytest.mark.parametrize("editor_flag", ["false", "true"])
+def test_capture_redaction_preserves_xml_and_native_password_flag(
+    native_host: AndroidRichInput, monkeypatch: pytest.MonkeyPatch, editor_flag: str
+) -> None:
+    # Native UIAutomator attribute shape; external XML and capture boundary only.
+    # Do not manufacture an original PNG for this host regression.
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<hierarchy rotation="0"><node class="android.widget.EditText" '
+        'package="org.gramlab.android" text="Message" enabled="true" focused="true" '
+        f'password="{editor_flag}" bounds="[50,540][260,585]"/>'
+        f'<node class="android.widget.TextView" text="{SECRET}" '
+        f'content-desc="private {SECRET} &quot;quoted&quot; &amp; shown">{SECRET}</node>'
+        f"{SECRET}</hierarchy>"
+    )
+    commands: list[tuple[str, ...]] = []
+    captures: list[Path] = []
+
+    def external_adb(
+        self: Android, *arguments: str, **options: Any
+    ) -> subprocess.CompletedProcess[str]:
+        commands.append(arguments)
+        output = xml if arguments[:2] == ("shell", "cat") else "UI hierarchy dumped"
+        return subprocess.CompletedProcess(arguments, 0, output, "")
+
+    def external_capture(self: AndroidRichInput, path: Path) -> None:
+        captures.append(path)
+
+    monkeypatch.setattr(Android, "_adb", external_adb)
+    monkeypatch.setattr(AndroidRichInput, "_capture_original", external_capture)
+    directory = Path.cwd() / "capture-control"
+    directory.mkdir()
+    record: dict[str, Any] = {"operation_id": "4" * 32}
+    probe = ClipboardProbe(native_host, directory, record)
+    if editor_flag == "false":
+        probe.capture("empty", "Message")
+    else:
+        with pytest.raises(ValueError, match="composer state"):
+            probe.capture("empty", "Message")
+    retained = (directory / "empty.xml").read_text()
+    root = ET.fromstring(retained)  # noqa: S314 — retained literal host-control XML
+    node = root.find("node")
+    assert node is not None and node.get("password") == editor_flag
+    assert root.findall("node")[1].attrib == {
+        "class": "android.widget.TextView",
+        "text": "[REDACTED]",
+        "content-desc": 'private [REDACTED] "quoted" & shown',
+    }
+    assert root.findall("node")[1].text == "[REDACTED]"
+    assert root.findall("node")[1].tail == "[REDACTED]"
+    retain(directory, record, native_host.android.secrets)
+    assert SECRET not in retained and SECRET not in (directory / "result.json").read_text()
+    assert len(commands) == 2 and commands[0][:3] == ("shell", "uiautomator", "dump")
+    assert captures == [directory / "empty.png"]
+    assert record["ui_representation"] == "xml_with_redacted_attribute_and_text_values"
