@@ -1124,3 +1124,152 @@ def test_consumed_copy_retains_baseline_until_original_handler_evidence(
         "after": "برداشت / copy",
     }
     assert guest.touches == 1
+
+
+# Independently authored ADB-output replay: the historical real `window windows`
+# artifacts contain the inventory/top display/IME targets, not mCurrentFocus.
+# Native startup diagnostic03 confirms DisplayContent.dump emits current focus
+# in `window displays`, while `window windows` omits it. These strings are
+# host-boundary fixtures, not native success.
+_WINDOW_INVENTORY = """WINDOW MANAGER WINDOWS (dumpsys window windows)
+  Window #0 Window{abc123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}:
+    mDisplayId=0
+  mTopFocusedDisplayId=0
+  imeInputTarget in display# 0 Window{abc123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}
+"""
+
+
+def test_guest_state_uses_actual_focus_dump_not_window_inventory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+
+    android = Android(
+        RuntimeProfile(bubblewrap="", python="", store_paths=()),
+        deadline=time.monotonic() + 3,
+        secrets=[],
+        bridge_version=4,
+    )
+    full_dump = (
+        """WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)
+  Display: mDisplayId=0
+  mCurrentFocus=Window{abc123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}
+  mFocusedApp=ActivityRecord{def456 u0 org.gramlab.android/org.telegram.ui.LaunchActivity t1}
+"""
+        + _WINDOW_INVENTORY
+    )
+    responses = {
+        ("shell", "pidof", "org.gramlab.android"): "4321\n",
+        ("shell", "cat", "/proc/uptime"): "100.00 5.00\n",
+        ("shell", "dumpsys", "window", "windows"): _WINDOW_INVENTORY,
+        ("shell", "dumpsys", "window", "displays"): full_dump,
+    }
+    calls: list[tuple[str, ...]] = []
+
+    def replay(*args: str, **_kwargs: Any) -> Any:
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout=responses[args])
+
+    monkeypatch.setattr(android, "_adb", replay)
+    assert AndroidRichInput(android)._guest_state() == (4321, 100000)
+    assert calls == [
+        ("shell", "pidof", "org.gramlab.android"),
+        ("shell", "cat", "/proc/uptime"),
+        ("shell", "dumpsys", "window", "displays"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "focus",
+    [
+        "",
+        "  mCurrentFocus=null\n",
+        "  mCurrentFocus=Window{abc123 u0 com.android.launcher3/.Launcher}\n",
+        "  mCurrentFocus=Window{abc123 u0 org.gramlab.android/org.telegram.ui.LaunchActivity}\n"
+        * 2,
+    ],
+)
+def test_inventory_or_ambiguous_focus_cannot_establish_focused_app(
+    monkeypatch: pytest.MonkeyPatch, focus: str
+) -> None:
+    import subprocess
+
+    android = Android(
+        RuntimeProfile(bubblewrap="", python="", store_paths=()),
+        deadline=time.monotonic() + 3,
+        secrets=[],
+        bridge_version=4,
+    )
+
+    def replay(*args: str, **_kwargs: Any) -> Any:
+        if args[:2] == ("shell", "pidof"):
+            value = "4321\n"
+        elif args[:2] == ("shell", "cat"):
+            value = "100.00 5.00\n"
+        else:
+            value = focus + _WINDOW_INVENTORY
+        return subprocess.CompletedProcess(args, 0, stdout=value)
+
+    monkeypatch.setattr(android, "_adb", replay)
+    with pytest.raises(ValueError, match="target_unavailable"):
+        AndroidRichInput(android)._guest_state()
+
+
+@pytest.mark.parametrize("present", [True, False])
+def test_private_reader_matches_adb_argument_and_remote_status_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, present: bool
+) -> None:
+    """Execute actual POSIX shells behind the independently specified ADB boundary.
+
+    AOSP exec-out escapes argv, merges the remote streams and returns zero after
+    copying output. Shell v2 joins the command words and preserves remote status.
+    No ADB server, guest, bot or external listener is started by this replay.
+    """
+    import subprocess
+
+    private = tmp_path / "files" / "gramlab"
+    private.mkdir(parents=True)
+    sample = {"schema": 1, "label": "خواندن / read", "generation": 4}
+    if present:
+        (private / "rich-button-observation.json").write_text(json.dumps(sample))
+    android = Android(
+        RuntimeProfile(bubblewrap="", python="", store_paths=()),
+        deadline=time.monotonic() + 3,
+        secrets=[],
+        bridge_version=4,
+    )
+
+    def replay(*args: str, **_kwargs: Any) -> Any:
+        if args[0] == "exec-out":
+            assert args[:3] == ("exec-out", "run-as", "org.gramlab.android")
+            # The ADB escaping/remote-shell round trip preserves these literal argv.
+            command = list(args[3:])
+            result = subprocess.run(  # noqa: S603 — fixed private-file command in isolated tmp_path
+                command,
+                cwd=tmp_path,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+            return subprocess.CompletedProcess(args, 0, stdout=result.stdout, stderr="")
+        assert args[:4] == ("shell", "-T", "run-as", "org.gramlab.android")
+        command_text = " ".join(args[4:])
+        result = subprocess.run(  # noqa: S603 — fixed private-file command in isolated tmp_path
+            ["sh", "-c", command_text],  # noqa: S607 — shell from the pinned offline environment
+            cwd=tmp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        return subprocess.CompletedProcess(
+            args, result.returncode, stdout=result.stdout, stderr=result.stderr
+        )
+
+    monkeypatch.setattr(android, "_adb", replay)
+    reader = AndroidRichInput(android)
+    if present:
+        assert reader._read("rich-button-observation.json") == sample
+    else:
+        with pytest.raises(FileNotFoundError):
+            reader._read("rich-button-observation.json")
