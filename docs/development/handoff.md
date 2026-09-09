@@ -99,9 +99,15 @@ not complete compatibility.
 adds a verified English-only README example, an original English glass screenshot and explicit
 MIT/BSL/GPL source notices. No confirmed real credential was found in the tracked tree or reachable
 history; the scanner's sole credential-pattern report is a public test correlation value. Historical
-private consumer and machine notes still require the prepared, separately reviewed history cleanup.
-Do not change visibility or replace shared history before explicit approval. The current source
-changes are being pushed normally to private GitHub main. This task does not close native readiness.
+private consumer and machine notes were removed from both GitHub branches after explicit approval.
+The atomic replacement rewrote 548 commits while preserving current source trees byte for byte.
+GitHub remains private; visibility is a separate decision. This task does not close native readiness.
+
+Local worker branches still retain their old ancestry and pending work. Before resuming or merging
+one, migrate its reviewed changes onto the cleaned history and update its local assignment. Never
+merge or push a legacy branch directly. The coordinator retains the old/new commit map and branch
+inventory in ignored audit storage. Historical APK/test identifiers remain evidence of those runs;
+the history rewrite does not change their recorded source or artifact bytes.
 
 ## Existing evidence to reuse
 

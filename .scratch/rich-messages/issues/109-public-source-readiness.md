@@ -2,9 +2,9 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: coordinator
-Blocked by: shared-history replacement requires explicit approval after a reviewed cleanup candidate
+Blocked by: none
 
 Audit the current tracked tree and reachable Git history for credentials, private consumer context,
 machine-specific details and unexpected generated artifacts. Review the existing license boundaries
@@ -64,3 +64,22 @@ Disposable owned guest disks were retired after preserving evidence.
 The README command now selects examples/echo/hello.toml and its exact displayed hello.py, reusing
 the existing real echo bot. The tracked manifest passes actual contained execution. Scoped typing
 and Ruff cover the final example. No Persian text or em dashes appear in the README.
+
+## Answer
+
+The user approved the reviewed cleanup. Both GitHub branches were replaced together with an
+atomic push and exact expected-tip leases. The 548 rewritten commits preserve each branch's
+current tree byte for byte. All 2,325 reachable candidate blobs were scanned; no confirmed real
+credentials or targeted private context remain. Git object integrity passes. GitHub branch tips
+match the reviewed candidate, and local main and the integration checkout follow the clean history.
+
+Source-sharing preparation is complete. The repository remains private; changing visibility is
+separate from the approved history replacement. Normal author metadata is preserved. Rewriting
+branch history cannot guarantee removal from cached commit views or existing clones. The README
+example, original screenshot and source license checks above remain valid because their bytes
+were unchanged by the rewrite. This does not establish operational or Android binary readiness.
+
+Existing local worker branches retain their original history and pending work. Before resuming or
+integrating one, the coordinator must migrate its reviewed changes onto the cleaned ancestry and
+update its local assignment. Do not merge or push a legacy branch directly. Keep old build and test
+commit identifiers as historical evidence, with the rewrite map retained in ignored audit storage.

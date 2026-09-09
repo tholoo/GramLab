@@ -68,3 +68,7 @@ the full product scope documented in the handoff.
   boundary with core18/static17; native acceptance is assigned separately.
 - [108: native media-edit workflow](issues/108-native-standalone-media-edits.md): extend the existing
   real-bot document scenario; original Android execution remains gated on104 delivery.
+
+- [109: public-source preparation](issues/109-public-source-readiness.md): resolved with audited
+  source/history, explicit source licenses, an original English glass preview and a verified README
+  example. Both GitHub branches use the approved cleaned history; visibility remains private.
