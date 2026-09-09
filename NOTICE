@@ -1,0 +1,37 @@
+GramLab source and license notices
+=================================
+
+Original GramLab core, SDK, tools, documentation and original generated media
+fixtures are licensed under MIT (LICENSE), except where a file or directory
+identifies different terms below. The root MIT license does not relicense
+third-party works or the Android-derived components.
+
+Python package: MIT AND BSL-1.0
+-----------------------------
+src/gramlab/_emoji_text.py and src/gramlab/_document_metadata.py adapt TDLib
+code/data under the Boost Software License 1.0. Each module retains the upstream
+copyright and full license. LICENSES/BSL-1.0.txt supplies a separate license copy.
+Document metadata reference fixtures retain their notice in
+ tests/fixtures/document_metadata/LICENSE_1_0.txt.
+Exact upstream revisions, hashes and adaptation scope are recorded in:
+ docs/development/tdlib-emoji-provenance.json
+ docs/development/tdlib-document-metadata-provenance.json
+
+Android-derived source: GPL-2.0-or-later
+--------------------------------------
+clients/android/patches/ contains patches to Telegram Android, including upstream
+context. Android-derived Java/C++ test fixtures under tests/fixtures/ retain their
+per-file GPL-2.0-or-later headers. These are separate from the Python package;
+their license text is clients/android/patches/COPYING. Preserve the original
+copyright notices and source/build information when redistributing them.
+The patch README and docs/development/licensing.md explain this boundary.
+
+Acquired dependencies and application binaries
+---------------------------------------------
+External dependency sources and built Android applications are not included in
+this source repository or Python package. They retain their own licenses.
+The upstream lock is a provenance record, not a completed dependency/license
+audit. An Android binary release requires its own corresponding-source,
+dependency, asset and notice review. This repository offers no APK release.
+
+GramLab is unofficial and is not affiliated with or endorsed by Telegram.

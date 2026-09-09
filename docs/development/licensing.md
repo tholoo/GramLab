@@ -1,7 +1,8 @@
 # Licensing boundaries
 
 The root [MIT license](../../LICENSE) covers original GramLab scaffold/core/SDK work, not acquired
-third-party code. The Android patch queue now includes upstream context and retains its applicable
+third-party code. The [root notice map](../../NOTICE) identifies the separately licensed components.
+Python package metadata declares MIT AND BSL-1.0 and includes both license texts and the map. The Android patch queue now includes upstream context and retains its applicable
 GPL terms with an accompanying license text. Full acquired source and generated binaries remain ignored.
 
 Android-derived components must preserve the applicable upstream license and notices. Telegram

@@ -4,7 +4,8 @@ version = "0.0.0"
 description = "Offline Telegram bot laboratory — experimental runtime foundation"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-license = "MIT"
+license = "MIT AND BSL-1.0"
+license-files = ["LICENSE", "LICENSES/BSL-1.0.txt", "NOTICE"]
 dependencies = [
     "pillow==12.3.0",
 ]
