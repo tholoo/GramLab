@@ -1,5 +1,11 @@
 # GramLab
 
+<p align="center">
+  <img src="docs/assets/gramlab-preview.png" width="320" alt="An English GramLab conversation in the Telegram Android renderer, with rich text, buttons and glass effects." />
+</p>
+
+[Original Android capture](docs/assets/gramlab-preview.md), with glass effects enabled.
+
 Test Telegram bots locally and inspect their messages in the actual Telegram Android client.
 No Telegram account or production token is needed.
 
@@ -13,6 +19,7 @@ Create a user, talk to a real local bot, check its reply and capture the convers
 
 ```python
 import time
+
 from gramlab.scenario import Scenario
 
 lab = Scenario.from_environment()
@@ -26,12 +33,13 @@ while len(lab.history(chat["id"])) < 2:
         raise TimeoutError("The bot did not reply")
     time.sleep(0.05)
 
-assert lab.history(chat["id"])[1]["text"] == "Echo: Hello!"
+if lab.history(chat["id"])[1]["text"] != "Echo: Hello!":
+    raise AssertionError("Unexpected bot reply")
 lab.capture_chat(chat_id=chat["id"], label="hello", contains=["Echo: Hello!"])
 ```
 
-This runs inside a scenario process. The [echo example](examples/echo) supplies the bot and
-manifest, and the runner supplies the environment. Simulation records the conversation state;
+This runs inside a scenario process. The [English echo example](examples/echo/hello.toml) uses this exact [scenario](examples/echo/hello.py),
+with the bundled bot and manifest, and the runner supplies the environment. Simulation records the conversation state;
 headless Android also captures the original client. Both modes produce a local HTML report.
 The Python interface is still experimental.
 
@@ -44,7 +52,7 @@ host with Nix and user namespaces:
 nix develop
 uv sync --locked
 mkdir -p artifacts
-uv run --locked --offline gramlab run examples/echo/run.toml --output artifacts/echo-demo
+uv run --locked --offline gramlab run examples/echo/hello.toml --output artifacts/echo-demo
 ```
 
 Open `artifacts/echo-demo/report.html`. Use a new output directory for each run.

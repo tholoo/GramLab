@@ -25,6 +25,9 @@ per-file GPL-2.0-or-later headers. These are separate from the Python package;
 their license text is clients/android/patches/COPYING. Preserve the original
 copyright notices and source/build information when redistributing them.
 The patch README and docs/development/licensing.md explain this boundary.
+The original renderer screenshot docs/assets/gramlab-preview.png includes upstream
+interface artwork; its attribution and capture record are in the adjacent
+gramlab-preview.md. It is not original MIT fixture artwork.
 
 Acquired dependencies and application binaries
 ---------------------------------------------

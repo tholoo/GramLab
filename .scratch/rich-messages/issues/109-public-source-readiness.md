@@ -51,3 +51,16 @@ GitHub currently has no releases, workflow runs, workflow artifacts, open issues
 discussions to expose alongside the two existing branches. Repository visibility stays private
 pending the user's publication decision. Normal Git author name/email metadata will be visible
 if its history is published; this is separate from accidental private context.
+
+## README capture and runnable example
+
+The original English-only glass screenshot is retained unchanged in docs/assets/gramlab-preview.png,
+with a portable capture record and upstream attribution beside it. The successful run verifies
+the actual original shader, zero accounts, blocked external network, unchanged World state through
+settings changes and restoration. It illustrates rich text and buttons, not complete media support.
+Two failed startup attempts remain recorded separately; successful capture does not prove their cause.
+Disposable owned guest disks were retired after preserving evidence.
+
+The README command now selects examples/echo/hello.toml and its exact displayed hello.py, reusing
+the existing real echo bot. The tracked manifest passes actual contained execution. Scoped typing
+and Ruff cover the final example. No Persian text or em dashes appear in the README.

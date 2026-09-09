@@ -72,7 +72,9 @@ corrections or unresolved causes. Do not infer an unrelated failure's cause from
 5. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) has22
    new and176 affected passing worker checks, but independent review found unsafe document row
    matching: any prefix with the expected caption could match. The worker is adding descriptor-bound
-   type/size matching and zero-tap rejection controls at the dispatch boundary. Keep default3 and
+   type/size matching and zero-tap rejection controls at the dispatch boundary. That correction
+   is now frozen with14 focused and42 affected worker checks passing; coordinator review and
+   native execution remain pending. Keep default3 and
    explicit3/4 unchanged. Integration and public native acceptance remain gated on104 delivery.
 
 [106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
@@ -80,15 +82,26 @@ is resolved for its bounded World/HTTP implementation after19 integrated cases a
 core/static gates. The empty-caption false-edit regression has eight actual red/green cases.
 Coordinator checks independently specify complete cross-kind messages and use a valid oversized
 PNG; an injected one-byte limit increase fails through real HTTP. [108: Android edit acceptance](../../.scratch/rich-messages/issues/108-native-standalone-media-edits.md)
-is assigned independently, extending the existing real-bot/UI harness with four callback-driven
+is frozen on its worker branch with five focused host checks passing, extending the existing
+real-bot/UI harness with four callback-driven
 caption/cross-kind edits, retained D1 reuse, exact transfers and cold restart. Host implementation
-can proceed; native execution waits for104.
+is complete at the worker boundary; coordinator review/integration and native execution wait for104.
 
 Remaining operational work includes default upload classification, albums, approved automatic
 rich detection, wider rich-button placement/recovery and representative combined workflow/current-APK
 regression. [Album source findings](albums-references.md) now use corrected pinned identities; group allocation,
 request bounds and complete-group bridge application still need a frozen implementation contract. Preserve the full inventory; explicit unsupported errors do
 not complete compatibility.
+
+## Public-source preparation
+
+[109: public collaboration](../../.scratch/rich-messages/issues/109-public-source-readiness.md)
+adds a verified English-only README example, an original English glass screenshot and explicit
+MIT/BSL/GPL source notices. No confirmed real credential was found in the tracked tree or reachable
+history; the scanner's sole credential-pattern report is a public test correlation value. Historical
+private consumer and machine notes still require the prepared, separately reviewed history cleanup.
+Do not change visibility or replace shared history before explicit approval. The current source
+changes are being pushed normally to private GitHub main. This task does not close native readiness.
 
 ## Existing evidence to reuse
 
