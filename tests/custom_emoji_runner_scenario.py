@@ -111,6 +111,18 @@ relaunch_capture = lab.capture_chat(
     label="custom-emoji-relaunch",
     contains=["Incoming", "Ordinary", "Rich"],
 )
+deadline = time.monotonic() + 30
+bot_status = lab.bot_status("emoji")
+while bot_status["state"] == "running" and time.monotonic() < deadline:
+    time.sleep(0.02)
+    bot_status = lab.bot_status("emoji")
+if bot_status != {
+    "name": "emoji",
+    "generation": 1,
+    "state": "exited",
+    "exit_code": 0,
+}:
+    raise RuntimeError("Custom-emoji bot did not exit cleanly")
 print(
     json.dumps(
         {

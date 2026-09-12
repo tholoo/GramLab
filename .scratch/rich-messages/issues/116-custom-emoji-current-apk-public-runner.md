@@ -116,3 +116,25 @@ responsible for proving static/animated glyphs in the distinct button region. Th
 host case then passes under the pinned offline profile at
 `artifacts/custom-emoji-runner-v5-fix-host-04.xml`; strict mypy, Ruff and format-check also pass.
 No production module, Android source/patch, content or fidelity contract changed.
+
+### Coordinator launch-lifecycle diagnosis
+
+The second normal30 attempt reached and retained the initial original-client capture, then failed
+before the inline callback because the immediate `am force-stop`/`am start -W` sequence did not
+establish a fresh activity launch. The prior application process was still alive while its message
+load continued. The generic launch error was therefore not relaxed: `_open_chat` now polls the
+package PID after force-stop and proceeds only after `pidof` proves the process absent. Unexpected
+status and a process surviving the five-second bound remain fail-closed. A focused host regression
+first failed because no PID check occurred at all in
+`artifacts/android-launch-stop-red-01.xml`, then the launch tests passed **3/3** in
+`artifacts/android-launch-stop-green-02.xml`.
+
+The subsequent combined host gate exposed a separate scheduling race in this ticket's fixture:
+the bot had printed its complete final transcript but the scenario could finish before the
+supervisor observed the bot process exit, contradicting the strict clean-exit assertion. The
+scenario now performs a bounded public `bot_status` handshake and requires generation 1 to have
+exited with code zero. That case passed five consecutive contained runs at
+`artifacts/custom-emoji-exit-handshake-host-{1..5}.xml`. The full affected host selection then
+passed **152/152** at `artifacts/current-acceptance-host-after-launch-fix-02.xml`; strict mypy and
+Ruff check/format pass for all changed files. The retained native attempt is
+`artifacts/custom-emoji-normal30-native-02.xml`; it is diagnostic evidence, not a native pass.
