@@ -1311,14 +1311,43 @@ class World:
             raise ValueError("Invalid stored document reference")
         return {canonical_document_id(document["document_id"])}
 
-    def _validate_media_group_message(self, message: dict[str, Any]) -> None:
-        stored = self._connection.execute(
-            "SELECT m.group_id, m.ordinal, g.kind, g.member_count "
-            "FROM media_group_members m JOIN media_groups g "
-            "ON g.id=m.group_id AND g.chat_id=m.chat_id "
-            "WHERE m.chat_id=? AND m.message_id=?",
-            (message.get("chat_id"), message.get("id")),
-        ).fetchone()
+    def _validate_media_group_message(
+        self, message: Any, *, revision: int | None = None
+    ) -> None:
+        if not isinstance(message, dict):
+            raise ValueError("Invalid stored media group")
+        message_id = message.get("id")
+        chat_id = message.get("chat_id")
+        sender_id = message.get("sender_id")
+        if (
+            type(message_id) is not int
+            or not 0 < message_id < 2**63
+            or type(chat_id) is not int
+            or not 0 < chat_id < 2**63
+            or type(sender_id) is not int
+            or not 0 < sender_id < 2**63
+        ):
+            raise ValueError("Invalid stored media group")
+        if revision is None:
+            stored = self._connection.execute(
+                "SELECT m.group_id, m.ordinal, g.kind, g.member_count, m.chat_id, m.message_id "
+                "FROM media_group_members m JOIN media_groups g "
+                "ON g.id=m.group_id AND g.chat_id=m.chat_id "
+                "WHERE m.chat_id=? AND m.message_id=?",
+                (chat_id, message_id),
+            ).fetchone()
+        else:
+            stored_rows = self._connection.execute(
+                "SELECT m.group_id, m.ordinal, g.kind, g.member_count, m.chat_id, m.message_id "
+                "FROM media_group_members m JOIN media_groups g "
+                "ON g.id=m.group_id AND g.chat_id=m.chat_id "
+                "JOIN message_revisions r "
+                "ON r.chat_id=m.chat_id AND r.message_id=m.message_id WHERE r.revision=?",
+                (revision,),
+            ).fetchall()
+            if len(stored_rows) > 1:
+                raise ValueError("Invalid stored media group")
+            stored = stored_rows[0] if stored_rows else None
         value = message.get("media_group_id")
         if stored is None:
             if value is not None:
@@ -1329,13 +1358,20 @@ class World:
             or re.fullmatch(r"[1-9][0-9]*", value) is None
             or int(value) >= 2**63
             or int(value) != stored[0]
+            or chat_id != stored[4]
+            or message_id != stored[5]
         ):
             raise ValueError("Invalid stored media group")
-        group_id, ordinal, kind, member_count = stored
+        group_id, ordinal, kind, member_count = stored[:4]
         rows = self._connection.execute(
-            "SELECT m.ordinal, m.chat_id, m.message_id, messages.body "
+            "SELECT m.ordinal, m.chat_id, m.message_id, messages.body, "
+            "r.revision, e.type, e.body, chats.bot_id "
             "FROM media_group_members m JOIN messages "
             "ON messages.chat_id=m.chat_id AND messages.id=m.message_id "
+            "JOIN message_revisions r "
+            "ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
+            "JOIN events e ON e.sequence=r.revision "
+            "JOIN chats ON chats.id=m.chat_id "
             "WHERE m.group_id=? ORDER BY m.ordinal",
             (group_id,),
         ).fetchall()
@@ -1344,25 +1380,80 @@ class World:
         identifiers = [int(row[2]) for row in rows]
         if identifiers != list(range(identifiers[0], identifiers[0] + member_count)):
             raise ValueError("Invalid stored media group")
-        for member_ordinal, chat_id, _message_id, body in rows:
-            member = json.loads(body)
+        revisions = [int(row[4]) for row in rows]
+        if len(set(revisions)) != member_count:
+            raise ValueError("Invalid stored media group")
+        for (
+            member_ordinal,
+            member_chat_id,
+            member_id,
+            body,
+            _,
+            event_kind,
+            event_body,
+            bot_id,
+        ) in rows:
+            try:
+                member = json.loads(body)
+                event = json.loads(event_body)
+            except (TypeError, ValueError):
+                raise ValueError("Invalid stored media group") from None
             if (
-                chat_id != message["chat_id"]
+                not isinstance(member, dict)
+                or not isinstance(event, dict)
+                or event_kind != "message.created"
+                or event != member
+                or type(member.get("id")) is not int
+                or member.get("id") != member_id
+                or type(member.get("chat_id")) is not int
+                or member.get("chat_id") != member_chat_id
+                or member_chat_id != chat_id
                 or member.get("media_group_id") != value
-                or member.get("sender_id") != self.get_chat(chat_id)["bot_id"]
-                or (kind == "photo") != ("photo" in member)
-                or (kind == "document") != ("document" in member)
-                or ("photo" in member and "document" in member)
+                or type(member.get("sender_id")) is not int
+                or member.get("sender_id") != bot_id
             ):
+                raise ValueError("Invalid stored media group")
+            if kind == "photo":
+                photo = member.get("photo")
+                if (
+                    not isinstance(photo, dict)
+                    or photo.keys() != {"asset_id"}
+                    or type(photo.get("asset_id")) is not int
+                    or "document" in member
+                ):
+                    raise ValueError("Invalid stored media group")
+                try:
+                    self.asset_descriptor(photo["asset_id"])
+                except ValueError:
+                    raise ValueError("Invalid stored media group") from None
+            elif kind == "document":
+                document = member.get("document")
+                if (
+                    not isinstance(document, dict)
+                    or document.keys() != {"document_id"}
+                    or not isinstance(document.get("document_id"), str)
+                    or "photo" in member
+                ):
+                    raise ValueError("Invalid stored media group")
+                try:
+                    document_id = canonical_document_id(document["document_id"])
+                    if str(document_id) != document["document_id"]:
+                        raise ValueError
+                    self.document_descriptor(str(document_id))
+                except (TypeError, ValueError):
+                    raise ValueError("Invalid stored media group") from None
+            else:
                 raise ValueError("Invalid stored media group")
             if member_ordinal == ordinal and member != message:
                 raise ValueError("Invalid stored media group")
 
-    def _require_media_group_version(self, message: dict[str, Any], version: int) -> None:
-        if "media_group_id" in message and version < 6:
+    def _require_media_group_version(
+        self, message: Any, version: int, *, revision: int | None = None
+    ) -> None:
+        if isinstance(message, dict) and "media_group_id" in message and version < 6:
             raise ValueError("GRAMLAB_UNSUPPORTED: media groups require client bridge v6")
         if version >= 6:
-            self._validate_media_group_message(message)
+            self._validate_media_group_message(message, revision=revision)
 
     def _require_document_version(self, message: dict[str, Any], version: int) -> None:
         if version < 5 and self._message_documents(message):
@@ -2256,6 +2347,12 @@ class World:
                     "SELECT id FROM chats WHERE user_id=? ORDER BY id", (user_id,)
                 )
             ]
+            try:
+                messages = [message for chat in chats for message in self.history(chat["id"])]
+            except (TypeError, ValueError):
+                if version == 6:
+                    raise ValueError("Invalid stored media group") from None
+                raise
             visible_users = {user_id, *(chat["bot_id"] for chat in chats)}
             result = {
                 "schema": version,
@@ -2265,7 +2362,7 @@ class World:
                 "now": now,
                 "users": [self.get_user(identifier) for identifier in sorted(visible_users)],
                 "chats": chats,
-                "messages": [message for chat in chats for message in self.history(chat["id"])],
+                "messages": messages,
             }
             for message in result["messages"]:
                 self._require_media_group_version(message, version)
@@ -2375,45 +2472,59 @@ class World:
                 "SELECT world_id, now FROM configuration"
             ).fetchone()
             rows = self._connection.execute(
-                "SELECT c.position, e.type, e.body, s.request_id FROM client_changes c "
+                "SELECT c.position, c.event_sequence, e.type, e.body, s.request_id "
+                "FROM client_changes c "
                 "JOIN events e ON e.sequence=c.event_sequence "
                 "LEFT JOIN client_sends s ON s.user_id=c.user_id AND s.position=c.position "
                 "WHERE c.user_id=? AND c.position>? ORDER BY c.position LIMIT ?",
                 (user_id, after, limit),
             ).fetchall()
             if version == 6 and rows:
-                trailing = json.loads(rows[-1][2])
-                trailing_group = trailing.get("media_group_id")
-                if rows[-1][1] == "message.created" and trailing_group is not None:
+                trailing_groups = self._connection.execute(
+                    "SELECT DISTINCT m.group_id FROM media_group_members m "
+                    "JOIN message_revisions r "
+                    "ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
+                    "WHERE r.revision=?",
+                    (rows[-1][1],),
+                ).fetchall()
+                if len(trailing_groups) > 1:
+                    raise ValueError("Invalid stored media group")
+                if trailing_groups:
                     additional = self._connection.execute(
-                        "SELECT c.position, e.type, e.body, s.request_id FROM client_changes c "
+                        "SELECT c.position, c.event_sequence, e.type, e.body, s.request_id "
+                        "FROM media_group_members m JOIN message_revisions r "
+                        "ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
+                        "JOIN client_changes c ON c.event_sequence=r.revision "
                         "JOIN events e ON e.sequence=c.event_sequence "
-                        "LEFT JOIN client_sends s ON s.user_id=c.user_id AND s.position=c.position "
-                        "WHERE c.user_id=? AND c.position>? AND e.type='message.created' "
-                        "AND json_extract(e.body, '$.media_group_id')=? "
+                        "LEFT JOIN client_sends s "
+                        "ON s.user_id=c.user_id AND s.position=c.position "
+                        "WHERE c.user_id=? AND m.group_id=? AND c.position>? "
                         "ORDER BY c.position LIMIT 9",
-                        (user_id, rows[-1][0], trailing_group),
+                        (user_id, trailing_groups[0][0], rows[-1][0]),
                     ).fetchall()
                     rows.extend(additional)
-                grouped_positions: dict[str, list[int]] = {}
-                for position, event_kind, body, _request_id in rows:
-                    data = json.loads(body)
-                    group = data.get("media_group_id")
-                    if group is not None:
-                        if event_kind != "message.created":
-                            raise ValueError("Invalid stored media group")
-                        grouped_positions.setdefault(str(group), []).append(int(position))
-                for group, positions in grouped_positions.items():
-                    complete = [
-                        int(row[0])
-                        for row in self._connection.execute(
-                            "SELECT c.position FROM client_changes c JOIN events e "
-                            "ON e.sequence=c.event_sequence WHERE c.user_id=? "
-                            "AND e.type='message.created' "
-                            "AND json_extract(e.body, '$.media_group_id')=? ORDER BY c.position",
-                            (user_id, group),
-                        )
-                    ]
+                topology = self._connection.execute(
+                    "SELECT m.group_id, c.position, r.revision "
+                    "FROM media_group_members m JOIN message_revisions r "
+                    "ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
+                    "JOIN client_changes c ON c.event_sequence=r.revision "
+                    "WHERE c.user_id=? ORDER BY m.group_id, m.ordinal",
+                    (user_id,),
+                ).fetchall()
+                complete_groups: dict[int, list[int]] = {}
+                revision_groups: dict[int, list[int]] = {}
+                for group_id, position, event_sequence in topology:
+                    complete_groups.setdefault(int(group_id), []).append(int(position))
+                    revision_groups.setdefault(int(event_sequence), []).append(int(group_id))
+                grouped_positions: dict[int, list[int]] = {}
+                for position, event_sequence, _event_kind, _body, _request_id in rows:
+                    groups = revision_groups.get(int(event_sequence), [])
+                    if len(groups) > 1:
+                        raise ValueError("Invalid stored media group")
+                    if groups:
+                        grouped_positions.setdefault(groups[0], []).append(int(position))
+                for group_id, positions in grouped_positions.items():
+                    complete = complete_groups[group_id]
                     if (
                         positions != complete
                         or not 2 <= len(complete) <= 10
@@ -2425,9 +2536,19 @@ class World:
             document_ids: set[int] = set()
             mentioned_ids: set[int] = set()
             emoji_ids: set[int] = set()
-            for position, kind, body, request_id in rows:
-                change = {"position": position, "type": kind, "data": json.loads(body)}
-                self._require_media_group_version(change["data"], version)
+            for position, event_sequence, kind, body, request_id in rows:
+                try:
+                    data = json.loads(body)
+                except (TypeError, ValueError):
+                    if version == 6:
+                        raise ValueError("Invalid stored media group") from None
+                    raise
+                if version == 6 and not isinstance(data, dict):
+                    raise ValueError("Invalid stored media group")
+                change = {"position": position, "type": kind, "data": data}
+                self._require_media_group_version(
+                    change["data"], version, revision=int(event_sequence)
+                )
                 documents = self._message_documents(change["data"])
                 if version < 5 and documents:
                     raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")

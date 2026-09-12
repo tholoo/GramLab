@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+import pytest
+
 from gramlab.client_bridge import ClientBridge
 from gramlab.documents import DocumentUpload
 from gramlab.world import World
@@ -102,6 +104,67 @@ def test_v6_snapshot_and_changes_preserve_complete_album_topology_and_dependenci
         after_group = request(bridge.base_url, token, "GET", "/v6/changes?after=4&limit=1")
         assert after_group.status == 200
         assert [change["data"] for change in after_group.json()["changes"]] == [last]
+
+
+def test_v6_changes_expansion_unions_dependencies_from_every_document_member(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "world"
+    user, bot, chat, token = setup(directory)
+    with World.open(directory) as world:
+        emoji = world.register_custom_emoji(
+            request_id="expanded-page-emoji",
+            main=(EMOJI / "emoji-static.webp").read_bytes(),
+            thumbnail=(EMOJI / "emoji-thumbnail.webp").read_bytes(),
+            fallback="🙂",
+            custom_emoji_id=9,
+        )
+        first = world.send_message(chat_id=chat["id"], sender_id=bot["id"], text="before")
+        album = world.send_media_group(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            media=[
+                {"type": "document", "media": "attach://first"},
+                {
+                    "type": "document",
+                    "media": "attach://second",
+                    "caption": "🙂",
+                    "caption_entities": [
+                        {
+                            "type": "custom_emoji",
+                            "offset": 0,
+                            "length": 2,
+                            "custom_emoji_id": "9",
+                        }
+                    ],
+                },
+            ],
+            uploads={
+                "first": DocumentUpload(b"first document", "first.bin"),
+                "second": DocumentUpload(b"second document", "second.bin"),
+            },
+        )
+        documents = [world.document_descriptor("1"), world.document_descriptor("2")]
+        assets = [
+            world.asset_descriptor(emoji["main_asset_id"]),
+            world.asset_descriptor(emoji["thumbnail_asset_id"]),
+        ]
+        assets.sort(key=lambda item: item["asset_id"])
+        users = [user, bot]
+        world_id = world.world_id
+
+    with ClientBridge(directory) as bridge:
+        response = request(bridge.base_url, token, "GET", "/v6/changes?after=0&limit=2")
+        assert response.status == 200
+        page = response.json()
+        assert page["schema"] == 6 and page["world_id"] == world_id
+        assert page["user_id"] == user["id"]
+        assert page["cursor"] == page["head"] == 3
+        assert [change["data"] for change in page["changes"]] == [first, *album]
+        assert page["users"] == users
+        assert page["assets"] == assets
+        assert page["custom_emoji"] == [emoji]
+        assert page["documents"] == documents
 
 
 def test_v6_inside_group_cursor_is_exact_409_and_legacy_routes_reject_without_mutation(
@@ -257,7 +320,21 @@ def test_v6_messages_callbacks_and_custom_emoji_document_routes_keep_group_ident
         assert fetched.status == 200 and fetched.json() == callback_body
 
 
-def test_v6_rejects_malformed_persisted_group_state(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("corruption", "route"),
+    [
+        ("group_id", "/v6/snapshot"),
+        ("copied_member", "/v6/snapshot"),
+        ("nested_photo", "/v6/snapshot"),
+        ("non_object_message", "/v6/snapshot"),
+        ("duplicate_revision", "/v6/snapshot"),
+        ("non_object_event", "/v6/changes?after=0"),
+        ("invalid_event_json", "/v6/changes?after=0"),
+    ],
+)
+def test_v6_rejects_malformed_persisted_group_state(
+    tmp_path: Path, corruption: str, route: str
+) -> None:
     directory = tmp_path / "world"
     _user, bot, chat, token = setup(directory)
     with World.open(directory) as world:
@@ -270,14 +347,50 @@ def test_v6_rejects_malformed_persisted_group_state(tmp_path: Path) -> None:
             ],
             uploads={"p": PHOTO.read_bytes()},
         )
-        corrupted = dict(group[0]) | {"media_group_id": "2"}
         with world._connection:
-            world._connection.execute(
-                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
-                (json.dumps(corrupted), chat["id"], group[0]["id"]),
-            )
+            revisions = [
+                world._connection.execute(
+                    "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
+                    (chat["id"], member["id"]),
+                ).fetchone()[0]
+                for member in group
+            ]
+            if corruption == "duplicate_revision":
+                world._connection.execute(
+                    "UPDATE message_revisions SET revision=? WHERE chat_id=? AND message_id=?",
+                    (revisions[0], chat["id"], group[1]["id"]),
+                )
+            elif corruption in ("non_object_event", "invalid_event_json"):
+                world._connection.execute(
+                    "UPDATE events SET body=? WHERE sequence=?",
+                    ("[]" if corruption == "non_object_event" else "{", revisions[0]),
+                )
+            elif corruption == "non_object_message":
+                world._connection.execute(
+                    "UPDATE messages SET body='[]' WHERE chat_id=? AND id=?",
+                    (chat["id"], group[0]["id"]),
+                )
+                world._connection.execute(
+                    "UPDATE events SET body='[]' WHERE sequence=?", (revisions[0],)
+                )
+            else:
+                target = 1 if corruption == "copied_member" else 0
+                if corruption == "group_id":
+                    corrupted = dict(group[target]) | {"media_group_id": "2"}
+                elif corruption == "nested_photo":
+                    corrupted = dict(group[target]) | {"photo": {"asset_id": []}}
+                else:
+                    corrupted = group[0]
+                encoded = json.dumps(corrupted)
+                world._connection.execute(
+                    "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
+                    (encoded, chat["id"], group[target]["id"]),
+                )
+                world._connection.execute(
+                    "UPDATE events SET body=? WHERE sequence=?", (encoded, revisions[target])
+                )
     with ClientBridge(directory) as bridge:
-        response = request(bridge.base_url, token, "GET", "/v6/snapshot")
+        response = request(bridge.base_url, token, "GET", route)
         assert response.status == 400
         assert response.json() == {
             "schema": 6,

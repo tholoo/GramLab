@@ -166,6 +166,13 @@ def test_multipart_repeated_photo_and_forced_document_album(tmp_path: Path) -> N
         {
             "chat_id": 1,
             "media": [
+                {"type": [], "media": "missing"},
+                {"type": "photo", "media": "missing"},
+            ],
+        },
+        {
+            "chat_id": 1,
+            "media": [
                 {"type": "photo", "media": "missing"},
                 {"type": "document", "media": "missing"},
             ],

@@ -1,3 +1,4 @@
+import gc
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -5,7 +6,8 @@ from typing import Any
 
 import pytest
 
-from gramlab.documents import DocumentUpload
+from gramlab.documents import MAX_DOCUMENT_BYTES, DocumentUpload
+from gramlab.media import MAX_IMAGE_BYTES
 from gramlab.world import World
 
 PHOTO = Path(__file__).parent / "assets" / "rich-media" / "photo-square-16x16.png"
@@ -172,6 +174,35 @@ def test_document_album_repeats_upload_and_reuse_with_world_wide_group_ids(
             ],
             {"p": PHOTO.read_bytes()},
             "parameters",
+        ),
+        (
+            [
+                {"type": "photo", "media": "attach://p", "caption": 1},
+                {"type": "photo", "media": "attach://p"},
+            ],
+            {"p": PHOTO.read_bytes()},
+            "Caption must contain",
+        ),
+        (
+            [
+                {"type": "photo", "media": "attach://p", "caption": "x" * 1025},
+                {"type": "photo", "media": "attach://p"},
+            ],
+            {"p": PHOTO.read_bytes()},
+            "Caption must contain",
+        ),
+        (
+            [
+                {
+                    "type": "photo",
+                    "media": "attach://p",
+                    "caption": "x",
+                    "caption_entities": [{"type": "bold", "offset": 1, "length": 1}],
+                },
+                {"type": "photo", "media": "attach://p"},
+            ],
+            {"p": PHOTO.read_bytes()},
+            "Entity range",
         ),
     ],
 )
@@ -412,4 +443,54 @@ def test_logical_album_limit_counts_each_repeated_occurrence(tmp_path: Path) -> 
             uploads={"one": DocumentUpload(b"1", "one.bin")},
         )
     assert state(world) == before
+    world.__exit__(None, None, None)
+
+
+def test_album_per_item_photo_and_document_size_boundaries_are_inclusive(
+    tmp_path: Path,
+) -> None:
+    world, _user, bot, chat = setup_world(tmp_path / "world")
+    image = PHOTO.read_bytes()
+    maximum_photo = image + b"\0" * (MAX_IMAGE_BYTES - len(image))
+    accepted_photos = world.send_media_group(
+        chat_id=chat["id"],
+        sender_id=bot["id"],
+        media=photos("maximum-photo", "maximum-photo"),
+        uploads={"maximum-photo": maximum_photo},
+    )
+    assert world.asset_descriptor(accepted_photos[0]["photo"]["asset_id"])["file_size"] == (
+        MAX_IMAGE_BYTES
+    )
+
+    before_photo_rejection = state(world)
+    oversized_photo = maximum_photo + b"\0"
+    with pytest.raises(ValueError, match="10000000 bytes"):
+        world.send_media_group(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            media=photos("oversized-photo", "oversized-photo"),
+            uploads={"oversized-photo": oversized_photo},
+        )
+    assert state(world) == before_photo_rejection
+    del maximum_photo, oversized_photo
+    gc.collect()
+
+    maximum_document = DocumentUpload(b"x" * MAX_DOCUMENT_BYTES, "maximum.bin")
+    accepted_documents = world.send_media_group(
+        chat_id=chat["id"],
+        sender_id=bot["id"],
+        media=[
+            {"type": "document", "media": "attach://maximum-document"},
+            {"type": "document", "media": "attach://maximum-document"},
+        ],
+        uploads={"maximum-document": maximum_document},
+    )
+    assert world.document_descriptor(accepted_documents[0]["document"]["document_id"])[
+        "file_size"
+    ] == MAX_DOCUMENT_BYTES
+
+    before_document_rejection = state(world)
+    with pytest.raises(ValueError, match="50000000-byte"):
+        DocumentUpload(b"x" * (MAX_DOCUMENT_BYTES + 1), "oversized.bin")
+    assert state(world) == before_document_rejection
     world.__exit__(None, None, None)

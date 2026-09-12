@@ -323,9 +323,11 @@ def _dispatch(
         items = parameters["media"]
         if not isinstance(items, list):
             raise ValueError("media must be an array")
-        item_kinds = {item.get("type") for item in items if isinstance(item, dict)}
+        all_documents = bool(items) and all(
+            isinstance(item, dict) and item.get("type") == "document" for item in items
+        )
         typed_album_uploads: dict[str, bytes | DocumentUpload]
-        if item_kinds == {"document"}:
+        if all_documents:
             typed_album_uploads = {
                 name: DocumentUpload(upload.data, upload.filename, upload.content_type)
                 for name, upload in (uploads or {}).items()
