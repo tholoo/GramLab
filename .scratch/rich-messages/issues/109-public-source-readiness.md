@@ -94,8 +94,8 @@ synthetic capability/redaction fixtures under `tests/`; their matched values are
 hash in ignored audit evidence.
 
 Gitleaks8.30.1 separately scanned every commit from the cleaned-history checkpoint `545828b`
-through `b704bee` with full secret redaction and reported zero findings. The ignored reports are
-`.cache/public-audit/head-current-scan.json` and
+through `b704bee` with full secret redaction and reported zero findings. The immutable-input ignored
+reports are `.cache/public-audit/head-b704bee-scan.json` and
 `.cache/public-audit/gitleaks-current-range.json`. This is bounded evidence for the current tracked
 integration branch. It deliberately does not bless ignored runtime artifacts or legacy local worker
 refs for publication; the existing migration restriction on those refs remains.
