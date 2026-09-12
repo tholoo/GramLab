@@ -2,9 +2,9 @@
 
 Type: task
 Status: ready-for-agent
-Work state: integrated; public Android workflow pending ticket105
+Work state: integrated; direct loader/UI gates passed, public Android workflow pending
 Owner: coordinator
-Blocked by: actual public Android rendering/input/restart acceptance in ticket105
+Blocked by: coordinator execution of the public Android workflow on reviewed normal30
 
 The approved v5 document bridge exists in World and HTTP, but the public runner/CLI and Android
 host accept only3/4. Simulation inline callbacks use4, and native rich-button observation and
@@ -162,6 +162,6 @@ combined tree under the pinned offline shell and loopback-only namespace; JUnit 
 `artifacts/document-runner-v5-integrated-01.xml`. Scoped strict mypy and Ruff pass all seven owned
 files, and `git diff --check` is clean. Explicit bridge v5 is now available through the public
 runner, CLI and Android host orchestration without changing default3 or explicit3/4 behavior.
-This integration is not original-renderer evidence: ticket105 still owns the actual v5 public
-workflow, document download/cache/restart, callback input, screenshots and complete semantic
-comparison.
+This integration alone is not original-renderer evidence. Direct loader native08 and direct
+original-UI native10 now pass, removing those prerequisites; the public runner's own Android
+workflow, screenshots and complete semantic comparison remain this ticket's final acceptance.

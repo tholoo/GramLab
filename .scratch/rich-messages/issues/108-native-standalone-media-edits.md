@@ -1,10 +1,10 @@
 # Prove standalone media edits in the original Android document workflow
 
 Type: task
-Status: ready-for-agent
-Work state: integrated; original-renderer acceptance pending
+Status: resolved
+Work state: integrated and accepted on reviewed normal30 APK
 Owner: coordinator
-Blocked by: coordinator native execution on the verified104 APK
+Blocked by: none
 
 Extend the existing105 real-bot document scenario with the merged106 media operations. This is
 acceptance work for required operational behavior, not a new parallel harness or a production
@@ -91,9 +91,11 @@ impact and remaining native acceptance; do not resolve this ticket from host-onl
   worker corrected three host/native-acceptance gaps: callback taps now use the keyboard rendered
   by the preceding transition (K1 through K4, with K5 render-only); the existing schema-2 original
   photo observer binds P1 asset3 to message2 in the current process before and after its caption
-  edit; and D1/P1/D2 internal and saved copies require exact bytes, including D2's `-2_-2.pdf`
-  cache entry and tap-relative request timing. No production, schema, shared fixture or native
-  patch changed.
+  edit; and D1/P1/D2 saved presentation copies require exact bytes with source-correct trace keys
+  (`-1_-1.pdf`, `3_1.jpg`, `-1_-2.pdf`) and tap-relative request timing. The ordinary-document
+  temporary is created beside its selected presentation destination and atomically renamed, so the
+  native key is not a promised second coexisting file. No production, schema, shared fixture or
+  native patch changed.
 - Corrective red: `PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider
   tests/test_android_document_ui.py::test_document_callback_taps_follow_the_current_keyboard`
   failed one case because the flawed orchestration exposed no independently specified callback-tap
@@ -120,3 +122,19 @@ impact and remaining native acceptance; do not resolve this ticket from host-onl
   `git diff --check` pass. This checkpoint integrates the clean-history migration but does not
   claim original rendering, taps, download/cache/restart behavior or ticket resolution; those
   require the next serialized Android run.
+- Coordinator native10 passes the complete original-renderer workflow in118.862 seconds on the
+  unchanged normal30 APK
+  `a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. Eight original captures
+  show the D1→P1→D2 captions/keyboards, unchanged reused D1 and cold-restarted final conversation.
+  The finalized ledger contains178 successful loopback requests and zero errors, with exactly one
+  D1 GET in `initial`, one P1 GET in `photo`, one D2 GET in `document_final`, and no document GET in
+  caption-edit or restart phases. Both schema-2 P1 observations bind asset3 to message2 in PID2489;
+  presentation files and SHA-256 values match D1/P1/D2 bytes, P1 is cleaned after replacement,
+  partials are absent, accounts are zero, and containment/provenance assertions pass. Evidence and
+  the self-contained report remain under `artifacts/native-media-edit-android-10/`.
+- Native failures01/03–09 were acceptance-harness defects, not production adapter defects: raw XML
+  entity matching missed the custom emoji; stock document auto-download raced the tap oracle; the
+  row center opened Telegram's context menu instead of its radial control; globally disabling media
+  also suppressed P1; client polling crossed bridge shutdown; and migrated cache-name/coexistence
+  expectations contradicted the pinned codec/publication path. Focused host regressions cover each
+  corrected seam. No production patch or APK byte changed.

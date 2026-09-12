@@ -64,7 +64,9 @@ dependencies remain available. Failed edits roll back new bytes, identities, gra
 
 This integrated World/HTTP profile passes 19 focused behavioral cases, including complete v5
 changes/reopen state, real multipart/getFile/download requests and late-failure retry. Original
-Android edit acceptance remains pending. Grouped media, inline/business edits, parse modes,
+Android native10 additionally passes the callback-driven D1→P1→D2 edit lifecycle, exact transfers,
+bitmap binding/cleanup and cold restart on the unchanged reviewed normal30 APK. Grouped media,
+inline/business edits, parse modes,
 thumbnails, spoilers and captions above media remain unsupported.
 
 ## Client delivery and verification
@@ -79,11 +81,13 @@ The integrated HTTP checks cover complete responses, callback delivery, reuse/re
 metadata, rejected-state preservation, exact byte limits, cross-kind/cross-persona authorization
 and historical v5 dependencies. Uploading identical valid PNG bytes as a forced document and as a
 photo preserves distinct typed identities and exact downloads. These checks prove the local HTTP
-contract; original Android loading, rendering and recovery require the separate native gates.
+contract. Normal30 document-delivery native08 and original LaunchActivity native10 separately
+verify loading, rendering, interaction and cold recovery.
 
 The integrated real-bot document scenario additionally sends a bilingual named file with a
 formatted/custom-emoji caption and callback keyboard, checks exact authenticated downloads,
 rejects cross-kind/foreign-bot reuse, then sends the same file again after a callback. All three
-scenario/evidence host cases pass in `artifacts/document-ui-integrated-01.xml`. Its original
-Android workflow remains pending; public runner v5 selection and mixed-content interaction
-coverage are tracked separately in [ticket107](../../.scratch/rich-messages/issues/107-document-runner-v5.md).
+scenario/evidence host cases pass in `artifacts/document-ui-integrated-01.xml`. The extended
+original Android workflow passes in `artifacts/native-media-edit-android-10/`; public runner v5
+selection and mixed-content interaction coverage remain tracked separately in
+[ticket107](../../.scratch/rich-messages/issues/107-document-runner-v5.md).

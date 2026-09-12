@@ -11,11 +11,11 @@ import subprocess
 import threading
 import time
 import xml.etree.ElementTree as ET
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
-from typing import Any, NoReturn, Self, cast
+from typing import Any, NoReturn, Protocol, Self, cast
 from urllib.parse import urlsplit
 
 from android_guest import main
@@ -43,6 +43,93 @@ MEDIA_EVENTS = {
     "media_cache_hit",
 }
 FAILURE_TEXT_LIMIT = 256 * 1024
+
+
+class _RequestLedgerProxy(Protocol):
+    def requests(self) -> list[dict[str, Any]]: ...
+
+    def stop(self) -> None: ...
+
+
+def semantic_labels(xml: str) -> str:
+    """Return decoded text exposed by a UIAutomator hierarchy."""
+    root = ET.fromstring(xml)  # noqa: S314 — dedicated guest UIAutomator output
+    return "\n".join(
+        value
+        for node in root.iter("node")
+        for value in (node.get("text", ""), node.get("content-desc", ""))
+        if value
+    )
+
+
+def disable_automatic_document_download(
+    adb: Callable[..., subprocess.CompletedProcess[str]],
+) -> None:
+    """Keep stock photo downloads but make documents tap-driven in the fixture."""
+    preferences = (
+        '<map><boolean name="newConfig" value="true" />'
+        '<int name="currentMobilePreset" value="3" />'
+        '<int name="currentWifiPreset" value="3" />'
+        '<int name="currentRoamingPreset" value="3" />'
+        '<string name="mobilePreset">'
+        "5_5_5_5_1048576_10485760_1048576_524288_1_1_1_0_100_1"
+        "</string>"
+        '<string name="wifiPreset">'
+        "5_5_5_5_1048576_15728640_3145728_524288_1_1_1_0_100_1"
+        "</string>"
+        '<string name="roamingPreset">'
+        "1_1_1_1_1048576_512000_512000_524288_0_0_1_1_50_0"
+        "</string></map>"
+    )
+    result = adb(
+        "shell",
+        "-T",
+        "run-as",
+        PACKAGE,
+        "sh",
+        "-c",
+        "'mkdir -p shared_prefs && cat > shared_prefs/mainconfig.xml'",
+        input=preferences,
+    )
+    if result.returncode:
+        raise RuntimeError("Could not disable automatic document downloads in the fixture")
+
+
+def document_button_point(bounds: Sequence[int]) -> tuple[int, int]:
+    """Target the pinned mdpi incoming-document radial button inside its semantic row."""
+    if len(bounds) != 4:
+        raise ValueError("Document semantic bounds must contain four coordinates")
+    left, top, right, bottom = bounds
+    # Pinned ChatMessageCell uses buttonX=dp(23), buttonY=dp(13), and a 44dp
+    # radial control. The dedicated AOSP acceptance profile is mdpi.
+    if right - left < 67 or bottom - top < 57:
+        raise ValueError("Document semantic bounds cannot contain the radial control")
+    return left + 45, top + 35
+
+
+def document_cache_file(document_id: str) -> str:
+    """Project the reserved dc_id=-1 and negative native document ID."""
+    if re.fullmatch(r"[1-9][0-9]{0,18}", document_id) is None:
+        raise ValueError("Document ID is outside the fixture's reserved range")
+    return f"-1_-{document_id}.pdf"
+
+
+def stop_document_client(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+) -> None:
+    stopped = guest("shell", "am", "force-stop", PACKAGE)
+    if stopped.returncode:
+        raise RuntimeError("Could not stop the document fixture client")
+
+
+def finalize_request_ledger(
+    guest: Callable[..., subprocess.CompletedProcess[str]],
+    proxy: _RequestLedgerProxy,
+) -> list[dict[str, Any]]:
+    """Stop new client traffic, drain the proxy, then take one stable ledger."""
+    stop_document_client(guest)
+    proxy.stop()
+    return proxy.requests()
 
 
 def _bounded_redacted(value: str, capability: str) -> tuple[str, bool]:
@@ -295,6 +382,9 @@ class BridgeProxy:
         value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        self.stop()
+
+    def stop(self) -> None:
         self._server.shutdown()
         self._server.server_close()
         self._thread.join(timeout=5)
@@ -310,6 +400,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     photo_bindings: dict[str, dict[str, Any]] = {}
     phases: dict[str, dict[str, int]] = {}
     active_phase = ""
+    proxy_closed = False
 
     def retain(name: str, value: str) -> str:
         if capability and capability in value:
@@ -350,7 +441,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             adb("shell", "uiautomator", "dump", "/data/local/tmp/document-ui.xml", timeout=15)
             ui = adb("shell", "cat", "/data/local/tmp/document-ui.xml").stdout
             rows = trace(name)
-            if all(label in ui for label in labels) and (
+            visible = semantic_labels(ui)
+            if all(label in visible for label in labels) and (
                 not applied or any(row.get("event") == "events_applied" for row in rows)
             ):
                 break
@@ -482,8 +574,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if Path(path).name not in (
                 SCENE["file_name"],
                 SCENE["replacement_file_name"],
-                "-1_-1.pdf",
-                "-2_-2.pdf",
+                document_cache_file("1"),
+                document_cache_file("2"),
                 "3_1.jpg",
             ):
                 continue
@@ -619,6 +711,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             raise RuntimeError("Unexpected document UI phase")
         if proxy is None:
             adb("install", "--no-streaming", "/work/client.apk", timeout=60)
+            disable_automatic_document_download(adb)
             proxy = BridgeProxy(configuration["endpoint"], configuration["capability"])
             proxy.__enter__()
             write_config(configuration)
@@ -642,12 +735,14 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 "bounds": bounds,
                 "requests_before": before,
             }
+            point = document_button_point(bounds)
+            taps["download"]["point"] = point
             adb(
                 "shell",
                 "input",
                 "tap",
-                str((bounds[0] + bounds[2]) // 2),
-                str((bounds[1] + bounds[3]) // 2),
+                str(point[0]),
+                str(point[1]),
             )
             wait_for_download("downloaded", before)
             taps["download"]["requests_after"] = len(proxy.requests())
@@ -703,12 +798,14 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 "bounds": bounds,
                 "requests_before": before,
             }
+            point = document_button_point(bounds)
+            taps["replacement-download"]["point"] = point
             adb(
                 "shell",
                 "input",
                 "tap",
-                str((bounds[0] + bounds[2]) // 2),
-                str((bounds[1] + bounds[3]) // 2),
+                str(point[0]),
+                str(point[1]),
             )
             wait_for_media(
                 "document-final-downloaded",
@@ -719,6 +816,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             )
             taps["replacement-download"]["requests_after"] = len(proxy.requests())
             wait_for_photo_cleanup(name)
+            stop_document_client(adb)
+            taps["replacement-download"]["client_stopped_before_restart"] = True
             return ui
 
         adb("shell", "am", "force-stop", PACKAGE)
@@ -775,10 +874,15 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         )
 
     def observe() -> dict[str, Any]:
+        nonlocal proxy_closed
         rows = trace("final")
         phases[active_phase]["trace_end"] = len(rows)
         assert proxy is not None
-        phases[active_phase]["request_end"] = len(proxy.requests())
+        accounts = adb("shell", "dumpsys", "account").stdout
+        requests = finalize_request_ledger(adb, proxy)
+        proxy_closed = True
+        phases[active_phase]["request_end"] = len(requests)
+        retain("native-document-ui-requests.json", json.dumps(requests, indent=2))
         return {
             "captures": captures,
             "launches": launches,
@@ -786,18 +890,17 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "cache": cache,
             "photo_bindings": photo_bindings,
             "phases": phases,
-            "requests": proxy.requests(),
+            "requests": requests,
             "trace": rows,
-            "accounts": adb("shell", "dumpsys", "account").stdout,
+            "accounts": accounts,
         }
 
     try:
         return cast(dict[str, object], run(show, tap, observe))
     finally:
-        guest("shell", "am", "force-stop", PACKAGE)
-        if proxy is not None:
-            retain("native-document-ui-requests.json", json.dumps(proxy.requests(), indent=2))
-            proxy.__exit__(None, None, None)
+        if proxy is not None and not proxy_closed:
+            requests = finalize_request_ledger(guest, proxy)
+            retain("native-document-ui-requests.json", json.dumps(requests, indent=2))
         guest("shell", "rm", "-f", "/data/local/tmp/document-ui.xml")
 
 

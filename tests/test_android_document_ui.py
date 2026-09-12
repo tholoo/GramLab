@@ -26,7 +26,15 @@ from gramlab.reports import Report, Screenshot, write_report
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 sys.path.insert(0, str(Path("tests/probes").resolve()))
-from android_document_ui import FAILURE_TEXT_LIMIT, retain_failure_evidence
+from android_document_ui import (
+    FAILURE_TEXT_LIMIT,
+    disable_automatic_document_download,
+    document_button_point,
+    document_cache_file,
+    finalize_request_ledger,
+    retain_failure_evidence,
+    semantic_labels,
+)
 from android_document_ui import TRACE as TRACE_PATH
 
 DOCUMENT_EVENTS = {
@@ -48,6 +56,90 @@ def test_document_callback_taps_follow_the_current_keyboard() -> None:
         ("photo_caption", "Edit photo caption / زیرنویس"),
         ("document_final", "Replace with D2 / سند دوم"),
     )
+
+
+def test_semantic_labels_decode_uiautomator_numeric_character_references() -> None:
+    xml = (
+        '<hierarchy><node text="" content-desc="فایل Report '
+        '&#128105;\u200d&#128187;&#10;Received" /></hierarchy>'
+    )
+
+    assert "فایل Report 👩\u200d💻" in semantic_labels(xml)
+
+
+def test_native_document_fixture_disables_only_stock_document_downloads() -> None:
+    calls: list[tuple[tuple[str, ...], dict[str, Any]]] = []
+
+    def adb(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((arguments, kwargs))
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    disable_automatic_document_download(adb)
+
+    assert len(calls) == 1
+    arguments, options = calls[0]
+    assert arguments == (
+        "shell",
+        "-T",
+        "run-as",
+        "org.gramlab.android",
+        "sh",
+        "-c",
+        "'mkdir -p shared_prefs && cat > shared_prefs/mainconfig.xml'",
+    )
+    preferences = ET.fromstring(options["input"])  # noqa: S314 — constant test XML
+    values = {
+        node.attrib["name"]: node.get("value") if node.tag != "string" else node.text
+        for node in preferences
+    }
+    assert values == {
+        "newConfig": "true",
+        "currentMobilePreset": "3",
+        "currentWifiPreset": "3",
+        "currentRoamingPreset": "3",
+        "mobilePreset": "5_5_5_5_1048576_10485760_1048576_524288_1_1_1_0_100_1",
+        "wifiPreset": "5_5_5_5_1048576_15728640_3145728_524288_1_1_1_0_100_1",
+        "roamingPreset": "1_1_1_1_1048576_512000_512000_524288_0_0_1_1_50_0",
+    }
+    for name in ("mobilePreset", "wifiPreset", "roamingPreset"):
+        masks = [int(value) for value in values[name].split("_")[:4]]  # type: ignore[union-attr]
+        assert all(mask & 1 and not mask & 8 for mask in masks)
+
+
+def test_document_button_point_targets_the_pinned_original_radial_control() -> None:
+    assert document_button_point([0, 386, 320, 532]) == (45, 421)
+
+
+def test_reserved_native_document_cache_names_use_dc_minus_one() -> None:
+    assert document_cache_file("1") == "-1_-1.pdf"
+    assert document_cache_file("2") == "-1_-2.pdf"
+
+
+def test_request_ledger_is_snapshotted_after_client_and_proxy_stop() -> None:
+    calls: list[str] = []
+
+    class Proxy:
+        def __init__(self) -> None:
+            self.rows = [{"sequence": 1}]
+
+        def requests(self) -> list[dict[str, int]]:
+            return [dict(row) for row in self.rows]
+
+        def stop(self) -> None:
+            calls.append("proxy-stop")
+            self.rows.append({"sequence": 2})
+
+    def guest(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        assert arguments == ("shell", "am", "force-stop", "org.gramlab.android")
+        calls.append("client-stop")
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    assert finalize_request_ledger(guest, Proxy()) == [
+        {"sequence": 1},
+        {"sequence": 2},
+    ]
+    assert calls == ["client-stop", "proxy-stop"]
 
 
 def visible_labels(xml: str) -> str:
@@ -429,6 +521,7 @@ def assert_android_document_observation(
         left, top, right, bottom = tap["bounds"]
         assert 0 <= left < right <= 320 and 0 <= top < bottom <= 640
     assert client["taps"]["download"]["label"] == SCENE["file_name"]
+    assert client["taps"]["download"]["point"] == [45, 421]
     assert client["taps"]["download"]["requests_before"] >= 0
     assert (
         client["taps"]["download"]["requests_after"] > client["taps"]["download"]["requests_before"]
@@ -437,6 +530,10 @@ def assert_android_document_observation(
     for index, name in enumerate(("photo", "photo_caption", "document_final")):
         assert client["taps"][name]["label"] == SCENE["edit_sequence"][index]["button_text"]
     assert client["taps"]["replacement-download"]["label"] == SCENE["replacement_file_name"]
+    replacement_point = client["taps"]["replacement-download"]["point"]
+    replacement_bounds = client["taps"]["replacement-download"]["bounds"]
+    assert replacement_point == [replacement_bounds[0] + 45, replacement_bounds[1] + 35]
+    assert client["taps"]["replacement-download"]["client_stopped_before_restart"] is True
 
     requests = client["requests"]
     assert json.loads((tmp_path / "native-document-ui-requests.json").read_text()) == requests
@@ -566,7 +663,7 @@ def assert_android_document_observation(
     for row in ordinary:
         assert set(row) == {"event", "document_id", "cache_file", "file_size", "digest_ok"}
         assert row["event"] in DOCUMENT_EVENTS
-        assert row["cache_file"] == ("-1_-1.pdf" if row["document_id"] == "1" else "-2_-2.pdf")
+        assert row["cache_file"] == document_cache_file(row["document_id"])
         assert row["file_size"] == (
             len(DOCUMENT_BYTES) if row["document_id"] == "1" else len(REPLACEMENT_DOCUMENT_BYTES)
         )
@@ -617,51 +714,29 @@ def assert_android_document_observation(
         "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/Telegram Files/"
         + SCENE["replacement_file_name"]
     )
-    expected_bytes = {
-        SCENE["file_name"]: DOCUMENT_BYTES,
-        "-1_-1.pdf": DOCUMENT_BYTES,
-        "3_1.jpg": PHOTO.read_bytes(),
-        SCENE["replacement_file_name"]: REPLACEMENT_DOCUMENT_BYTES,
-        "-2_-2.pdf": REPLACEMENT_DOCUMENT_BYTES,
+    photo_destination = (
+        "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+        "Telegram Images/3_1.jpg"
+    )
+    expected_stage_files = {
+        "downloaded": {initial_destination: DOCUMENT_BYTES},
+        "document_caption": {initial_destination: DOCUMENT_BYTES},
+        "photo": {photo_destination: PHOTO.read_bytes()},
+        "photo_caption": {photo_destination: PHOTO.read_bytes()},
+        "document_final": {final_destination: REPLACEMENT_DOCUMENT_BYTES},
+        "restart": {final_destination: REPLACEMENT_DOCUMENT_BYTES},
     }
-    assert set(client["cache"]) == {
-        "downloaded",
-        "document_caption",
-        "photo",
-        "photo_caption",
-        "document_final",
-        "restart",
-    }
+    assert set(client["cache"]) == set(expected_stage_files)
     for name, value in client["cache"].items():
         assert value["partials"] == []
-        paths = {row["path"] for row in value["copies"]}
-        basenames = {Path(str(path)).name for path in paths}
-        assert paths >= {initial_destination}
-        assert basenames >= {SCENE["file_name"], "-1_-1.pdf"}
+        expected = expected_stage_files[name]
+        assert {row["path"] for row in value["copies"]} == set(expected)
         assert all(
-            row["size"] == len(expected_bytes[Path(str(row["path"])).name])
-            and row["sha256"]
-            == hashlib.sha256(expected_bytes[Path(str(row["path"])).name]).hexdigest()
+            row["size"] == len(expected[str(row["path"])])
+            and row["sha256"] == hashlib.sha256(expected[str(row["path"])]).hexdigest()
             for row in value["copies"]
         ), name
         assert json.loads((tmp_path / f"{name}-cache.json").read_text()) == value
-    for name in ("photo", "photo_caption"):
-        assert "3_1.jpg" in {Path(str(row["path"])).name for row in client["cache"][name]["copies"]}
-    for name in ("downloaded", "document_caption"):
-        assert SCENE["replacement_file_name"] not in {
-            Path(str(row["path"])).name for row in client["cache"][name]["copies"]
-        }
-    for name in ("document_final", "restart"):
-        paths = {row["path"] for row in client["cache"][name]["copies"]}
-        assert paths >= {
-            initial_destination,
-            final_destination,
-        }
-        assert {Path(str(path)).name for path in paths} >= {
-            SCENE["replacement_file_name"],
-            "-2_-2.pdf",
-        }
-        assert "3_1.jpg" not in {Path(str(path)).name for path in paths}
 
     apk_digest = hashlib.sha256(apk.read_bytes()).hexdigest()
     assert hashlib.sha256((tmp_path / "client.apk").read_bytes()).hexdigest() == apk_digest

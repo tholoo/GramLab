@@ -24,18 +24,20 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 Core19 passes all **1,192 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
 commands**; the changed diagnostic scope also passes strict typing/Ruff, and configuration/links
 validate in 265 Markdown files. Typed document World99, multipart100,
-codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone
-media edits106 are integrated and verified at the World/HTTP boundary. The real-bot scenario105
-is integrated; original Android acceptance remains pending. [Documents](documents.md) records
-implemented forced-file behavior and standalone edits, including their limits.
+codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone media
+edits106, the real-bot scenario105 and the clean public runner-v5 migration107 are integrated.
+[Documents](documents.md) records implemented forced-file behavior and standalone edits, including
+their limits.
 
-Normal30 is built with complete ordered 30-patch source provenance and original document delivery.
-Native03 retains the actual timeout archive:31 cases pass, one fails with AndroidUtilities
-NoClassDefFoundError/ExceptionInInitializerError, and case33 waits in FilePathDatabase.getPath
-through loadOrdinaryDocument. Seven watchdog samples show the same wait and no database queue
-thread. This narrows diagnosis; it does not yet establish whether reduced fixture startup or
-production caused the initialization failure. The source APK and deadlines remain unchanged.
-Native02's timeout and failed archive, and native01's unavailable preflight skip, remain preserved.
+Normal30 has complete ordered30-patch source provenance and unchanged APK SHA-256
+`a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. Document-delivery native08
+passes35 original target-instrumentation cases plus a separate cold-process case. The original
+LaunchActivity/media-edit native10 gate passes in118.862 seconds with eight inspected captures,
+178 successful loopback requests, exactly one D1 GET, one P1 GET and one D2 GET, exact destination
+bytes, callback-driven D1→P1→D2 edits and cold restart. No production patch or APK rebuild was
+needed; the corrected acceptance harness decodes UIAutomator entities, pins document-only
+auto-download settings, targets the original mdpi radial control, and closes client/proxy lifetimes
+before their bridge endpoints.
 
 The prior normal29 codec gate passes34 actual native cases; the same probe rejects normal28 for
 its absent codec class. Earlier failed core/native results remain retained with their specific
@@ -44,54 +46,28 @@ corrections or unresolved causes. Do not infer an unrelated failure's cause from
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
-   is integrated with41 affected host checks, strict typing and Ruff passing. Bounded source
-   reconstruction matches all29 prior patches and private staging verifies all five changed files.
-   Normal30 is built. Instrumentation08 diagnostics are integrated with44 host checks and all33
-   compile-input hashes verified. Actual native03 captures initialization/case records and bounded
-   thread stacks successfully through app-owned tar/base64 retrieval. The worker is investigating
-   the first AndroidUtilities initialization failure and subsequent database-queue wait. Preserve
-   this red; expose the original cause and shorten the focused platform loop before changing
-   production or increasing a deadline. Watchdog coverage starts at Instrumentation.onStart;
-   earlier Application construction is outside that diagnostic coverage. Each run uses a fresh AVD.
-2. The atomic publication primitive has separate actual target-process evidence: app external
-   files are writable, Java/Os hard links fail with access denied, and a bounded no-replace rename
-   succeeds for absent/Unicode paths and preserves occupied targets. Eight two-source races retain
-   one complete winner and unchanged loser. Production uses the existing GPL JNI library and
-   bounded UTF-8 syscall path. These primitive results do not establish complete loader delivery.
-   Runtime evidence is limited to the pinned x86_64 guest. Target instrumentation suppresses
-   Application.onCreate explicitly and verifies framework identity, zero accounts and isolation.
-3. Preserve the corrected cache10 boundary: ordinary filename-only documents do not enable the
-   original video preload stream. Above2MiB, reject locally through both loader entrypoints with
-   zero requests/UI/files, then verify a normal retry. Keep original small-file behavior. The
-   prepared native controls remain pending; a generic document preloader is not required here.
-4. [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
-   has three passing integrated host cases covering the complete contained bot scenario, bounded
-   failure evidence and full ordered APK input binding. Actual rows/captions/emoji/keyboard,
-   download/callback actions, exact destination bytes, phase-local GETs, warm reuse and cold restart
-   still require execution after104 passes.
-5. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) has22
-   new and176 affected passing worker checks, but independent review found unsafe document row
-   matching: any prefix with the expected caption could match. The worker is adding descriptor-bound
-   type/size matching and zero-tap rejection controls at the dispatch boundary. That correction
-   is now frozen with14 focused and42 affected worker checks passing; coordinator review and
-   native execution remain pending. Keep default3 and
-   explicit3/4 unchanged. Integration and public native acceptance remain gated on104 delivery.
+   and [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
+   are resolved on normal30. Preserve the verified cache10 boundary: filename-only ordinary
+   documents above2MiB reject locally without a generic preload stream; the complete35-case suite,
+   persisted destinations, cold-cache reuse, zero accounts and loopback-only containment pass.
+2. [108: Android standalone edits](../../.scratch/rich-messages/issues/108-native-standalone-media-edits.md)
+   is resolved by native10. D1 and D2 are tap-driven while stock photo auto-download remains on;
+   trace keys are `-1_-1.pdf` and `-1_-2.pdf`, while the atomically published presentation files
+   live under Telegram Files. P1 is removed when D2 replaces it. Original screenshots, XML,
+   complete World/Bot API state and the report remain under
+   `artifacts/native-media-edit-android-10/`.
+3. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is cleanly
+   integrated with descriptor-bound document matching and its affected host gate passing. Direct
+   loader and UI acceptance now pass, but the public runner's own representative Android workflow
+   still requires execution; keep default3 and explicit3/4 unchanged.
+4. Continue the operational milestone with default upload classification and albums. Album source
+   findings are corrected, but group allocation, request bounds and complete-group publication need
+   a frozen contract and user consultation before architecture changes. Automatic rich detection
+   remains separately unapproved.
 
-[106: standalone media edits](../../.scratch/rich-messages/issues/106-standalone-media-edits.md)
-is resolved for its bounded World/HTTP implementation after19 integrated cases and the combined
-core/static gates. The empty-caption false-edit regression has eight actual red/green cases.
-Coordinator checks independently specify complete cross-kind messages and use a valid oversized
-PNG; an injected one-byte limit increase fails through real HTTP. [108: Android edit acceptance](../../.scratch/rich-messages/issues/108-native-standalone-media-edits.md)
-is frozen on its worker branch with five focused host checks passing, extending the existing
-real-bot/UI harness with four callback-driven
-caption/cross-kind edits, retained D1 reuse, exact transfers and cold restart. Host implementation
-is complete at the worker boundary; coordinator review/integration and native execution wait for104.
-
-Remaining operational work includes default upload classification, albums, approved automatic
-rich detection, wider rich-button placement/recovery and representative combined workflow/current-APK
-regression. [Album source findings](albums-references.md) now use corrected pinned identities; group allocation,
-request bounds and complete-group bridge application still need a frozen implementation contract. Preserve the full inventory; explicit unsupported errors do
-not complete compatibility.
+Remaining operational work includes default upload classification, albums, approved automatic rich
+detection, wider rich-button placement/recovery and the public-runner combined/current-APK workflow.
+Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation
 

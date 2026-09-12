@@ -1,10 +1,10 @@
 # Deliver ordinary documents through the original Android loader
 
 Type: task
-Status: ready-for-agent
-Work state: integrated; loader and cold-cache native acceptance passed; UI105 pending
+Status: resolved
+Work state: integrated and accepted; loader, cold-cache and UI105 native gates passed
 Owner: coordinator
-Blocked by: original production UI acceptance in ticket105
+Blocked by: none
 
 Implement the GPL adapter side of the [frozen document contract](../../../docs/development/documents-implementation-contract.md).
 World99, Bot API102, v5 HTTP103 and codec101 are integrated. The codec's host checks and coordinator-run 34-case actual native gate pass. Preserve the complete operational scope; this is the next
@@ -256,5 +256,6 @@ The signed fixture source/DEX/APK hashes are respectively
 `77090565d4e6771a6dc803b2a86dce15f9a6040a60a9658fc33f155f2a3e5ccb`,
 `2a22820b297efd8d5e1034a7cd7e396e8c084799d088633cfe1a481f438fdafe` and
 `1a19b889cc5987d1676557fa33dba4bbdef5e533a163d72a7bc62d0aa7b330c3`.
-Ticket105 still owns original LaunchActivity rendering, interaction and UI restart evidence, so
-this ticket does not claim the complete document/UI slice or the broader operational milestone.
+Ticket105's original LaunchActivity rendering, interaction and UI restart evidence now passes in
+native10. This resolves the ordinary-document loader/UI slice; default classification, albums and
+the broader operational milestone remain separate.

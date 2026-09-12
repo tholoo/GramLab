@@ -1,10 +1,10 @@
 # Prove the real-bot ordinary document UI and restart workflow
 
 Type: task
-Status: ready-for-agent
-Work state: claimed
-Owner: task/ordinary-document-native-ui
-Blocked by: native execution requires reviewed delivery104 APK; core scenario preparation is independent
+Status: resolved
+Work state: integrated and accepted on reviewed normal30 APK
+Owner: coordinator
+Blocked by: none
 
 Prepare complete real-bot and original Android acceptance for the integrated typed document
 World/Bot API/v5 HTTP contract. Read [documents](../../../docs/development/documents.md), the
@@ -140,4 +140,20 @@ The frozen scenario branch is integrated with the current World implementation. 
 non-Android cases pass under the offline namespace with fatal ResourceWarning and retained
 JUnit `artifacts/document-ui-integrated-01.xml`. This covers the complete real-bot round trip,
 bounded failure evidence and complete ordered APK input binding. Original Android acceptance
-remains pending the reviewed delivery implementation and new APK; this ticket is not resolved.
+passes in the coordinator's extended native10 workflow.
+
+## Coordinator native acceptance
+
+The direct original-renderer workflow passes as part of native10 on the unchanged reviewed normal30
+APK `a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. The extended ticket108
+scenario subsumes the original D1 row/caption/custom-emoji/K1, action-relative download, callback
+reuse, exact saved bytes and cold-restart requirements. UIAutomator numeric character references
+are decoded before semantic matching, and document input targets the pinned original mdpi radial
+control rather than the message-row center.
+
+The one-case JUnit passes in118.862 seconds under the loopback-only namespace. Eight original
+screens/XML files were inspected. The finalized ledger has178 successful requests and no errors;
+D1 is fetched once in `initial`, D2 once in `document_final`, and neither is fetched during caption
+edits or restart. The report, complete semantic/API/World evidence and exact provenance remain in
+`artifacts/native-media-edit-android-10/`. No production patch, renderer substitution, external
+viewer, real account, network expansion or APK rebuild was used.
