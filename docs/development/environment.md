@@ -134,6 +134,19 @@ separate [offline boundary](offline-safety.md). SDK acquisition can access offic
 services, with an operator-provided proxy if needed; normal scenarios must not inherit that access.
 No AVD, account or client is started merely by entering the shell.
 
+The composed bridge-v6 example uses the shared guest lock and the reviewed APK selected by the
+Android shell; it does not download or rebuild that APK:
+
+```sh
+tools/worktree lock android-gate tools/dev android --offline --command \
+  unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/gramlab run examples/representative/android.toml \
+    --bridge-version 6 --output artifacts/representative-android'
+```
+
+Use a new output directory for each run. The matching simulation command and evidence boundaries
+are documented with the [representative example](../../examples/representative/README.md).
+
 The profile uses Google's official distribution CDN, preserving upstream archive hashes from the
 pinned nixpkgs repository metadata. Do not use `sdkmanager` to mutate the Nix SDK or select floating
 `latest` packages. Change the profile and lock intentionally when upgrading.

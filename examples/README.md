@@ -45,6 +45,11 @@ Additional runnable examples cover [inline callbacks](inline), [bot recovery](re
 [rich lists](rich_lists). Their `run.toml` and `android.toml` manifests select the corresponding
 mode; support remains limited by the [compatibility matrix](../docs/compatibility/matrix.md).
 
+The [representative workflow](representative) is the bridge-v6 composed milestone example. It adds
+automatic and explicit rich entities, ordinary/rich callbacks across bot recovery, photos,
+documents, true albums and static/animated custom emoji in one offline run. Its README gives the
+exact simulation and original-Android commands; the repository still does not distribute an APK.
+
 [report.py](report.py) is different: it writes a self-contained HTML report from a small, clearly
 labeled synthetic documentation fixture. Follow the [report instructions](../docs/development/reports.md)
 to run it. It does not start a bot or Android client.

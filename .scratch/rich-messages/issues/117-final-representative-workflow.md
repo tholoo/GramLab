@@ -1,10 +1,10 @@
 # Complete the representative operational workflow
 
 Type: task
-Status: needs-info
-Work state: open
+Status: ready-for-agent
+Work state: resolved
 Owner: coordinator
-Blocked by: implementation tickets 113–114 and 119
+Blocked by: none; implementation tickets 113–114 and 119 resolved
 
 Focused evidence across older APKs does not prove the requested operational milestone. After the
 approved fidelity implementations and tickets110–116,119–120 are integrated, build one public real-bot workflow in
@@ -54,3 +54,31 @@ files; its one-line terminal result is not misrepresented as part of the static 
 No Android case ran during this preflight. The complete68-case normal30 gate is intentionally not
 started before the pending album contract because album delivery requires a new normal31 APK and a
 new final inventory. This collection is a precise baseline, not final native acceptance.
+
+## Answer
+
+Commit `5cbe830` adds the public bridge-v6 representative bot/scenario and its acceptance test. It
+composes bilingual ordinary text, automatic and explicit rich entities, ordinary and rich
+callbacks, edits, exact callback replay across bot restart, PNG/JPEG upload and reuse, default and
+forced documents, true photo/document albums, and static/animated custom emoji.
+
+The retained normal31 runner result at
+`artifacts/representative-android-03/test_representative_workflow_u0/headless-android/result.json`
+passes in 148.200 seconds with 17 final messages and five inspected original captures. Scenario,
+World, Bot API, bridge-v6 and native input observations compare equal; original bytes, media-group
+topology and custom-emoji descriptors are hash-pinned. The guest records zero accounts,
+loopback-only networking and the required component filesystem separation. The self-contained
+report beside it has SHA-256
+`51b4f40008fcc0e081722b63680534141e6eb8f20158f58b90f8fcabd3a38851` and contains no private
+consumer or machine details.
+
+The enclosing JUnit failed only after the successful runner because its assertion helper restored
+one redacted accessibility field at only one valid nesting location. The corrected helper replayed
+the complete retained result successfully. Per the user's instruction, the successful emulator
+workflow was not repeated. The prior full host gate passed 1,508/1,508; the representative
+simulation, 17 affected rich-interaction tests and scoped static checks pass. Current collection is
+1,553 non-Android and 74 Android cases. The normal31 diagnostic plus exact failed-case reruns are
+recorded as case-level union evidence, not mislabeled as a clean aggregate rerun.
+
+Mini Apps, external conformance, production emoji entitlement, HTML parse modes, grouped-media
+edits and interactive mode remain outside this resolved milestone ticket.

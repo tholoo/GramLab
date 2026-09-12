@@ -11,15 +11,14 @@ tests and fixtures independent of consumer application names, code and configura
 read-only inventory below identifies immediate method/media and custom-emoji requirements; broader
 consumer acceptance still needs executable scenarios. Do not treat unsupported features as optional.
 
-Current [compatibility evidence](../compatibility/matrix.md) establishes bounded text/callback,
-formatting, rich-block and explicit mention loops. PNG/JPEG lifecycle, shared completion and
-unchanged-photo cache reuse pass focused native acceptance. Custom-emoji lifecycle/faults and public
-rich-button actions now have strong bounded original-client evidence, but still need current-APK and
-final representative composition. Wider native regression, default document classification and
-albums remain open. The four designs approved on 2026-09-07 remain the direction.
-Quoted-code correction is complete at its documented checkpoint. Prioritize the remaining
-consumer-facing media/emoji/action gaps; HTML parsing and automatic detection are also unsupported.
-Keep developer tooling/research bounded to blockers in those workflows.
+The [representative workflow](representative-workflow.md) now composes those surfaces through one
+public real bot in simulation and the original normal31 Android renderer. Its evidence includes
+default automatic detection, explicit rich entities, ordinary/rich callbacks and edits, restart
+replay, PNG/JPEG reuse, default/forced documents, photo/document albums, and static/animated custom
+emoji. The five original captures and complete World/Bot API/bridge/input comparisons are retained.
+This resolves the first operational milestone at its approved fidelity boundary. It does not make
+the wider product inventory complete: HTML parsing, grouped-media edits, external conformance,
+interactive mode and Mini Apps remain outside this milestone.
 
 Track acceptance in the current [handoff](handoff.md) and individual tickets. Readiness requires
 complete semantic comparisons, original visual evidence where relevant, isolation, useful reports
@@ -46,6 +45,6 @@ bot-scoped file identities and recipient media access. Static/animated fixtures 
 independently while that design is reviewed.
 
 
-Original PNG, JPEG, WebP and transparent VP9 WebM fixture inputs now have independent decoding
-evidence. JPEG/WebP/WebM reproduce under the pinned media shell. These inputs unblock later media
-acceptance tests; they do not establish storage, file reuse, albums or original Android playback.
+Original PNG, JPEG, WebP and transparent VP9 WebM fixture inputs have independent decoding evidence.
+The representative run additionally proves their required local storage, reuse, album and original
+Android paths; this remains bounded local evidence rather than production-service conformance.

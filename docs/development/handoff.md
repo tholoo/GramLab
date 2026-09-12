@@ -7,9 +7,10 @@ renderer. The isolated bot → Android → tap → callback → bot edit → res
 Simulation and Android share semantic state; only Android supplies rendering/input evidence.
 
 The full [product inventory](../product/requirements.md) remains the goal. The
-[first operational milestone](operational-milestone.md) requires messages/buttons, rich content,
-photos/files/albums and custom emoji in representative consumer workflows. Mini Apps are deferred
-from that milestone only. Interactive mode and broader API/recovery/reporting remain unfinished.
+[first operational milestone](operational-milestone.md), covering messages/buttons, rich content,
+photos/files/albums and custom emoji in one representative workflow, is now resolved at its
+approved fidelity boundary. Mini Apps were deferred from that milestone only. Interactive mode and
+broader API/recovery/reporting remain unfinished.
 
 The user approved the Android foundation and all four media/custom-emoji/mention/rich-button
 designs, and resumed implementation. Follow [ADR0005](../adr/0005-local-media-and-client-interaction-boundaries.md)
@@ -21,7 +22,34 @@ was approved on 2026-09-12 as a deterministic offline GramLab emulation. The com
 [album contract](albums-implementation-proposal.md) was approved on 2026-09-12 with grouped edits
 deferred and is now frozen.
 
-## Accepted integration checkpoint
+## Current completion checkpoint
+
+Commit `5cbe830` adds the public bridge-v6
+[representative workflow](representative-workflow.md). The same real local bot/scenario passes in
+simulation and in the original normal31 Android renderer. It composes bilingual ordinary text,
+automatic and explicit rich entities, ordinary and rich callbacks, edits, exact callback replay
+across bot restart, PNG/JPEG upload and reuse, default and forced documents, true photo/document
+albums, and static/animated custom emoji. Mini Apps remain deferred.
+
+The retained runner result under `artifacts/representative-android-03/` passes in 148.200 seconds
+with 17 final messages and five inspected original captures. It uses the immutable normal31 APK
+SHA-256 `e60a873fc0283b270a35538c63a5f6e701e74cfecb8f10cfce35af670c57be7a`, API36 x86_64,
+bridge6, seed117 and frozen time. World, Bot API, bridge and native input comparisons are complete;
+the guest has zero accounts, loopback-only networking and the required filesystem separation.
+
+The enclosing JUnit records a failure after the successful runner because the first test helper
+restored a redacted accessibility field at only one of two valid nesting locations. The corrected
+helper replayed every assertion over the retained result successfully. The emulator was not rerun
+again at the user's direction. The prior complete host gate passes 1,508/1,508; the new simulation,
+17 affected rich tests and scoped static checks pass. Current collection is 1,553 non-Android and
+74 Android tests. The normal31 73-case diagnostic, exact five-case retry and final album-only retry
+provide transparent case-level union evidence, not a clean aggregate rerun.
+
+Tickets113,114,117 and119 are resolved for this milestone. Remaining product work includes Mini
+Apps, HTML parse modes, grouped-media edits, external Telegram conformance, production emoji
+entitlement and interactive Android mode.
+
+## Earlier integration detail
 
 Core20 passes all **1,247 non-Android tests at 88.12% coverage** with no failures, errors or skips.
 Static19 passes all **70 documented commands**, including the public document-v5, custom-emoji-v5
@@ -32,7 +60,7 @@ edits106, the real-bot scenario105 and the clean public runner-v5 migration107 a
 [Documents](documents.md) records implemented forced-file behavior and standalone edits, including
 their limits.
 
-The current checkout collects exactly1,247 non-Android and68 Android cases with no overlap. Their
+That earlier checkpoint collected exactly1,247 non-Android and68 Android cases with no overlap. Its
 ordered manifests are retained as `artifacts/current-source-{non-android,android}-collection-01.json`.
 A fresh approval-independent rich-target/clipboard/unrelated-edit/recovery host selection passes52/52 in14.533 seconds at
 `artifacts/rich-button-current-host-01.xml`. Do not reuse the historical 53-case Android count for
@@ -86,18 +114,21 @@ captures. The approved bounded-window oracle selects captures2–23 for every ca
 frames across6.84 seconds while retaining whole-sequence state-order checks. Its32-case focused
 suite, strict typing and Ruff checks pass; tickets120 and116 are resolved without another guest run.
 
-The approved offline rich detector and Android patch0031 are integrated. The merged focused gate
+The approved offline rich detector and Android patch0031 were integrated. The merged focused gate
 passes183 scanner/Bot-API cases; all15 patch-stage cases, strict typing and Ruff pass. The worker's
-exact full pre-integration gate passed1,401/1,401 at88.25% coverage. Ticket119 remains claimed only
-until patch0031 is compiled into the album-era APK and its collected original codec case passes.
+exact full pre-integration gate passed1,401/1,401 at88.25% coverage. At this checkpoint, ticket119
+remained claimed until patch0031 could be compiled into the album-era APK and its codec case run.
 
 Atomic photo/document albums are integrated through the host and bridge boundaries. Schema10,
 strict homogeneous 2–10-member `sendMediaGroup`, rollback-safe World-wide group IDs and bridge-v6
 complete-group pagination pass53 focused coordinator cases. The combined loopback-only
-non-Android gate passes1,508/1,508 at88.19% coverage. Ticket112 is resolved; ticket113 now owns the
-GPL Android adapter patch, with native/public acceptance still pending in ticket114.
+non-Android gate passes1,508/1,508 at88.19% coverage. At this checkpoint ticket112 was resolved;
+ticket113 owned the GPL Android adapter patch and ticket114 the later native/public acceptance.
 
-## Active work and next actions
+## Superseded work split
+
+The numbered split below records how this milestone was assembled. Its pending descriptions are
+historical; the current completion checkpoint above supersedes them.
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
    and [105: real-bot document UI](../../.scratch/rich-messages/issues/105-ordinary-document-native-ui.md)
@@ -138,13 +169,13 @@ GPL Android adapter patch, with native/public acceptance still pending in ticket
    normal30, and [ticket120](../../.scratch/rich-messages/issues/120-custom-emoji-bounded-timing.md)
    resolves the approved bounded timing replay. Every Android guest
    remains serialized. The
-   final composed workflow is
-   [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
-   before the approved fidelity implementations and album work.
+   final composed workflow was scheduled as
+   [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) after the approved
+   fidelity implementations and album work.
 
-Remaining operational work includes original-Android album delivery, the rich auto-detection codec
-gate and the combined current-APK regression.
-Preserve the full inventory; explicit unsupported errors do not complete compatibility.
+Original-Android album delivery and the rich auto-detection codec gate described above are now
+complete. No clean combined 74-case rerun is claimed: preserve the retained diagnostic and narrow
+rerun record. Explicit unsupported errors still do not complete the wider product inventory.
 
 ## Public-source preparation
 
