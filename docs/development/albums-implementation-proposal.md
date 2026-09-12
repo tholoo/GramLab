@@ -1,6 +1,11 @@
 # Proposed atomic photo and document albums
 
-Status: proposed architecture and fidelity contract; unapproved and not implemented.
+Status: frozen architecture and fidelity contract; approved on 2026-09-12 and not implemented.
+
+The user approved the complete recommended contract below, including the exact first-profile
+fields and byte bounds, rollback-safe World-wide group IDs, bridge-v6 complete-group delivery and
+one-batch native application. Grouped edits remain explicitly unsupported in the first slice.
+Changing any of those choices requires renewed consultation.
 
 This proposal turns the [album source findings](albums-references.md) into a bounded first
 implementation. Source-backed rules are separated from local choices about identity, aggregate
@@ -131,7 +136,7 @@ group ID, ordinal and membership. It would never regroup, reorder, add or remove
 reject cross-kind changes. That option requires lineage-aware bridge validation because a legitimate
 edit change can contain one grouped member rather than a complete creation run.
 
-## Choices requiring approval
+## Frozen choices
 
 1. Use the exact first-profile fields and repeated-attachment behavior above, the 100,000,000
    logical-byte aggregate counted per member, and the separate physical multipart bounds.
@@ -139,8 +144,8 @@ edit change can contain one grouped member rather than a complete creation run.
    and membership tables.
 3. Add bridge v6 with complete-group page expansion of at most nine rows, inside-group cursor
    rejection and one-batch native application.
-4. Keep grouped edits unsupported in the first album slice, or widen the slice to caption and
-   same-kind media edits that preserve membership.
+4. Keep grouped edits unsupported in the first album slice. Caption and same-kind media edits that
+   preserve membership remain a possible later extension, not part of this implementation.
 
 ## Implementation and acceptance boundary
 

@@ -4,7 +4,7 @@ Type: task
 Status: needs-info
 Work state: open
 Owner: coordinator
-Blocked by: user decisions for 93, 110, 111 and 116; implementation tickets 110–114
+Blocked by: user decisions for 93, 110 and 116; implementation tickets 110 and 112–114
 
 Focused evidence across older APKs does not prove the requested operational milestone. After the
 pending fidelity decisions and tickets110–116 are integrated, build one public real-bot workflow in

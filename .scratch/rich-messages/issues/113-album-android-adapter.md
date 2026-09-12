@@ -1,10 +1,10 @@
 # Carry complete albums through the original Android adapter
 
 Type: task
-Status: needs-info
+Status: ready-for-agent
 Work state: open
 Owner: unassigned
-Blocked by: 111 and 112
+Blocked by: 112
 
 After bridge v6 is accepted at the host boundary, add one successor patch that maps canonical group
 IDs to `TL_message.grouped_id`, validates complete group topology, recovers split cursors through a

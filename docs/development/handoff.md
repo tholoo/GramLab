@@ -17,7 +17,9 @@ and their frozen contracts. Local worker branches, coordinator merges and commit
 Keep runtime offline, use synthetic identities and zero real accounts, and preserve upstream
 rendering. Consequential design, fidelity, licensing, runtime network and publication changes
 still require consultation. The [automatic rich-detection policy](rich-auto-detection-proposal.md)
-was submitted separately and remains unapproved; elapsed time is not approval.
+was submitted separately and remains unapproved; elapsed time is not approval. The complete
+[album contract](albums-implementation-proposal.md) was approved on 2026-09-12 with grouped edits
+deferred and is now frozen.
 
 ## Accepted integration checkpoint
 
@@ -104,12 +106,12 @@ It remains an honest failed JUnit pending the fidelity decision; no oracle was w
    PNG/JPEG-to-photo suggestion: the recommended local policy keeps general files as documents and
    rejects recognized unsupported specialized families. [Ticket110](../../.scratch/rich-messages/issues/110-default-document-classification.md)
    remains `needs-info` pending approval.
-5. The [album proposal](albums-implementation-proposal.md) separates source-backed 2–10 member
-   photo/document behavior from four synthetic decisions: a 100,000,000-byte logical aggregate,
-   rollback-safe World-wide group IDs, bridge-v6 complete-group pagination, and grouped-edit scope.
-   [Tickets111–114](../../.scratch/rich-messages/issues/111-album-contract.md) are unassigned or
-   coordinator-only until those choices are approved. Automatic rich detection remains separately
-   unapproved.
+5. The [album contract](albums-implementation-proposal.md) is frozen with its 100,000,000-byte
+   logical aggregate, rollback-safe World-wide group IDs, bridge-v6 complete-group pagination and
+   grouped edits deferred. [Ticket111](../../.scratch/rich-messages/issues/111-album-contract.md) is
+   resolved. Tickets112–114 are specified in dependency order; ticket112 must wait for serialized
+   completion of ticket110 because their core parsing files overlap. Automatic rich detection
+   remains separately unapproved.
 6. Approval-independent acceptance work is split into
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),

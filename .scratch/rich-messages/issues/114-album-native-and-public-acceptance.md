@@ -1,10 +1,10 @@
 # Verify original albums and the public runner
 
 Type: task
-Status: needs-info
+Status: ready-for-agent
 Work state: open
 Owner: unassigned
-Blocked by: 111, 112 and 113
+Blocked by: 112 and 113
 
 After the core and adapter are integrated, add the focused real-bot/scenario and public-runner
 acceptance. Own `src/gramlab/runner.py`, `src/gramlab/__main__.py`, `src/gramlab/_android.py`,
