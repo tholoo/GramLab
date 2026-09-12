@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -11,7 +12,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from PIL import Image
@@ -27,6 +28,8 @@ PHOTO_ROOT = Path("tests/assets/rich-media")
 EMOJI_ROOT = Path("tests/assets/custom-emoji")
 FIRST_DOCUMENT = b"GramLab first grouped document\n"
 SECOND_DOCUMENT = b"%PDF-1.4\nGramLab second grouped document\n%%EOF\n"
+UI_BOOLEAN_FALSE = "false"
+REDACTED_UI_VALUE = "[REDACTED]"
 
 
 def profile() -> RuntimeProfile:
@@ -98,6 +101,16 @@ def process_events(recorded: dict[str, Any], name: str) -> list[dict[str, Any]]:
     ]
 
 
+def interactions_as_seen_by_scenario(recorded: dict[str, Any]) -> list[dict[str, Any]]:
+    """Restore the non-secret UI boolean redacted only during result retention."""
+    interactions = cast(list[dict[str, Any]], copy.deepcopy(recorded["interactions"]))
+    for interaction in interactions:
+        target = interaction.get("android", {}).get("input", {}).get("target")
+        if target is not None and target.get("password") == REDACTED_UI_VALUE:
+            target["password"] = UI_BOOLEAN_FALSE
+    return interactions
+
+
 def public_album_projection(world: World, message: dict[str, Any]) -> dict[str, Any]:
     """Independently project one canonical history row to its complete Bot API shape."""
     chat = world.get_chat(message["chat_id"])
@@ -132,7 +145,7 @@ def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native
     result = scenario[0]
     history = result["history"]
     interactions = recorded["interactions"]
-    assert [result["start"], result["composer"]] == interactions
+    assert [result["start"], result["composer"]] == interactions_as_seen_by_scenario(recorded)
     assert [(row["operation"], row["text"], row["native"]) for row in interactions] == [
         ("start_bot_chat", "/start", native),
         ("type_message", "documents / اسناد", native),
@@ -217,6 +230,29 @@ def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native
     assert "gramlab_bot_" not in json.dumps(recorded)
     assert "gramlab_client_" not in json.dumps(recorded)
     assert "gramlab-control_" not in json.dumps(recorded)
+
+
+def test_scenario_interaction_restores_only_the_nonsecret_ui_password_value() -> None:
+    recorded: dict[str, Any] = {
+        "interactions": [
+            {
+                "android": {
+                    "input": {
+                        "target": {"text": "Start Bot", "password": REDACTED_UI_VALUE}
+                    }
+                }
+            },
+            {"android": {"input": {"input": "accessibility"}}},
+        ]
+    }
+
+    visible = interactions_as_seen_by_scenario(recorded)
+
+    assert visible[0]["android"]["input"]["target"]["password"] == UI_BOOLEAN_FALSE
+    assert recorded["interactions"][0]["android"]["input"]["target"]["password"] == (
+        REDACTED_UI_VALUE
+    )
+    assert visible[1] == recorded["interactions"][1]
 
 
 def test_public_runner_executes_complete_media_groups_at_v6(tmp_path: Path) -> None:
