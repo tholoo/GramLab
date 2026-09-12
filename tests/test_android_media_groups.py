@@ -43,6 +43,13 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def radial_png_digest(path: Path, point: list[int]) -> str:
+    with Image.open(path) as screenshot:
+        left, top = point[0] - 24, point[1] - 24
+        crop = screenshot.convert("RGBA").crop((left, top, left + 48, top + 48))
+    return hashlib.sha256(crop.tobytes()).hexdigest()
+
+
 def difference_response_tokens(rows: list[dict[str, Any]]) -> list[int]:
     differences = [row for row in rows if row.get("method") == "TL_updates_getDifference"]
     assert len(differences) % 2 == 0
@@ -287,16 +294,33 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
         DOCUMENT_NAMES[1],
         DOCUMENT_NAMES[1],
     ]
-    assert sum(row["event"] == "media_load_success" for row in observed["traces"]["first"]) == 1
-    assert (
-        sum(row["event"] == "media_load_failure" for row in observed["traces"]["second_failed"])
-        == 1
-    )
-    assert not any(
-        row["event"] == "media_load_success" for row in observed["traces"]["second_failed"]
-    )
-    assert sum(row["event"] == "media_load_failure" for row in observed["traces"]["final"]) == 1
-    assert sum(row["event"] == "media_load_success" for row in observed["traces"]["final"]) == 1
+    bodies = [(root / source).read_bytes() for source in DOCUMENT_FILES]
+    expected = {hashlib.sha256(body).hexdigest(): len(body) for body in bodies}
+
+    def document_trace(event: str, identifier: str, cache_file: str, size: int) -> dict[str, Any]:
+        return {
+            "event": event,
+            "document_id": identifier,
+            "cache_file": cache_file,
+            "file_size": size,
+            "digest_ok": event == "media_load_success",
+        }
+
+    first_document_trace = [
+        document_trace("media_load_start", "1", "-1_-1.txt", len(bodies[0])),
+        document_trace("media_load_success", "1", "-1_-1.txt", len(bodies[0])),
+    ]
+    failed_document_trace = [
+        document_trace("media_load_start", "2", "-1_-2.pdf", len(bodies[1])),
+        document_trace("media_load_failure", "2", "-1_-2.pdf", len(bodies[1])),
+    ]
+    assert observed["traces"]["first"] == first_document_trace
+    assert observed["traces"]["second_failed"] == failed_document_trace
+    assert observed["traces"]["final"] == [
+        *failed_document_trace,
+        document_trace("media_load_start", "2", "-1_-2.pdf", len(bodies[1])),
+        document_trace("media_load_success", "2", "-1_-2.pdf", len(bodies[1])),
+    ]
     guard = observed["retry_guard"]
     assert guard["request_count"] == 1 and guard["success_count"] == 0
     assert len(guard["samples"]) >= 20
@@ -305,9 +329,42 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     assert {row["success_count"] for row in guard["samples"]} == {0}
     assert document_requests[2]["started_ns"] >= observed["taps"][2]["started_ns"]
     assert observed["failed_inventory"]["partials"] == []
+    radials = observed["radials"]
+    completed_radial = radials["completed"]
+    failed_radial = radials["failed"]
+    assert completed_radial != failed_radial
+    assert failed_radial == radial_png_digest(
+        root / observed["captures"]["album-second-failed"]["png"],
+        observed["taps"][1]["point"],
+    )
+    for name in ("final", "cold"):
+        samples = radials[f"{name}_samples"]
+        assert len(samples) >= 2
+        assert all(row["labels_match"] is True for row in samples)
+        assert [row["digest"] for row in samples[-2:]] == [completed_radial, completed_radial]
+        assert (
+            radial_png_digest(
+                root / observed["captures"][f"album-{name}"]["png"],
+                observed["taps"][2]["point"],
+            )
+            == completed_radial
+        )
+    assert radials["cold"] == completed_radial
+    cold_tap = observed["cold_tap"]
+    assert cold_tap["file_name"] == DOCUMENT_NAMES[1]
+    assert cold_tap["point"] == observed["taps"][2]["point"]
+    cold_guard = observed["cold_guard"]
+    assert cold_guard["tap_started_ns"] == cold_tap["started_ns"]
+    assert cold_guard["request_count"] == 2 and cold_guard["start_count"] == 2
+    assert len(cold_guard["samples"]) >= 20
+    assert (
+        cold_guard["samples"][-1]["observed_ns"] - cold_guard["samples"][0]["observed_ns"]
+        >= 2_000_000_000
+    )
+    assert {row["request_count"] for row in cold_guard["samples"]} == {2}
+    assert {row["start_count"] for row in cold_guard["samples"]} == {2}
+    assert cold_guard["samples"][0]["observed_ns"] >= cold_tap["started_ns"]
 
-    bodies = [(root / source).read_bytes() for source in DOCUMENT_FILES]
-    expected = {hashlib.sha256(body).hexdigest(): len(body) for body in bodies}
     assert [(row["status"], row["bytes"], row["sha256"]) for row in document_requests] == [
         (200, len(bodies[0]), hashlib.sha256(bodies[0]).hexdigest()),
         (
@@ -317,25 +374,31 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
         ),
         (200, len(bodies[1]), hashlib.sha256(bodies[1]).hexdigest()),
     ]
+    first_destination = (
+        "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+        "Telegram Files/first-album.txt"
+    )
     expected_files = {
-        ("internal", "./cache4/-1_-1.txt"): (
-            hashlib.sha256(bodies[0]).hexdigest(),
-            len(bodies[0]),
-        ),
         (
             "external",
-            "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
-            "Telegram Files/first-album.txt",
+            first_destination,
         ): (hashlib.sha256(bodies[0]).hexdigest(), len(bodies[0])),
-        ("internal", "./cache4/-1_-2.pdf"): (
-            hashlib.sha256(bodies[1]).hexdigest(),
-            len(bodies[1]),
-        ),
         (
             "external",
             "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
             "Telegram Files/second-album.pdf",
         ): (hashlib.sha256(bodies[1]).hexdigest(), len(bodies[1])),
+    }
+    assert observed["failed_inventory"] == {
+        "partials": [],
+        "files": [
+            {
+                "scope": "external",
+                "path": first_destination,
+                "size": len(bodies[0]),
+                "sha256": hashlib.sha256(bodies[0]).hexdigest(),
+            }
+        ],
     }
     for inventory in (observed["final_inventory"], observed["cold_inventory"]):
         assert inventory["partials"] == []
@@ -344,9 +407,9 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
         } == expected_files
         by_digest = Counter((row["sha256"], row["size"]) for row in inventory["files"])
         for digest, size in expected.items():
-            assert by_digest[digest, size] == 2
+            assert by_digest[digest, size] == 1
             scopes = {row["scope"] for row in inventory["files"] if row["sha256"] == digest}
-            assert scopes == {"internal", "external"}
+            assert scopes == {"external"}
     assert set(observed["captures"]) == set(CAPTURES)
     for value in observed["captures"].values():
         assert (root / value["png"]).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
@@ -469,6 +532,9 @@ def test_focused_report_retains_five_original_captures_and_provenance(tmp_path: 
         "early_retry",
         "unstable_guard",
         "identity",
+        "cache_identity",
+        "final_arrow",
+        "cold_reload",
         "path_parent",
         "payload",
         "resnapshot",
@@ -484,6 +550,11 @@ def test_focused_oracle_rejects_weakened_native_evidence(
     for name in CAPTURES:
         image = Image.new("RGB", (320, 640))
         image.putdata([(index % 17, index % 13, index % 11) for index in range(320 * 640)])
+        if name == "album-second-failed":
+            image.paste((20, 180, 70), (21, 361, 69, 409))
+            image.paste((180, 20, 70), (21, 453, 69, 501))
+        elif name in {"album-final", "album-cold"}:
+            image.paste((20, 180, 70), (21, 453, 69, 501))
         image.save(tmp_path / f"{name}.png")
         (tmp_path / f"{name}.xml").write_text("<hierarchy />")
     photos = [
@@ -496,13 +567,11 @@ def test_focused_oracle_rejects_weakened_native_evidence(
     ]
     bodies = [(tmp_path / source).read_bytes() for source in DOCUMENT_FILES]
     digests = [hashlib.sha256(body).hexdigest() for body in bodies]
+    first_point = [45, 385]
+    second_point = [45, 477]
+    failed_radial = radial_png_digest(tmp_path / "album-second-failed.png", second_point)
+    completed_radial = radial_png_digest(tmp_path / "album-final.png", second_point)
     files = [
-        {
-            "scope": "internal",
-            "path": "./cache4/-1_-1.txt",
-            "size": len(bodies[0]),
-            "sha256": digests[0],
-        },
         {
             "scope": "external",
             "path": (
@@ -511,12 +580,6 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             ),
             "size": len(bodies[0]),
             "sha256": digests[0],
-        },
-        {
-            "scope": "internal",
-            "path": "./cache4/-1_-2.pdf",
-            "size": len(bodies[1]),
-            "sha256": digests[1],
         },
         {
             "scope": "external",
@@ -593,16 +656,72 @@ def test_focused_oracle_rejects_weakened_native_evidence(
                 },
                 {"event": "events_applied", "method": "messages", "token": 2},
             ],
-            "first": [{"event": "media_load_success"}],
-            "second_failed": [{"event": "media_load_failure"}],
+            "first": [
+                {
+                    "event": "media_load_start",
+                    "document_id": "1",
+                    "cache_file": "-1_-1.txt",
+                    "file_size": len(bodies[0]),
+                    "digest_ok": False,
+                },
+                {
+                    "event": "media_load_success",
+                    "document_id": "1",
+                    "cache_file": "-1_-1.txt",
+                    "file_size": len(bodies[0]),
+                    "digest_ok": True,
+                },
+            ],
+            "second_failed": [
+                {
+                    "event": "media_load_start",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": False,
+                },
+                {
+                    "event": "media_load_failure",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": False,
+                },
+            ],
             "final": [
-                {"event": "media_load_failure"},
-                {"event": "media_load_success"},
+                {
+                    "event": "media_load_start",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": False,
+                },
+                {
+                    "event": "media_load_failure",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": False,
+                },
+                {
+                    "event": "media_load_start",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": False,
+                },
+                {
+                    "event": "media_load_success",
+                    "document_id": "2",
+                    "cache_file": "-1_-2.pdf",
+                    "file_size": len(bodies[1]),
+                    "digest_ok": True,
+                },
             ],
         },
         "geometry": {
             "photo_xml_labels": "Album / آلبوم",
-            "document_bounds": [[0, 10, 100, 30], [0, 40, 100, 60]],
+            "document_bounds": [[0, 350, 320, 442], [0, 442, 320, 532]],
         },
         "requests": [
             request_defaults
@@ -710,14 +829,45 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         ],
         "cold_requests": [],
         "taps": [
-            {"file_name": DOCUMENT_NAMES[0], "started_ns": 500},
-            {"file_name": DOCUMENT_NAMES[1], "started_ns": 600},
-            {"file_name": DOCUMENT_NAMES[1], "started_ns": 1_000},
+            {"file_name": DOCUMENT_NAMES[0], "point": first_point, "started_ns": 500},
+            {"file_name": DOCUMENT_NAMES[1], "point": second_point, "started_ns": 600},
+            {"file_name": DOCUMENT_NAMES[1], "point": second_point, "started_ns": 1_000},
         ],
+        "cold_tap": {
+            "file_name": DOCUMENT_NAMES[1],
+            "point": second_point,
+            "started_ns": 2_000,
+        },
         "retry_guard": {"request_count": 1, "success_count": 0, "samples": samples},
+        "cold_guard": {
+            "tap_started_ns": 2_000,
+            "request_count": 2,
+            "start_count": 2,
+            "samples": [
+                {
+                    "observed_ns": 2_000 + index * 100_000_000,
+                    "request_count": 2,
+                    "start_count": 2,
+                }
+                for index in range(21)
+            ],
+        },
+        "radials": {
+            "failed": failed_radial,
+            "completed": completed_radial,
+            "cold": completed_radial,
+            "final_samples": [
+                {"observed_ns": index, "digest": completed_radial, "labels_match": True}
+                for index in range(2)
+            ],
+            "cold_samples": [
+                {"observed_ns": index, "digest": completed_radial, "labels_match": True}
+                for index in range(2)
+            ],
+        },
         "final_inventory": {"partials": [], "files": files},
         "cold_inventory": {"partials": [], "files": files},
-        "failed_inventory": {"partials": [], "files": files[:2]},
+        "failed_inventory": {"partials": [], "files": files[:1]},
         "captures": {name: {"png": f"{name}.png", "xml": f"{name}.xml"} for name in CAPTURES},
         "accounts": "Accounts: 0",
     }
@@ -783,6 +933,12 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         value["retry_guard"]["samples"][-1]["request_count"] = 2
     elif fault == "identity":
         value["final_inventory"]["files"][0]["path"] = "./cache4/wrong.txt"
+    elif fault == "cache_identity":
+        value["traces"]["first"][0]["cache_file"] = "wrong.txt"
+    elif fault == "final_arrow":
+        value["radials"]["final_samples"][-1]["digest"] = value["radials"]["failed"]
+    elif fault == "cold_reload":
+        value["cold_guard"]["samples"][-1]["request_count"] = 3
     elif fault == "path_parent":
         value["final_inventory"]["files"][1]["path"] = (
             "/storage/emulated/0/Android/data/org.gramlab.android/files/wrong/first-album.txt"

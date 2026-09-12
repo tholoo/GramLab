@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import os
 import re
 import shlex
 import socket
@@ -411,6 +412,71 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "finished_ns": time.monotonic_ns(),
         }
 
+    def radial_digest(png: str, point: list[int]) -> str:
+        decoder = os.environ.get("GRAMLAB_FFMPEG")
+        if decoder is None:
+            raise RuntimeError("Pinned screenshot decoder is unavailable")
+        width = height = 48
+        left = point[0] - width // 2
+        top = point[1] - height // 2
+        if left < 0 or top < 0 or left + width > 320 or top + height > 640:
+            raise RuntimeError("Document radial crop is outside the fixed guest viewport")
+        decoded = subprocess.run(  # noqa: S603 - pinned supervisor-provided ffmpeg path.
+            [
+                decoder,
+                "-v",
+                "error",
+                "-i",
+                png,
+                "-vf",
+                f"crop={width}:{height}:{left}:{top}",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgba",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        expected_size = width * height * 4
+        if decoded.returncode or len(decoded.stdout) != expected_size:
+            raise RuntimeError("Document radial crop could not be decoded deterministically")
+        return hashlib.sha256(decoded.stdout).hexdigest()
+
+    def wait_completed_radial(
+        name: str,
+        expected_labels: tuple[str, ...],
+        point: list[int],
+        failed_digest: str,
+        expected_digest: str | None = None,
+    ) -> tuple[str, list[dict[str, Any]], str]:
+        deadline = time.monotonic() + 30
+        consecutive = 0
+        previous_digest: str | None = None
+        samples: list[dict[str, Any]] = []
+        current = ""
+        while time.monotonic() < deadline:
+            current = capture(name)
+            digest = radial_digest(name + ".png", point)
+            sample = {
+                "observed_ns": time.monotonic_ns(),
+                "digest": digest,
+                "labels_match": all(value in labels(current) for value in expected_labels),
+            }
+            samples.append(sample)
+            accepted = digest != failed_digest and (
+                expected_digest is None or digest == expected_digest
+            )
+            consecutive = (
+                consecutive + 1 if accepted and digest == previous_digest else int(accepted)
+            )
+            if consecutive >= 2 and sample["labels_match"]:
+                return current, samples, digest
+            previous_digest = digest
+            time.sleep(0.1)
+        raise RuntimeError("Document radial did not settle to the completed stock glyph")
+
     def stable_failure_window() -> dict[str, Any]:
         frozen_requests = sum(row["path"] == "/v6/documents/2" for row in proxy.requests())
         frozen_successes = sum(
@@ -443,6 +509,38 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return {
             "request_count": frozen_requests,
             "success_count": frozen_successes,
+            "samples": samples,
+        }
+
+    def stable_cold_open_window(started_ns: int) -> dict[str, Any]:
+        frozen_requests = sum(row["path"] == "/v6/documents/2" for row in proxy.requests())
+        frozen_starts = sum(row.get("event") == "media_load_start" for row in document_events("2"))
+        samples: list[dict[str, int]] = []
+        for _ in range(40):
+            request_count = sum(row["path"] == "/v6/documents/2" for row in proxy.requests())
+            start_count = sum(
+                row.get("event") == "media_load_start" for row in document_events("2")
+            )
+            sample = {
+                "observed_ns": time.monotonic_ns(),
+                "request_count": request_count,
+                "start_count": start_count,
+            }
+            samples.append(sample)
+            if request_count != frozen_requests or start_count != frozen_starts:
+                raise RuntimeError("Cold completed-document input started another transfer")
+            if (
+                len(samples) >= 20
+                and samples[-1]["observed_ns"] - samples[0]["observed_ns"] >= 2_000_000_000
+            ):
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("Cold completed-document observation did not span two seconds")
+        return {
+            "tap_started_ns": started_ns,
+            "request_count": frozen_requests,
+            "start_count": frozen_starts,
             "samples": samples,
         }
 
@@ -562,23 +660,34 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         second_tap = tap_document(document_xml, DOCUMENTS[1][1])
         second_failed_trace = wait_event("2", "media_load_failure")
         failed_xml = wait_screen("album-second-failed", (DOCUMENTS[1][1], DOCUMENTS[1][2]))
+        failed_radial = radial_digest("album-second-failed.png", second_tap["point"])
         failed_inventory = inventory()
         retry_guard = stable_failure_window()
         retry_tap = tap_document(failed_xml, DOCUMENTS[1][1])
         final_trace = wait_event("2", "media_load_success")
-        final_xml = wait_screen(
+        document_labels = tuple(
+            value for _, name, caption, _ in DOCUMENTS for value in (name, caption)
+        )
+        final_xml, final_radial_samples, completed_radial = wait_completed_radial(
             "album-final",
-            tuple(value for _, name, caption, _ in DOCUMENTS for value in (name, caption)),
+            document_labels,
+            retry_tap["point"],
+            failed_radial,
         )
         final_inventory = inventory()
         before_restart = len(proxy.requests())
         adb("shell", "am", "force-stop", PACKAGE)
         launch()
-        cold_xml = wait_screen(
+        cold_xml, cold_radial_samples, cold_radial = wait_completed_radial(
             "album-cold",
-            tuple(value for _, name, caption, _ in DOCUMENTS for value in (name, caption)),
+            document_labels,
+            retry_tap["point"],
+            failed_radial,
+            completed_radial,
         )
         cold_inventory = inventory()
+        cold_tap = tap_document(cold_xml, DOCUMENTS[1][1])
+        cold_guard = stable_cold_open_window(cold_tap["started_ns"])
         adb("shell", "am", "force-stop", PACKAGE)
         accounts = adb("shell", "dumpsys", "account").stdout
     requests = proxy.requests()
@@ -599,7 +708,16 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "cold_xml_labels": labels(cold_xml),
         },
         "taps": [first_tap, second_tap, retry_tap],
+        "cold_tap": cold_tap,
         "retry_guard": retry_guard,
+        "cold_guard": cold_guard,
+        "radials": {
+            "failed": failed_radial,
+            "completed": completed_radial,
+            "cold": cold_radial,
+            "final_samples": final_radial_samples,
+            "cold_samples": cold_radial_samples,
+        },
         "traces": {
             "first": first_trace,
             "second_failed": second_failed_trace,

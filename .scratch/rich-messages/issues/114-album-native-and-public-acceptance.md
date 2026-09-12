@@ -78,12 +78,12 @@ extracting evidence; retain one immutable normal31 APK.
   XML row bounds, truncates only document 2's first body after document 1 completes, and collects at
   least 20 stable observations spanning two seconds before the original mdpi radial retry.
   Host-monotonic proxy/tap timestamps prove the second D2 request begins only after the tap starts.
-  Exact status/delivered byte digests bind D1 full once and D2 partial then full. Exact internal
-  `./cache4/-1_-1.txt` and
-  `./cache4/-1_-2.pdf`, plus full package-external `Telegram Files/first-album.txt` and
-  `Telegram Files/second-album.pdf` paths, bind both final and cold inventories with no partials or
-  cold document GETs. Five original PNG/XML pairs are retained; collage layout remains explicitly
-  limited to manual inspection.
+  Exact status/delivered byte digests bind D1 full once and D2 partial then full. Exact trace
+  lifecycles bind the transient `-1_-1.txt` and `-1_-2.pdf` cache identities, sizes and digest
+  results; stock completion moves each file rather than retaining an internal duplicate. Full
+  package-external `Telegram Files/first-album.txt` and `Telegram Files/second-album.pdf` paths bind
+  both final and cold inventories with no partial or stale cache files. Five original PNG/XML pairs
+  are retained; collage layout remains explicitly limited to manual inspection.
 - The focused report helper embeds all five captures plus network/profile/APK/source digest and
   verified-provenance evidence. The native selector now requires `GRAMLAB_ANDROID_APK_PROVENANCE`
   and calls the existing complete toolchain/series verifier before entering the guest, while
@@ -125,3 +125,22 @@ JSON null into both messages, and the host inventory asserts the fields cannot s
 omissions again. Its three focused host checks and the same two-file Ruff/mypy scope pass. This was
 again test-only; normal31 and its probe remain byte-identical. A fresh combined focused run remains
 required.
+
+The third attempt passed all48 codec cases and the complete semantic/transfer/cache oracle, then
+manual inspection caught that `album-final.png` was captured one redraw too early: D2 still showed
+the failed download arrow even though the success trace and exact moved bytes were already present.
+`album-cold.png` did show the completed file glyph with both destinations intact and no cold GET,
+so this was not a cold-cache failure. Evidence and JUnit are retained at
+`artifacts/album-normal31-focused-03-work/` and `artifacts/album-normal31-focused-03.xml`; the attempt
+is not accepted as the final focused gate.
+
+The hardened probe now uses the pinned in-sandbox ffmpeg to hash only D2's 48x48 stock radial crop.
+It derives the failed state from the retained truncated-transfer frame, then requires a different
+stable D2 crop across two consecutive observations before the live-final capture; cold D2 must
+settle for two observations to that exact same-run completed crop. This avoids theme, color and
+cross-row glyph assumptions.
+After cold render it taps completed D2 and observes at least20 samples spanning two seconds with no
+additional D2 request or `media_load_start`. The host independently recomputes the crop hashes with
+Pillow and has explicit final-arrow and cold-reload weakened-evidence cases. The corrected
+external-only inventory also matches the predecessor ordinary-document acceptance. The focused
+host selection passes25/25 and the four-file Ruff/mypy scope passes; normal31 remains unchanged.
