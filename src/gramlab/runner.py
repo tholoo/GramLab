@@ -147,8 +147,8 @@ def run(
     bridge_version: int = 3,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
-    if type(bridge_version) is not int or bridge_version not in (3, 4):
-        raise ValueError("Android bridge version must be 3 or 4")
+    if type(bridge_version) is not int or bridge_version not in (3, 4, 5):
+        raise ValueError("Android bridge version must be 3, 4 or 5")
     config, inputs = _inputs(manifest)
     apk = None
     android_json = None

@@ -166,7 +166,7 @@ class Interactions:
                         message_id=message_id,
                         data=button["callback_data"],
                         request_id=uuid.uuid4().hex,
-                        version=4,
+                        version=5,
                     )
                 else:
                     try:

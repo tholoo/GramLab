@@ -12,7 +12,7 @@ from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 
-@pytest.mark.parametrize("version", [True, False, 2, 5, "4", 4.0, None])
+@pytest.mark.parametrize("version", [True, False, 2, 6, "4", 4.0, None])
 def test_invalid_bridge_selection_rejects_before_creating_run(
     tmp_path: Path, version: object
 ) -> None:
@@ -80,7 +80,7 @@ def test_cli_rejects_unsupported_bridge_version(tmp_path: Path) -> None:
             "--output",
             str(tmp_path / "run"),
             "--bridge-version",
-            "5",
+            "6",
         ],
         capture_output=True,
         text=True,
