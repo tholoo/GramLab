@@ -47,3 +47,12 @@ own local state such as its clipboard and cache.
 
 **Rich-button target**: One observed occurrence of a button in a particular message revision and
 client lifetime. Its label need not distinguish it from other buttons.
+
+**Message publication**: The atomic appearance of a final message revision in a simulated world,
+including its event, recipient access and pending bot delivery where applicable.
+
+**Media group**: An ordered set of two to ten homogeneous photo or document messages published by
+one bot as a single atomic action.
+
+**Client bridge schema**: A versioned semantic contract through which a client instance observes
+and changes one simulated world. It does not include client-specific rendering translation.

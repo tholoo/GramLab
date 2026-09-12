@@ -842,17 +842,17 @@ def test_failed_publication_rolls_back_every_typed_row_and_retries(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     world, _user, bot, chat = setup_world(tmp_path / "world")
-    original = world._insert_message
+    original = world._messages.publish
 
     def fail(**_keywords: Any) -> dict[str, Any]:
         raise RuntimeError("publication interruption")
 
-    monkeypatch.setattr(world, "_insert_message", fail)
+    monkeypatch.setattr(world._messages, "publish", fail)
     with pytest.raises(RuntimeError, match="publication interruption"):
         send(world, chat, bot, upload())
     for table in ("media_blobs", "documents", "bot_document_files", "document_grants", "messages"):
         assert world._connection.execute(f"SELECT count(*) FROM {table}").fetchone() == (0,)  # noqa: S608
-    monkeypatch.setattr(world, "_insert_message", original)
+    monkeypatch.setattr(world._messages, "publish", original)
     message = send(world, chat, bot, upload())
     assert message["id"] == 1 and message["document"] == {"document_id": "1"}
     world.__exit__(None, None, None)

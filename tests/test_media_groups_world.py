@@ -234,7 +234,7 @@ def test_late_member_failure_rolls_back_every_row_and_retry_is_deterministic(
 ) -> None:
     world, _user, bot, chat = setup_world(tmp_path / "world")
     before = state(world)
-    original = world._publish_media_group_member
+    original = world._messages.publish
     calls = 0
 
     def fail_second(**keywords: Any) -> dict[str, Any]:
@@ -245,7 +245,7 @@ def test_late_member_failure_rolls_back_every_row_and_retry_is_deterministic(
         return original(**keywords)
 
     with monkeypatch.context() as patch:
-        patch.setattr(world, "_publish_media_group_member", fail_second)
+        patch.setattr(world._messages, "publish", fail_second)
         with pytest.raises(RuntimeError, match="late publication"):
             world.send_media_group(
                 chat_id=chat["id"],

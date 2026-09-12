@@ -18,6 +18,14 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from gramlab._message_publication import (
+    MediaGroupPosition,
+    MessageDraft,
+    MessagePublication,
+    message_assets,
+    message_custom_emoji,
+    message_documents,
+)
 from gramlab.documents import DocumentUpload, _storage_fields, canonical_document_id
 from gramlab.entities import canonical_custom_emoji_id, formatting_entities
 from gramlab.media import ImageAsset, validate_image
@@ -144,6 +152,7 @@ class World:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
         connection.execute("PRAGMA foreign_keys=ON")
+        self._messages = MessagePublication(connection)
 
     @classmethod
     def create(cls, directory: Path, *, seed: int, now: int) -> Self:
@@ -560,12 +569,6 @@ class World:
         event = self._connection.execute(
             "INSERT INTO events(type, body) VALUES (?, ?)", (kind, json.dumps(data))
         )
-        if kind in ("message.created", "message.edited"):
-            user_id = self.get_chat(data["chat_id"])["user_id"]
-            self._connection.execute(
-                "INSERT INTO client_changes VALUES (?, ?, ?)",
-                (user_id, self._message_position(user_id) + 1, event.lastrowid),
-            )
         if event.lastrowid is None:
             raise RuntimeError("SQLite did not allocate an event sequence")
         return event.lastrowid
@@ -710,37 +713,7 @@ class World:
         }
 
     def _message_custom_emoji(self, message: dict[str, Any]) -> set[int]:
-        result: set[int] = set()
-        pending: list[Any] = [
-            message.get("entities"),
-            message.get("caption_entities"),
-            message.get("rich_message"),
-        ]
-        while pending:
-            value = pending.pop()
-            if isinstance(value, dict):
-                if value.get("type") == "custom_emoji" and "custom_emoji_id" in value:
-                    result.add(int(canonical_custom_emoji_id(value["custom_emoji_id"])))
-                pending.extend(value.values())
-            elif isinstance(value, list):
-                pending.extend(value)
-        return result
-
-    def _grant_custom_emoji(self, user_id: int, message: dict[str, Any]) -> None:
-        for identifier in self._message_custom_emoji(message):
-            row = self._connection.execute(
-                "SELECT main_asset_id, thumbnail_asset_id FROM custom_emoji WHERE id=?",
-                (identifier,),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Custom emoji is unavailable")
-            self._connection.execute(
-                "INSERT OR IGNORE INTO custom_emoji_grants VALUES (?, ?)", (user_id, identifier)
-            )
-            for asset_id in row:
-                self._connection.execute(
-                    "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)", (user_id, asset_id)
-                )
+        return message_custom_emoji(message)
 
     def custom_emoji_stickers(
         self, bot_id: int, custom_emoji_ids: list[Any]
@@ -800,12 +773,13 @@ class World:
             self._connection.execute("BEGIN IMMEDIATE")
             if reply_markup is not None and sender_id != self.get_chat(chat_id)["bot_id"]:
                 raise ValueError("Only bots can attach inline keyboards")
-            return self._insert_message(
-                chat_id=chat_id,
-                sender_id=sender_id,
-                text=text,
-                keyboard=keyboard,
-                formatting=formatting,
+            content: dict[str, Any] = {"text": text}
+            if keyboard is not None:
+                content["reply_markup"] = keyboard
+            if formatting is not None:
+                content["entities"] = formatting
+            return self._messages.publish(
+                draft=MessageDraft(chat_id=chat_id, sender_id=sender_id, content=content)
             )
 
     def send_rich_message(
@@ -839,62 +813,12 @@ class World:
             )
             if set(uploads or {}) != used:
                 raise ValueError("Uploaded photo attachment is unused")
-            return self._insert_message(
-                chat_id=chat_id,
-                sender_id=sender_id,
-                text="",
-                keyboard=keyboard,
-                formatting=None,
-                rich_message=content,
+            fields: dict[str, Any] = {"text": "", "rich_message": content}
+            if keyboard is not None:
+                fields["reply_markup"] = keyboard
+            return self._messages.publish(
+                draft=MessageDraft(chat_id=chat_id, sender_id=sender_id, content=fields)
             )
-
-    def _insert_message(
-        self,
-        *,
-        chat_id: int,
-        sender_id: int,
-        text: str,
-        keyboard: dict[str, Any] | None,
-        formatting: list[dict[str, Any]] | None,
-        rich_message: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Insert validated content inside the caller's existing writer transaction."""
-        chat = self.get_chat(chat_id)
-        self.get_user(sender_id)
-        if sender_id not in (chat["user_id"], chat["bot_id"]):
-            raise ValueError("Sender is not a participant in this chat")
-        message_id = self._connection.execute(
-            "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat_id,)
-        ).fetchone()[0]
-        now = self._connection.execute("SELECT now FROM configuration").fetchone()[0]
-        message: dict[str, Any] = {
-            "id": message_id,
-            "chat_id": chat_id,
-            "sender_id": sender_id,
-            "date": now,
-            "text": text,
-        }
-        if rich_message is not None:
-            message["rich_message"] = rich_message
-        if keyboard is not None:
-            message["reply_markup"] = keyboard
-        if formatting is not None:
-            message["entities"] = formatting
-        self._grant_custom_emoji(chat["user_id"], message)
-        self._connection.execute(
-            "INSERT INTO messages VALUES (?, ?, ?)", (chat_id, message_id, json.dumps(message))
-        )
-        revision = self._emit("message.created", message)
-        self._connection.execute(
-            "INSERT INTO message_revisions VALUES (?, ?, ?)", (chat_id, message_id, revision)
-        )
-        for asset_id in self._message_assets(message):
-            self._connection.execute(
-                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)", (chat["user_id"], asset_id)
-            )
-        if sender_id == chat["user_id"]:
-            self._enqueue_update(chat["bot_id"], "message", message)
-        return message
 
     def send_client_message(
         self,
@@ -934,8 +858,11 @@ class World:
                 if previous[0] != command:
                     raise ValueError("Request ID already identifies another client send")
                 return dict(json.loads(previous[1]))
-            message = self._insert_message(
-                chat_id=chat_id, sender_id=user_id, text=text, keyboard=None, formatting=formatting
+            content: dict[str, Any] = {"text": text}
+            if formatting is not None:
+                content["entities"] = formatting
+            message = self._messages.publish(
+                draft=MessageDraft(chat_id=chat_id, sender_id=user_id, content=content)
             )
             position = self._message_position(user_id)
             result = {"request_id": request_id, "position": position, "message": message}
@@ -1108,21 +1035,7 @@ class World:
                 message["entities"] = formatting
             if keyboard is not None:
                 message["reply_markup"] = keyboard
-            self._grant_custom_emoji(chat["user_id"], message)
-            self._connection.execute(
-                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
-                (json.dumps(message), chat_id, message_id),
-            )
-            revision = self._emit("message.edited", message)
-            self._connection.execute(
-                "INSERT OR REPLACE INTO message_revisions VALUES (?, ?, ?)",
-                (chat_id, message_id, revision),
-            )
-            for asset_id in self._message_assets(message):
-                self._connection.execute(
-                    "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
-                    (chat["user_id"], asset_id),
-                )
+            self._messages.replace(message=message)
         return message
 
     @staticmethod
@@ -1184,27 +1097,7 @@ class World:
         replacement["edit_date"] = self._connection.execute(
             "SELECT now FROM configuration"
         ).fetchone()[0]
-        self._grant_custom_emoji(chat["user_id"], replacement)
-        self._connection.execute(
-            "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
-            (json.dumps(replacement), chat_id, message_id),
-        )
-        revision = self._emit("message.edited", replacement)
-        self._connection.execute(
-            "INSERT OR REPLACE INTO message_revisions VALUES (?, ?, ?)",
-            (chat_id, message_id, revision),
-        )
-        for asset_id in self._message_assets(replacement):
-            self._connection.execute(
-                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
-                (chat["user_id"], asset_id),
-            )
-        for document_id in self._message_documents(replacement):
-            self._connection.execute(
-                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
-                (chat["user_id"], document_id),
-            )
-        return replacement
+        return self._messages.replace(message=replacement)
 
     def edit_caption(
         self,
@@ -1289,27 +1182,10 @@ class World:
             )
 
     def _message_assets(self, message: dict[str, Any]) -> set[int]:
-        assets: set[int] = set()
-        if "photo" in message:
-            assets.add(int(message["photo"]["asset_id"]))
-        pending: list[Any] = [message.get("rich_message")]
-        while pending:
-            value = pending.pop()
-            if isinstance(value, dict):
-                if value.get("type") == "photo" and "asset_id" in value:
-                    assets.add(int(value["asset_id"]))
-                pending.extend(value.values())
-            elif isinstance(value, list):
-                pending.extend(value)
-        return assets
+        return message_assets(message)
 
     def _message_documents(self, message: dict[str, Any]) -> set[int]:
-        if "document" not in message:
-            return set()
-        document = message["document"]
-        if not isinstance(document, dict) or document.keys() != {"document_id"}:
-            raise ValueError("Invalid stored document reference")
-        return {canonical_document_id(document["document_id"])}
+        return message_documents(message)
 
     def _validate_media_group_message(self, message: Any, *, revision: int | None = None) -> None:
         if not isinstance(message, dict):
@@ -1576,31 +1452,16 @@ class World:
             if set(uploads or {}) != expected:
                 raise ValueError("Photo uploads must exactly match the attachment")
             resolved = self._resolve_photo(sender_id, photo, uploads)
-            message = self._insert_message(
-                chat_id=chat_id, sender_id=sender_id, text="", keyboard=keyboard, formatting=None
-            )
-            message["photo"] = resolved
+            content: dict[str, Any] = {"text": "", "photo": resolved}
             if caption is not None:
-                message["caption"] = caption
+                content["caption"] = caption
             if formatting:
-                message["caption_entities"] = formatting
-            self._grant_custom_emoji(chat["user_id"], message)
-            self._connection.execute(
-                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
-                (json.dumps(message), chat_id, message["id"]),
+                content["caption_entities"] = formatting
+            if keyboard is not None:
+                content["reply_markup"] = keyboard
+            return self._messages.publish(
+                draft=MessageDraft(chat_id=chat_id, sender_id=sender_id, content=content)
             )
-            revision = self._connection.execute(
-                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
-                (chat_id, message["id"]),
-            ).fetchone()[0]
-            self._connection.execute(
-                "UPDATE events SET body=? WHERE sequence=?", (json.dumps(message), revision)
-            )
-            self._connection.execute(
-                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
-                (chat["user_id"], resolved["asset_id"]),
-            )
-            return message
 
     def _allocate_media_group_id(self) -> int:
         row = self._connection.execute(
@@ -1610,57 +1471,6 @@ class World:
         if row is None:
             raise ValueError("Media group identifier space is exhausted")
         return int(row[0])
-
-    def _publish_media_group_member(
-        self,
-        *,
-        chat: dict[str, Any],
-        sender_id: int,
-        group_id: int,
-        ordinal: int,
-        content: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Publish one final member inside the caller's album transaction."""
-        message_id = int(
-            self._connection.execute(
-                "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat["id"],)
-            ).fetchone()[0]
-        )
-        now = int(self._connection.execute("SELECT now FROM configuration").fetchone()[0])
-        message: dict[str, Any] = {
-            "id": message_id,
-            "chat_id": chat["id"],
-            "sender_id": sender_id,
-            "date": now,
-            "text": "",
-            "media_group_id": str(group_id),
-            **content,
-        }
-        self._grant_custom_emoji(chat["user_id"], message)
-        encoded = json.dumps(message)
-        self._connection.execute(
-            "INSERT INTO messages VALUES (?, ?, ?)", (chat["id"], message_id, encoded)
-        )
-        revision = self._emit("message.created", message)
-        self._connection.execute(
-            "INSERT INTO message_revisions VALUES (?, ?, ?)",
-            (chat["id"], message_id, revision),
-        )
-        self._connection.execute(
-            "INSERT INTO media_group_members VALUES (?, ?, ?, ?)",
-            (group_id, ordinal, chat["id"], message_id),
-        )
-        for asset_id in self._message_assets(message):
-            self._connection.execute(
-                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
-                (chat["user_id"], asset_id),
-            )
-        for document_id in self._message_documents(message):
-            self._connection.execute(
-                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
-                (chat["user_id"], document_id),
-            )
-        return message
 
     def send_media_group(
         self,
@@ -1791,12 +1601,13 @@ class World:
                 (group_id, chat_id, kind, len(resolved)),
             )
             return [
-                self._publish_media_group_member(
-                    chat=chat,
-                    sender_id=sender_id,
-                    group_id=group_id,
-                    ordinal=ordinal,
-                    content=content,
+                self._messages.publish(
+                    draft=MessageDraft(
+                        chat_id=chat_id,
+                        sender_id=sender_id,
+                        content={"text": "", **content},
+                        media_group=MediaGroupPosition(group_id=group_id, ordinal=ordinal),
+                    )
                 )
                 for ordinal, content in enumerate(resolved)
             ]
@@ -1906,31 +1717,16 @@ class World:
             if sender_id != chat["bot_id"]:
                 raise ValueError("Only chat bots can send documents")
             resolved = self._resolve_document(sender_id, document, uploads)
-            message = self._insert_message(
-                chat_id=chat_id, sender_id=sender_id, text="", keyboard=keyboard, formatting=None
-            )
-            message["document"] = resolved
+            content: dict[str, Any] = {"text": "", "document": resolved}
             if caption is not None:
-                message["caption"] = caption
+                content["caption"] = caption
             if formatting:
-                message["caption_entities"] = formatting
-            self._grant_custom_emoji(chat["user_id"], message)
-            self._connection.execute(
-                "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
-                (json.dumps(message), chat_id, message["id"]),
+                content["caption_entities"] = formatting
+            if keyboard is not None:
+                content["reply_markup"] = keyboard
+            return self._messages.publish(
+                draft=MessageDraft(chat_id=chat_id, sender_id=sender_id, content=content)
             )
-            revision = self._connection.execute(
-                "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
-                (chat_id, message["id"]),
-            ).fetchone()[0]
-            self._connection.execute(
-                "UPDATE events SET body=? WHERE sequence=?", (json.dumps(message), revision)
-            )
-            self._connection.execute(
-                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
-                (chat["user_id"], canonical_document_id(resolved["document_id"])),
-            )
-            return message
 
     def document_descriptor(self, document_id: Any) -> dict[str, Any]:
         identifier = canonical_document_id(document_id)
