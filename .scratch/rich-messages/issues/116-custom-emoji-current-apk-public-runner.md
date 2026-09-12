@@ -99,3 +99,20 @@ No Android guest or APK build ran on the worker branch. The Android case is coll
 coordinator's serialized normal30 gate. Changing transparent frames, original transfer/cache reuse
 and zero restart GETs remain the existing lifecycle/fault suite's responsibility and are not
 inferred from these three ordinary runner screenshots.
+
+### Coordinator native red and harness correction
+
+The first normal30 run stopped at the new public case after107.224 seconds and retained
+`artifacts/custom-emoji-normal30-native-01.xml`. The original UI had already rendered `Incoming`,
+`Ordinary` and `Rich / غنی RICH-ALT`; UIAutomator represented the disabled rich-button row as its
+documented generic `Buttons` text rather than exposing the drawn `Badge / نشان BUTTON-ALT` label as
+an accessibility node. The scenario had incorrectly required the exact button label as a shared
+capture-readiness substring, so Android timed out before taking its first screenshot.
+
+The correction keeps the exact rich-button alternative in the independent semantic oracle and
+uses only `Incoming`, `Ordinary` and `Rich` as cross-mode capture readiness. The Android assertion
+separately requires its observed `Buttons` marker; the existing pixel-level lifecycle gate remains
+responsible for proving static/animated glyphs in the distinct button region. The focused public
+host case then passes under the pinned offline profile at
+`artifacts/custom-emoji-runner-v5-fix-host-04.xml`; strict mypy, Ruff and format-check also pass.
+No production module, Android source/patch, content or fidelity contract changed.

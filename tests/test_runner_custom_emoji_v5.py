@@ -794,7 +794,7 @@ def test_public_runner_captures_custom_emoji_in_original_android_at_v5(tmp_path:
         android = capture["android"]
         assert "Accounts: 0" in android["accounts"]
         assert "Status: ok" in android["launch"] and "LaunchState: COLD" in android["launch"]
-        assert all(label in android["ui"] for label in ("Incoming", "Ordinary", "Rich", "Badge"))
+        assert all(label in android["ui"] for label in ("Incoming", "Ordinary", "Rich", "Buttons"))
         png = output / "captures" / f"{capture['label']}.png"
         assert png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
         with Image.open(png) as image:

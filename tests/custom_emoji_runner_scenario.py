@@ -80,7 +80,7 @@ initial_history = wait_for_messages("initial", ("1", "1"))
 initial_capture = lab.capture_chat(
     chat_id=chat["id"],
     label="custom-emoji-initial",
-    contains=["Incoming", "Ordinary", "Rich", "Badge"],
+    contains=["Incoming", "Ordinary", "Rich"],
 )
 lab.advance_time(5)
 interaction = lab.tap_inline_button(
@@ -104,12 +104,12 @@ assert answer == {"text": "Animated / متحرک شد", "show_alert": False, "ca
 edited_capture = lab.capture_chat(
     chat_id=chat["id"],
     label="custom-emoji-edited",
-    contains=["Incoming", "Ordinary", "Rich", "Badge"],
+    contains=["Incoming", "Ordinary", "Rich"],
 )
 relaunch_capture = lab.capture_chat(
     chat_id=chat["id"],
     label="custom-emoji-relaunch",
-    contains=["Incoming", "Ordinary", "Rich", "Badge"],
+    contains=["Incoming", "Ordinary", "Rich"],
 )
 print(
     json.dumps(
