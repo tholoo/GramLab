@@ -9,6 +9,11 @@ the upstream source headers. [`COPYING`](COPYING) contains the upstream GPLv2 li
 Original preparation tooling and notes retain the root MIT license. This does not relicense the
 client's separately licensed dependencies or establish distribution readiness.
 
+The current `series` contains exactly 30 patches and ends with the ordinary-document-delivery
+patch. The retained normal30 APK is local evidence tied to that complete ordered series and the
+pinned upstream revision; no APK or binary download is distributed by this repository. The
+filenames below are presented in application order.
+
 `0001-build-preparation.patch` selects only the shared client library, its existing JLatexMath
 dependency and a distinct `org.gramlab.android` application module. It pins the Gradle distribution
 checksum, uses Google's official Maven distribution CDN, and removes cloud/distribution build
@@ -51,6 +56,13 @@ cells, fonts and resources remain unchanged.
 storage before opening a chat. See the [older-message recovery record](../../../docs/development/android-history-recovery.md)
 for bot edits made during client downtime, subsequent messages and repeated cold restarts. The
 patch retains the client database and changes only the adapter runtime class.
+
+`0008-native-composer-and-client-sequences.patch` routes the original text composer through
+authenticated semantic sends, maps accepted acknowledgments into original controller/storage
+completion paths, and applies durable persona message-position sequencing and difference recovery.
+It reconciles interrupted sends by random ID plus destination while retaining the original
+composer, renderer and application database. See the
+[composer and recovery record](../../../docs/development/android-composer.md).
 
 Preparation exports only pinned tracked files, removes upstream signing/service templates and
 replaces the upstream API/hash/key fields with inert values. Their original values are not copied
@@ -118,11 +130,14 @@ or exception-envelope change is included. See [the regression](../../../.scratch
 
 `0017-local-photo-delivery.patch` maps v3 immutable local photos into original native photo
 locations and delivers validated bytes through the original FileLoader/ImageLoader boundary.
+
 `0018-persistent-photo-locations.patch` preserves these locations through an existing upstream
-PhotoSize serialization constructor. `0019-required-media-fields.patch` classifies missing
-required descriptors before JSON getters can escape the bridge rejection envelope. Codec,
-real-bot rendering/edit/restart and response-fault evidence is recorded in the
-[photo profile](../../../docs/development/photos.md); this is partial media acceptance.
+PhotoSize serialization constructor.
+
+`0019-required-media-fields.patch` classifies missing required descriptors before JSON getters can
+escape the bridge rejection envelope. Codec, real-bot rendering/edit/restart and response-fault
+evidence for these three patches is recorded in the [photo profile](../../../docs/development/photos.md);
+this is partial media acceptance.
 
 `0020-photo-view-observation.patch` adds opt-in app-private diagnostics of visible original
 ordinary-photo cells, controls and image receiver bindings. Activation is bound to the loaded
@@ -187,5 +202,38 @@ HTTP callback identity. It preserves upstream rendering and action handlers; the
 does not synthesize a click or execute a callback. See the
 [frozen interaction contract](../../../docs/development/rich-button-implementation-contract.md).
 Source review, exact patch application and the complete contained offline APK build pass
-(3 minutes 1 second, strict dependency verification and verified signature). Native acceptance
-remains required before this patch establishes runtime behavior.
+(3 minutes 1 second, strict dependency verification and verified signature). Later focused native
+acceptance establishes the documented callback/copy/disabled operations; residual current-APK
+placement/recovery coverage remains tracked separately.
+
+`0026-rich-button-local-provenance.patch` persists bounded, all-or-nothing canonical rich-button
+occurrence identities and their applied revision through the original message `custom_params`
+storage path. Strict restoration rebinds only the matching reconstructed row/inline objects; stale,
+malformed, oversized, duplicate or ambiguous metadata grants no target while message content remains
+available. See [ticket 77](../../../.scratch/rich-messages/issues/77-rich-button-native-persistence.md).
+
+`0027-rich-button-coordinate-basis.patch` captures the matching original `ChatMessageCell` draw
+entry matrix and normalizes observed row/inline bounds to cell-local coordinates before adding the
+screen origin exactly once. Missing, mismatched, noninvertible or nonfinite contexts fail closed;
+original drawing and hit testing are unchanged. See
+[ticket 82](../../../.scratch/rich-messages/issues/82-rich-button-native-coordinate-basis.md).
+
+`0028-rich-button-disarm-lifetime.patch` makes a retained disarm record applicable only when its
+activation nonce, client nonce and live operation all match. A stale record from an earlier client
+lifetime therefore cannot prevent a new valid arm from loading, while matching invalidated
+operations still cannot rearm. See
+[ticket 98](../../../.scratch/rich-messages/issues/98-native-disarm-lifetime-scope.md).
+
+`0029-ordinary-document-codec.patch` adds strict version-5 ordinary-document descriptor parsing
+and projects each accepted entry into an original `TL_document` carrier. It preserves canonical
+filenames/MIME, full positive descriptor IDs and the separate negative native-ID namespace without
+sniffing bytes or fabricating image/audio/video attributes. See
+[ticket 101](../../../.scratch/rich-messages/issues/101-ordinary-document-native-codec.md).
+
+`0030-ordinary-document-delivery.patch` negotiates bridge version 5, validates and applies exact
+ordinary-document dependencies, maps document messages into original carriers, and resolves
+authenticated bytes through the original `FileLoader` paths. It preserves cancellation, progress,
+coalescing, cache/destination handling and collision-safe no-replace publication, with explicit
+local rejection for unsupported encrypted or oversized filename-only preload paths. See the
+[document profile](../../../docs/development/documents.md) and
+[native delivery ticket](../../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md).
