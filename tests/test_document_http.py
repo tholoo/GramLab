@@ -329,11 +329,14 @@ def test_document_rejections_and_typed_reuse_leave_complete_database_unchanged(
             assert state(directory) == before
         chat = part(b'form-data; name="chat_id"', str(user["id"]).encode())
         document = part(b'form-data; name="document"; filename="x.txt"', b"file")
+        specialized = part(b'form-data; name="document"; filename="x.gif"', b"GIF89a specialized")
         force = part(b'form-data; name="disable_content_type_detection"', b"true")
         bad_uploads = [
-            body(chat, document),
+            body(chat, specialized),
             body(
-                chat, document, part(b'form-data; name="disable_content_type_detection"', b"false")
+                chat,
+                specialized,
+                part(b'form-data; name="disable_content_type_detection"', b"false"),
             ),
             body(chat, force, part(b'form-data; name="document"; filename="empty"', b"")),
             body(chat, force, document, part(b'form-data; name="unused"; filename="u"', b"other")),
@@ -346,7 +349,7 @@ def test_document_rejections_and_typed_reuse_leave_complete_database_unchanged(
                 assert json.loads(raw) == {
                     "ok": False,
                     "error_code": 400,
-                    "description": "GRAMLAB_UNSUPPORTED: document upload content detection",
+                    "description": "GRAMLAB_UNSUPPORTED: default document content classification",
                 }
             assert state(directory) == before
         status, _, raw = request(

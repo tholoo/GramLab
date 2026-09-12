@@ -2,9 +2,9 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Owner: unassigned
-Blocked by: serialized completion of 110
+Work state: claimed
+Owner: album-core-v6
+Blocked by: none
 
 After the album contract is frozen, implement strict `sendMediaGroup`, schema-10 group/counter/member
 storage, one private final-message atomic World publisher, ordered messages/events and complete-group

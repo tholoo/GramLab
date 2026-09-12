@@ -3,8 +3,8 @@
 GramLab's experimental Bot API now supports explicit forced-file uploads and bot-scoped file reuse.
 Typed storage and authenticated version5 client HTTP delivery are integrated. Original Android
 file loading, standalone document/photo edits and a public bridge-v5 document workflow pass on the
-reviewed normal30 client. This evidence is limited to explicitly forced ordinary documents; default
-content classification and albums remain unimplemented.
+reviewed normal30 client. The approved bounded default classifier is implemented for fresh
+standalone uploads; albums remain unimplemented.
 Run bots and clients only inside the [offline boundary](offline-safety.md).
 
 ## Sending and reusing a file
@@ -13,7 +13,8 @@ Send multipart `sendDocument` to the run's local Bot API endpoint with:
 
 - `chat_id`: the recipient's existing private chat with this bot;
 - `document`: the uploaded file part, or a text `attach://NAME` reference to its single file part;
-- `disable_content_type_detection`: explicitly true for every new upload; and
+- optional `disable_content_type_detection`: true forces ordinary-file behavior; omitted or false
+  uses the bounded local classifier; and
 - optional `caption`, `caption_entities` and `reply_markup` using the existing caption/keyboard rules.
 
 The response is an ordinary Bot API Message containing `document`, with the bot's opaque
@@ -46,10 +47,13 @@ has an actual upload/download test; it is a GramLab profile value, not proof of 
 cloud admission boundary. The existing photo and multipart text/header/part-count limits remain.
 Rejected publications leave bytes, typed metadata, identities, grants, messages and events unchanged.
 
-New uploads with omitted or false detection return
-`GRAMLAB_UNSUPPORTED: document upload content detection`. Empty or oversized files, missing/unused
-attachments, thumbnails, parse modes, unsupported options and invalid captions/keyboards reject.
-File downloads do not support Range requests. Albums remain unsupported.
+With omitted or false detection, PNG/JPEG/PDF/ZIP/text/opaque and unknown inputs remain ordinary
+documents. Exact recognized GIF, RIFF WebP/WAVE/AVI, EBML, ISO-BMFF, Ogg, FLAC, ID3 and TGS
+signatures return `GRAMLAB_UNSUPPORTED: default document content classification` until their typed
+media families exist. The declared multipart content type is ignored; short/near signatures and
+generic gzip remain documents. Empty or oversized files, missing/unused attachments, thumbnails,
+parse modes, unsupported options and invalid captions/keyboards reject. File downloads do not
+support Range requests. Albums remain unsupported.
 
 ## Editing standalone media
 
@@ -57,7 +61,7 @@ File downloads do not support Range requests. Albums remain unsupported.
 Omitted or empty caption removes it; omitted reply markup removes the keyboard. The media remains
 unchanged. `editMessageMedia` replaces it with an InputMediaPhoto or InputMediaDocument, including
 replacement between those two kinds, a new upload or this bot's typed file ID. New document uploads
-still require explicit `disable_content_type_detection=true` inside InputMediaDocument.
+use the same forced or bounded-classifier behavior inside InputMediaDocument.
 
 Both methods return the complete edited Message, preserve its creation identity/date, and set
 `edit_date` using the World clock. A semantically unchanged request returns `MESSAGE_NOT_MODIFIED`
@@ -83,7 +87,9 @@ The integrated HTTP checks cover complete responses, callback delivery, reuse/re
 metadata, rejected-state preservation, exact byte limits, cross-kind/cross-persona authorization
 and historical v5 dependencies. Uploading identical valid PNG bytes as a forced document and as a
 photo preserves distinct typed identities and exact downloads. These checks prove the local HTTP
-contract. Normal30 document-delivery native08 and original LaunchActivity native10 separately
+contract. The additional default-classification gate passes73 affected HTTP, edit and contained-bot
+cases, including exact/near signatures, rollback/retry and the50,000,000-byte boundary. Normal30
+document-delivery native08 and original LaunchActivity native10 separately
 verify loading, rendering, interaction and cold recovery.
 
 The integrated real-bot document scenario additionally sends a bilingual named file with a

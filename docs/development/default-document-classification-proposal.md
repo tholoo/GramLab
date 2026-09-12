@@ -1,16 +1,15 @@
 # Proposed default document classification
 
-Status: frozen fidelity policy; approved on 2026-09-12 and not implemented.
+Status: frozen fidelity policy; approved and implemented on 2026-09-12.
 
 The user approved the complete recommended bounded local policy and its signature table. General
 files remain ordinary documents, recognized specialized families reject until their complete typed
 contracts exist, and explicit forced-file uploads remain unchanged. Changing that policy requires
 renewed consultation.
 
-This proposal closes the omitted/false `disable_content_type_detection` gap without claiming to
-reproduce Telegram's inaccessible server detector. It needs user approval because the local
-classification table would become a compatibility surface. Until then, GramLab must keep rejecting
-new multipart `sendDocument` and `InputMediaDocument` uploads when the flag is omitted or false.
+This contract closes the omitted/false `disable_content_type_detection` gap without claiming to
+reproduce Telegram's inaccessible server detector. The approved classification table is now a
+versioned GramLab compatibility surface.
 
 ## Established behavior and source limits
 

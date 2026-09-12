@@ -102,15 +102,16 @@ suite, strict typing and Ruff checks pass; tickets120 and116 are resolved withou
 3. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is resolved.
    Preserve default3 and explicit3/4 while bridge5 carries ordinary documents; keep exact
    descriptor/ambiguity rejection and creation-time native callback receipts.
-4. Continue the operational milestone with default upload classification and albums. The approved
-   [classification contract](default-document-classification-proposal.md) keeps general files as
-   documents and rejects recognized unsupported specialized families. [Ticket110](../../.scratch/rich-messages/issues/110-default-document-classification.md)
-   is assigned; album-core ticket112 follows it because their parser ownership overlaps.
+4. Continue the operational milestone with albums. The approved
+   [classification contract](default-document-classification-proposal.md) is integrated: general
+   files remain documents and recognized unsupported specialized families reject atomically.
+   [Ticket110](../../.scratch/rich-messages/issues/110-default-document-classification.md) passes73
+   affected HTTP/edit/contained-bot cases; album-core ticket112 is now assigned.
 5. The [album contract](albums-implementation-proposal.md) is frozen with its 100,000,000-byte
    logical aggregate, rollback-safe World-wide group IDs, bridge-v6 complete-group pagination and
    grouped edits deferred. [Ticket111](../../.scratch/rich-messages/issues/111-album-contract.md) is
-   resolved. Tickets112–114 are specified in dependency order; ticket112 must wait for serialized
-   completion of ticket110 because their core parsing files overlap. The approved automatic rich
+   resolved. Tickets112–114 are specified in dependency order; ticket112 starts after serialized
+   completion of ticket110. The approved automatic rich
    detector is assigned separately in [ticket119](../../.scratch/rich-messages/issues/119-rich-auto-detection-implementation.md).
 6. Approval-independent acceptance work is split into
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
@@ -128,8 +129,8 @@ suite, strict typing and Ruff checks pass; tickets120 and116 are resolved withou
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
    before the approved fidelity implementations and album work.
 
-Remaining operational work includes default upload classification, albums, approved automatic rich
-detection and the combined current-APK regression.
+Remaining operational work includes albums, approved automatic rich detection and the combined
+current-APK regression.
 Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation

@@ -50,6 +50,26 @@ class DocumentUpload:
         return _file_unique_id(self.sha256, self.file_name, self.mime_type)
 
 
+def require_supported_default_document(upload: DocumentUpload) -> None:
+    """Reject byte families whose specialized media contracts are not implemented."""
+    data = upload.data
+    specialized = (
+        (len(data) >= 6 and data[:6] in (b"GIF87a", b"GIF89a"))
+        or (len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] in (b"WEBP", b"WAVE", b"AVI "))
+        or (len(data) >= 4 and data[:4] == b"\x1aE\xdf\xa3")
+        or (len(data) >= 8 and data[4:8] == b"ftyp")
+        or (len(data) >= 4 and data[:4] in (b"OggS", b"fLaC"))
+        or (len(data) >= 3 and data[:3] == b"ID3")
+        or (
+            len(data) >= 2
+            and data[:2] == b"\x1f\x8b"
+            and upload.mime_type == "application/x-tgsticker"
+        )
+    )
+    if specialized:
+        raise ValueError("GRAMLAB_UNSUPPORTED: default document content classification")
+
+
 def _file_unique_id(sha256: str, file_name: str, mime_type: str) -> str:
     identity = json.dumps(
         ["document", sha256, file_name, mime_type],
