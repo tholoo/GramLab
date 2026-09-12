@@ -64,6 +64,24 @@ English/Persian labels; both clipboard confirmations and unrelated-message stabi
 The run-local APK matched the canonical normal30 hash and was removed after the evidence was packed;
 the JUnit, report, observations, journals and frames remain.
 
+Residual rich-button native acceptance also passes1/1 in89.464 seconds at
+`artifacts/rich-button-residual-normal30-native-04.xml`. The original observer rejects the partly
+visible target at exact bounds `[22,-9,302,25]` before input, while explicit RTL content, callback,
+copy and nested controls remain operative in upstream payload order. A real process restart
+invalidates the old target and a fresh observation succeeds; a deliberately lost terminal reply is
+recovered without a second touch. Exactly three original taps, semantic/API correlation, clipboard,
+API36, zero accounts and containment pass. [Ticket115](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md)
+is resolved without a renderer patch.
+
+Custom emoji's public bridge5 case passes1/1 in81.195 seconds at
+`artifacts/custom-emoji-normal30-native-04.xml`; the existing current-APK codec gate also passes.
+The fresh focused fault gate passes1/1 in281.715 seconds at
+`artifacts/custom-emoji-normal30-fault-03.xml`, including exact failed/idle pixels, all recovery
+phases, shared transfer/cache behavior and inspected captures without platform-report interference.
+The clean lifecycle timing run has exact authored pixels and lockstep carrier states, including a
+22-frame exact-phase window, but its full24-frame fixed-phase intersection misses by80 milliseconds.
+It remains an honest failed JUnit pending the fidelity decision; no oracle was weakened.
+
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
@@ -95,17 +113,19 @@ the JUnit, report, observations, journals and frames remain.
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),
    and [118: reproducible setup docs](../../.scratch/rich-messages/issues/118-current-reproducible-setup-docs.md).
-   Ticket118 is resolved: the public example, Android source/build boundaries and complete 30-patch
+   Tickets115 and118 are resolved: residual rich input/restart/recovery passes on normal30, and the
+   public example, Android source/build boundaries and complete 30-patch
    queue are current without publishing or embedding an APK. The documented echo command also
    passes with explicit bridge5 in a fresh loopback-only namespace at
-   `artifacts/setup-echo-v5-01/`. Tickets115/116 remain in progress;
-   every Android guest remains serialized. The
+   `artifacts/setup-echo-v5-01/`. Ticket116's public, codec and fault surfaces pass on normal30;
+   only its unchanged full-horizon lifecycle timing criterion remains pending. Every Android guest
+   remains serialized. The
    final composed workflow is
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
    before the pending fidelity choices and album work.
 
 Remaining operational work includes default upload classification, albums, approved automatic rich
-detection, wider rich-button placement/recovery and the combined current-APK regression.
+detection, the custom-emoji timing decision and the combined current-APK regression.
 Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation
@@ -155,8 +175,12 @@ ignored local notes. Follow [run retention](artifact-storage.md#run-retention): 
 logs, original screenshots/reports and one immutable APK per build; retire successful/superseded
 guest disks and test databases promptly. Retain at most two failed guests only while their disks
 help diagnosis. Core16 fixture cleanup and filesystem01 guest retirement have verified receipts.
-The current audit permanently removed 20 hash-matched custom-emoji run-local APK copies totaling
-2,779,159,640 bytes while retaining both canonical APKs and all JSON/XML/screenshots/reports. Four
+The current audit permanently removed 20 earlier hash-matched custom-emoji run-local APK copies
+totaling2,779,159,640 bytes while retaining both canonical APKs and all
+JSON/XML/screenshots/reports. Current normal30 custom-emoji acceptance later retired48 guest disks
+and9 matching APK copies, reclaiming9,478,701,056 allocated bytes; residual rich acceptance retired
+four guest disks and four matching copies, reclaiming4,993,269,760 bytes. One custom-emoji timing-
+failure guest remains for diagnosis. Four
 older custom-emoji core basetemps totaling about 618 MiB remain because deleting their copied test
 trees requires a separate explicit retention decision; their top-level JUnit/logs are already
 retained independently.

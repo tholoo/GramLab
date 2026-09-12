@@ -1,19 +1,24 @@
 # Local custom emoji
 
 GramLab has an immutable World catalog for original local WebP and VP9 WebM custom emoji,
-with Bot API lookup/download and version-4 client delivery. The adapter passes 99 independent
-native codec cases and the photo/mention codec regressions. Fresh original Android lifecycle
-acceptance now passes: four initial static carriers, a real bot callback/edit, original animation
-settings, three animated carriers, native download and unchanged cold-cache restart. All 24
-burst captures pass the unchanged spatial/temporal checks; PNG derivatives are independently
-verified pixel-for-pixel against retained original raw frames.
+with Bot API lookup/download and version-4/5 client delivery. The adapter passes 99 independent
+native codec cases and the photo/mention codec regressions. Normal24 lifecycle acceptance proves
+four initial static carriers, a real bot callback/edit, original animation settings, three animated
+carriers, native download and unchanged cold-cache restart. All24 burst captures pass its unchanged
+spatial/temporal checks; PNG derivatives are independently verified pixel-for-pixel against retained
+original raw frames.
 
-The complete normal24 fault suite now passes three original document failure/recovery cases and
-shared progressive transfer, while the focused shared case passes separately. Those results and
-the lifecycle above establish the approved individual behavior on normal24. They do not prove that
-later overlapping normal30 patches preserve the whole surface or that the reusable public runner
-can compose it; [ticket116](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md)
-owns that remaining acceptance. See the
+On the current immutable normal30 APK, the complete public bridge5 runner and codec gate pass. The
+public run registers static WebP and animated VP9 WebM through `gramlab run`, renders incoming,
+ordinary, rich and rich-button carriers, performs the original inline callback/edit, and retains the
+edited state across a cold relaunch. A fresh full fault run also passes exact failed/idle pixels,
+three recovery paths, shared progressive transfer, cache reuse, zero accounts and offline
+containment. Original screenshots were inspected. The clean lifecycle timing run retains exact
+authored pixels and lockstep states across all three animated carriers, including a22-frame exact
+phase window, but its complete24-frame phase intersection misses by80 milliseconds. That JUnit
+therefore remains failed under the unchanged criterion; normal24 is still the latest full temporal
+acceptance. [Ticket116](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md)
+records the artifacts and pending fidelity decision. See the
 [implementation contract](custom-emoji-implementation-contract.md) for exact shapes and
 [the current handoff](handoff.md) for combined verification and limits.
 
@@ -85,9 +90,10 @@ emoji content rather than silently removing it.
 
 The trusted runner accepts explicit bridge4 and bridge5 and records that choice with Android
 inputs. Its default remains3 for older reviewed APKs. This choice is not a scenario TOML field.
-Use only a reviewed APK supporting the chosen version. Public registration/capture pieces pass, but
-the complete incoming/static/animated/button/edit/restart workflow through `gramlab run` remains
-ticket116 rather than being inferred from the bespoke lifecycle harness.
+Use only a reviewed APK supporting the chosen version. Public registration/capture pieces and the
+complete incoming/static/animated/button/edit/restart workflow through `gramlab run` pass on
+normal30. This public composition result does not substitute for the separate codec,
+lifecycle-timing and fault oracles.
 
 The GPL adapter constructs original Telegram Documents and routes their original resolver and
 file loaders through authorized local delivery. Static original rendering may use the thumbnail;

@@ -208,3 +208,23 @@ copies whose SHA-256 matched the retained canonical normal30 APK, reclaiming9,47
 bytes. The cleanup revalidated the canonical APK plus371 retained JUnit/JSON/log/XML/PNG evidence
 files after deletion. Only the latest normal30 lifecycle-failure guest disk remains available for
 the unresolved timing diagnosis; all other reports and captures remain independently inspectable.
+
+### Normal30 lifecycle timing diagnosis
+
+The clean first lifecycle attempt is not a spatial or carrier-consistency failure. All24 captures
+match authored quarter-frames exactly in the ordinary, rich and rich-button regions, and the three
+carriers produce the same state sequence. Capture intervals span about7.43 seconds. The unchanged
+fixed one-second-phase oracle has a latest lower bound of `10,000,001` nanoseconds at frame22 and an
+earliest upper bound of `-70,000,000` nanoseconds at frame0, so the complete24-frame intersection
+misses by80 milliseconds. Every carrier nevertheless has an exact22-frame passing window beginning
+at frame2; that window covers about6.84 seconds and more than six authored cycles. The pressure rerun
+has longer240–420 millisecond acquisitions, skips up to three quarter-frames across its complete
+10.18-second span, and still retains a19-frame passing window beginning at frame1. It is useful
+capture-pressure evidence, not a substitute pass.
+
+Removing the fixed80-millisecond post-capture pacing would save less than two seconds and does not
+account for the clean run's full-horizon phase drift. Repeated blind native reruns are therefore
+paused. The accepted normal24 run remains the proof that the current strict full24-frame oracle is
+achievable on that checkpoint. Normal30 lifecycle acceptance now needs either a clean full-horizon
+pass or explicit approval to replace that criterion with a bounded contiguous-window contract.
+No cadence, renderer, spatial check, state-order check or fidelity criterion has been changed.
