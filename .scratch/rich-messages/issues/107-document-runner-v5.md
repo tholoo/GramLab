@@ -3,7 +3,7 @@
 Type: task
 Status: ready-for-agent
 Work state: claimed
-Owner: task/document-runner-v5
+Owner: task/document-runner-v5-clean
 Blocked by: implementation may proceed independently; integration requires verified native delivery104
 
 The approved v5 document bridge exists in World and HTTP, but the public runner/CLI and Android
@@ -110,3 +110,46 @@ positive/negative dispatch and size/type boundaries. The affected host selection
 `artifacts/document-runner-v5-descriptor-affected-02.xml` records 42 passes across ticket107,
 current-message interactions and rich button/list controls. This correction adds no bridge schema,
 Android patch, guest or build claim; the native104 gate above remains unchanged.
+
+## Clean-history migration verification
+
+The reviewed worker tree was transplanted onto cleaned base
+`545828bef33312043f3959a17e51715b10622761`. Legacy commits map to the clean commits as follows:
+
+- `ae28870801ba318efd7b59dd0c7c36a3c5773e85` to
+  `f9bd4d332ff1af566ba0dcaadc38959b472cf6f9`;
+- `f78769264b6041f9db1a8a216e9094fea31b452e` to
+  `f662f8f8f05754cc20bd11be51214b56e9624f3c`;
+- `27b7bd85556415f853a180ceb690c7751d9d0475` to
+  `f1d82cc9d1058b0fc50ddbf879e227d0f82870ee`; and
+- `80934bc056786fdd548727f01b9678f29f2edf1c` to
+  `e80aa6ce6d433e75cd81008637902bd6fda8ab23`.
+
+The clean tip's eight owned files match the frozen legacy tip exactly, its base is an ancestor,
+and `git diff --check` passes. The first clean full-file attempt at
+`artifacts/document-runner-v5-clean-01.xml` was invalid because its missing artifact parent caused
+24 setup errors after11 passes; it is retained only as harness evidence. The corrected pinned-shell
+run at `artifacts/document-runner-v5-clean-02.xml` records all35 cases passing in6.07s.
+
+The first affected rerun at `artifacts/document-runner-v5-clean-affected-01.xml` was also an invalid
+harness invocation: running the virtual environment directly omitted the provisioned Nix runtime,
+so39 cases passed and the three contained public runner cases reported `supervisor_failed`. The
+same exact42-case selection then passed in7.10s under the pinned shell and loopback-only namespace:
+
+```sh
+tools/dev default --offline --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; PYTHONWARNINGS=error::ResourceWarning .venv/bin/pytest \
+  tests/test_document_runner_v5.py \
+  tests/test_android_current_message_interactions.py::test_composer_uses_configured_snapshot_for_current_visible_messages \
+  tests/test_android_current_message_interactions.py::test_rich_photo_caption_identity_matches_text_and_credit_and_rejects_ambiguity \
+  tests/test_android_current_message_interactions.py::test_ordinary_photo_keyboard_requires_exact_authored_caption_and_rejects_ambiguity \
+  tests/test_runner_rich_buttons.py::test_rich_inline_real_bot_callback_and_edit \
+  tests/test_runner_rich_lists.py::test_rich_lists_real_bot_callback_edit_and_cold_reopen \
+  --junitxml=artifacts/document-runner-v5-clean-affected-02.xml'
+```
+
+Scoped strict mypy with `MYPYPATH=tests`, Ruff check and Ruff format check all pass over the five
+owned production modules and two owned test files. The editable import resolves to this clean
+worktree. The coordinator explicitly approved the two updated v5 rejection expectations in the
+existing emoji runtime selection test. No Android guest or build was run, so integration and public
+native acceptance remain gated on verified native delivery104.
