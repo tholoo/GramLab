@@ -11,11 +11,17 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 _STARTUP_LOG_LIMIT = 256 * 1024
+
+
+class SystemReportWait(TypedDict):
+    observed: bool
+    elapsed_ms: float
+    quiet_ms: int
 
 
 def startup_log_command(adb: str) -> list[str]:
@@ -225,6 +231,48 @@ def probe_network(
             "stderr": attempted.stderr,
         }
     return network
+
+
+def wait_for_system_report(
+    adb_command: Callable[..., subprocess.CompletedProcess[str]],
+    *,
+    timeout: float = 60,
+    quiet: float = 1,
+) -> SystemReportWait:
+    """Wait for an AOSP dumpstate report and a bounded report-free interval."""
+    if timeout <= 0 or quiet < 0 or quiet >= timeout:
+        raise ValueError("System report bounds are invalid")
+    started = time.monotonic()
+    deadline = started + timeout
+    quiet_since: float | None = None
+    observed = False
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("System bugreport did not settle before native capture")
+        status = adb_command(
+            "shell",
+            "pidof",
+            "dumpstate",
+            timeout=min(5, remaining),
+        )
+        pids = status.stdout.strip()
+        if status.returncode == 0 and pids and all(pid.isdecimal() for pid in pids.split()):
+            observed = True
+            quiet_since = None
+        elif status.returncode == 1 and not pids:
+            now = time.monotonic()
+            if quiet_since is None:
+                quiet_since = now
+            if now - quiet_since >= quiet:
+                return SystemReportWait(
+                    observed=observed,
+                    elapsed_ms=(now - started) * 1_000,
+                    quiet_ms=int(quiet * 1_000),
+                )
+        else:
+            raise RuntimeError("System bugreport status was unavailable")
+        time.sleep(min(0.2, max(0, deadline - time.monotonic())))
 
 
 def main(

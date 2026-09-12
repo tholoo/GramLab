@@ -264,6 +264,9 @@ def _execute_android(
     observed = full["extra_probe"]
     assert "Accounts: 0" in observed["accounts"]
     assert observed["expected"] == cases["expected"]
+    assert observed["system_report"]["observed"] in (True, False)
+    assert 1_000 <= observed["system_report"]["elapsed_ms"] < 60_000
+    assert observed["system_report"]["quiet_ms"] == 1_000
     return full, observed, toolchain, image
 
 

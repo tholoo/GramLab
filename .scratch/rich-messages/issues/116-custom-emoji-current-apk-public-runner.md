@@ -147,3 +147,43 @@ correctly applied the generic key redactor and stored `[REDACTED]`. The oracle n
 both representations explicitly. It passes against the retained native result and its host case,
 and strict mypy/Ruff pass. `artifacts/custom-emoji-normal30-native-03.xml` remains a failed JUnit;
 a fresh passing JUnit is still required before accepting the native case.
+
+### Current-APK public acceptance and focused regression
+
+The fresh public rerun passes **1/1** on the unchanged reviewed normal30 APK in81.195 seconds at
+`artifacts/custom-emoji-normal30-native-04.xml` (SHA-256
+`cd33a62671e1b72e852a49cef9fb1d4c2d46cb050527bf5da0ce8cec0e4a31be`). The runner itself passed
+in79.945 seconds. Its receipt proves bridge5, API36, the exact immutable APK identity, zero Android
+accounts, guest network/filesystem containment and clean bot/client process completion. Manual
+inspection of all three original-client PNGs confirms the static blue authored glyph in the
+incoming, ordinary, rich and disabled-button carriers, the changed animated glyph in each bot
+carrier after the real callback, and the edited state after a cold relaunch. This closes the new
+public case; it does not replace the existing transparent-animation timing, codec or fault gates.
+
+The existing normal30 codec gate also passes. Two lifecycle attempts retain every authored
+quarter-frame state in lockstep across all three bot carriers and pass the spatial detector, while
+the incoming static control remains unchanged. The first attempt misses the exact global one-second
+phase feasibility interval by80 milliseconds across roughly6.8 seconds; a single controlled rerun
+under recorded host pressure has capture gaps large enough to skip as many as three quarter-frames.
+They remain honest failures at `artifacts/custom-emoji-normal30-regression-{01,02}.xml`; the existing
+timing/fidelity criterion has not been weakened. The previously accepted normal24 evidence still
+satisfies that same exact phase oracle. A normal30 lifecycle pass or an explicit fidelity decision
+is therefore still required.
+
+The full fault probe completed every native fault/recovery phase and passed its semantic transfer,
+terminal-error, zero-asset, idle-count and shared-thumbnail observations, but its first failed/idle
+pixel pair differed. Their UI XML was identical and the later mixed and partial pairs were
+pixel-identical. Retained startup diagnostics show the known intermittent AOSP UWB initialization
+failure started a full `dumpstate` system report; its system screenshot toast covered only that
+first fault capture. This is platform-report interference, not evidence of a product or fault-
+recovery regression. The combined artifact is
+`artifacts/custom-emoji-normal30-codec-fault-01.xml`; the fault case remains unaccepted until a
+clean exact-pixel rerun passes.
+
+The fault probe now uses a shared bounded barrier after APK installation: it polls only the
+dedicated guest's `dumpstate` PID, requires a continuous one-second report-free interval before
+capturing, fails closed on unexpected status or a60-second bound, and records whether a report was
+observed plus elapsed/quiet timing. It does not disable UWB, alter the emulator profile, retry the
+test or relax the exact-pixel oracle. The focused test first failed at collection because the
+helper did not exist (`artifacts/system-report-barrier-red-01.xml`), then passed **8/8** at
+`artifacts/system-report-barrier-green-01.xml`; scoped Ruff, format and strict mypy checks pass.

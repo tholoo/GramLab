@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from android_guest import main
+from android_guest import main, wait_for_system_report
 from custom_emoji_fault_server import CustomEmojiFaultServer, DocumentFault
 from native_asset_proxy import NativeAssetProxy
 
@@ -656,6 +656,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return result
 
     adb("install", "install", "--no-streaming", "/work/client.apk", timeout=60)
+    active_phase = "platform-report"
+    system_report = wait_for_system_report(guest)
     document_results: dict[str, dict[str, Any]] = {}
     try:
         for index, case in enumerate(document_cases):
@@ -695,6 +697,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "shared": shared,
             "expected": manifest["expected"],
             "accounts": accounts,
+            "system_report": system_report,
             "limits": {
                 "same_process_refetch": (
                     "External outcome only; callback owner identity is not observed."

@@ -6,7 +6,11 @@ import time
 from pathlib import Path
 
 import pytest
-from probes.android_guest import StartupLogCollector, startup_log_command
+from probes.android_guest import (
+    StartupLogCollector,
+    startup_log_command,
+    wait_for_system_report,
+)
 
 
 def child(source: str, *arguments: str) -> list[str]:
@@ -153,3 +157,27 @@ def test_collector_reaps_child_on_exceptional_context_exit() -> None:
     assert collector.result["log"] == "ready\n"
     assert not collector.reader_running
     assert_reaped(pid)
+
+
+def test_system_report_barrier_waits_for_dumpstate_and_a_quiet_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+
+    now = [10.0]
+    responses = iter(("2292\n", "2292\n", "", "", "", ""))
+    calls = []
+
+    def adb(*arguments: str, **options: float) -> subprocess.CompletedProcess[str]:
+        calls.append((arguments, options))
+        stdout = next(responses)
+        return subprocess.CompletedProcess(arguments, 0 if stdout else 1, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(time, "sleep", lambda delay: now.__setitem__(0, now[0] + delay))
+
+    result = wait_for_system_report(adb, timeout=5, quiet=0.5)
+    assert result["observed"] is True
+    assert 500 <= result["elapsed_ms"] < 5_000
+    assert result["quiet_ms"] == 500
+    assert calls and all(call[0] == ("shell", "pidof", "dumpstate") for call in calls)
