@@ -29,3 +29,32 @@ unchanged ordinary-document projection. The result establishes a documented loca
 On 2026-09-12 the user approved the complete recommended policy and signature table. Implement the
 bounded classifier exactly as frozen; this approval does not authorize partial specialized-media
 objects or a Telegram-parity claim.
+
+## Implementation handoff
+
+The assigned worker implemented the frozen pure
+`require_supported_default_document(upload: DocumentUpload) -> None` boundary and invokes it only
+for fresh multipart `sendDocument` and standalone `InputMediaDocument` uploads when
+`disable_content_type_detection` is omitted or false. Explicit true and typed `file_id` reuse keep
+their existing paths. No World, bridge, schema or Android file changed.
+
+The classifier covers every frozen exact discriminator and admits named near/short controls,
+ordinary PNG/JPEG/PDF/ZIP/text/opaque bytes and generic gzip. Focused HTTP cases prove
+omitted/false equivalence, declared-content-type independence, the inclusive 50,000,000-byte
+boundary, exact Bot API document projection, complete SQLite rollback, forced retry, reuse, and
+atomic standalone media edits. A contained real bot independently uploads an ordinary default
+document and receives the stable specialized-family rejection. The coordinator explicitly
+expanded ownership to the obsolete classification assertions in `tests/test_document_http.py`;
+unrelated forced-file, reuse, validation and media-edit coverage was preserved.
+
+Red evidence is retained at
+`artifacts/default-document-classification-red-interface-01.xml` (the required public interface
+was absent) and `artifacts/default-document-classification-red-http-02.xml` (18/18 cases exposed
+the old unconditional omitted/false rejection). Green evidence is retained at
+`artifacts/default-document-classification-green-affected-http-02.xml` (70/70) and
+`artifacts/default-document-classification-green-contained-02.xml` (3/3, including the existing
+forced-document lifecycle). The affected strict mypy scopes pass for six core/HTTP files and three
+contained-scenario files; Ruff check and format-check pass across all nine checked files. Android
+was not run because admitted output remains the already verified ordinary-document projection and
+this ticket owns no client change. Work state remains claimed until coordinator integration and
+combined verification, as required by the parallel workflow.

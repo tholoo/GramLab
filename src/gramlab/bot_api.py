@@ -18,7 +18,11 @@ from types import TracebackType
 from typing import Any, Self
 from urllib.parse import parse_qs, unquote_to_bytes, urlsplit
 
-from gramlab.documents import MAX_DOCUMENT_BYTES, DocumentUpload
+from gramlab.documents import (
+    MAX_DOCUMENT_BYTES,
+    DocumentUpload,
+    require_supported_default_document,
+)
 from gramlab.world import World, update_selection
 
 
@@ -358,8 +362,6 @@ def _dispatch(
             if kind == "document"
             else False
         )
-        if selected.startswith("attach://") and kind == "document" and not force_file:
-            raise ValueError("GRAMLAB_UNSUPPORTED: document upload content detection")
         typed_uploads: dict[str, bytes | DocumentUpload] = {}
         for name, upload in (uploads or {}).items():
             typed_uploads[name] = (
@@ -367,6 +369,10 @@ def _dispatch(
                 if kind == "document"
                 else upload.data
             )
+        if selected.startswith("attach://") and kind == "document" and not force_file:
+            attached = typed_uploads.get(selected.removeprefix("attach://"))
+            if type(attached) is DocumentUpload:
+                require_supported_default_document(attached)
         return _message(
             world,
             world.edit_media(
@@ -390,8 +396,14 @@ def _dispatch(
             parameters.get("disable_content_type_detection", False),
             "disable_content_type_detection",
         )
+        document_uploads = {
+            name: DocumentUpload(upload.data, upload.filename, upload.content_type)
+            for name, upload in (uploads or {}).items()
+        }
         if media.startswith("attach://") and not force_file:
-            raise ValueError("GRAMLAB_UNSUPPORTED: document upload content detection")
+            attached = document_uploads.get(media.removeprefix("attach://"))
+            if attached is not None:
+                require_supported_default_document(attached)
         chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
         return _message(
             world,
@@ -399,10 +411,7 @@ def _dispatch(
                 chat_id=chat["id"],
                 sender_id=bot_id,
                 document={"media": media},
-                uploads={
-                    name: DocumentUpload(upload.data, upload.filename, upload.content_type)
-                    for name, upload in (uploads or {}).items()
-                },
+                uploads=document_uploads,
                 caption=parameters.get("caption"),
                 caption_entities=parameters.get("caption_entities"),
                 reply_markup=parameters.get("reply_markup"),
