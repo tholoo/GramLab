@@ -115,3 +115,13 @@ host test which performs an authenticated v5 request through the real fixture se
 host selection passes 22/22; Ruff format/check and strict mypy pass both changed harness files. The
 APK, codec probe and Android source were not changed or rebuilt. A fresh combined focused gate and
 manual five-capture inspection remain required before ticket113 or this ticket can resolve.
+
+The corrected second attempt served v5 correctly, completed the full guest/UI lifecycle, and then
+exposed a separate authored-oracle error: `photo(..., None)` deliberately means omission, so the
+case named `group-id-null` contained no `media_group_id` and normal31 correctly accepted it as two
+standalone photos. Evidence is retained at `artifacts/album-normal31-focused-02-work/` with JUnit
+`artifacts/album-normal31-focused-02.xml`; it is not an accepted gate. The case now injects literal
+JSON null into both messages, and the host inventory asserts the fields cannot silently become
+omissions again. Its three focused host checks and the same two-file Ruff/mypy scope pass. This was
+again test-only; normal31 and its probe remain byte-identical. A fresh combined focused run remains
+required.

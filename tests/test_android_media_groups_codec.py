@@ -606,9 +606,13 @@ def cases() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
         ("twenty-digits", "10000000000000000000"),
         ("null", None),
     ]:
+        members = [photo(1, identifier), photo(2, identifier)]
+        if name == "null":
+            for member in members:
+                member["media_group_id"] = None
         reject(
             f"group-id-{name}",
-            snapshot([photo(1, identifier), photo(2, identifier)], assets=[PHOTO]),
+            snapshot(members, assets=[PHOTO]),
         )
     reject("group-singleton", snapshot([photo(1, "8")], assets=[PHOTO]))
     reject(
@@ -811,6 +815,11 @@ def test_independent_case_inventory_covers_contract_boundaries() -> None:
         "changes-duplicate-grouped-and-standalone-message-id",
         "difference-duplicate-grouped-and-standalone-message-id",
     } <= set(names)
+    explicit_null = next(case for case in authored if case["name"] == "group-id-null")
+    assert [message["media_group_id"] for message in explicit_null["snapshots"][0]["messages"]] == [
+        None,
+        None,
+    ]
 
 
 def test_probe_collects_process_results_and_bounded_request_journal(
