@@ -144,6 +144,11 @@ ignored local notes. Follow [run retention](artifact-storage.md#run-retention): 
 logs, original screenshots/reports and one immutable APK per build; retire successful/superseded
 guest disks and test databases promptly. Retain at most two failed guests only while their disks
 help diagnosis. Core16 fixture cleanup and filesystem01 guest retirement have verified receipts.
+The current audit permanently removed 20 hash-matched custom-emoji run-local APK copies totaling
+2,779,159,640 bytes while retaining both canonical APKs and all JSON/XML/screenshots/reports. Four
+older custom-emoji core basetemps totaling about 618 MiB remain because deleting their copied test
+trees requires a separate explicit retention decision; their top-level JUnit/logs are already
+retained independently.
 
 Update this handoff with the current checkpoint and next action. Put detailed chronological
 acceptance in the owning ticket so future workers need not reread superseded instructions.
