@@ -2,9 +2,9 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: coordinator
-Blocked by: 120
+Blocked by: none
 
 Custom emoji is functionally implemented and has strong normal24 lifecycle, codec and fault
 evidence. Normal30 includes later patches that overlap Bridge, Runtime, RichMessage, Media and
@@ -244,3 +244,7 @@ rich-button carriers. The one-second phase feasibility test may succeed on any c
 at least20 captures spanning at least5 seconds instead of requiring one phase to fit the entire
 recording. Ticket120 owns the independent oracle change and replay; no pixel, spatial, state-order,
 carrier-consistency, transfer, cache, restart or fault criterion is relaxed.
+
+The integrated bounded oracle passes its32-case visual suite and the retained clean normal30 replay.
+All three carriers match across all24 authored frames and select captures2–23, spanning6.84 seconds.
+Together with the existing public, codec and clean fault passes, this resolves ticket116.

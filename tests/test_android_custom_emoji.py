@@ -172,17 +172,30 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
             burst.append(opened.copy())
     complete = 0
     edited_boxes = client["carrier_bounds"]["edited"]
+    carrier_states: dict[str, list[int]] = {}
+    timing_windows: dict[str, dict[str, int | list[int]]] = {}
     for carrier in ("ordinary", "rich", "button"):
         raw_box = edited_boxes[carrier]
         try:
             located = locate_animation_sequence(burst, [tuple(raw_box)] * len(burst))
-            require_complete_cycle(
-                [frame.state for frame in located[: len(intervals)]], intervals_ns=intervals
-            )
+            states = [frame.state for frame in located[: len(intervals)]]
+            timing = require_complete_cycle(states, intervals_ns=intervals)
+            assert timing is not None
+            carrier_states[carrier] = states
+            timing_windows[carrier] = {
+                "capture_indexes": list(timing.capture_indexes),
+                "capture_count": timing.capture_count,
+                "capture_times_ns": list(timing.capture_times_ns),
+                "capture_span_ns": timing.capture_span_ns,
+                "phase_bounds_ns": list(timing.phase_bounds_ns),
+            }
         except AssertionError:
             continue
         complete += 1
     assert complete == 3, "All three edited bot carriers must show the authored animation"
+    assert len({tuple(states) for states in carrier_states.values()}) == 1, (
+        "All three edited bot carriers must remain synchronized in every capture"
+    )
     for phase in ("edited", "restarted"):
         with Image.open(tmp_path / f"{phase}.png") as opened:
             frame = opened.convert("RGB")
@@ -224,6 +237,7 @@ def assert_native_lifecycle(tmp_path: Path, observed: dict[str, Any], apk: str) 
                 "Documents": documents,
                 "Cache": client["cache"],
                 "Animation capture derivation": derivation,
+                "Animation timing windows": timing_windows,
             },
             limitations=(
                 "Synthetic local catalog evidence does not establish production entitlement.",

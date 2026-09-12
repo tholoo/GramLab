@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import cast
+from typing import cast, overload
 
 from PIL import Image
 
@@ -25,6 +25,42 @@ class LocatedFrame:
     origin_x: float
     origin_y: float
     scale: float
+
+
+@dataclass(frozen=True)
+class AnimationTiming:
+    """Feasible authored phase and the contiguous capture window that proves it.
+
+    Integer indexing and iteration expose the two phase bounds for compatibility with
+    callers that previously consumed the returned ``tuple[int, int]``.
+    """
+
+    phase_bounds_ns: tuple[int, int]
+    capture_indexes: tuple[int, int]
+    capture_times_ns: tuple[int, int]
+
+    @property
+    def capture_count(self) -> int:
+        return self.capture_indexes[1] - self.capture_indexes[0] + 1
+
+    @property
+    def capture_span_ns(self) -> int:
+        return self.capture_times_ns[1] - self.capture_times_ns[0]
+
+    def __len__(self) -> int:
+        return 2
+
+    def __iter__(self) -> Iterator[int]:
+        return iter(self.phase_bounds_ns)
+
+    @overload
+    def __getitem__(self, index: int) -> int: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> tuple[int, ...]: ...
+
+    def __getitem__(self, index: int | slice) -> int | tuple[int, ...]:
+        return self.phase_bounds_ns[index]
 
 
 def _close(actual: tuple[int, int, int], expected: tuple[int, int, int], tolerance: int) -> bool:
@@ -319,15 +355,43 @@ def _validate_intervals(intervals: Sequence[tuple[int, int]]) -> None:
             raise ValueError("Capture intervals overlap or leave an ambiguous full-period gap")
 
 
+def _forward_ticks(states: Sequence[int]) -> list[int]:
+    ticks = [states[0]]
+    for previous, state in pairwise(states):
+        delta = (state - previous) % 4
+        if delta > 2:
+            raise AssertionError("Animation reversed or skipped more than one authored state")
+        ticks.append(ticks[-1] + delta)  # Never invent an unobserved full-period wrap.
+    return ticks
+
+
+def _phase_bounds(
+    states: Sequence[int], intervals_ns: Sequence[tuple[int, int]]
+) -> tuple[int, int] | None:
+    ticks = _forward_ticks(states)
+    first = intervals_ns[0][0]
+    lower = max(
+        start - first - (tick + 1) * 250_000_000 + 1
+        for (start, _), tick in zip(intervals_ns, ticks, strict=True)
+    )
+    upper = min(
+        end - first - tick * 250_000_000 for (_, end), tick in zip(intervals_ns, ticks, strict=True)
+    )
+    return (lower, upper) if lower <= upper else None
+
+
 def require_complete_cycle(
     states: Sequence[int],
     *,
     intervals_ns: Sequence[tuple[int, int]] | None = None,
-) -> tuple[int, int] | None:
-    """Require cyclic states; sampled skips additionally need one feasible 1s phase.
+) -> AnimationTiming | None:
+    """Require cyclic states and a stable, long-window authored one-second phase.
 
-    Returned inclusive phase bounds are nanoseconds relative to the first acquisition start.
-    Each interval bounds an actual screenshot acquisition, not an inferred frame timestamp.
+    Timed bursts retain full-sequence order and four-state checks. Their phase may be proven by
+    any contiguous window of at least 20 captures spanning at least five seconds. The selected
+    window is the longest feasible window, with the earliest one winning a length tie. Returned
+    inclusive phase bounds are relative to that window's first acquisition start. Each interval
+    bounds an actual screenshot acquisition, not an inferred frame timestamp.
     """
     if any(type(state) is not int or state not in range(4) for state in states):
         raise ValueError("Animation states must be authored integer state indices")
@@ -343,20 +407,22 @@ def require_complete_cycle(
     _validate_intervals(intervals_ns)
     if set(states) != {0, 1, 2, 3}:
         raise AssertionError("Animation burst did not observe every authored state")
-    ticks = [states[0]]
-    for previous, state in pairwise(states):
-        delta = (state - previous) % 4
-        if delta > 2:
-            raise AssertionError("Animation reversed or skipped more than one authored state")
-        ticks.append(ticks[-1] + delta)  # Never invent an unobserved full-period wrap.
-    first = intervals_ns[0][0]
-    lower = max(
-        start - first - (tick + 1) * 250_000_000 + 1
-        for (start, _), tick in zip(intervals_ns, ticks, strict=True)
+    _forward_ticks(states)  # The chosen window cannot hide a defect elsewhere in the burst.
+    if len(states) < 20:
+        raise AssertionError("Animation timing needs at least 20 captures")
+    for length in range(len(states), 19, -1):
+        for start_index in range(len(states) - length + 1):
+            end_index = start_index + length - 1
+            capture_times = (intervals_ns[start_index][0], intervals_ns[end_index][1])
+            if capture_times[1] - capture_times[0] < 5_000_000_000:
+                continue
+            phase = _phase_bounds(
+                states[start_index : end_index + 1],
+                intervals_ns[start_index : end_index + 1],
+            )
+            if phase is not None:
+                return AnimationTiming(phase, (start_index, end_index), capture_times)
+    raise AssertionError(
+        "Animation states do not fit one authored one-second phase "
+        "over 20 captures and five seconds"
     )
-    upper = min(
-        end - first - tick * 250_000_000 for (_, end), tick in zip(intervals_ns, ticks, strict=True)
-    )
-    if lower > upper:
-        raise AssertionError("Animation states do not fit one authored one-second phase")
-    return lower, upper

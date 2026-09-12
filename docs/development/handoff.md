@@ -81,10 +81,10 @@ Custom emoji's public bridge5 case passes1/1 in81.195 seconds at
 The fresh focused fault gate passes1/1 in281.715 seconds at
 `artifacts/custom-emoji-normal30-fault-03.xml`, including exact failed/idle pixels, all recovery
 phases, shared transfer/cache behavior and inspected captures without platform-report interference.
-The clean lifecycle timing run has exact authored pixels and lockstep carrier states, including a
-22-frame exact-phase window, but its full24-frame fixed-phase intersection misses by80 milliseconds.
-It remains an honest failed JUnit; the approved bounded-window oracle and retained replay are
-assigned to ticket120, and no oracle was weakened before approval.
+The clean lifecycle timing run has exact authored pixels and lockstep carrier states across all24
+captures. The approved bounded-window oracle selects captures2–23 for every carrier, proving22 exact
+frames across6.84 seconds while retaining whole-sequence state-order checks. Its32-case focused
+suite, strict typing and Ruff checks pass; tickets120 and116 are resolved without another guest run.
 
 ## Active work and next actions
 
@@ -120,17 +120,16 @@ assigned to ticket120, and no oracle was weakened before approval.
    public example, Android source/build boundaries and complete 30-patch
    queue are current without publishing or embedding an APK. The documented echo command also
    passes with explicit bridge5 in a fresh loopback-only namespace at
-   `artifacts/setup-echo-v5-01/`. Ticket116's public, codec and fault surfaces pass on normal30;
-   only its lifecycle timing replay remains. The user approved the bounded20-capture/five-second
-   phase-window rule; [ticket120](../../.scratch/rich-messages/issues/120-custom-emoji-bounded-timing.md)
-   owns the oracle change. Every Android guest
+   `artifacts/setup-echo-v5-01/`. Ticket116 is resolved: its public, codec and fault surfaces pass on
+   normal30, and [ticket120](../../.scratch/rich-messages/issues/120-custom-emoji-bounded-timing.md)
+   resolves the approved bounded timing replay. Every Android guest
    remains serialized. The
    final composed workflow is
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
-   before the pending fidelity choices and album work.
+   before the approved fidelity implementations and album work.
 
 Remaining operational work includes default upload classification, albums, approved automatic rich
-detection, the approved custom-emoji timing replay and the combined current-APK regression.
+detection and the combined current-APK regression.
 Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation

@@ -95,15 +95,15 @@ handoff.
 - [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) is an approved
   frozen local fidelity policy; [119](issues/119-rich-auto-detection-implementation.md) owns its
   core, original-Android projection and focused acceptance.
-- [120: bounded custom-emoji timing](issues/120-custom-emoji-bounded-timing.md) owns the approved
-  contiguous-window oracle and retained normal30 replay before ticket116 can resolve.
+- [120: bounded custom-emoji timing](issues/120-custom-emoji-bounded-timing.md) is resolved: every
+  retained frame remains exact and synchronized, with captures2–23 proving6.84 seconds of timing.
 
 ## Approval-independent current work
 
 - [115: residual rich-button native acceptance](issues/115-rich-button-residual-native-acceptance.md)
   owns true RTL input, clipped rejection, restart recovery and lost-reply reconciliation on normal30.
-- [116: current-APK public custom emoji](issues/116-custom-emoji-current-apk-public-runner.md) owns
-  the complete bridge-v5 public runner and focused normal30 regression.
+- [116: current-APK public custom emoji](issues/116-custom-emoji-current-apk-public-runner.md) is
+  resolved by its public, codec, clean fault and approved bounded-lifecycle evidence on normal30.
 - [118: current reproducible setup docs](issues/118-current-reproducible-setup-docs.md) corrects
   stale scaffold/build/patch-queue instructions without claiming pending behavior.
 - [117: final representative workflow](issues/117-final-representative-workflow.md) remains blocked
