@@ -3,7 +3,7 @@
 Type: task
 Status: ready-for-agent
 Work state: claimed
-Owner: task/native-media-edit-acceptance
+Owner: task/native-media-edit-acceptance-clean
 Blocked by: host work may proceed independently; native execution requires verified104 delivery
 
 Extend the existing105 real-bot document scenario with the merged106 media operations. This is
@@ -86,3 +86,30 @@ impact and remaining native acceptance; do not resolve this ticket from host-onl
 - The contained real-bot/HTTP/World scenario and focused host controls pass after extension. Native
   rendering remains unexecuted and this ticket remains claimed pending coordinator review and the
   actual reviewed-APK run after ticket104 succeeds.
+- The reviewed legacy delta was transplanted without its old ancestry as clean-history commit
+  `0709c7c` on base `545828bef33312043f3959a17e51715b10622761`. Review found and the clean
+  worker corrected three host/native-acceptance gaps: callback taps now use the keyboard rendered
+  by the preceding transition (K1 through K4, with K5 render-only); the existing schema-2 original
+  photo observer binds P1 asset3 to message2 in the current process before and after its caption
+  edit; and D1/P1/D2 internal and saved copies require exact bytes, including D2's `-2_-2.pdf`
+  cache entry and tap-relative request timing. No production, schema, shared fixture or native
+  patch changed.
+- Corrective red: `PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider
+  tests/test_android_document_ui.py::test_document_callback_taps_follow_the_current_keyboard`
+  failed one case because the flawed orchestration exposed no independently specified callback-tap
+  schedule. The same command passes after the schedule is explicit and consumed by both scenario
+  and Android orchestration.
+- Final focused host command: `tools/dev default --command unshare --user --map-root-user --net
+  bash -eu -c 'ip link set lo up; PYTHONDONTWRITEBYTECODE=1
+  PYTHONWARNINGS=error::ResourceWarning .venv/bin/pytest -p no:cacheprovider
+  tests/test_document_round_trip.py tests/test_android_document_ui.py
+  tests/test_media_round_trip.py -m "not android"'`: 6 passed and one Android case deselected in
+  6.97 seconds; the final unchanged-scope rerun passed the same counts in 7.86 seconds. A preceding
+  run outside the checkout-local Nix shell produced two environment
+  failures because its inherited component Python lacked Pillow; four host cases passed and one
+  Android case was deselected. The identical pinned-shell rerun above is the valid evidence.
+- Scoped strict mypy over the five owned Python files passes. Ruff lint and format-check over the
+  same files pass, as does `git diff --check`. The checkout-local editable import resolves here.
+  No guest, APK build, full suite or networked runtime was run. No task process remains. Actual
+  original-renderer acceptance, primary-image inspection and ticket resolution remain blocked on
+  verified104 delivery and belong to the coordinator under `android-gate`.

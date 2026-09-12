@@ -19,11 +19,20 @@ from typing import Any, NoReturn, Self, cast
 from urllib.parse import urlsplit
 
 from android_guest import main
-from document_round_trip import DOCUMENT_BYTES, PHOTO_PATH, REPLACEMENT_DOCUMENT_BYTES, SCENE, run
+from document_round_trip import (
+    CALLBACK_TAPS,
+    DOCUMENT_BYTES,
+    PHOTO_PATH,
+    REPLACEMENT_DOCUMENT_BYTES,
+    SCENE,
+    run,
+)
 
 PACKAGE = "org.gramlab.android"
 CONFIG = "files/gramlab/config.json"
 TRACE = "files/gramlab/trace.jsonl"
+PHOTO_OBSERVATION = "files/gramlab/photo-observation.json"
+PHOTO_OBSERVATION_RESULT = "files/gramlab/photo-observation-result.json"
 BOUNDS = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 MEDIA_EVENTS = {
     "media_load_start",
@@ -298,6 +307,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     launches: dict[str, str] = {}
     taps: dict[str, Any] = {}
     cache: dict[str, Any] = {}
+    photo_bindings: dict[str, dict[str, Any]] = {}
     phases: dict[str, dict[str, int]] = {}
     active_phase = ""
 
@@ -417,6 +427,27 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             input=json.dumps(native),
         )
 
+    def activate_photo_observer(configuration: dict[str, Any]) -> None:
+        activation = {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": configuration["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+            "targets": [{"message_id": 2, "kind": "ordinary", "asset_ids": [3]}],
+        }
+        adb("shell", "run-as", PACKAGE, "rm", "-f", PHOTO_OBSERVATION_RESULT)
+        adb(
+            "shell",
+            "-T",
+            "run-as",
+            PACKAGE,
+            "sh",
+            "-c",
+            f"'cat > {PHOTO_OBSERVATION}'",
+            input=json.dumps(activation),
+        )
+
     def launch(name: str) -> None:
         result = adb(
             "shell",
@@ -452,6 +483,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 SCENE["file_name"],
                 SCENE["replacement_file_name"],
                 "-1_-1.pdf",
+                "-2_-2.pdf",
                 "3_1.jpg",
             ):
                 continue
@@ -533,6 +565,46 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             time.sleep(0.2)
         fail(name, "Replaced P1 selected destination survived D2 application")
 
+    def wait_for_photo_binding(name: str, configuration: dict[str, Any]) -> None:
+        deadline = time.monotonic() + 20
+        pid = int(adb("shell", "pidof", PACKAGE).stdout.strip())
+        previous_generation = max(
+            (int(binding["generation"]) for binding in photo_bindings.values()), default=0
+        )
+        identity = {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": configuration["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+            "pid": pid,
+        }
+        while time.monotonic() < deadline:
+            result = guest("shell", "run-as", PACKAGE, "cat", PHOTO_OBSERVATION_RESULT)
+            if result.returncode == 0:
+                value = json.loads(result.stdout)
+                if any(value.get(key) != expected for key, expected in identity.items()):
+                    fail(name + "-binding", "Original P1 observer identity mismatch")
+                uptime = float(adb("shell", "cat", "/proc/uptime").stdout.split()[0]) * 1000
+                messages = value.get("messages", [])
+                if (
+                    value.get("available") is True
+                    and value.get("reason") is None
+                    and int(value.get("generation", 0)) > previous_generation
+                    and 0 <= uptime - float(value.get("uptime_ms", -1)) <= 1000
+                    and len(messages) == 1
+                    and messages[0].get("message_id") == 2
+                    and messages[0].get("kind") == "ordinary"
+                    and messages[0].get("asset_id") == 3
+                    and messages[0].get("has_image") is True
+                    and str(messages[0].get("image_key", "")).startswith("3_1@")
+                ):
+                    photo_bindings[name] = value | {"observed_uptime_ms": uptime}
+                    retain(name + "-binding.json", json.dumps(photo_bindings[name]))
+                    return
+            time.sleep(0.1)
+        fail(name + "-binding", "Original P1 bitmap did not bind to message 2")
+
     def show(configuration: dict[str, Any]) -> str:
         nonlocal proxy
         name = str(configuration["stage"])
@@ -550,6 +622,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             proxy = BridgeProxy(configuration["endpoint"], configuration["capability"])
             proxy.__enter__()
             write_config(configuration)
+            activate_photo_observer(configuration)
             begin_phase("initial")
             launch("initial")
             ui = screen(
@@ -599,6 +672,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             before = phases[name]["request_start"]
             ui = screen(name, (step["caption"], step["button_text"]), applied=True)
             wait_for_media(name, "asset", "3", PHOTO_PATH.stat().st_size, before)
+            wait_for_photo_binding(name, configuration)
             cache_files(name)
             return ui
 
@@ -606,6 +680,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             proxy.retarget(configuration["endpoint"])
             step = SCENE["edit_sequence"][2]
             ui = screen(name, (step["caption"], step["button_text"]), applied=True)
+            wait_for_photo_binding(name, configuration)
             cache_files(name)
             return ui
 
@@ -677,30 +752,17 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     def tap(name: str, label: str) -> None:
         if proxy is None:
             raise RuntimeError("Unexpected document callback target")
-        phase = "document_caption" if name == "initial" else name
-        expected = (
-            SCENE["button_text"]
-            if name == "initial"
-            else next(
-                step["button_text"]
-                for step in SCENE["edit_sequence"]
-                if step["button_text"] == label
-            )
-        )
-        if label != expected:
+        targets = dict(CALLBACK_TAPS)
+        if name not in targets or label != targets[name]:
             raise RuntimeError("Unexpected document callback label")
+        phase = "document_caption" if name == "initial" else name
         begin_phase(phase)
-        source = (
-            "downloaded"
-            if name == "initial"
-            else (
-                "document_caption"
-                if name == "photo"
-                else "photo"
-                if name == "photo_caption"
-                else "photo_caption"
-            )
-        )
+        source = {
+            "initial": "downloaded",
+            "photo": "document_caption",
+            "photo_caption": "photo",
+            "document_final": "photo_caption",
+        }[name]
         ui = captures[source]
         bounds = target(ui, label)
         taps[phase] = {"label": label, "bounds": bounds}
@@ -722,6 +784,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "launches": launches,
             "taps": taps,
             "cache": cache,
+            "photo_bindings": photo_bindings,
             "phases": phases,
             "requests": proxy.requests(),
             "trace": rows,

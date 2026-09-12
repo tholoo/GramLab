@@ -83,6 +83,12 @@ for _step in SCENE["edit_sequence"]:
             [{"text": _step["button_text"], "callback_data": _step["callback_data"]}]
         ]
     }
+CALLBACK_TAPS = (
+    ("initial", SCENE["button_text"]),
+    ("photo", SCENE["edit_sequence"][0]["button_text"]),
+    ("photo_caption", SCENE["edit_sequence"][1]["button_text"]),
+    ("document_final", SCENE["edit_sequence"][2]["button_text"]),
+)
 
 
 def run(
@@ -226,7 +232,7 @@ def run(
                 if callback_status != 200:
                     raise RuntimeError("v5 document callback creation failed")
             else:
-                tap("initial", SCENE["button_text"])
+                tap(*CALLBACK_TAPS[0])
             stage_events = ("document_caption", "photo", "photo_caption", "document_final")
             for index, event in enumerate(stage_events):
                 if index:
@@ -249,7 +255,7 @@ def run(
                         if callback_status != 200:
                             raise RuntimeError("v5 media-edit callback creation failed")
                     else:
-                        tap(event, step["button_text"])
+                        tap(*CALLBACK_TAPS[index])
                 records[event] = read_record(bot, event)
                 callback_id = records[event]["update"]["callback_query"]["id"]
                 bridge_records[event + "_callback"] = bridge_json(

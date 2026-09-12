@@ -39,6 +39,17 @@ DOCUMENT_EVENTS = {
 }
 
 
+def test_document_callback_taps_follow_the_current_keyboard() -> None:
+    from document_round_trip import CALLBACK_TAPS
+
+    assert CALLBACK_TAPS == (
+        ("initial", "Reuse / استفاده دوباره"),
+        ("photo", "Replace with photo / عکس"),
+        ("photo_caption", "Edit photo caption / زیرنویس"),
+        ("document_final", "Replace with D2 / سند دوم"),
+    )
+
+
 def visible_labels(xml: str) -> str:
     root = ET.fromstring(xml)  # noqa: S314 — dedicated guest UIAutomator output
     return "\n".join(
@@ -500,6 +511,11 @@ def assert_android_document_observation(
         < document_requests[0]["sequence"]
         <= client["taps"]["download"]["requests_after"]
     )
+    assert (
+        client["taps"]["replacement-download"]["requests_before"]
+        < document_requests[1]["sequence"]
+        <= client["taps"]["replacement-download"]["requests_after"]
+    )
     assert any(row["path"] == "/v5/custom-emoji-documents" for row in requests)
     assert any(row["kind"] == "asset" and row["identifier"] in {"1", "2"} for row in requests)
     photo_requests = [
@@ -509,6 +525,37 @@ def assert_android_document_observation(
     assert (
         photo_requests[0]["phase"] == "photo" and photo_requests[0]["bytes"] == PHOTO.stat().st_size
     )
+
+    bindings = client["photo_bindings"]
+    assert list(bindings) == ["photo", "photo_caption"]
+    previous_generation = 0
+    pid = None
+    identity_keys = ("schema", "nonce", "world_id", "user_id", "peer_id")
+    for name, binding in bindings.items():
+        assert binding == json.loads((tmp_path / f"{name}-binding.json").read_text())
+        observed_identity = {key: binding[key] for key in identity_keys}
+        assert observed_identity == {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": observed["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+        }
+        assert binding["available"] is True and binding["reason"] is None
+        assert binding["generation"] > previous_generation
+        previous_generation = binding["generation"]
+        assert 0 <= binding["observed_uptime_ms"] - binding["uptime_ms"] <= 1000
+        pid = binding["pid"] if pid is None else pid
+        assert binding["pid"] == pid
+        assert len(binding["messages"]) == 1
+        message = binding["messages"][0]
+        assert message["message_id"] == 2
+        assert message["kind"] == "ordinary" and message["asset_id"] == 3
+        assert message["has_image"] is True and message["image_key"].startswith("3_1@")
+        image = message["image_bounds"]
+        visible = message["visible_bounds"]
+        assert visible[0] <= image[0] < image[2] <= visible[2]
+        assert visible[1] <= image[1] < image[3] <= visible[3]
 
     trace = client["trace"]
     assert [
@@ -562,10 +609,21 @@ def assert_android_document_observation(
             for row in requests[phase["request_start"] : phase["request_end"]]
         )
 
-    destination = (
+    initial_destination = (
         "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
         f"Telegram Files/{SCENE['file_name']}"
     )
+    final_destination = (
+        "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/Telegram Files/"
+        + SCENE["replacement_file_name"]
+    )
+    expected_bytes = {
+        SCENE["file_name"]: DOCUMENT_BYTES,
+        "-1_-1.pdf": DOCUMENT_BYTES,
+        "3_1.jpg": PHOTO.read_bytes(),
+        SCENE["replacement_file_name"]: REPLACEMENT_DOCUMENT_BYTES,
+        "-2_-2.pdf": REPLACEMENT_DOCUMENT_BYTES,
+    }
     assert set(client["cache"]) == {
         "downloaded",
         "document_caption",
@@ -576,28 +634,34 @@ def assert_android_document_observation(
     }
     for name, value in client["cache"].items():
         assert value["partials"] == []
-        assert {row["path"] for row in value["copies"]} >= {destination}
+        paths = {row["path"] for row in value["copies"]}
+        basenames = {Path(str(path)).name for path in paths}
+        assert paths >= {initial_destination}
+        assert basenames >= {SCENE["file_name"], "-1_-1.pdf"}
+        assert all(
+            row["size"] == len(expected_bytes[Path(str(row["path"])).name])
+            and row["sha256"]
+            == hashlib.sha256(expected_bytes[Path(str(row["path"])).name]).hexdigest()
+            for row in value["copies"]
+        ), name
         assert json.loads((tmp_path / f"{name}-cache.json").read_text()) == value
-    assert any(
-        Path(str(row["path"])).name == "3_1.jpg" for row in client["cache"]["photo"]["copies"]
-    )
-    assert any(
-        Path(str(row["path"])).name == "3_1.jpg"
-        for row in client["cache"]["photo_caption"]["copies"]
-    )
-    assert not any(
-        Path(str(row["path"])).name == "3_1.jpg"
-        for row in client["cache"]["document_final"]["copies"]
-    )
-    final_destination = (
-        "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/Telegram Files/"
-        + SCENE["replacement_file_name"]
-    )
+    for name in ("photo", "photo_caption"):
+        assert "3_1.jpg" in {Path(str(row["path"])).name for row in client["cache"][name]["copies"]}
+    for name in ("downloaded", "document_caption"):
+        assert SCENE["replacement_file_name"] not in {
+            Path(str(row["path"])).name for row in client["cache"][name]["copies"]
+        }
     for name in ("document_final", "restart"):
-        assert {row["path"] for row in client["cache"][name]["copies"]} >= {
-            destination,
+        paths = {row["path"] for row in client["cache"][name]["copies"]}
+        assert paths >= {
+            initial_destination,
             final_destination,
         }
+        assert {Path(str(path)).name for path in paths} >= {
+            SCENE["replacement_file_name"],
+            "-2_-2.pdf",
+        }
+        assert "3_1.jpg" not in {Path(str(path)).name for path in paths}
 
     apk_digest = hashlib.sha256(apk.read_bytes()).hexdigest()
     assert hashlib.sha256((tmp_path / "client.apk").read_bytes()).hexdigest() == apk_digest
@@ -630,6 +694,7 @@ def assert_android_document_observation(
                 "Semantic Bot API and World round trip": observed,
                 "Native bridge requests": requests,
                 "Original media trace": ordinary,
+                "Original P1 receiver bindings": bindings,
                 "Saved destinations": client["cache"],
                 "Phase boundaries": phases,
                 "Network isolation": full["network"],
