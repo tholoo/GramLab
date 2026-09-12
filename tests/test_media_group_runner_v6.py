@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
@@ -109,6 +110,11 @@ def interactions_as_seen_by_scenario(recorded: dict[str, Any]) -> list[dict[str,
         if target is not None and target.get("password") == REDACTED_UI_VALUE:
             target["password"] = UI_BOOLEAN_FALSE
     return interactions
+
+
+def ui_contains_all(ui: str, expected: tuple[str, ...]) -> bool:
+    nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314 — retained UIAutomator XML
+    return all(any(value in node.get("text", "") for node in nodes) for value in expected)
 
 
 def public_album_projection(world: World, message: dict[str, Any]) -> dict[str, Any]:
@@ -255,6 +261,12 @@ def test_scenario_interaction_restores_only_the_nonsecret_ui_password_value() ->
     assert visible[1] == recorded["interactions"][1]
 
 
+def test_ui_text_assertion_decodes_uiautomator_numeric_entities() -> None:
+    ui = '<hierarchy><node text="Album &#128105;‍&#128187;" /></hierarchy>'
+
+    assert ui_contains_all(ui, ("Album 👩‍💻",))
+
+
 def test_public_runner_executes_complete_media_groups_at_v6(tmp_path: Path) -> None:
     recorded, output = invoke(tmp_path / "project", mode="simulation-only")
     assert recorded["android"] == {}
@@ -335,7 +347,8 @@ def test_public_runner_captures_original_photo_and_document_groups_at_v6(tmp_pat
             if row["label"] == "album-photos"
             else ("first-album.txt", "First / نخست", "second-album.pdf", "Second / دوم")
         )
-        assert all(value in row["android"]["ui"] for value in expected)
+        original_ui = (output / "captures" / f"{row['label']}.xml").read_text()
+        assert ui_contains_all(original_ui, expected)
         with Image.open(output / "captures" / f"{row['label']}.png") as capture:
             assert capture.size == (320, 640)
             assert len(capture.convert("RGB").getcolors(maxcolors=320 * 640) or []) > 16
