@@ -195,5 +195,14 @@ older custom-emoji core basetemps totaling about 618 MiB remain because deleting
 trees requires a separate explicit retention decision; their top-level JUnit/logs are already
 retained independently.
 
+The three recent clean worker checkouts for current setup docs, public custom-emoji v5 and residual
+rich buttons were also retired after their branch tips were proven ancestors of the integration
+head and no process used their paths. Their branches remain. Before removal, the coordinator copied
+and byte-verified the required red/green artifacts:289 regular public custom-emoji files, its two
+JUnits and all three residual-rich JUnits. The ignored receipt is
+`.cache/local-notes/integrated-worker-worktree-retirement-01.json`. Historical worktrees were not
+bulk-deleted; their independent evidence and legacy-history restrictions still require individual
+review.
+
 Update this handoff with the current checkpoint and next action. Put detailed chronological
 acceptance in the owning ticket so future workers need not reread superseded instructions.
