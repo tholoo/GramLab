@@ -1,10 +1,10 @@
 # Verify custom emoji through bridge v5 and the current APK
 
 Type: task
-Status: ready-for-agent
+Status: needs-info
 Work state: claimed
-Owner: custom-emoji-runner-v5
-Blocked by: none
+Owner: coordinator
+Blocked by: user decision on the normal30 lifecycle timing criterion
 
 Custom emoji is functionally implemented and has strong normal24 lifecycle, codec and fault
 evidence. Normal30 includes later patches that overlap Bridge, Runtime, RichMessage, Media and
