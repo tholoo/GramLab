@@ -1381,7 +1381,7 @@ class World:
         if identifiers != list(range(identifiers[0], identifiers[0] + member_count)):
             raise ValueError("Invalid stored media group")
         revisions = [int(row[4]) for row in rows]
-        if len(set(revisions)) != member_count:
+        if revisions != list(range(revisions[0], revisions[0] + member_count)):
             raise ValueError("Invalid stored media group")
         for (
             member_ordinal,

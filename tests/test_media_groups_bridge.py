@@ -328,6 +328,7 @@ def test_v6_messages_callbacks_and_custom_emoji_document_routes_keep_group_ident
         ("nested_photo", "/v6/snapshot"),
         ("non_object_message", "/v6/snapshot"),
         ("duplicate_revision", "/v6/snapshot"),
+        ("gapped_revision", "/v6/snapshot"),
         ("non_object_event", "/v6/changes?after=0"),
         ("invalid_event_json", "/v6/changes?after=0"),
     ],
@@ -359,6 +360,15 @@ def test_v6_rejects_malformed_persisted_group_state(
                 world._connection.execute(
                     "UPDATE message_revisions SET revision=? WHERE chat_id=? AND message_id=?",
                     (revisions[0], chat["id"], group[1]["id"]),
+                )
+            elif corruption == "gapped_revision":
+                gapped = world._connection.execute(
+                    "INSERT INTO events(type, body) VALUES ('message.created', ?)",
+                    (json.dumps(group[1]),),
+                ).lastrowid
+                world._connection.execute(
+                    "UPDATE message_revisions SET revision=? WHERE chat_id=? AND message_id=?",
+                    (gapped, chat["id"], group[1]["id"]),
                 )
             elif corruption in ("non_object_event", "invalid_event_json"):
                 world._connection.execute(
