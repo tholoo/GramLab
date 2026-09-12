@@ -189,6 +189,28 @@ def test_http_rejections_are_strict_and_atomic(tmp_path: Path, payload: dict[str
     assert state(directory) == before
 
 
+def test_http_required_album_fields_reject_with_stable_400_and_no_mutation(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "world"
+    _user, _bot, token, _file_id = setup(directory)
+    before = state(directory)
+    valid_media = [
+        {"type": "photo", "media": "missing"},
+        {"type": "photo", "media": "missing"},
+    ]
+    with BotAPIServer(directory) as server:
+        for payload in ({"media": valid_media}, {"chat_id": 1}):
+            status, response = request(server.base_url, f"/bot{token}/sendMediaGroup", payload)
+            assert status == 400
+            assert response == {
+                "ok": False,
+                "error_code": 400,
+                "description": "chat_id and media are required",
+            }
+            assert state(directory) == before
+
+
 def test_grouped_edit_methods_reject_without_mutation(tmp_path: Path) -> None:
     directory = tmp_path / "world"
     user, _bot, token, file_id = setup(directory)
