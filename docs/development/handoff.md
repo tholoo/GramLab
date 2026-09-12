@@ -139,6 +139,13 @@ private consumer and machine notes were removed from both GitHub branches after 
 The atomic replacement rewrote 548 commits while preserving current source trees byte for byte.
 GitHub remains private; visibility is a separate decision. This task does not close native readiness.
 
+A current-source re-audit after the document, rich-button, setup and custom-emoji integrations
+scanned696 tracked blobs. No private key, provider token, JWT, credential URL, targeted consumer
+reference, user-home path or recorded local proxy matched; nine generic credential assignments are
+the existing synthetic test fixtures. Gitleaks8.30.1 reports zero findings across every commit since
+the cleaned-history checkpoint. Ignored runtime artifacts and legacy local worker refs remain
+outside this publication claim.
+
 Local worker branches still retain their old ancestry and pending work. Before resuming or merging
 one, migrate its reviewed changes onto the cleaned history and update its local assignment. Never
 merge or push a legacy branch directly. The coordinator retains the old/new commit map and branch

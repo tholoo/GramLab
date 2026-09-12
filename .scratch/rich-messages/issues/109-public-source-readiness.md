@@ -83,3 +83,19 @@ Existing local worker branches retain their original history and pending work. B
 integrating one, the coordinator must migrate its reviewed changes onto the cleaned ancestry and
 update its local assignment. Do not merge or push a legacy branch directly. Keep old build and test
 commit identifiers as historical evidence, with the rewrite map retained in ignored audit storage.
+
+## Current integration re-audit
+
+After the document, rich-button, setup and custom-emoji integrations, commit `b704bee` contains696
+tracked blobs totaling6,411,567 bytes. A fresh exact-HEAD scanner found zero private keys, provider
+tokens, JWTs, credential URLs, targeted consumer references, user-home paths or the previously
+recorded machine-local proxy. Its nine generic credential-assignment matches are all deliberate
+synthetic capability/redaction fixtures under `tests/`; their matched values are recorded only by
+hash in ignored audit evidence.
+
+Gitleaks8.30.1 separately scanned every commit from the cleaned-history checkpoint `545828b`
+through `b704bee` with full secret redaction and reported zero findings. The ignored reports are
+`.cache/public-audit/head-current-scan.json` and
+`.cache/public-audit/gitleaks-current-range.json`. This is bounded evidence for the current tracked
+integration branch. It deliberately does not bless ignored runtime artifacts or legacy local worker
+refs for publication; the existing migration restriction on those refs remains.
