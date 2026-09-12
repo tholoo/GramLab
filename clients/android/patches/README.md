@@ -9,10 +9,10 @@ the upstream source headers. [`COPYING`](COPYING) contains the upstream GPLv2 li
 Original preparation tooling and notes retain the root MIT license. This does not relicense the
 client's separately licensed dependencies or establish distribution readiness.
 
-The current `series` contains exactly 31 patches and ends with the rich-auto-detection projection.
-The retained normal30 APK remains evidence for the first 30 entries only; patch 0031 still requires
-a fresh build and native run. No APK or binary download is distributed by this repository. The
-filenames below are presented in application order.
+The current `series` contains exactly 32 patches and ends with atomic media-group delivery. The
+retained normal30 APK remains evidence for the first 30 entries only; patches 0031 and 0032 require
+the same fresh build and their focused native codec runs. No APK or binary download is distributed
+by this repository. The filenames below are presented in application order.
 
 `0001-build-preparation.patch` selects only the shared client library, its existing JLatexMath
 dependency and a distinct `org.gramlab.android` application module. It pins the Gradle distribution
@@ -245,3 +245,14 @@ round-trips those exact original types. It does not scan text on Android or chan
 Python supplies the already canonical enriched tree. Host patch application and Android test
 collection are worker gates; APK compilation and serialized native execution remain coordinator
 acceptance.
+
+`0032-atomic-media-groups.patch` negotiates bridge v6 and maps canonical positive signed-64-bit
+album IDs to original `TL_message.grouped_id` with flag 17. It validates complete 2–10-member,
+same-chat/same-kind contiguous topology in snapshots and creation changes, admits the bounded
+limit-plus-nine page expansion, classifies the exact split-cursor 409 for complete-snapshot
+recovery, and applies each live group through one stock `TL_updates` envelope before advancing its
+cursor. Version-6 response-local media/document/custom-emoji dependencies retain the established
+scope checks, while complete snapshots retain their existing dependency superset. The patch changes
+only adapter, transfer-route and serializer-observer seams; original message cells, grouped layout,
+renderer resources and input handlers remain unchanged. The worker owns source staging and the
+normal30 unsupported-v6 red; the coordinator owns the album-era APK build and green native codec.
