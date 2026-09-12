@@ -70,3 +70,21 @@ Exactly one Android case collects; no guest or APK build was run by this worker,
 geometry, process PIDs/nonces, RTL capture and lost-reply native correlation remain deliberately
 unclaimed until the coordinator's serialized normal30 gate. Keep this ticket claimed until that
 integration evidence passes.
+
+## Coordinator normal30 native red and fixture correction
+
+The first serialized normal30 run retained one real observation and RTL screenshot, then failed the
+intended clipped-control precondition at `artifacts/rich-button-residual-normal30-native-01.xml`
+(SHA-256 `323a128df314d8a3327b8b5c7efb2a1fefead934beda2d5f4b54cf57badb442a`). The target was visibly
+occluded by the application toolbar, but its measured screen rectangle `[22,48,302,82]` remained
+fully inside the original observer's cell-visible/full-screen geometry. It was therefore reported
+available and received the run's only input tap; no expected RTL callback answer followed. This is
+a meaningful fixture-geometry red, not a pass or evidence of clipped rejection.
+
+The correction keeps every canonical path and the later RTL/copy/nested-control layout fixed. Two
+short explicit lines in the first post-target spacer increase only the content between the clipped
+row and later controls, shifting that earlier row across the actual screen boundary without adding
+scrolling, coordinates, a renderer patch or a new visibility rule. The complete contained gate
+still passes **4/4** at `artifacts/rich-button-residual-spacing-host-02.xml` (SHA-256
+`492635be098e8e48da7a5fae1da39fde296c0056b77444add701f6fb295cb504`); scoped Ruff, format and strict
+mypy checks pass. A fresh native run must prove the resulting partial geometry and all later phases.

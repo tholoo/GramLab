@@ -21,7 +21,12 @@ from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile, Sandbox
 
 FILLERS = [
-    {"type": "paragraph", "text": f"فاصلهٔ مستقل {index} / spacer {index}"} for index in range(1, 16)
+    {
+        "type": "paragraph",
+        "text": f"فاصلهٔ مستقل {index} / spacer {index}"
+        + ("\ngauge line one\ngauge line two" if index == 5 else ""),
+    }
+    for index in range(1, 16)
 ]
 RICH_MESSAGE = {
     "blocks": [

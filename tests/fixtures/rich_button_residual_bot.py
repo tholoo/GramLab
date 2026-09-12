@@ -41,7 +41,12 @@ def call(method: str, parameters: dict[str, Any]) -> Any:
 
 
 fillers = [
-    {"type": "paragraph", "text": f"فاصلهٔ مستقل {index} / spacer {index}"} for index in range(1, 16)
+    {
+        "type": "paragraph",
+        "text": f"فاصلهٔ مستقل {index} / spacer {index}"
+        + ("\ngauge line one\ngauge line two" if index == 5 else ""),
+    }
+    for index in range(1, 16)
 ]
 rich_message = {
     "skip_entity_detection": True,
