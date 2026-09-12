@@ -44,16 +44,20 @@ do not establish Telegram rendering or protocol conformance.
 | Previews/help examples | Actual renderer exports tied to scenarios and labeled synthetic conversations | Partial: [scenario chat captures](../development/scenario-captures.md) retain original Android PNGs and semantic checkpoints in reports; live viewing, stitched histories and export presets pending |
 | Performance/reports | Reproducible workloads, separated latency sources, HTML evidence and redaction | Partial: [self-contained recovery report](../development/reports.md) with original Android screenshots and measured app-launch times; [consumer runner](../development/consumer-runner.md) retains redacted pass/failure/timeout evidence; workload percentiles and separated latency diagnosis planned |
 
-The current core19 integration gate passes 1,192 non-Android tests at 88.11% coverage; static17
+The core19 integration gate passes 1,192 non-Android tests at 88.11% coverage; static17
 passes 67 documented commands. Typed ordinary files, their Bot API/v5 HTTP routes, standalone
 media edits, and the complete real-bot document scenario's host controls are included. The ordinary
 codec separately passes34 actual native cases on normal29. On normal30, native08 passes the complete
 35-case loader suite plus cold-process reuse, and native10 passes the original document/media-edit UI
-workflow in118.862 seconds with178 successful loopback requests and eight inspected captures. These
-The public bridge5 runner additionally passes its complete original-client document callback/reuse
+workflow in118.862 seconds with178 successful loopback requests and eight inspected captures. The
+public bridge5 runner additionally passes its complete original-client document callback/reuse
 case in116.353 seconds with two inspected captures and unchanged normal30 APK identity. These results
 do not close default classification, albums or the wider current-APK regression. Earlier
 row-specific results remain historical evidence for their stated scope.
+
+The current checkout now collects 1,240 non-Android and66 Android cases. No complete current-source
+1,240-case core result or all-66 normal30 Android result is retained yet; the older aggregate counts
+above must not be presented as that final regression.
 
 Track fidelity on two separate axes: implementation state (planned/implemented) and evidence
 (documented/observed/verified/approximate/unsupported). Each claim needs exact versions, a scenario,

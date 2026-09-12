@@ -13,8 +13,10 @@ consumer acceptance still needs executable scenarios. Do not treat unsupported f
 
 Current [compatibility evidence](../compatibility/matrix.md) establishes bounded text/callback,
 formatting, rich-block and explicit mention loops. PNG/JPEG lifecycle, shared completion and
-unchanged-photo cache reuse pass focused native acceptance. Wider native regression, general
-files/albums, custom emoji and public rich-button actions still need work. The four designs approved on 2026-09-07 remain the direction.
+unchanged-photo cache reuse pass focused native acceptance. Custom-emoji lifecycle/faults and public
+rich-button actions now have strong bounded original-client evidence, but still need current-APK and
+final representative composition. Wider native regression, default document classification and
+albums remain open. The four designs approved on 2026-09-07 remain the direction.
 Quoted-code correction is complete at its documented checkpoint. Prioritize the remaining
 consumer-facing media/emoji/action gaps; HTML parsing and automatic detection are also unsupported.
 Keep developer tooling/research bounded to blockers in those workflows.

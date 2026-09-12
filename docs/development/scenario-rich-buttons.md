@@ -3,9 +3,11 @@
 The experimental runner exposes `Scenario.rich_buttons(chat_id=..., message_id=...)` and
 `Scenario.tap_rich_button(target_id=...)` for canonical rich-message buttons. The shared contract
 covers callback, copy and disabled actions in simulation and headless Android. The integrated
-simulation scenario and host boundary checks pass within the 780-test core gate (86.71% coverage).
-The new original Android APK builds offline with a verified signature; native acceptance
-remains pending. Host tests that substitute guest files do not establish native behavior.
+simulation scenario and host boundary checks pass. Original native15 proves all six visible
+row/inline callback/copy/disabled actions, hidden/offscreen rejection, ABA behavior and complete
+semantic correlation. Native07 separately proves actual copy/disabled paste and clear; native03
+proves one unrelated same-layout edit preserves the original target. These are bounded
+normal27/28 results, not a current-APK or full operational-milestone pass.
 
 ## Observe and select
 
@@ -79,5 +81,8 @@ The [implementation contract](rich-button-implementation-contract.md) specifies 
 closed reason codes and byte limits. The independent
 [public scenario](../../tests/rich_targets_scenario.py) and
 [contained bot](../../tests/fixtures/rich_targets_bot.py) cover duplicate identities, Persian text,
-row/inline placements, stale revisions and repeat behavior. Native execution and wider placement,
-clipboard-paste, clipping and restart acceptance remain required.
+row/inline placements, stale revisions and repeat behavior. Native execution for those public
+actions and clipboard is accepted at the bounded checkpoints above. True RTL input, an actually
+clipped rendered target, process-restart invalidation/recovery and lost-reply reconciliation remain
+in [ticket115](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
+along with normal30 regression.

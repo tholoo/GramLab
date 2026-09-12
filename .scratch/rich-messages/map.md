@@ -14,22 +14,26 @@ This index covers the current integration work. The
 - [70: shared rich-button contract](issues/70-rich-button-implementation-contract.md) is frozen
   within the approved proposal after independent source and recovery reviews.
 
-## Active implementation
+## Accepted foundations
 
-- [71: canonical occurrences and journal](issues/71-rich-button-core-primitives.md).
-- [72: original native observation](issues/72-rich-button-native-observer.md).
-- [73: control and client integration](issues/73-rich-button-control-integration.md).
-- [74: independent public acceptance](issues/74-rich-button-public-acceptance.md).
-- [77: exact native storage provenance](issues/77-rich-button-native-persistence.md), following
-  actual Android object-identity loss after TL reconstruction.
-- [78: independent storage regression](issues/78-rich-button-native-storage-regression.md).
-- [79: original emoji settings diagnostic](issues/79-custom-emoji-settings-input.md).
+- [71: canonical occurrences and journal](issues/71-rich-button-core-primitives.md),
+  [72: original native observation](issues/72-rich-button-native-observer.md), and
+  [73: control/client integration](issues/73-rich-button-control-integration.md) are integrated.
+- [74: independent public acceptance](issues/74-rich-button-public-acceptance.md) passes its bounded
+  row/inline action scenario; residual frozen-contract native cases move to115.
+- [77: exact native storage provenance](issues/77-rich-button-native-persistence.md) and
+  [78: its independent regression](issues/78-rich-button-native-storage-regression.md) pass after
+  correcting actual Android object-identity loss through TL reconstruction.
+- [79: original emoji settings diagnostic](issues/79-custom-emoji-settings-input.md) is incorporated
+  into accepted custom-emoji lifecycle evidence.
 
 ## Remaining uncertainty
 
-Contracts, host tests and collected native scenarios do not prove actual animation, rich input,
-clipboard effects or the broader operational milestone. Preserve the pending native gates and
-the full product scope documented in the handoff.
+Actual animation, public rich input and clipboard effects now have bounded original-client evidence.
+They remain split across normal24/27/28 checkpoints; residual current-APK and final composed
+acceptance are tracked below. The current approval-independent host selection passes52/52 at
+`artifacts/rich-button-current-host-01.xml`. Preserve the full product scope documented in the
+handoff.
 
 ## Current follow-ups
 
@@ -89,3 +93,14 @@ the full product scope documented in the handoff.
   ownership overlaps.
 - [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) remains an
   unapproved local fidelity proposal.
+
+## Approval-independent current work
+
+- [115: residual rich-button native acceptance](issues/115-rich-button-residual-native-acceptance.md)
+  owns true RTL input, clipped rejection, restart recovery and lost-reply reconciliation on normal30.
+- [116: current-APK public custom emoji](issues/116-custom-emoji-current-apk-public-runner.md) owns
+  the complete bridge-v5 public runner and focused normal30 regression.
+- [118: current reproducible setup docs](issues/118-current-reproducible-setup-docs.md) corrects
+  stale scaffold/build/patch-queue instructions without claiming pending behavior.
+- [117: final representative workflow](issues/117-final-representative-workflow.md) remains blocked
+  on the fidelity decisions and all focused implementation/acceptance tickets.

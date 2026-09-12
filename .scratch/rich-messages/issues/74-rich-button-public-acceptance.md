@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed by `custom_emoji_request_observer` on `task/rich-button-public-acceptance`
-Blocked by: broader native effect and clipboard-paste acceptance
+Work state: resolved
+Blocked by: none
 
 Own this ticket, new `tests/fixtures/rich_targets_bot.py`, new
 `tests/test_runner_rich_targets.py` and optional new `tests/rich_targets_scenario.py` only.
@@ -62,3 +62,17 @@ The prepared Android case now passes uninstrumented on normal27 in 106.49 second
 and repeated receipts are unchanged. This case checks public receipt status/evidence shape;
 it does not independently paste the actual clipboard or repeat the complete simulation
 expected-message/history comparison on Android. Those wider contract checks remain open.
+
+## Answer
+
+Later coordinator acceptance closes this ticket's bounded public scenario. Native15 passes the
+complete visible/ABA semantic and correlation endpoint; ticket92 native07 proves actual row/inline
+copy and disabled clipboard effects; ticket95 native03 proves same-layout unrelated-edit survival;
+and the abrupt-supervisor recovery suite passes all six journal boundaries. The ticket's original
+row/inline callback/copy/disabled, repeated-identity, nested-path, hidden/offscreen, stale and repeat
+requirements are therefore accepted without relabeling earlier partial runs.
+
+The wider frozen contract still needs true RTL input, an actually clipped rendered target,
+process-restart invalidation/recovery and native lost-reply reconciliation. Those are a new bounded
+current-APK acceptance task under ticket115, not a reason to leave this completed public scenario
+claimed indefinitely.

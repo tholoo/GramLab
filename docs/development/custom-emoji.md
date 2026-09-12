@@ -8,11 +8,14 @@ settings, three animated carriers, native download and unchanged cold-cache rest
 burst captures pass the unchanged spatial/temporal checks; PNG derivatives are independently
 verified pixel-for-pixel against retained original raw frames.
 
-Failure recovery remains incomplete: the first fault suite reaches its shared-thumbnail case
-then fails cache settlement. Its cause requires additional retained diagnostics; do not infer
-successful recovery from normal rendering. Broader current-message and native regression remain
-separate acceptance gates. See the [implementation contract](custom-emoji-implementation-contract.md)
-for exact shapes and [the current handoff](handoff.md) for combined verification and limits.
+The complete normal24 fault suite now passes three original document failure/recovery cases and
+shared progressive transfer, while the focused shared case passes separately. Those results and
+the lifecycle above establish the approved individual behavior on normal24. They do not prove that
+later overlapping normal30 patches preserve the whole surface or that the reusable public runner
+can compose it; [ticket116](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md)
+owns that remaining acceptance. See the
+[implementation contract](custom-emoji-implementation-contract.md) for exact shapes and
+[the current handoff](handoff.md) for combined verification and limits.
 
 ## Registration
 
@@ -80,10 +83,11 @@ Document lookup authorizes the complete requested set: an unknown or ungranted I
 request unavailable, with no partial documents. Older bridge versions explicitly reject selected
 emoji content rather than silently removing it.
 
-The trusted runner accepts `--bridge-version 4` (Python `run(..., bridge_version=4)`) and records
-that choice with Android inputs. Its default remains 3 for older reviewed APKs. This choice is
-not a scenario TOML field. Use only a reviewed APK supporting the chosen version; complete public
-runner/native rendering acceptance remains pending.
+The trusted runner accepts explicit bridge4 and bridge5 and records that choice with Android
+inputs. Its default remains3 for older reviewed APKs. This choice is not a scenario TOML field.
+Use only a reviewed APK supporting the chosen version. Public registration/capture pieces pass, but
+the complete incoming/static/animated/button/edit/restart workflow through `gramlab run` remains
+ticket116 rather than being inferred from the bespoke lifecycle harness.
 
 The GPL adapter constructs original Telegram Documents and routes their original resolver and
 file loaders through authorized local delivery. Static original rendering may use the thumbnail;

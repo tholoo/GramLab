@@ -31,6 +31,11 @@ nested buttons and not-yet-supported custom emoji/date labels reject explicitly.
 currently understood plain-label semantics without treating arbitrary RichText entities as allowed
 button labels. Labels are content, not a unique target identity.
 
+The later approved [custom-emoji contract](custom-emoji-implementation-contract.md) extends only
+this label grammar with custom-emoji leaves. Date labels and other arbitrary RichText nodes still
+reject. Read both contracts when custom emoji is in scope; this paragraph remains the historical
+base profile rather than a current claim that emoji labels are unsupported.
+
 Optional `style` must be a string. Case-normalize recognized values: absent, empty or `default`
 omits; `primary`, `danger`, `success` and `link` retain their lowercase value. `link` requires a
 callback action. Unknown fields, action wrappers, missing/multiple actions, nulls, type coercion,

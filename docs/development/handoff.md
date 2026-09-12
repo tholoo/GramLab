@@ -29,6 +29,12 @@ edits106, the real-bot scenario105 and the clean public runner-v5 migration107 a
 [Documents](documents.md) records implemented forced-file behavior and standalone edits, including
 their limits.
 
+The current checkout collects 1,240 non-Android and66 Android cases; core19 therefore remains a
+valid historical checkpoint rather than the latest complete inventory. A fresh approval-independent
+rich-target/clipboard/unrelated-edit/recovery host selection passes52/52 in14.533 seconds at
+`artifacts/rich-button-current-host-01.xml`. Do not reuse the historical 53-case Android count for
+the final gate.
+
 Normal30 has complete ordered30-patch source provenance and unchanged APK SHA-256
 `a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. Document-delivery native08
 passes35 original target-instrumentation cases plus a separate cold-process case. The original
@@ -78,6 +84,14 @@ host gate passes43 cases; exact native transfer/cache bytes remain native08/nati
    [Tickets111–114](../../.scratch/rich-messages/issues/111-album-contract.md) are unassigned or
    coordinator-only until those choices are approved. Automatic rich detection remains separately
    unapproved.
+6. Approval-independent work is split into
+   [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
+   [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),
+   and [118: reproducible setup docs](../../.scratch/rich-messages/issues/118-current-reproducible-setup-docs.md).
+   Their host/docs preparation can run in parallel; every Android guest remains serialized. The
+   final composed workflow is
+   [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
+   before the pending fidelity choices and album work.
 
 Remaining operational work includes default upload classification, albums, approved automatic rich
 detection, wider rich-button placement/recovery and the combined current-APK regression.
