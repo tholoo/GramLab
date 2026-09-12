@@ -124,10 +124,10 @@ def test_threshold_edge_loss_preserves_authored_stationary_animation() -> None:
 
 
 def test_sampled_animation_allows_one_skipped_state_in_cyclic_order() -> None:
-    intervals = [
-        (t, t + 100_000_000) for t in (0, 300_000_000, 800_000_000, 1_100_000_000, 1_550_000_000)
-    ]
-    assert require_complete_cycle([0, 1, 3, 0, 2], intervals_ns=intervals) is not None
+    ticks = [0, 1, 3, *range(4, 21)]
+    intervals = [(tick * 250_000_000, tick * 250_000_000 + 100_000_000) for tick in ticks]
+    timing = require_complete_cycle([tick % 4 for tick in ticks], intervals_ns=intervals)
+    assert timing is not None and timing.capture_indexes == (0, 19)
 
 
 @pytest.mark.parametrize("defect", ["drift", "extent", "position", "opaque", "isolated", "scale"])
@@ -171,39 +171,128 @@ def test_shared_fit_returns_identical_transform_for_every_state() -> None:
 def _intervals() -> list[tuple[int, int]]:
     # Each acquisition straddles the point at which an exact-start interpretation
     # would give a contradictory phase. A single 200ms phase satisfies all windows.
-    return [
+    intervals = [
         (0, 240_000_000),
         (360_000_000, 600_000_000),
         (720_000_000, 960_000_000),
         (1_250_000_000, 1_490_000_000),
         (1_850_000_000, 2_090_000_000),
     ]
+    intervals.extend(((2_090_000_000, 2_170_000_000), (2_170_000_000, 2_250_000_000)))
+    intervals.extend(
+        (tick * 250_000_000 + 160_000_000, tick * 250_000_000 + 240_000_000)
+        for tick in range(9, 23)
+    )
+    return intervals
+
+
+def _ideal_burst() -> tuple[list[int], list[tuple[int, int]]]:
+    states = [index % 4 for index in range(24)]
+    intervals = [
+        (index * 250_000_000 + 100_000_000, index * 250_000_000 + 120_000_000)
+        for index in range(24)
+    ]
+    return states, intervals
+
+
+def _bounded_window_burst() -> tuple[list[int], list[tuple[int, int]]]:
+    """A 24-frame burst whose first two captures contradict the stable suffix."""
+    states = [index % 4 for index in range(24)]
+    intervals = [(0, 20_000_000), (250_000_000, 270_000_000)]
+    intervals.extend(
+        (index * 250_000_000 + 300_000_000, index * 250_000_000 + 320_000_000)
+        for index in range(2, 24)
+    )
+    return states, intervals
+
+
+def test_timing_accepts_long_stable_window_when_full_horizon_has_no_phase() -> None:
+    states, intervals = _bounded_window_burst()
+
+    # Independently demonstrate the old full-horizon intersection is empty.
+    full_horizon_lower = max(
+        start - (index + 1) * 250_000_000 + 1 for index, (start, _) in enumerate(intervals)
+    )
+    full_horizon_upper = min(end - index * 250_000_000 for index, (_, end) in enumerate(intervals))
+    assert (full_horizon_lower, full_horizon_upper) == (50_000_001, 20_000_000)
+
+    timing = require_complete_cycle(states, intervals_ns=intervals)
+
+    assert timing is not None
+    assert timing.capture_indexes == (2, 23)
+    assert timing.capture_count == 22
+    assert timing.capture_span_ns == 5_270_000_000
+    assert timing.phase_bounds_ns[0] <= timing.phase_bounds_ns[1]
 
 
 def test_acquisition_uncertainty_has_one_reviewable_phase() -> None:
-    phase = require_complete_cycle([0, 1, 3, 0, 2], intervals_ns=_intervals())
+    ticks = [0, 1, 3, 4, 6, *range(7, 23)]
+    phase = require_complete_cycle([tick % 4 for tick in ticks], intervals_ns=_intervals())
     assert phase is not None and phase[0] <= 200_000_000 <= phase[1]
     with pytest.raises(AssertionError, match="one-second phase"):
         require_complete_cycle(
-            [0, 1, 3, 0, 2], intervals_ns=[(start, start + 1) for start, _ in _intervals()]
+            [tick % 4 for tick in ticks],
+            intervals_ns=[(start, start + 1) for start, _ in _intervals()],
         )
 
 
-@pytest.mark.parametrize(
-    "states", [[0, 3, 1, 0, 2], [0, 2, 1, 3, 0], [0, 0, 0, 1, 0], [0, 1, 0, 1, 0]]
-)
-def test_sampled_phase_rejects_reverse_shuffled_or_missing_states(states: list[int]) -> None:
-    with pytest.raises(AssertionError):
-        require_complete_cycle(states, intervals_ns=_intervals())
+def test_bounded_window_still_rejects_reversal_outside_selected_suffix() -> None:
+    states, intervals = _bounded_window_burst()
+    states[:2] = [1, 0]
+    with pytest.raises(AssertionError, match="reversed"):
+        require_complete_cycle(states, intervals_ns=intervals)
 
 
-@pytest.mark.parametrize("factor", [0.5, 2.0])
-def test_authored_period_rejects_changed_playback_speed(factor: float) -> None:
-    # Keep acquisition widths small and bounded; only the actual elapsed timing changes.
-    starts = [0, 300_000_000, 800_000_000, 1_100_000_000, 1_550_000_000]
-    intervals = [(int(start * factor), int(start * factor) + 10_000_000) for start in starts]
-    with pytest.raises((AssertionError, ValueError)):
-        require_complete_cycle([0, 1, 3, 0, 2], intervals_ns=intervals)
+def test_sampled_phase_rejects_reverse_and_over_skipping() -> None:
+    _, intervals = _ideal_burst()
+    reversed_states = [(-index) % 4 for index in range(24)]
+    with pytest.raises(AssertionError, match="reversed"):
+        require_complete_cycle(reversed_states, intervals_ns=intervals)
+    over_skipping = [index % 4 for index in range(24)]
+    over_skipping[10] = (over_skipping[9] + 3) % 4
+    with pytest.raises(AssertionError, match="skipped"):
+        require_complete_cycle(over_skipping, intervals_ns=intervals)
+
+
+def test_sampled_phase_rejects_short_count_duration_and_incomplete_sequences() -> None:
+    states, intervals = _ideal_burst()
+    with pytest.raises(AssertionError, match="at least 20"):
+        require_complete_cycle(states[:19], intervals_ns=intervals[:19])
+    with pytest.raises(AssertionError, match="20 captures and five seconds"):
+        require_complete_cycle(states[:20], intervals_ns=intervals[:20])
+    with pytest.raises(AssertionError, match="every authored state"):
+        require_complete_cycle([0] * 24, intervals_ns=intervals)
+
+
+def test_sampled_phase_rejects_forward_but_phase_incoherent_sequence() -> None:
+    states = [index % 4 for index in range(24)]
+    intervals = [
+        (index * 300_000_000 + 100_000_000, index * 300_000_000 + 120_000_000)
+        for index in range(24)
+    ]
+    with pytest.raises(AssertionError, match="20 captures and five seconds"):
+        require_complete_cycle(states, intervals_ns=intervals)
+
+
+def test_authored_period_rejects_changed_playback_speed() -> None:
+    slow_states = [index % 4 for index in range(24)]
+    slow_intervals = [
+        (index * 375_000_000 + 100_000_000, index * 375_000_000 + 110_000_000)
+        for index in range(24)
+    ]
+    ticks = [0]
+    for index in range(1, 24):
+        ticks.append(ticks[-1] + (2 if index % 2 == 0 else 1))
+    fast_states = [tick % 4 for tick in ticks]
+    fast_intervals = [
+        (tick * 225_000_000 + 100_000_000, tick * 225_000_000 + 110_000_000) for tick in ticks
+    ]
+    for states, intervals in (
+        (slow_states, slow_intervals),
+        (fast_states, fast_intervals),
+    ):
+        with pytest.raises(AssertionError, match="20 captures and five seconds"):
+            require_complete_cycle(states, intervals_ns=intervals)
 
 
 @pytest.mark.parametrize(
