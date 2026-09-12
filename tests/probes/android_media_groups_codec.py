@@ -48,7 +48,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if not self.authorized():
                 self.respond(401, {})
                 return
-            if self.path == "/v6/snapshot" and snapshots:
+            if self.path in {"/v5/snapshot", "/v6/snapshot"} and snapshots:
                 self.respond(200, snapshots.pop(0))
                 return
             replies = current.get("get", {})

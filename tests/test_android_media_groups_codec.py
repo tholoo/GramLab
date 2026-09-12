@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import http.client
 import json
 import os
 import shutil
@@ -833,6 +834,48 @@ def test_probe_collects_process_results_and_bounded_request_journal(
     assert retained["returncode"] == 2
     assert retained["requests"] == []
     assert retained["unconsumed_snapshots"] == 1
+
+
+def test_probe_fixture_serves_legacy_v5_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    expected = snapshot([text(1)], version=5)
+    Path("media-groups-codec-cases.json").write_text(
+        json.dumps([{"name": "v5-snapshot", "bridge_version": 5, "snapshots": [expected]}])
+    )
+    configuration: dict[str, Any] = {}
+
+    def guest(*arguments: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal configuration
+        if kwargs.get("input") is not None:
+            configuration = json.loads(kwargs["input"])
+        if "/system/bin/app_process" not in arguments:
+            return subprocess.CompletedProcess(arguments, 0, "", "")
+        endpoint = configuration["endpoint"].removeprefix("http://")
+        _guest_host, raw_port = endpoint.rsplit(":", 1)
+        connection = http.client.HTTPConnection("127.0.0.1", int(raw_port), timeout=5)
+        try:
+            connection.request(
+                "GET",
+                "/v5/snapshot",
+                headers={"Authorization": "Bearer " + configuration["capability"]},
+            )
+            response = connection.getresponse()
+            body = response.read()
+        finally:
+            connection.close()
+        assert response.status == 200
+        return subprocess.CompletedProcess(arguments, 0, body.decode(), "")
+
+    observed = probe(guest)
+    assert observed["cases"] == {
+        "v5-snapshot": {
+            "returncode": 0,
+            "result": expected,
+            "requests": [{"method": "GET", "path": "/v5/snapshot"}],
+        }
+    }
 
 
 def _run_android_codec(

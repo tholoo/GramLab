@@ -99,3 +99,19 @@ normal31 APK and codec probe APK, then inspect all five original captures and re
 normal31 guest one and closes ticket113's pending green codec gate. Run the separate public-v6
 Android selector second, then the complete inventoried current-APK Android regression third. Do not
 rebuild normal31 between them; keep this ticket claimed until those native results pass.
+
+## Coordinator focused-run correction
+
+The first combined native attempt at merge commit `9b037d4` completed its one-guest codec/UI
+lifecycle and retained all five UI captures, but the host oracle correctly failed four legacy-v5
+codec cases. The immutable normal31 code requested `/v5/snapshot`; the newly combined fixture had
+hard-coded its queued snapshot response to `/v6/snapshot` and returned HTTP 404. The remaining v6
+codec rejection results and the complete UI probe were retained at
+`artifacts/album-normal31-focused-01-work/`; JUnit is
+`artifacts/album-normal31-focused-01.xml`. This is a harness failure, not an accepted Android gate.
+
+The coordinator widened only the test fixture's queued-snapshot route to exact v5/v6 and added a
+host test which performs an authenticated v5 request through the real fixture server. That focused
+host selection passes 22/22; Ruff format/check and strict mypy pass both changed harness files. The
+APK, codec probe and Android source were not changed or rebuilt. A fresh combined focused gate and
+manual five-capture inspection remain required before ticket113 or this ticket can resolve.
