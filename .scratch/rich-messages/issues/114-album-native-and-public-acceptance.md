@@ -53,7 +53,9 @@ extracting evidence; retain one immutable normal31 APK.
   scenario starts the bot, captures the initial two-photo group, sends the original-composer-
   compatible `documents / اسناد` trigger, and captures the two-document group without a fixed
   sleep. Its retained output compares complete Bot API responses, grouped-edit rejections, World
-  history/events and bridge-v6 snapshot/changes state. The host public/selector slice passes 11/11.
+  history/events and bridge-v6 snapshot/changes state. Both scenario receipts equal the retained
+  interactions; their exact operations/texts, accepted trigger messages, native flags and single
+  original send actions are guarded, including rejection of a virtual fallback in native mode.
 - The focused Android selector is one test and one `android_guest.main` lifecycle. Its probe first
   invokes all 48 existing app-process codec/carrier cases in the same AVD, then installs normal31
   for stock UI/runtime/cache acceptance. The initial screenshot waits for both original photo
@@ -62,14 +64,23 @@ extracting evidence; retain one immutable normal31 APK.
   existing normal31 observer intentionally rejects `getCurrentMessagesGroup() != null`.
 - The probe publishes the two distinct documents after the initial snapshot, requires exactly one
   `events_applied/messages` trace row with token 2 and records the bridge cursor transition from
-  position 2 to 4. It freezes ordered XML row bounds, truncates only document 2's first body after
-  document 1 completes, uses the original mdpi radial point for one retry, requires request counts
-  1 and 2, exact two-copy cache/presentation bytes per document, no partials, and no document GET on
-  cold restart. Five original PNG/XML pairs are retained for coordinator inspection.
-- The final affected host selection passes 177/177 with no failures or skips under the documented
-  isolated network guard; its JUnit is `artifacts/album-native-host-01.xml`. Ruff check/format pass,
-  and strict mypy passes the six production and six new test/probe files. No Android guest or APK
-  build ran in this worker.
+  position 2 to 4. The proxy retains minimal decoded snapshot/change positions, proving one
+  position-2 snapshot, an atomic `[3, 4]` response to `after=2`, no `after=3` or 409/resnapshot, and
+  subsequent `after=4` polling. It freezes ordered XML row bounds, truncates only document 2's first
+  body after document 1 completes, and collects at least 20 stable observations spanning two seconds
+  before the original mdpi radial retry. Host-monotonic proxy/tap timestamps prove the second D2
+  request begins only after the tap starts. Exact status/delivered byte digests bind D1 full once and
+  D2 partial then full, while exact internal `-1_-1.txt`/`-1_-2.pdf` and external
+  `first-album.txt`/`second-album.pdf` identities bind both final and cold inventories with no
+  partials or cold document GETs. Five original PNG/XML pairs are retained; collage layout remains
+  explicitly limited to manual inspection.
+- The focused report helper embeds all five captures plus network/profile/APK/source digest and
+  verified-provenance evidence. The native selector now requires `GRAMLAB_ANDROID_APK_PROVENANCE`
+  and calls the existing complete toolchain/series verifier before entering the guest, while
+  retaining raw result/stdout/stderr and the verified values. The follow-up affected host selection
+  passes 74/74 with no failures or skips under the documented isolated network guard; its JUnit is
+  `artifacts/album-native-host-02.xml`. Ruff check/format and strict mypy pass the changed harness.
+  No Android guest or APK build ran in this worker.
 
 ## Remaining coordinator gates
 

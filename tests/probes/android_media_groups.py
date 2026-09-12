@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.client
 import json
 import re
@@ -88,10 +89,14 @@ class AlbumProxy:
                     "sequence": 0,
                     "method": self.command,
                     "path": self.path,
+                    "started_ns": time.monotonic_ns(),
+                    "finished_ns": None,
                     "status": None,
                     "bytes": 0,
+                    "sha256": None,
                     "truncated": False,
                     "error": None,
+                    "response": None,
                 }
                 with owner._lock:
                     record["sequence"] = len(owner._requests) + 1
@@ -108,6 +113,17 @@ class AlbumProxy:
                     response = connection.getresponse()
                     payload = response.read()
                     record["status"] = response.status
+                    if response.status == 200 and (
+                        self.path == "/v6/snapshot" or self.path.startswith("/v6/changes?")
+                    ):
+                        decoded = json.loads(payload)
+                        if self.path == "/v6/snapshot":
+                            record["response"] = {"message_position": decoded["message_position"]}
+                        elif self.path.startswith("/v6/changes?"):
+                            record["response"] = {
+                                "cursor": decoded["cursor"],
+                                "positions": [row["position"] for row in decoded["changes"]],
+                            }
                     self.send_response(response.status)
                     for name in ("Content-Type", "Content-Length", "Cache-Control"):
                         value = response.getheader(name)
@@ -124,6 +140,7 @@ class AlbumProxy:
                     self.wfile.write(delivered)
                     self.wfile.flush()
                     record["bytes"] = len(delivered)
+                    record["sha256"] = hashlib.sha256(delivered).hexdigest()
                     record["truncated"] = truncate
                     if truncate:
                         record["error"] = "truncated_body"
@@ -132,6 +149,7 @@ class AlbumProxy:
                     record["error"] = record["error"] or "transport_error"
                     self.close_connection = True
                 finally:
+                    record["finished_ns"] = time.monotonic_ns()
                     connection.close()
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -296,8 +314,50 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     def tap_document(xml: str, file_name: str) -> dict[str, Any]:
         row = bounds(xml, file_name)
         point = document_button_point(row)
+        started_ns = time.monotonic_ns()
         adb("shell", "input", "tap", str(point[0]), str(point[1]))
-        return {"file_name": file_name, "bounds": row, "point": list(point)}
+        return {
+            "file_name": file_name,
+            "bounds": row,
+            "point": list(point),
+            "started_ns": started_ns,
+            "finished_ns": time.monotonic_ns(),
+        }
+
+    def stable_failure_window() -> dict[str, Any]:
+        frozen_requests = sum(row["path"] == "/v6/documents/2" for row in proxy.requests())
+        frozen_successes = sum(
+            row.get("event") == "media_load_success" for row in document_events("2")
+        )
+        if frozen_requests != 1 or frozen_successes != 0:
+            raise RuntimeError("D2 did not remain at its first failed request")
+        samples: list[dict[str, int]] = []
+        for _ in range(40):
+            request_count = sum(row["path"] == "/v6/documents/2" for row in proxy.requests())
+            success_count = sum(
+                row.get("event") == "media_load_success" for row in document_events("2")
+            )
+            sample = {
+                "observed_ns": time.monotonic_ns(),
+                "request_count": request_count,
+                "success_count": success_count,
+            }
+            samples.append(sample)
+            if request_count != frozen_requests or success_count != frozen_successes:
+                raise RuntimeError("D2 retried before original radial input")
+            if (
+                len(samples) >= 20
+                and samples[-1]["observed_ns"] - samples[0]["observed_ns"] >= 2_000_000_000
+            ):
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("D2 stable observation window did not span two seconds")
+        return {
+            "request_count": frozen_requests,
+            "success_count": frozen_successes,
+            "samples": samples,
+        }
 
     def inventory() -> dict[str, Any]:
         roots = (
@@ -394,6 +454,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         second_failed_trace = wait_event("2", "media_load_failure")
         failed_xml = wait_screen("album-second-failed", (DOCUMENTS[1][1], DOCUMENTS[1][2]))
         failed_inventory = inventory()
+        retry_guard = stable_failure_window()
         retry_tap = tap_document(failed_xml, DOCUMENTS[1][1])
         final_trace = wait_event("2", "media_load_success")
         final_xml = wait_screen(
@@ -410,9 +471,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         )
         cold_inventory = inventory()
         adb("shell", "am", "force-stop", PACKAGE)
-        requests = proxy.requests()
-        cold_requests = requests[before_restart:]
         accounts = adb("shell", "dumpsys", "account").stdout
+    requests = proxy.requests()
+    cold_requests = requests[before_restart:]
 
     return {
         "codec": codec,
@@ -428,6 +489,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "cold_xml_labels": labels(cold_xml),
         },
         "taps": [first_tap, second_tap, retry_tap],
+        "retry_guard": retry_guard,
         "traces": {
             "first": first_trace,
             "second_failed": second_failed_trace,

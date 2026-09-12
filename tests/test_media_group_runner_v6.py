@@ -105,6 +105,24 @@ def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native
     assert [item["event"] for item in bot] == ["photo_group", "document_group"]
     result = scenario[0]
     history = result["history"]
+    interactions = recorded["interactions"]
+    assert [result["start"], result["composer"]] == interactions
+    assert [(row["operation"], row["text"], row["native"]) for row in interactions] == [
+        ("start_bot_chat", "/start", native),
+        ("type_message", "documents / اسناد", native),
+    ]
+    for index, (interaction, event) in enumerate(zip(interactions, bot, strict=True)):
+        assert len(interaction["sends"]) == 1
+        accepted = interaction["sends"][0]["message"]
+        trigger = event["trigger"]["message"]
+        assert (trigger["message_id"], trigger["text"]) == (
+            accepted["id"],
+            interaction["text"],
+        )
+        assert accepted == history[0 if index == 0 else 3]
+        assert ("android" in interaction) is native
+        if native:
+            assert interaction["android"]["input"]["send_actions"] == 1
     assert history == recorded["histories"]["1"]
     assert [message["id"] for message in history] == list(range(1, 7))
     assert [message.get("media_group_id") for message in history] == [
