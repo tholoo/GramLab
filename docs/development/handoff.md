@@ -24,15 +24,17 @@ deferred and is now frozen.
 
 ## Current completion checkpoint
 
-The Python-only `0.1.0a1` release candidate is prepared on the path to `main`. It retains the
-tested Python 3.13 and Pillow 12.3.0 constraints, adds package/project metadata and an alpha
-changelog, and defines a tag-triggered GitHub OIDC workflow with separate build and publication
-jobs. The GitHub `pypi` environment exists without a token. Action pins, workflow syntax, lock,
-metadata rendering, absolute README links, isolated wheel/sdist installs, CLI entry point, package
-contents and all MIT/Boost notices pass release-specific checks. The 45-entry archives contain no
-Android, tests, cache, Git or runtime artifacts. Python-release ticket 01 records their hashes.
-Publication remains blocked only on the human-authenticated pending PyPI Trusted Publisher form;
-do not push `v0.1.0a1`, rebuild that version or create a GitHub release before that identity exists.
+The Python-only [0.1.0a1 prerelease](https://pypi.org/project/gramlab/0.1.0a1/) is published from
+tag `v0.1.0a1` at commit `2d0ec88e806fba189ef420f0745c74b464255e85`. It retains the tested
+Python 3.13 and Pillow 12.3.0 constraints. GitHub Actions run
+[34718534527](https://github.com/tholoo/GramLab/actions/runs/34718534527) passed separate build and
+OIDC publication jobs without a stored PyPI token. Action pins, workflow syntax, lock, metadata
+rendering, absolute README links, isolated wheel/sdist installs, CLI entry point, package contents
+and all MIT/Boost notices passed release-specific checks. PyPI's two non-yanked artifacts match
+the locally audited sizes and SHA-256 hashes; a fresh index install imports the typed API and runs
+the CLI. The matching [GitHub prerelease](https://github.com/tholoo/GramLab/releases/tag/v0.1.0a1)
+is live. The 45-entry archives contain no Android, tests, cache, Git or runtime artifacts. Do not
+rebuild, replace or move this published version; Python-release ticket 01 records exact evidence.
 
 Recommendation 1 from the developer-excellence report is implemented on `task/scenario-flows`:
 installed and runner-contained scenarios can import `Scenario` plus typed `User`, `Bot`,

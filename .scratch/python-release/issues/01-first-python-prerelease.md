@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
-Blocked by: pending PyPI Trusted Publisher registration
+Work state: resolved
+Blocked by: none
 
 Prepare the Python-only distribution, fast-forward the verified scenario-flow work into `main`,
 push it, and publish the first alpha through a tag-triggered GitHub OIDC workflow. Do not publish an
@@ -32,8 +32,20 @@ tests, Git state, caches and runtime artifacts. Both install in fresh environmen
 public typed API, report version `0.1.0a1` and expose `gramlab --help`; Twine accepts both archives.
 Configuration and local links validate across 292 Markdown files, and `git diff --check` passes.
 
-The remaining blocker is the human-authenticated pending publisher registration at PyPI. The
-ephemeral checked wizard `/tmp/gramlab-pypi-publisher-wizard.sh` opens the authoritative form and
-supplies the exact non-secret identity fields. After registration, push annotated tag `v0.1.0a1`,
-observe the release workflow, verify the public package, create the matching GitHub prerelease and
-record its immutable URLs and hashes here.
+The only account-side blocker was the human-authenticated pending publisher registration at PyPI.
+The ephemeral checked wizard `/tmp/gramlab-pypi-publisher-wizard.sh` supplied the exact non-secret
+identity fields without collecting a token or password.
+
+The user registered the exact pending publisher on 2026-09-13. Annotated tag `v0.1.0a1` points to
+release commit `2d0ec88e806fba189ef420f0745c74b464255e85`. GitHub Actions
+[run 34718534527](https://github.com/tholoo/GramLab/actions/runs/34718534527) completed both the
+separated build and OIDC publish jobs successfully, including distribution inspection, isolated
+wheel/sdist smoke tests and attestation generation.
+
+[PyPI 0.1.0a1](https://pypi.org/project/gramlab/0.1.0a1/) serves both non-yanked artifacts with
+the exact locally audited sizes and hashes above. A new index-resolved environment installed
+`gramlab==0.1.0a1`, imported `Scenario` and `Conversation`, reported the expected distribution
+version and executed `gramlab --help`. The matching public
+[GitHub prerelease](https://github.com/tholoo/GramLab/releases/tag/v0.1.0a1) is published. No APK,
+Android source, credential, test tree, cache or runtime artifact was distributed. The first Python
+prerelease is resolved; future files for this version must never be rebuilt or replaced.

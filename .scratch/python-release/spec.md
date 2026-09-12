@@ -1,7 +1,7 @@
 # Publish the experimental Python package
 
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 
 Prepare and publish GramLab's independently written Python package without distributing the
 separate GPL Android application, acquired upstream source, credentials or runtime artifacts.
