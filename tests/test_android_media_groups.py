@@ -43,6 +43,22 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def difference_response_tokens(rows: list[dict[str, Any]]) -> list[int]:
+    differences = [row for row in rows if row.get("method") == "TL_updates_getDifference"]
+    assert len(differences) % 2 == 0
+    tokens: list[int] = []
+    for index in range(0, len(differences), 2):
+        request, response = differences[index : index + 2]
+        assert request.get("event") == "request" and response.get("event") == "response"
+        assert (request.get("account"), request.get("token")) == (
+            response.get("account"),
+            response.get("token"),
+        )
+        assert type(request.get("token")) is int
+        tokens.append(request["token"])
+    return tokens
+
+
 def write_focused_report(
     root: Path,
     full: dict[str, Any],
@@ -172,6 +188,8 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     assert publication["application"]["phase"] == "applied"
     assert publication["started"]["at_ns"] <= publication["completed"]["at_ns"]
     assert publication["completed"]["at_ns"] <= publication["application"]["at_ns"]
+    precommit_trace = observed["traces"]["application"][: publication["trace_start"]]
+    assert difference_response_tokens(precommit_trace) == publication["precommit_difference_tokens"]
     startup_snapshots = [
         row
         for row in requests
@@ -198,18 +216,13 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     ]
     assert len(live_after_two) == 1
     assert live_after_two[0]["forwarded_ns"] <= publication["application"]["at_ns"]
-    first_live_response = min(row["sequence"] for row in live_after_two)
     assert not [
         row
         for row in requests
         if row["path"] == "/v6/snapshot"
         and row["status"] == 200
         and row["response"]["message_position"] == 4
-        and (
-            row["sequence"] < first_live_response
-            or row["phase"] != "applied"
-            or row["forwarded_ns"] < publication["application"]["at_ns"]
-        )
+        and (row["phase"] != "applied" or row["forwarded_ns"] < publication["application"]["at_ns"])
     ]
     assert not [row for row in requests if row["path"].startswith("/v6/changes?after=3&")]
     after_four = [
@@ -450,6 +463,7 @@ def test_focused_report_retains_five_original_captures_and_provenance(tmp_path: 
         "cold_get",
         "startup_snapshot",
         "snapshot_application",
+        "pending_difference",
         "difference_application",
         "after_three",
         "early_retry",
@@ -543,13 +557,42 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         },
         "publication": {
             "started": {"phase": "publishing", "at_ns": 30, "request_count": 3},
-            "completed": {"phase": "published", "at_ns": 90, "request_count": 3},
-            "application": {"phase": "applied", "at_ns": 150, "request_count": 4},
-            "trace_start": 0,
+            "completed": {"phase": "published", "at_ns": 90, "request_count": 5},
+            "application": {"phase": "applied", "at_ns": 150, "request_count": 5},
+            "trace_start": 2,
+            "precommit_difference_tokens": [8],
         },
         "traces": {
-            "all": [{"event": "events_applied", "method": "messages", "token": 2}],
-            "application": [{"event": "events_applied", "method": "messages", "token": 2}],
+            "all": [
+                {
+                    "event": "request",
+                    "method": "TL_updates_getDifference",
+                    "account": 0,
+                    "token": 8,
+                },
+                {
+                    "event": "response",
+                    "method": "TL_updates_getDifference",
+                    "account": 0,
+                    "token": 8,
+                },
+                {"event": "events_applied", "method": "messages", "token": 2},
+            ],
+            "application": [
+                {
+                    "event": "request",
+                    "method": "TL_updates_getDifference",
+                    "account": 0,
+                    "token": 8,
+                },
+                {
+                    "event": "response",
+                    "method": "TL_updates_getDifference",
+                    "account": 0,
+                    "token": 8,
+                },
+                {"event": "events_applied", "method": "messages", "token": 2},
+            ],
             "first": [{"event": "media_load_success"}],
             "second_failed": [{"event": "media_load_failure"}],
             "final": [
@@ -593,6 +636,17 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             request_defaults
             | {
                 "sequence": 4,
+                "path": "/v6/snapshot",
+                "started_ns": 35,
+                "forwarded_ns": 2_000,
+                "finished_ns": 2_020,
+                "phase": "applied",
+                "status": 200,
+                "response": {"message_position": 4},
+            },
+            request_defaults
+            | {
+                "sequence": 5,
                 "path": "/v6/changes?after=2&limit=100",
                 "started_ns": 40,
                 "forwarded_ns": 100,
@@ -603,7 +657,7 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 5,
+                "sequence": 6,
                 "path": "/v6/changes?after=4&limit=100",
                 "started_ns": 200,
                 "forwarded_ns": 200,
@@ -614,7 +668,7 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 6,
+                "sequence": 7,
                 "path": "/v6/documents/1",
                 "started_ns": 300,
                 "forwarded_ns": 300,
@@ -627,7 +681,7 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 7,
+                "sequence": 8,
                 "path": "/v6/documents/2",
                 "started_ns": 400,
                 "forwarded_ns": 400,
@@ -642,7 +696,7 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 8,
+                "sequence": 9,
                 "path": "/v6/documents/2",
                 "started_ns": 1_100,
                 "forwarded_ns": 1_100,
@@ -653,23 +707,8 @@ def test_focused_oracle_rejects_weakened_native_evidence(
                 "sha256": digests[1],
                 "response": None,
             },
-            request_defaults
-            | {
-                "sequence": 9,
-                "path": "/v6/snapshot",
-                "started_ns": 2_000,
-                "forwarded_ns": 2_000,
-                "finished_ns": 2_020,
-                "phase": "applied",
-                "status": 200,
-                "response": {"message_position": 4},
-            },
         ],
-        "cold_requests": [
-            {
-                "path": "/v6/snapshot",
-            }
-        ],
+        "cold_requests": [],
         "taps": [
             {"file_name": DOCUMENT_NAMES[0], "started_ns": 500},
             {"file_name": DOCUMENT_NAMES[1], "started_ns": 600},
@@ -703,17 +742,36 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         for row in value["requests"][:2]:
             row["response"]["message_position"] = 1
     elif fault == "snapshot_application":
-        value["requests"][-1]["sequence"] = 3
-        value["requests"][-1]["forwarded_ns"] = 95
-        value["requests"][-1]["phase"] = "published"
+        delayed = next(
+            row
+            for row in value["requests"]
+            if row["path"] == "/v6/snapshot" and row["response"]["message_position"] == 4
+        )
+        delayed["forwarded_ns"] = 95
+        delayed["phase"] = "published"
+    elif fault == "pending_difference":
+        value["traces"]["all"].pop(1)
+        value["traces"]["application"].pop(1)
+        value["publication"]["trace_start"] = 1
+        value["publication"]["precommit_difference_tokens"] = []
     elif fault == "difference_application":
         value["traces"]["all"].insert(
-            0,
-            {"event": "request", "method": "TL_updates_getDifference", "token": 9},
+            2,
+            {
+                "event": "request",
+                "method": "TL_updates_getDifference",
+                "account": 0,
+                "token": 9,
+            },
         )
         value["traces"]["application"].insert(
-            0,
-            {"event": "request", "method": "TL_updates_getDifference", "token": 9},
+            2,
+            {
+                "event": "request",
+                "method": "TL_updates_getDifference",
+                "account": 0,
+                "token": 9,
+            },
         )
     elif fault == "after_three":
         value["requests"][4]["path"] = "/v6/changes?after=3&limit=100"
@@ -734,8 +792,8 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             "bytes"
         ] -= 1
     else:
-        value["traces"]["all"].insert(0, {"event": "events_resnapshot"})
-        value["traces"]["application"].insert(0, {"event": "events_resnapshot"})
+        value["traces"]["all"].insert(2, {"event": "events_resnapshot"})
+        value["traces"]["application"].insert(2, {"event": "events_resnapshot"})
     with pytest.raises((AssertionError, KeyError)):
         assert_focused_observation(tmp_path, value)
 

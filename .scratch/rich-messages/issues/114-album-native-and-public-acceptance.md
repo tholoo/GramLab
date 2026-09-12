@@ -67,15 +67,19 @@ extracting evidence; retain one immutable normal31 APK.
 - The probe publishes the two distinct documents after the initial snapshot, requires exactly one
   `events_applied/messages` trace row with token 2 and records the bridge cursor transition from
   position 2 to 4. The proxy retains minimal decoded snapshot/change positions and an explicit
-  publication barrier: all startup requests finish before the atomic commit, and position-4
-  snapshots remain blocked until the host observes the one token-2 `events_applied` trace. This
-  admits legitimate repeated position-2 startup snapshots while proving an atomic `[3, 4]` response
-  to `after=2`, no prior `getDifference`/resnapshot/position-4 snapshot application, no `after=3` or
-  409, and subsequent `after=4` polling. It freezes ordered XML row bounds, truncates only document
-  2's first body after document 1 completes, and collects at least 20 stable observations spanning
-  two seconds before the original mdpi radial retry. Host-monotonic proxy/tap timestamps prove the
-  second D2 request begins only after the tap starts. Exact status/delivered byte digests bind D1
-  full once and D2 partial then full. Exact internal `./cache4/-1_-1.txt` and
+  publication barrier: `begin_publication` drains handler forwarding, then captures the trace
+  boundary before the atomic World commit. Every preceding `TL_updates_getDifference` request must
+  have an exact same-account/token response, while operations begun during the commit remain in the
+  checked application slice. Position-4 snapshots remain physically blocked until the host observes
+  the one token-2 `events_applied` trace. This admits legitimate repeated position-2 startup
+  snapshots and even a snapshot arriving early but forwarded only after application, while proving
+  an atomic `[3, 4]` response to `after=2`, no pending/prior `getDifference`, resnapshot or forwarded
+  position-4 application, no `after=3` or 409, and subsequent `after=4` polling. It freezes ordered
+  XML row bounds, truncates only document 2's first body after document 1 completes, and collects at
+  least 20 stable observations spanning two seconds before the original mdpi radial retry.
+  Host-monotonic proxy/tap timestamps prove the second D2 request begins only after the tap starts.
+  Exact status/delivered byte digests bind D1 full once and D2 partial then full. Exact internal
+  `./cache4/-1_-1.txt` and
   `./cache4/-1_-2.pdf`, plus full package-external `Telegram Files/first-album.txt` and
   `Telegram Files/second-album.pdf` paths, bind both final and cold inventories with no partials or
   cold document GETs. Five original PNG/XML pairs are retained; collage layout remains explicitly
@@ -84,8 +88,8 @@ extracting evidence; retain one immutable normal31 APK.
   verified-provenance evidence. The native selector now requires `GRAMLAB_ANDROID_APK_PROVENANCE`
   and calls the existing complete toolchain/series verifier before entering the guest, while
   retaining raw result/stdout/stderr and the verified values. The follow-up affected host selection
-  passes 77/77 with no failures or skips under the documented isolated network guard; its JUnit is
-  `artifacts/album-native-host-03.xml`. Ruff check/format and strict mypy pass the changed harness.
+  passes 78/78 with no failures or skips under the documented isolated network guard; its JUnit is
+  `artifacts/album-native-host-04.xml`. Ruff check/format and strict mypy pass the changed harness.
   No Android guest or APK build ran in this worker.
 
 ## Remaining coordinator gates

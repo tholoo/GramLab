@@ -365,6 +365,24 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             time.sleep(0.1)
         raise RuntimeError("Live grouped documents did not use the atomic application path")
 
+    def completed_differences(rows: list[dict[str, Any]]) -> list[int]:
+        difference_rows = [row for row in rows if row.get("method") == "TL_updates_getDifference"]
+        if len(difference_rows) % 2:
+            raise RuntimeError("A native difference was pending at the publication boundary")
+        tokens: list[int] = []
+        for index in range(0, len(difference_rows), 2):
+            request, response = difference_rows[index : index + 2]
+            if (
+                request.get("event") != "request"
+                or response.get("event") != "response"
+                or request.get("account") != response.get("account")
+                or request.get("token") != response.get("token")
+                or type(request.get("token")) is not int
+            ):
+                raise RuntimeError("Native difference lifecycle crossed publication")
+            tokens.append(request["token"])
+        return tokens
+
     def wait_photo_assets(asset_ids: set[int]) -> list[dict[str, Any]]:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
@@ -493,6 +511,9 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         photo_xml = capture("album-photos")
         publication_started = proxy.begin_publication()
         try:
+            precommit_trace = trace()
+            precommit_differences = completed_differences(precommit_trace)
+            publication_trace_start = len(precommit_trace)
             with World.open(Path("world")) as world:
                 documents = world.send_media_group(
                     chat_id=chat["id"],
@@ -516,13 +537,13 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 )
                 final_snapshot = world.client_snapshot(user["id"], version=6)
                 live_changes = world.client_changes(user["id"], after=2, limit=100, version=6)
-            publication_trace_start = len(trace())
         finally:
             publication_completed = proxy.finish_publication()
         publication = {
             "started": publication_started,
             "completed": publication_completed,
             "trace_start": publication_trace_start,
+            "precommit_difference_tokens": precommit_differences,
         }
         application_trace, publication["application"] = wait_application(publication_trace_start)
         document_xml = wait_screen(
