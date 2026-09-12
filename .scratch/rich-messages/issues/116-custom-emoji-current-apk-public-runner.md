@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Owner: unassigned
+Work state: claimed
+Owner: custom-emoji-runner-v5
 Blocked by: none
 
 Custom emoji is functionally implemented and has strong normal24 lifecycle, codec and fault
@@ -40,3 +40,62 @@ Coordinator uses canonical normal30 for the new public case and the existing cod
 full fault tests. The focused shared-thumbnail test is redundant if the full fault case passes.
 Retain exact results/captures/reports; retire each guest and remove hash-verified run-local APK
 duplicates afterward.
+
+## Comments
+
+### Worker implementation
+
+`custom-emoji-runner-v5` added only the three assigned public-runner files. The contained scenario
+registers the existing transparent static WebP and transparent VP9 WebM through the public SDK,
+creates an incoming ordinary static entity, and drives one real Bot API peer. That peer publishes
+an ordinary static entity with an inline callback plus a rich paragraph and disabled rich-button
+label whose canonical alternatives (`RICH-ALT` and `BUTTON-ALT`) deliberately differ from the
+catalog fallback. One inline action answers its frozen callback and edits all three bot carriers to
+the animated document. The scenario retains initial, edited and independent cold-relaunch
+captures.
+
+The independent test oracle spells the complete World history/event order, Bot API
+requests/responses and update boundaries, exact bot downloads and headers, recipient-only grants,
+scenario output, source fingerprints, v5 snapshot/changes/callback dependencies, and live v5 HTTP
+snapshot/change/document/asset responses. Simulation makes no renderer claim. The Android-marked
+case reuses the same oracle and additionally requires bridge5/APK identity, three original cold
+launches and PNGs, the exact original inline target, zero accounts, and the existing guest
+network/filesystem containment result.
+
+The meaningful red baseline reached a passing contained registration/publication/callback/edit
+workflow, then failed solely because only the initial and edited captures existed:
+
+```text
+tools/dev default --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest -p no:cacheprovider \
+  tests/test_runner_custom_emoji_v5.py::test_public_runner_retains_initial_edited_and_relaunched_custom_emoji \
+  -q --junitxml=artifacts/custom-emoji-runner-v5-red.xml'
+1 failed: expected custom-emoji-relaunch; observed initial and edited only
+```
+
+Red JUnit SHA-256 is
+`bdf0d0bc33e9a01b1cb11d14325055d316264c00fb24a184c669b80635c26204`.
+After adding the third capture, the complete host oracle including live v5 HTTP passes. A final
+focused regression passes all four selected cases in 8.094 seconds:
+
+```text
+tools/dev default --command unshare --user --map-root-user --net bash -eu -c \
+  'ip link set lo up; .venv/bin/pytest -p no:cacheprovider \
+  tests/test_runner_custom_emoji_v5.py tests/test_runner_custom_emoji_registration.py \
+  tests/test_runner_custom_emoji_captures.py tests/test_custom_emoji_round_trip.py \
+  -m "not android" -q --junitxml=artifacts/custom-emoji-runner-v5-final.xml'
+4 passed
+```
+
+The final JUnit SHA-256 is
+`5fe5c3f4d2db061a2d6fd01ea4583cb7baaff43551b93db180d336bfe35c659a`.
+The new public-runner `result.json` SHA-256 is
+`9a12755b2651f9c2a82742f549ac59a3e6c7d0c8885a6b720e5bd9ce92c33654` under the ignored
+`artifacts/custom-emoji-runner-v5-final-work/` tree. Scoped strict mypy reports no issues in
+the three implementation files; Ruff check and format-check pass; the Android selection collects
+exactly one case without executing a guest; `git diff --check` passes.
+
+No Android guest or APK build ran on the worker branch. The Android case is collected for the
+coordinator's serialized normal30 gate. Changing transparent frames, original transfer/cache reuse
+and zero restart GETs remain the existing lifecycle/fault suite's responsibility and are not
+inferred from these three ordinary runner screenshots.
