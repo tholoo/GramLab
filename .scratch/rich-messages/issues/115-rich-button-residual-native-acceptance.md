@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: task/rich-button-residual
 Blocked by: none
 
@@ -108,3 +108,30 @@ the fresh observation used for the copy action was available and succeeded. The 
 preserved row order. It does not force a device locale, change the APK, or infer RTL from text.
 `artifacts/rich-button-residual-normal30-native-03.xml` remains a failed JUnit because the corrected
 RTL fixture still requires fresh native acceptance.
+
+## Fresh normal30 acceptance
+
+The explicit-RTL case passes **1/1** in89.464 seconds at
+`artifacts/rich-button-residual-normal30-native-04.xml` (SHA-256
+`724f55dd1acfe0eae13b49f229c99165f1dfea19909b3b846bc32679d1305410`). The public runner outcome
+is `passed` with no failure. Its first original observation retains the clipped target at
+`[22,-9,302,25]`, `available=false`, reason `clipped`; both preparation attempts reject before
+dispatch and the native tap count remains zero. The explicit RTL content is visibly right-aligned
+in the inspected original PNG, while the upstream button row preserves payload order. Callback,
+copy and nested callback controls are all available on their operative observations and succeed
+with exactly three original taps.
+
+Four observations have distinct PIDs, client nonces and activation nonces. The deliberate restart
+changes the process and client nonce, preserves the activation nonce and exact semantic state, and
+causes the old copy target to reject with `client_restarted` before a fresh observation succeeds.
+The supervisor drops exactly one already-completed `lost:reply` terminal response; recovery returns
+the identical receipt without another touch or callback. Callback/answer events, World history,
+Bot API updates, clipboard content and request identities match exactly. API36, zero accounts,
+loopback-only guest networking and component filesystem separation pass. The run-local APK matches
+the retained normal30 SHA-256.
+
+After review, the coordinator retired all four residual-run guest disks and four hash-matched
+run-local APK copies across two verified cleanup passes, reclaiming4,993,269,760 allocated bytes.
+All JUnit, result, supervisor, journal, XML, PNG and report evidence remains; the canonical normal30
+APK remains unchanged. This ticket is resolved without an Android patch or production behavior
+change.
