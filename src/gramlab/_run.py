@@ -50,6 +50,7 @@ def execute() -> None:
     interactions = Interactions(
         Path("world"),
         lock=renderer_lock,
+        bridge_version=config["bridge_version"],
         tap=android.tap_inline_button if android is not None else None,
         compose=android.type_message if android is not None else None,
         start_chat=android.start_bot_chat if android is not None else None,

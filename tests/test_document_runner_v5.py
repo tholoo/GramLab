@@ -758,6 +758,7 @@ def test_public_cli_runs_real_document_bot_and_simulated_callback_at_v5(tmp_path
         "seed": 107,
         "now": 1_700_000_000,
         "timeout": 30,
+        "bridge_version": 5,
         "scenario": {
             "entry": "scenario.py",
             "files": [
@@ -860,7 +861,9 @@ def test_public_cli_runs_document_callback_in_original_android_at_v5(tmp_path: P
     assert (output / "report.html").read_text().count("data:image/png;base64,") == 2
 
 
-@pytest.mark.parametrize(("argument", "expected"), [(None, 3), ("3", 3), ("4", 4), ("5", 5)])
+@pytest.mark.parametrize(
+    ("argument", "expected"), [(None, 3), ("3", 3), ("4", 4), ("5", 5), ("6", 6)]
+)
 def test_cli_preserves_default_and_explicit_bridge_selection(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -913,18 +916,18 @@ def test_cli_preserves_default_and_explicit_bridge_selection(
     }
 
 
-@pytest.mark.parametrize("version", [True, False, 2, 6, 4.0, "5"])
+@pytest.mark.parametrize("version", [True, False, 2, 7, 4.0, "5"])
 def test_runner_and_android_strictly_reject_invalid_version_types(
     tmp_path: Path, version: Any
 ) -> None:
-    with pytest.raises(ValueError, match="Android bridge version must be 3, 4 or 5"):
+    with pytest.raises(ValueError, match="Android bridge version must be 3, 4, 5 or 6"):
         run(
             tmp_path / "missing.toml",
             tmp_path / "output",
             profile=profile(),
             bridge_version=version,
         )
-    with pytest.raises(ValueError, match="Android bridge version must be 3, 4 or 5"):
+    with pytest.raises(ValueError, match="Android bridge version must be 3, 4, 5 or 6"):
         Android(profile(), deadline=time.monotonic() + 5, secrets=[], bridge_version=version)
 
 

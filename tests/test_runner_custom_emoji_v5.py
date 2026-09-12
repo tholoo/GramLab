@@ -754,6 +754,7 @@ def test_public_runner_verifies_complete_custom_emoji_v5_workflow(tmp_path: Path
         "seed": 116,
         "now": 1_700_000_000,
         "timeout": 60,
+        "bridge_version": 5,
         "scenario": {
             "entry": "scenario.py",
             "files": [

@@ -148,8 +148,8 @@ class Android:
         secrets: list[str],
         bridge_version: int = 3,
     ) -> None:
-        if type(bridge_version) is not int or bridge_version not in (3, 4, 5):
-            raise ValueError("Android bridge version must be 3, 4 or 5")
+        if type(bridge_version) is not int or bridge_version not in (3, 4, 5, 6):
+            raise ValueError("Android bridge version must be 3, 4, 5 or 6")
         self._bridge_version = bridge_version
         self.profile = profile
         self.deadline = deadline
