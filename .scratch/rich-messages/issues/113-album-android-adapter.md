@@ -2,9 +2,9 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Owner: unassigned
-Blocked by: 112
+Work state: claimed
+Owner: album-android-adapter
+Blocked by: none
 
 After bridge v6 is accepted at the host boundary, add patch
 `clients/android/patches/0032-atomic-media-groups.patch` after the approved rich-detection patch. It

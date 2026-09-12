@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: album-core-v6
 Blocked by: none
 
@@ -22,3 +22,49 @@ and `limit=1000` pages, exact HTTP409 `resnapshot_required`, response-kind depen
 strict malformed-group failures. Encode the approved grouped-edit branch: either both edit methods
 reject with full-state equality, or caption/same-kind edits preserve ID/ordinal/membership and v6
 validates their single-row lineage. No APK, guest or public acceptance belongs to this ticket.
+
+## Worker implementation evidence
+
+Implementation is complete on `task/album-core-v6` and remains claimed pending coordinator review
+and integration. The coordinator granted narrow additional ownership of
+`tests/test_world_creation.py`, `tests/test_media_storage_migration.py`,
+`tests/test_document_storage_migration.py`, and `tests/test_media_world.py` solely for the mechanical
+schema-9-to-10 final-version/table inventory and future-10-to-11 expectation updates.
+
+The meaningful red case failed because `World.send_media_group` did not exist. The implemented
+schema-10 publisher validates and resolves a whole homogeneous 2–10-member photo/document group,
+allocates one World-wide rollback-safe signed-64-bit group ID, and publishes final canonical
+messages, membership, events, revisions and grants in one writer transaction. Repeated attachments
+are counted once physically and once per occurrence logically; album documents always bypass the
+standalone default classifier. Both grouped edit methods reject with full database equality.
+
+Bridge v6 carries canonical `media_group_id`, validates persisted membership/topology, expands a
+trailing creation group by at most nine rows, rejects every inside-group cursor with exact HTTP 409
+`resnapshot_required`, and preserves v1–v5 rejection before callback mutation. V6 snapshots,
+changes, messages, callbacks, assets, documents and custom-emoji-document routes retain v5's
+dependency topology. The pinned, token-free `tests/fixtures/album_storage_v9/world.sql` proves
+populated migration, concurrent opening, interruption rollback, reopen and foreign-key integrity.
+
+Retained green evidence:
+
+- `artifacts/album-core-v6-world-01.xml`: 114 World/migration/media/document cases.
+- `artifacts/album-core-v6-http-bridge-02.xml`: 37 isolated HTTP/bridge regressions after restoring
+  strict v5 document-path rejection.
+- `artifacts/album-core-v6-focused-world-02.xml`: 23 album World/migration cases, including exact
+  100,000,000-byte logical and physical boundaries.
+- `artifacts/album-core-v6-focused-http-bridge-03.xml`: 15 isolated album HTTP/bridge cases.
+- `artifacts/album-core-v6-non-android-01.xml`: all 1,340 non-Android tests passed in 109.06 seconds
+  inside a loopback-only network namespace.
+- Strict mypy, Ruff lint and Ruff formatting pass for all 11 changed Python files.
+
+No Android guest, APK build, external network, publication or unowned production file was used.
+
+## Coordinator integration
+
+The coordinator and an independent read-only reviewer audited the final branch through commit
+`6d22f4d5`. Review-driven red cases exposed and then closed malformed unhashable InputMedia,
+duplicate/gapped persisted membership, malformed message/event JSON and incomplete dependency
+coverage. The corrected branch passed53 focused album, migration, HTTP and bridge cases in the
+coordinator's loopback-only run. On the merged tree, all1,508 non-Android tests pass at88.19%
+coverage; strict mypy, Ruff lint/format and diff checks also pass after mechanical formatting.
+Ticket113 is released for the Android v6 adapter; original-client behavior remains unverified here.

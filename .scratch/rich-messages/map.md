@@ -86,11 +86,10 @@ handoff.
   general files remain documents while frozen recognized specialized families reject atomically.
 - [111: album contract](issues/111-album-contract.md): resolved with the complete recommended atomic
   2–10 member photo/document contract frozen and grouped edits deferred.
-- [112: album core and bridge](issues/112-album-core-and-bridge-v6.md),
-  [113: Android adapter](issues/113-album-android-adapter.md) and
-  [114: native/public acceptance](issues/114-album-native-and-public-acceptance.md) remain unassigned
-  but are specified in dependency order. Ticket112 is assigned after serialized completion of
-  ticket110; tickets113 and114 follow it.
+- [112: album core and bridge](issues/112-album-core-and-bridge-v6.md) is resolved with atomic
+  schema10 storage, strict `sendMediaGroup` and complete-group bridge v6; the combined non-Android
+  gate passes1,508 cases. [113: Android adapter](issues/113-album-android-adapter.md) is assigned,
+  followed by [114: native/public acceptance](issues/114-album-native-and-public-acceptance.md).
 - [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) is an approved
   frozen local fidelity policy; [119](issues/119-rich-auto-detection-implementation.md) has integrated
   host behavior and patch0031, with original-Android codec acceptance awaiting the album-era APK.

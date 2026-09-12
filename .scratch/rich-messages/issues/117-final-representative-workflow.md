@@ -4,7 +4,7 @@ Type: task
 Status: needs-info
 Work state: open
 Owner: coordinator
-Blocked by: implementation tickets 112–114 and 119
+Blocked by: implementation tickets 113–114 and 119
 
 Focused evidence across older APKs does not prove the requested operational milestone. After the
 approved fidelity implementations and tickets110–116,119–120 are integrated, build one public real-bot workflow in

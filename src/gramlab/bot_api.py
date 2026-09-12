@@ -67,6 +67,8 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
         "chat": api_chat,
         "date": message["date"],
     }
+    if "media_group_id" in message:
+        result["media_group_id"] = message["media_group_id"]
     if "rich_message" in message:
         result["rich_message"] = _public_rich(world, int(chat["bot_id"]), message["rich_message"])
     elif "photo" in message:
@@ -237,6 +239,7 @@ def _dispatch(
             "reply_markup",
             "disable_content_type_detection",
         },
+        "sendmediagroup": {"chat_id", "media"},
         "getfile": {"file_id"},
         "getcustomemojistickers": {"custom_emoji_ids"},
         "editmessagetext": {
@@ -314,6 +317,33 @@ def _dispatch(
             cache_time=_integer(parameters.get("cache_time", 0), "cache_time"),
         )
         return True
+    if method == "sendmediagroup":
+        if "chat_id" not in parameters or "media" not in parameters:
+            raise ValueError("chat_id and media are required")
+        items = parameters["media"]
+        if not isinstance(items, list):
+            raise ValueError("media must be an array")
+        all_documents = bool(items) and all(
+            isinstance(item, dict) and item.get("type") == "document" for item in items
+        )
+        typed_album_uploads: dict[str, bytes | DocumentUpload]
+        if all_documents:
+            typed_album_uploads = {
+                name: DocumentUpload(upload.data, upload.filename, upload.content_type)
+                for name, upload in (uploads or {}).items()
+            }
+        else:
+            typed_album_uploads = {name: upload.data for name, upload in (uploads or {}).items()}
+        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        return [
+            _message(world, message)
+            for message in world.send_media_group(
+                chat_id=chat["id"],
+                sender_id=bot_id,
+                media=items,
+                uploads=typed_album_uploads,
+            )
+        ]
     if "chat_id" not in parameters:
         raise ValueError("chat_id is required")
     if method in ("editmessagecaption", "editmessagemedia"):
@@ -672,9 +702,13 @@ class BotAPIServer:
                                 "multipart/form-data"
                             )
                             maximum_upload = (
-                                MAX_DOCUMENT_BYTES
-                                if parts[2].lower() in ("senddocument", "editmessagemedia")
-                                else 20_000_000
+                                100_000_000
+                                if parts[2].lower() == "sendmediagroup"
+                                else (
+                                    MAX_DOCUMENT_BYTES
+                                    if parts[2].lower() in ("senddocument", "editmessagemedia")
+                                    else 20_000_000
+                                )
                             )
                             maximum = maximum_upload + 200_000 if multipart else 65_536
                             if not 0 <= length <= maximum:

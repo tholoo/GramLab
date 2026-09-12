@@ -91,6 +91,12 @@ passes183 scanner/Bot-API cases; all15 patch-stage cases, strict typing and Ruff
 exact full pre-integration gate passed1,401/1,401 at88.25% coverage. Ticket119 remains claimed only
 until patch0031 is compiled into the album-era APK and its collected original codec case passes.
 
+Atomic photo/document albums are integrated through the host and bridge boundaries. Schema10,
+strict homogeneous 2–10-member `sendMediaGroup`, rollback-safe World-wide group IDs and bridge-v6
+complete-group pagination pass53 focused coordinator cases. The combined loopback-only
+non-Android gate passes1,508/1,508 at88.19% coverage. Ticket112 is resolved; ticket113 now owns the
+GPL Android adapter patch, with native/public acceptance still pending in ticket114.
+
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
@@ -111,14 +117,15 @@ until patch0031 is compiled into the album-era APK and its collected original co
    [classification contract](default-document-classification-proposal.md) is integrated: general
    files remain documents and recognized unsupported specialized families reject atomically.
    [Ticket110](../../.scratch/rich-messages/issues/110-default-document-classification.md) passes73
-   affected HTTP/edit/contained-bot cases; album-core ticket112 is now assigned.
+   affected HTTP/edit/contained-bot cases.
 5. The [album contract](albums-implementation-proposal.md) is frozen with its 100,000,000-byte
    logical aggregate, rollback-safe World-wide group IDs, bridge-v6 complete-group pagination and
    grouped edits deferred. [Ticket111](../../.scratch/rich-messages/issues/111-album-contract.md) is
-   resolved. Tickets112–114 are specified in dependency order; ticket112 starts after serialized
-   completion of ticket110. The approved automatic rich detector's host behavior and patch0031 are
-   integrated in [ticket119](../../.scratch/rich-messages/issues/119-rich-auto-detection-implementation.md);
-   its original codec gate awaits the album-era APK.
+   resolved, and ticket112's host/bridge implementation is integrated. Ticket113 now owns the
+   Android adapter; ticket114 follows for native/public acceptance. The approved automatic rich
+   detector's host behavior and patch0031 are integrated in
+   [ticket119](../../.scratch/rich-messages/issues/119-rich-auto-detection-implementation.md); its
+   original codec gate awaits the same album-era APK.
 6. Approval-independent acceptance work is split into
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),
@@ -135,8 +142,8 @@ until patch0031 is compiled into the album-era APK and its collected original co
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
    before the approved fidelity implementations and album work.
 
-Remaining operational work includes albums, approved automatic rich detection and the combined
-current-APK regression.
+Remaining operational work includes original-Android album delivery, the rich auto-detection codec
+gate and the combined current-APK regression.
 Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation

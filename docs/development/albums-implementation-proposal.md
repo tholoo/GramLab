@@ -1,6 +1,8 @@
 # Proposed atomic photo and document albums
 
-Status: frozen architecture and fidelity contract; approved on 2026-09-12 and not implemented.
+Status: frozen architecture and fidelity contract; approved on 2026-09-12. Schema10, the atomic
+World/Bot API publisher and bridge v6 are implemented; the Android adapter and native acceptance
+remain pending.
 
 The user approved the complete recommended contract below, including the exact first-profile
 fields and byte bounds, rollback-safe World-wide group IDs, bridge-v6 complete-group delivery and

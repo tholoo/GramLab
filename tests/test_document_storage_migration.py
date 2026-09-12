@@ -60,7 +60,7 @@ def test_populated_v8_preserves_complete_v4_contract_and_reopen(tmp_path: Path) 
     assert_legacy_outputs(directory)
     assert_legacy_outputs(directory)
     with closing(sqlite3.connect(directory / "world.sqlite3")) as connection, connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (9,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (10,)
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         for table in ("documents", "bot_document_files", "document_grants"):
@@ -154,7 +154,7 @@ def test_interrupted_migration_rolls_back_and_retries(
             World.open(directory)
     assert database_state(directory) == before
     assert_legacy_outputs(directory)
-    assert database_state(directory)[0] == 9
+    assert database_state(directory)[0] == 10
 
 
 def test_concurrent_openers_serialize_schema8_migration(
