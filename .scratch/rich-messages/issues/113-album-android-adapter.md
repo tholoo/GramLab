@@ -3,7 +3,7 @@
 Type: task
 Status: ready-for-agent
 Work state: claimed
-Owner: album-android-adapter
+Owner: coordinator
 Blocked by: none
 
 Worker dependency handoff: the coordinator authorized read-only use of the pinned primary-checkout
@@ -86,3 +86,13 @@ claim that the public runner selects integer 6 yet. The album-era build, provena
 codec remain coordinator-owned. Native execution proof for runtime `processUpdates` batching, UI
 resnapshot reconciliation and cursor advancement is likewise deferred to ticket114; ticket113 owns
 their reviewed/static adapter sequencing and the direct bridge codec contract only.
+
+## Coordinator build and gate sequencing
+
+The reviewed adapter was integrated at `d840f2f` and one fresh contained normal31 build completed
+from the pinned upstream plus all 32 patches. Its immutable APK has SHA-256
+`e60a873fc0283b270a35538c63a5f6e701e74cfecb8f10cfce35af670c57be7a`; ignored source provenance is
+retained at `.cache/local-notes/normal31-build-provenance.json`. To preserve the approved limit of
+exactly three normal31 guests, the app-process green is combined with ticket114's first focused
+album guest rather than booting a fourth codec-only guest. This ticket remains claimed by the
+coordinator until that combined gate passes.

@@ -2,9 +2,15 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Owner: unassigned
+Work state: claimed
+Owner: album-native-acceptance
 Blocked by: 112 and 113
+
+Sequencing note: ticket112 is resolved and ticket113's reviewed adapter, immutable normal31 APK and
+source/build provenance are integrated and complete. Its remaining app-process green is deliberately
+part of this ticket's first focused guest so the approved normal31 inventory remains exactly three
+serial runs. Implementation and host checks may proceed now; the first guest closes that final
+ticket113 gate before the public and final-regression guests run.
 
 After the core and adapter are integrated, add the focused real-bot/scenario and public-runner
 acceptance. Own `src/gramlab/runner.py`, `src/gramlab/__main__.py`, `src/gramlab/_android.py`,
