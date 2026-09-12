@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from gramlab.bot_api import BotAPIServer
-from gramlab.rich_messages import rich_message
+from gramlab.rich_messages import _Candidate, _select_candidates, rich_message
 from gramlab.world import World
 
 
@@ -153,15 +153,84 @@ CANDIDATES = (
     ("bot_command", "/start"),
     ("bank_card_number", "4111-1111-1111-1111"),
 )
+CANDIDATE_KINDS = tuple(kind for kind, _ in CANDIDATES)
 
 
 @pytest.mark.parametrize("left,right", permutations(CANDIDATES, 2))
-def test_every_candidate_precedence_pair_preserves_earliest_then_later(
+def test_every_ordered_candidate_pair_is_detected_independently(
     left: tuple[str, str], right: tuple[str, str]
 ) -> None:
     result = rich_message(paragraph(f"{left[1]} | {right[1]}"))["blocks"][0]["text"]
     assert isinstance(result, list)
     assert [part["type"] for part in result if isinstance(part, dict)] == [left[0], right[0]]
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    (
+        "a@example.test",
+        "+12025550100",
+        "@alpha",
+        "#tag",
+        "$GRAM",
+        "/start",
+        "4111111111111111",
+    ),
+)
+def test_earlier_url_consumes_every_reachable_nested_family(suffix: str) -> None:
+    displayed = f"https://example.test/{suffix}"
+    assert rich_message(paragraph(displayed)) == paragraph(entity("url", displayed, url=displayed))
+
+
+def test_other_reachable_overlaps_apply_earliest_start_then_longest_match() -> None:
+    assert rich_message(paragraph("a@example.test")) == paragraph(
+        entity("email_address", "a@example.test", email_address="a@example.test")
+    )
+    assert rich_message(paragraph("https://example.test/#tag")) == paragraph(
+        entity(
+            "url",
+            "https://example.test/#tag",
+            url="https://example.test/#tag",
+        )
+    )
+    assert rich_message(paragraph("+378282246310005")) == paragraph(
+        entity("phone_number", "+378282246310005", phone_number="+378282246310005")
+    )
+    assert rich_message(paragraph("4111111111111111.test")) == paragraph(
+        entity(
+            "url",
+            "4111111111111111.test",
+            url="https://4111111111111111.test",
+        )
+    )
+
+
+def test_candidate_selection_is_earliest_then_longest_without_mutating_input() -> None:
+    found = [
+        _Candidate(1, 20, "email_address"),
+        _Candidate(0, 2, "bank_card_number"),
+    ]
+    assert _select_candidates(found) == [_Candidate(0, 2, "bank_card_number")]
+    assert found == [
+        _Candidate(1, 20, "email_address"),
+        _Candidate(0, 2, "bank_card_number"),
+    ]
+    assert _select_candidates(
+        [_Candidate(0, 4, "email_address"), _Candidate(0, 9, "bank_card_number")]
+    ) == [_Candidate(0, 9, "bank_card_number")]
+
+
+@pytest.mark.parametrize(
+    "left,right",
+    permutations(CANDIDATE_KINDS, 2),
+)
+def test_fixed_priority_breaks_every_equal_start_and_length_tie(left: str, right: str) -> None:
+    # Cross-family equal-start/equal-length matches cannot arise from the frozen grammars:
+    # their leading syntax is disjoint, while digit-led bank-card/bare-domain overlap has
+    # different lengths. Synthetic candidates therefore exercise the pure final tie-break.
+    found = [_Candidate(0, 5, left), _Candidate(0, 5, right)]
+    expected = min((left, right), key=CANDIDATE_KINDS.index)
+    assert _select_candidates(found) == [_Candidate(0, 5, expected)]
 
 
 def test_styles_are_preserved_and_opaque_author_boundaries_are_not_scanned() -> None:

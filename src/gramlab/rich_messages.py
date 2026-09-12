@@ -243,6 +243,25 @@ def _add_matches(
         found.append(_Candidate(start, end, kind, metadata))
 
 
+def _select_candidates(found: list[_Candidate]) -> list[_Candidate]:
+    ordered = sorted(
+        found,
+        key=lambda candidate: (
+            candidate.start,
+            -(candidate.end - candidate.start),
+            _CANDIDATE_PRIORITY[candidate.kind],
+        ),
+    )
+    selected: list[_Candidate] = []
+    consumed = 0
+    for candidate in ordered:
+        if candidate.start < consumed:
+            continue
+        selected.append(candidate)
+        consumed = candidate.end
+    return selected
+
+
 def _detected_text(value: str) -> Any:
     found: list[_Candidate] = []
     starts = [
@@ -261,20 +280,7 @@ def _detected_text(value: str) -> Any:
         (_BANK_CARD_RE, "bank_card_number"),
     ):
         _add_matches(found, value, starts, expression, kind)
-    found.sort(
-        key=lambda candidate: (
-            candidate.start,
-            -(candidate.end - candidate.start),
-            _CANDIDATE_PRIORITY[candidate.kind],
-        )
-    )
-    selected: list[_Candidate] = []
-    consumed = 0
-    for candidate in found:
-        if candidate.start < consumed:
-            continue
-        selected.append(candidate)
-        consumed = candidate.end
+    selected = _select_candidates(found)
     if not selected:
         return value
     parts: list[Any] = []

@@ -54,9 +54,10 @@ Regression evidence:
 
 - red: `artifacts/rich-auto-detection-red-01.xml`, 86/86 focused cases failed before the behavior
   existed;
-- final focused: `artifacts/rich-auto-detection-green-03.xml`, 118/118 passed with zero skips;
-- exact final non-Android gate: `artifacts/rich-auto-detection-core-02.xml`, 1,336/1,336 passed with
-  zero skips and 88.23% coverage;
+- final focused: `artifacts/rich-auto-detection-followup-focused-01.xml`, 183/183 passed with zero
+  skips;
+- exact final non-Android gate: `artifacts/rich-auto-detection-followup-core-01.xml`, 1,401/1,401
+  passed with zero skips and 88.25% coverage;
 - Ruff check/format and strict mypy pass for the owned production, host-test and Android-probe
   files;
 - `tests/test_android_patch_stage.py` passes 15/15, a fresh local pinned-source preparation applies
@@ -69,3 +70,14 @@ The only existing-test edit removes the two obsolete omitted/false invalid examp
 invalid cases remain. The coordinator also granted the narrow patch-queue README update. Shared
 handoff, proposal status and compatibility records still require coordinator reconciliation after
 integration.
+
+Coordinator review correctly found that the original ordered-pair matrix demonstrated independent
+left-to-right detections rather than overlap precedence. The follow-up names that matrix honestly,
+adds public cases for every reachable nested-family URL overlap plus email/domain, phone/card and
+same-start card/domain overlap, and factors selection into a non-mutating pure helper. Direct tests
+prove earliest start, longest match and all 56 ordered cross-family equal-start/equal-length fixed-
+priority ties. Such cross-family equal-length ties are unreachable under the frozen grammars:
+leading syntax separates most families, email syntax cannot be a bare domain, and the only shared
+digit-led bank-card/bare-domain start necessarily has different lengths. The synthetic pure-helper
+matrix therefore pins the required deterministic fallback without making a false public-grammar
+claim.
