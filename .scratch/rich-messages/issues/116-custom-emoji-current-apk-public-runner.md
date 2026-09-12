@@ -182,8 +182,29 @@ clean exact-pixel rerun passes.
 
 The fault probe now uses a shared bounded barrier after APK installation: it polls only the
 dedicated guest's `dumpstate` PID, requires a continuous one-second report-free interval before
-capturing, fails closed on unexpected status or a60-second bound, and records whether a report was
+capturing, fails closed on unexpected status or a 60-second bound, and records whether a report was
 observed plus elapsed/quiet timing. It does not disable UWB, alter the emulator profile, retry the
 test or relax the exact-pixel oracle. The focused test first failed at collection because the
 helper did not exist (`artifacts/system-report-barrier-red-01.xml`), then passed **8/8** at
 `artifacts/system-report-barrier-green-01.xml`; scoped Ruff, format and strict mypy checks pass.
+
+The fresh focused fault rerun passes **1/1** in281.715 seconds at
+`artifacts/custom-emoji-normal30-fault-03.xml` (SHA-256
+`30b5d3d0e3d96a2dabbf37e4f3ebcc2a11f31566ac629272d5c2d93cc1088f40`). This boot observed no
+platform report and established the required quiet interval in1,257.695 milliseconds. All three
+failed/idle carrier crops have zero changed pixels and identical UI XML. Each recovery renders the
+exact authored blue glyph count; the shared-thumbnail case issues one paired document request and
+one held asset request, retains the glyph after the first carrier is removed, and completes the
+exact cached asset. Original screenshots were manually inspected and contain no system toast. The
+copied APK SHA-256 exactly matches normal30, API36 and zero-account/network/filesystem containment
+checks pass. The earlier combined fault failure remains useful diagnostic evidence but is superseded
+for acceptance by this clean exact-pixel run. A setup-only `fault-02` invocation selected an internal
+serialized profile instead of the schema-wrapped runtime manifest and failed before guest launch;
+it is retained as `artifacts/custom-emoji-normal30-fault-02-setup-red.xml` and makes no product or
+native claim.
+
+After acceptance review, the coordinator removed48 superseded guest-disk files and9 run-local APK
+copies whose SHA-256 matched the retained canonical normal30 APK, reclaiming9,478,701,056 allocated
+bytes. The cleanup revalidated the canonical APK plus371 retained JUnit/JSON/log/XML/PNG evidence
+files after deletion. Only the latest normal30 lifecycle-failure guest disk remains available for
+the unresolved timing diagnosis; all other reports and captures remain independently inspectable.
