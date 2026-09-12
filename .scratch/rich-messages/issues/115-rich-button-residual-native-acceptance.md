@@ -2,8 +2,8 @@
 
 Type: task
 Status: ready-for-agent
-Work state: open
-Owner: unassigned
+Work state: claimed
+Owner: task/rich-button-residual
 Blocked by: none
 
 The public rich-target API and its callback/copy/disabled actions are implemented. Native15 proves
@@ -47,3 +47,26 @@ checks, Android collection, scoped strict mypy and Ruff only. No guest, APK buil
 Coordinator first reruns the existing public rich-target Android case on immutable normal30, then
 runs this one focused residual case under `android-gate`; defer the complete Android inventory until
 album integration.
+
+## Worker preparation
+
+`task/rich-button-residual` owns this ticket and added one compact, independently specified
+real-bot fixture/scenario plus a test-only native supervisor. The source oracle fixes four canonical
+paths: the mid-message clipped row control, Persian-first visible row callback/copy controls and a
+distinct nested inline callback. The supervisor only wraps the frozen public/original seams: it
+records original observations and touches, force-stops/relaunches the actual application once
+before old-copy preparation, and drops exactly one already-completed `lost:reply` control response.
+It never scrolls, supplies coordinates, invokes an action directly or retries input.
+
+The meaningful red baselines were retained outside Git as
+`artifacts/rich-button-residual-red-01.xml` (contained scenario/fixture absent) and
+`artifacts/rich-button-residual-host-red-01.xml` (native supervisor absent). The resulting focused
+contained gate passes **4/4** non-Android tests in the loopback-only namespace at
+`artifacts/rich-button-residual-focused-final-03.xml`. It covers the exact simulation messages,
+canonical target order, receipts, histories, events and Bot API exchange, plus single-drop/normal-
+repeat host behavior and bounded capability-redacted supervisor evidence. Scoped strict mypy and
+Ruff check/format pass for all four new Python files.
+Exactly one Android case collects; no guest or APK build was run by this worker, so original clipped
+geometry, process PIDs/nonces, RTL capture and lost-reply native correlation remain deliberately
+unclaimed until the coordinator's serialized normal30 gate. Keep this ticket claimed until that
+integration evidence passes.
