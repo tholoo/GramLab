@@ -9,6 +9,7 @@ _WRAPPERS = frozenset(
     "bold italic underline strikethrough spoiler subscript superscript marked code".split()
 )
 _LINK_FIELDS = {"url": "url", "email_address": "email_address", "phone_number": "phone_number"}
+_GENERATED_TEXT = frozenset(("mention", "hashtag", "cashtag", "bot_command", "bank_card_number"))
 _ACTIONS = frozenset(("callback_data", "copy_text", "disabled"))
 
 Path = list[str | int]
@@ -105,6 +106,8 @@ def _text(value: Any, path: Path, result: list[Occurrence]) -> None:
         _fields(item, {"type", "text", metadata}, {"type", "text", metadata}, "text")
     elif kind == "text_mention":
         _fields(item, {"type", "text", "user_id"}, {"type", "text", "user_id"}, "text")
+    elif kind in _GENERATED_TEXT:
+        _fields(item, {"type", "text"}, {"type", "text"}, "text")
     else:
         raise ValueError("Unsupported canonical rich text")
     _text(item["text"], [*path, "text"], result)

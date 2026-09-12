@@ -1,0 +1,13 @@
+schema = 1
+mode = "simulation-only"
+seed = 117
+now = 1700000000
+timeout = 120
+
+[scenario]
+entry = "scenario.py"
+files = ["scenario.py", "assets.py"]
+
+[bots.representative]
+entry = "bot.py"
+files = ["bot.py", "assets.py"]
