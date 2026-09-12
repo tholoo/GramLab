@@ -217,6 +217,27 @@ def _retain_archive(guest: Callable[..., subprocess.CompletedProcess[str]]) -> N
         raise pack_error
 
 
+def _retain_process_crash(
+    guest: Callable[..., subprocess.CompletedProcess[str]], mode: str
+) -> None:
+    commands = {
+        "crash-log": ["logcat", "-b", "crash", "-d", "-v", "threadtime", "-t", "200"],
+        "exit-info": ["dumpsys", "activity", "exit-info", _PACKAGE],
+    }
+    for name, arguments in commands.items():
+        try:
+            _observed_command(
+                guest,
+                f"document-delivery-{mode}-{name}.json",
+                "shell",
+                "-T",
+                shlex.join(arguments),
+                timeout=30,
+            )
+        except Exception:  # noqa: S110 — retain evidence without masking the original crash.
+            pass
+
+
 def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, object]:
     def command(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         result = guest(*args, **kwargs)
@@ -259,6 +280,8 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             if max(len(result.stdout.encode()), len(result.stderr.encode())) > _PROCESS_LIMIT:
                 raise RuntimeError("Native document-delivery output exceeds bound")
             safe_stdout = result.stdout.replace(_SECRET, "[REDACTED]")
+            if "INSTRUMENTATION_RESULT: shortMsg=Process crashed." in safe_stdout:
+                _retain_process_crash(guest, mode)
             code, decoded = instrumentation_result(safe_stdout)
             results[mode] = {
                 "returncode": result.returncode,

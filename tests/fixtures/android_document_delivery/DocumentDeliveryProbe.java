@@ -125,6 +125,9 @@ public final class DocumentDeliveryProbe {
             diagnosticWrite(String.format(java.util.Locale.ROOT,"event-%03d",position),record);
         } catch(Exception error) {diagnosticWriteError=error.getClass().getName();}
     }
+    private static void diagnosticAdvance(String stage) {
+        diagnosticStep=stage;diagnosticCheckpoint("case_step",null);
+    }
     static void startDiagnostics(Context context,String mode) {
         diagnosticStarted=android.os.SystemClock.elapsedRealtime();diagnosticOperationThread=Thread.currentThread().getId();
         diagnosticPrefix=(java.util.Arrays.asList("suite","restart","filesystem","rename").contains(mode)?mode:"invalid")+"-"+android.os.Process.myPid();
@@ -500,6 +503,20 @@ public final class DocumentDeliveryProbe {
         }
         listener = new Listener(); loader.setDelegate(listener);
     }
+    private static void initializeRuntime() throws Exception {
+        File runtimeDirectory=new File(ApplicationLoader.applicationContext.getFilesDir(),"gramlab");
+        Files.createDirectories(runtimeDirectory.toPath());
+        File input=new File(runtimeDirectory,"config.json");
+        peer.json("/v5/snapshot",snapshot(5,descriptors,array()));
+        Files.write(input.toPath(),config.toString().getBytes(StandardCharsets.UTF_8),
+                java.nio.file.StandardOpenOption.CREATE_NEW);
+        try {
+            GramLabRuntime.initialize(ApplicationLoader.applicationContext);
+            require(GramLabRuntime.now()==100,"original_runtime_time");
+        } finally {
+            require(Files.deleteIfExists(input.toPath()),"remove_runtime_configuration");
+        }
+    }
     private static Result await() throws Exception {
         Result result = listener.terminal.poll(8,TimeUnit.SECONDS); require(result != null, "notification_timeout"); return result;
     }
@@ -690,10 +707,14 @@ public final class DocumentDeliveryProbe {
         });
         run("presentation_collision_and_database_reopen", () -> {
             loadSetup();
+            diagnosticAdvance("collision.setup_complete");
+            initializeRuntime();
+            diagnosticAdvance("collision.runtime_initialized");
             File externalRoot=ApplicationLoader.applicationContext.getExternalFilesDir(null);
             require(externalRoot!=null,"external_destination_unavailable");
             File external=new File(externalRoot,"document-delivery-collision-"+sequence);
             Files.createDirectory(external.toPath());
+            diagnosticAdvance("collision.external_directory");
             SparseArray<File> originalDirs=new SparseArray<>();
             for(int kind=0;kind<=6;kind++)originalDirs.put(kind,FileLoader.getDirectory(kind));
             originalDirs.put(FileLoader.MEDIA_DIR_FILES,external);FileLoader.setMediaDirs(originalDirs);
@@ -701,6 +722,7 @@ public final class DocumentDeliveryProbe {
             byte[] secondBytes="second payload\n".getBytes(StandardCharsets.UTF_8);
             JSONObject second=descriptor("102","same.bin","",secondBytes); install(array(first,second));
             TLRPC.Document a=project(first),b=project(second);
+            diagnosticAdvance("collision.documents_projected");
             TLRPC.TL_message aMessage=new TLRPC.TL_message(); aMessage.message=""; aMessage.id=101; aMessage.date=100;
             aMessage.peer_id=new TLRPC.TL_peerUser(); aMessage.peer_id.user_id=2;
             aMessage.from_id=new TLRPC.TL_peerUser(); aMessage.from_id.user_id=2;
@@ -712,17 +734,23 @@ public final class DocumentDeliveryProbe {
             TLRPC.TL_user sender=new TLRPC.TL_user();sender.id=2;sender.first_name="Files";sender.bot=true;people.put(2L,sender);
             java.lang.reflect.Constructor<MessageObject> constructor=MessageObject.class.getConstructor(
                     int.class,TLRPC.Message.class,java.util.AbstractMap.class,boolean.class,boolean.class);
+            diagnosticAdvance("collision.message_objects");
             MessageObject aParent=constructor.newInstance(3,aMessage,people,false,false), bParent=constructor.newInstance(3,bMessage,people,false,false);
             require(FileLoader.canSaveAsFile(aParent)&&FileLoader.canSaveAsFile(bParent),"original_can_save");
             File original=new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_FILES),"same.bin"); Files.write(original.toPath(),PAYLOAD);
             peer.bytes("/v5/documents/101",PAYLOAD,"application/octet-stream"); peer.bytes("/v5/documents/102",secondBytes,"application/octet-stream");
+            diagnosticAdvance("collision.load_submit");
             loader.loadFile(a,aParent,1,0); loader.loadFile(b,bParent,1,10);
-            Result left=await(),right=await(); Map<String,Result> results=new LinkedHashMap<>();results.put(left.name,left);results.put(right.name,right);
+            Result left=await();diagnosticAdvance("collision.first_completion");
+            Result right=await();diagnosticAdvance("collision.second_completion");
+            Map<String,Result> results=new LinkedHashMap<>();results.put(left.name,left);results.put(right.name,right);
             loaded(results.get(FileLoader.getAttachFileName(a)),a,PAYLOAD);loaded(results.get(FileLoader.getAttachFileName(b)),b,secondBytes);
             List<String> names=new ArrayList<>(Arrays.asList(left.file.getName(),right.file.getName())); Collections.sort(names);
             require(names.equals(Arrays.asList("same (1).bin","same (2).bin")),"collision_suffixes");
             require(Arrays.equals(Files.readAllBytes(original.toPath()),PAYLOAD),"existing_file_replaced");
+            diagnosticAdvance("collision.database_barrier");
             databaseBarrier(loader.getFileDatabase());
+            diagnosticAdvance("collision.database_reopen");
             FilePathDatabase reopened=new FilePathDatabase(3);
             for (TLRPC.Document document:Arrays.asList(a,b)) {
                 String expected=results.get(FileLoader.getAttachFileName(document)).file.toString();

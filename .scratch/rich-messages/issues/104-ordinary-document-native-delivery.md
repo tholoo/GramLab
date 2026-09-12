@@ -1,10 +1,10 @@
 # Deliver ordinary documents through the original Android loader
 
 Type: task
-Status: in-progress
-Work state: claimed
-Owner: task/document-delivery-fixture-init
-Blocked by: original production delivery/UI native acceptance pending
+Status: ready-for-agent
+Work state: integrated; loader and cold-cache native acceptance passed; UI105 pending
+Owner: coordinator
+Blocked by: original production UI acceptance in ticket105
 
 Implement the GPL adapter side of the [frozen document contract](../../../docs/development/documents-implementation-contract.md).
 World99, Bot API102, v5 HTTP103 and codec101 are integrated. The codec's host checks and coordinator-run 34-case actual native gate pass. Preserve the complete operational scope; this is the next
@@ -222,3 +222,39 @@ The compiled fixture source is
 resulting DEX is `119668fd7063fd7f6c52c0eb6df9d6186d59900cf3b2d6e365a3279d266e534c`.
 No production patch, after-hash manifest, case/oracle, deadline, Android build or guest run changed.
 Actual native delivery and UI acceptance remain pending coordinator execution.
+
+## Native delivery acceptance
+
+Coordinator native04 and native05 reproduced the same target-process crash after34 passing cases;
+native05 had no overlapping UWB bugreport or dumpstate work, ruling out that environmental theory.
+Native07 added bounded final-case checkpoints plus crash-buffer and package exit-reason retention.
+It located the failure inside the original `MessageObject` constructor, before either document
+request: Telegram's scheduled transcription callback reached patched
+`ConnectionsManager.getCurrentTime`, and `GramLabRuntime.now` correctly rejected the fixture's
+missing runtime snapshot with `GRAMLAB_NOT_INITIALIZED`. Android retained reason4
+`APP CRASH(EXCEPTION)`. The production application path was not defective.
+
+The fixture now mirrors that suppressed `ApplicationLoader.onCreate` prerequisite immediately
+before original message construction: it serves the exact current loopback v5 snapshot, invokes
+the unchanged public `GramLabRuntime.initialize` path, verifies the frozen world time and deletes
+the secret-bearing temporary configuration before archive packing. It does not weaken the runtime
+guard, patch production, extend a deadline, select a favorable subset or add external network.
+Host regression tests first failed for missing case boundaries, crash retention and runtime
+initialization. Final non-Android document verification passes49 cases with strict mypy and Ruff.
+
+Native08 passes the complete35-case target-instrumentation suite and the separate one-case cold
+process on unchanged normal30 APK
+`a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`.
+Suite PID2303 records35 passed,0 failed and54 exact authorized loopback requests; final collision,
+original JNI no-replace publication, persisted destination and same-process database checks pass.
+Restart PID2441, under the same UID, records1 passed,0 failed, zero HTTP and reads both saved
+destinations from original SQLite. External IPv4/IPv6 probes fail with `Network is unreachable`,
+and the host namespace exposes only loopback. JUnit and complete bounded evidence are retained in
+`artifacts/document-delivery-native-08/`; its input record SHA-256 is
+`cc7572b936c40bf4c503dafb59c4e66debdb9a6aada6ccb88f8ff347fad4bd7b`.
+The signed fixture source/DEX/APK hashes are respectively
+`77090565d4e6771a6dc803b2a86dce15f9a6040a60a9658fc33f155f2a3e5ccb`,
+`2a22820b297efd8d5e1034a7cd7e396e8c084799d088633cfe1a481f438fdafe` and
+`1a19b889cc5987d1676557fa33dba4bbdef5e533a163d72a7bc62d0aa7b330c3`.
+Ticket105 still owns original LaunchActivity rendering, interaction and UI restart evidence, so
+this ticket does not claim the complete document/UI slice or the broader operational milestone.

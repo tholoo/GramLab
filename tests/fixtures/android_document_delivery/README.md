@@ -62,8 +62,11 @@ FileLoader initializes its original FilePathDatabase on that database's own queu
 eight-second barrier; the barrier catches every Throwable, always releases its fixture latch and
 rethrows the original Exception or Error on the instrumentation thread. It then initializes
 original NativeLoader and native_setJava(false), without accounts, native_init or full application
-lifecycle. This is explicitly recorded in runtime evidence. The separate UI gate runs normal
-LaunchActivity initialization and drawing. The second
+lifecycle. Before the sole original `MessageObject` construction, the fixture serves the exact
+current local snapshot and invokes the original public `GramLabRuntime.initialize` path. This
+mirrors the production prerequisite for main-thread time callbacks; the secret-bearing temporary
+configuration is deleted before evidence packing. This is explicitly recorded in runtime evidence.
+The separate UI gate runs normal LaunchActivity initialization and drawing. The second
 instrumentation invocation must have a different PID under the same UID and read saved paths from
 original SQLite without new HTTP. It does not stand in for the full UI restart/cache gate.
 
@@ -84,7 +87,9 @@ and never starts the cold process after a failed suite. Pulled summary JSON must
 instrumentation output. Limits:1 MiB per output stream,4 MiB compressed archive,16 MiB expanded,
 and512 members. Unsafe/duplicate/link/secret-bearing/parent-conflicting archives fail before
 extraction. Each native invocation has240 seconds inside the existing600-second isolated deadline.
-No favorable subset can satisfy the native oracle.
+No favorable subset can satisfy the native oracle. A platform `Process crashed` result also retains
+bounded, redacted crash-buffer and package `ApplicationExitInfo` output before archive retrieval;
+failure to collect either diagnostic never replaces the original framing failure.
 
 For filesystem diagnosis on the unchanged baseline APK, install the signed probe with `install -t`
 and run the same component with `-e mode filesystem`. It retains the real getExternalFilesDir root,

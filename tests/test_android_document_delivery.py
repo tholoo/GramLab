@@ -104,6 +104,7 @@ CASE_REQUESTS: dict[str, list[tuple[str, str]]] = {
     ],
     "saved_and_missing_paths": [("GET", "/v5/documents/1")],
     "presentation_collision_and_database_reopen": [
+        ("GET", "/v5/snapshot"),
         ("GET", "/v5/documents/101"),
         ("GET", "/v5/documents/102"),
     ],
@@ -199,6 +200,32 @@ def test_fixture_initializes_the_original_file_database_without_a_latch_leak() -
     assert "throw (Error)error;" in implementation
 
 
+def test_fixture_retains_durable_final_case_boundaries() -> None:
+    source = (FIXTURE / "DocumentDeliveryProbe.java").read_text()
+    collision = source[
+        source.index('run("presentation_collision_and_database_reopen"') : source.index(
+            "private static void filesystemCases()"
+        )
+    ]
+    assert "private static void diagnosticAdvance(" in source
+    for stage in (
+        "collision.setup_complete",
+        "collision.runtime_initialized",
+        "collision.external_directory",
+        "collision.documents_projected",
+        "collision.message_objects",
+        "collision.load_submit",
+        "collision.first_completion",
+        "collision.second_completion",
+        "collision.database_barrier",
+        "collision.database_reopen",
+    ):
+        assert f'diagnosticAdvance("{stage}")' in collision
+    assert "GramLabRuntime.initialize(ApplicationLoader.applicationContext)" in source
+    assert 'require(GramLabRuntime.now()==100,"original_runtime_time")' in source
+    assert 'require(Files.deleteIfExists(input.toPath()),"remove_runtime_configuration")' in source
+
+
 def assert_native_suite(value: dict[str, Any], *, restart: bool = False) -> None:
     expected = {"cold_process_saved_destinations": []} if restart else CASE_REQUESTS
     assert set(value) == {
@@ -287,7 +314,7 @@ def assert_native_suite(value: dict[str, Any], *, restart: bool = False) -> None
     # The two independently queued equal-name downloads may reach the peer in either order.
     collision = "presentation_collision_and_database_reopen"
     if collision in actual:
-        actual[collision].sort()
+        actual[collision][1:] = sorted(actual[collision][1:])
     assert actual == expected
 
 
@@ -538,6 +565,48 @@ def test_probe_timeout_retains_original_failure_and_archive_diagnostics(
         "archive timeout" if archive_throws else "permission denied [REDACTED]"
     )
     assert secret not in "".join(path.read_text() for path in tmp_path.glob("*.json"))
+
+
+def test_probe_retains_crash_buffer_and_exit_reason_before_rejecting_framing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    calls: list[tuple[str, ...]] = []
+    secret = "gramlab-client_" + "d" * 43
+
+    def guest(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        joined = " ".join(args)
+        if "am instrument" in joined:
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                "INSTRUMENTATION_RESULT: shortMsg=Process crashed.\nINSTRUMENTATION_CODE: 0\n",
+                "",
+            )
+        if "logcat -b crash" in joined:
+            return subprocess.CompletedProcess(args, 0, f"fatal {secret}", "")
+        if "dumpsys activity exit-info" in joined:
+            return subprocess.CompletedProcess(args, 0, "REASON_CRASH_NATIVE status=11", "")
+        if "base64" in joined:
+            _archive(
+                Path("transport.tar.gz"),
+                [("document-delivery-diagnostics/suite-1-event-001.json", b"{}")],
+            )
+            return subprocess.CompletedProcess(
+                args, 0, base64.encodebytes(Path("transport.tar.gz").read_bytes()).decode(), ""
+            )
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    with pytest.raises(ValueError, match="Malformed instrumentation result framing"):
+        probe(guest)
+    crash = json.loads(Path("document-delivery-suite-crash-log.json").read_text())
+    exit_info = json.loads(Path("document-delivery-suite-exit-info.json").read_text())
+    assert crash["stdout"] == "fatal [REDACTED]"
+    assert exit_info["stdout"] == "REASON_CRASH_NATIVE status=11"
+    crash_call = next(i for i, call in enumerate(calls) if "logcat -b crash" in " ".join(call))
+    archive_call = next(i for i, call in enumerate(calls) if "tar -czf" in " ".join(call))
+    assert crash_call < archive_call
 
 
 @pytest.mark.parametrize("disagree", [False, True])
