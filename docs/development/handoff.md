@@ -204,5 +204,13 @@ JUnits and all three residual-rich JUnits. The ignored receipt is
 bulk-deleted; their independent evidence and legacy-history restrictions still require individual
 review.
 
+Three additional clean migrated-history worktrees—document runner v5, native media-edit acceptance
+and document-delivery fixture initialization—were then retired under the same checks. Their branch
+tips remain ancestors of the integration head. The only unique ignored evidence was the document-
+runner migration: all four ticket-referenced JUnits and its111-file final work tree were copied and
+byte-verified in the coordinator artifacts before removal. The other two contained dependency
+caches only. The ignored receipt is
+`.cache/local-notes/migrated-worker-worktree-retirement-01.json`.
+
 Update this handoff with the current checkpoint and next action. Put detailed chronological
 acceptance in the owning ticket so future workers need not reread superseded instructions.
