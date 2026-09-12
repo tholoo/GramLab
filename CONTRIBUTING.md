@@ -35,6 +35,8 @@ The experimental Python implementation is packaged with the pinned uv build back
 stable simulator SDK yet. The [consumer runner](docs/development/consumer-runner.md) exposes
 `gramlab run` for simulation and headless captures, and the [experimental scenario client](docs/development/scenario-sdk.md)
 provides typed world control inside private components.
+Python-only releases follow the [publishing contract](docs/development/releasing.md); Android
+applications and acquired upstream source are outside that distribution boundary.
 
 Use focused pytest runs during development, and the following full checks at handoff. Run the
 behavioral suite in the [documented outer network guard](docs/development/runtime-boundary.md):

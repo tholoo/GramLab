@@ -30,7 +30,8 @@ installed package's license identifies Pillow/PIL under MIT-CMU and includes not
 codec dependencies. Preserve those notices when packaging the dependency; this does not relicense
 third-party code under GramLab's MIT license. Local runtime uses the Nix dependency closure; host
 wheel validation and distribution review are separate from Android's GPL boundary. No dependency
-source is copied into the simulator and no binary distribution is authorized by this addition.
+source is copied into the simulator. The Python-only `0.1.0a1` release is authorized and does not
+distribute Pillow itself; installers obtain its separately licensed wheel or source distribution.
 
 ## Pinned emoji predicate reuse
 
@@ -39,9 +40,10 @@ the GPL Android adapter. The Python adaptation must retain its upstream copyrigh
 Boost license in the module so a staged scenario supervisor receives those notices with the code.
 That adapted module retains BSL-1.0; the root MIT license does not replace it. The accompanying
 [license](../../LICENSES/BSL-1.0.txt) and [provenance](tdlib-emoji-provenance.json) pin exact source
-hashes, scope and known generation limits. Preserve these notices in future packaging; no remote
-publication or binary distribution is authorized. Predicate reuse supplies a documented local
-coverage check, not evidence of production custom-emoji entitlement or server admission.
+hashes, scope and known generation limits. Preserve these notices in every package. The authorized
+Python-only `0.1.0a1` release includes the module, complete Boost license and NOTICE without any GPL
+Android component. Predicate reuse supplies a documented local coverage check, not evidence of
+production custom-emoji entitlement or server admission.
 
 
 ## Pinned document metadata reuse

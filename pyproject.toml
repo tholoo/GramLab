@@ -1,14 +1,35 @@
 [project]
 name = "gramlab"
-version = "0.0.0"
+version = "0.1.0a1"
 description = "Offline Telegram bot laboratory — experimental runtime foundation"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 license = "MIT AND BSL-1.0"
 license-files = ["LICENSE", "LICENSES/BSL-1.0.txt", "NOTICE"]
+authors = [
+    { name = "Ali Mohammadzadeh" },
+]
+keywords = ["telegram", "bot", "testing", "offline", "android"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
 dependencies = [
     "pillow==12.3.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tholoo/GramLab"
+Documentation = "https://github.com/tholoo/GramLab/tree/main/docs"
+Repository = "https://github.com/tholoo/GramLab"
+Issues = "https://github.com/tholoo/GramLab/issues"
+Changelog = "https://github.com/tholoo/GramLab/blob/main/CHANGELOG.md"
 
 [project.scripts]
 gramlab = "gramlab.__main__:main"

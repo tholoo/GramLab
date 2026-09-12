@@ -24,6 +24,16 @@ deferred and is now frozen.
 
 ## Current completion checkpoint
 
+The Python-only `0.1.0a1` release candidate is prepared on the path to `main`. It retains the
+tested Python 3.13 and Pillow 12.3.0 constraints, adds package/project metadata and an alpha
+changelog, and defines a tag-triggered GitHub OIDC workflow with separate build and publication
+jobs. The GitHub `pypi` environment exists without a token. Action pins, workflow syntax, lock,
+metadata rendering, absolute README links, isolated wheel/sdist installs, CLI entry point, package
+contents and all MIT/Boost notices pass release-specific checks. The 45-entry archives contain no
+Android, tests, cache, Git or runtime artifacts. Python-release ticket 01 records their hashes.
+Publication remains blocked only on the human-authenticated pending PyPI Trusted Publisher form;
+do not push `v0.1.0a1`, rebuild that version or create a GitHub release before that identity exists.
+
 Recommendation 1 from the developer-excellence report is implemented on `task/scenario-flows`:
 installed and runner-contained scenarios can import `Scenario` plus typed `User`, `Bot`,
 `Conversation`, `Message`, inline-action, callback, capture and interaction handles directly from

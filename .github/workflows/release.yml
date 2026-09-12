@@ -1,0 +1,145 @@
+name: Publish Python release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+[ab][0-9]+"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned uv release
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+          python-version: "3.13"
+          enable-cache: false
+
+      - name: Match the tag to package metadata
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          with Path("pyproject.toml").open("rb") as stream:
+              version = tomllib.load(stream)["project"]["version"]
+          expected = "v" + version
+          actual = os.environ["GITHUB_REF_NAME"]
+          if actual != expected:
+              raise SystemExit(f"Tag {actual!r} does not match package version {version!r}")
+          PY
+
+      - name: Build standards-compliant distributions
+        run: uv build --no-sources --clear
+
+      - name: Inspect distribution boundaries and notices
+        run: |
+          python - <<'PY'
+          import email
+          import tarfile
+          import tomllib
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          with Path("pyproject.toml").open("rb") as stream:
+              project = tomllib.load(stream)["project"]
+          wheel, = Path("dist").glob("*.whl")
+          source, = Path("dist").glob("*.tar.gz")
+          with ZipFile(wheel) as archive:
+              wheel_names = set(archive.namelist())
+              metadata_name, = (
+                  name for name in wheel_names if name.endswith(".dist-info/METADATA")
+              )
+              metadata = email.message_from_bytes(archive.read(metadata_name))
+          with tarfile.open(source) as archive:
+              source_names = set(archive.getnames())
+
+          required_wheel_suffixes = {
+              "/licenses/LICENSE",
+              "/licenses/LICENSES/BSL-1.0.txt",
+              "/licenses/NOTICE",
+          }
+          for suffix in required_wheel_suffixes:
+              if not any(name.endswith(suffix) for name in wheel_names):
+                  raise SystemExit(f"Wheel is missing {suffix}")
+          required_source_suffixes = {"/LICENSE", "/LICENSES/BSL-1.0.txt", "/NOTICE"}
+          for suffix in required_source_suffixes:
+              if not any(name.endswith(suffix) for name in source_names):
+                  raise SystemExit(f"Source archive is missing {suffix}")
+          if "gramlab/scenario_flow.py" not in wheel_names:
+              raise SystemExit("Wheel is missing the public scenario flow")
+          expected_metadata = {
+              "Name": project["name"],
+              "Version": project["version"],
+              "Requires-Python": project["requires-python"].replace(",", ", "),
+              "License-Expression": project["license"],
+          }
+          for field, expected in expected_metadata.items():
+              if metadata[field] != expected:
+                  raise SystemExit(f"Unexpected {field}: {metadata[field]!r}")
+          if metadata.get_all("Requires-Dist") != project["dependencies"]:
+              raise SystemExit("Unexpected runtime dependency metadata")
+          forbidden = ("clients/", "tests/", "artifacts/", ".git/", ".cache/")
+          for name in wheel_names | source_names:
+              normalized = name.split("/", 1)[-1] if name.startswith("gramlab-") else name
+              if normalized.startswith(forbidden):
+                  raise SystemExit(f"Distribution contains forbidden path: {name}")
+          print(f"Inspected {wheel.name} and {source.name}")
+          PY
+
+      - name: Smoke-test the wheel
+        run: |
+          uv run --isolated --no-project --with dist/*.whl python -c \
+            "from gramlab import Conversation, Scenario; print('GramLab wheel import OK')"
+          uv run --isolated --no-project --with dist/*.whl gramlab --help
+
+      - name: Smoke-test the source archive
+        run: |
+          uv run --isolated --no-project --with dist/*.tar.gz python -c \
+            "from gramlab import Conversation, Scenario; print('GramLab sdist import OK')"
+          uv run --isolated --no-project --with dist/*.tar.gz gramlab --help
+
+      - name: Upload the verified distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/gramlab/
+    permissions:
+      id-token: write
+    steps:
+      - name: Install the pinned uv release
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+          enable-cache: false
+
+      - name: Download the verified distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Generate package attestations
+        uses: astral-sh/attest-action@f589a42a7efb6fe400b4f400de60b4bc90390027 # v0.0.6
+
+      - name: Publish through PyPI Trusted Publishing
+        run: uv publish --trusted-publishing always
