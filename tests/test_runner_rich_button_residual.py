@@ -29,6 +29,7 @@ FILLERS = [
     for index in range(1, 16)
 ]
 RICH_MESSAGE = {
+    "is_rtl": True,
     "blocks": [
         {"type": "paragraph", "text": "فارسی از ابتدای ردیف آغاز می‌شود / RTL starts here"},
         *FILLERS[:3],
@@ -73,7 +74,7 @@ RICH_MESSAGE = {
             "summary": "جزئیات بسته / closed details",
             "blocks": [{"type": "paragraph", "text": "No control in this closed body"}],
         },
-    ]
+    ],
 }
 BOT_USER = {"id": 1, "is_bot": True, "first_name": "residual"}
 USER = {"id": 2, "is_bot": False, "first_name": "Sara", "language_code": "fa"}
@@ -884,9 +885,11 @@ def test_original_android_rejects_clipping_restarts_and_recovers_one_lost_reply(
     row_rtl = first_targets[("blocks", 16, "buttons", 0)]
     row_copy = first_targets[("blocks", 16, "buttons", 1)]
     assert row_rtl["available"] is True and row_rtl["reason"] is None
-    assert row_copy["available"] is True and row_copy["reason"] is None
     assert unicodedata.bidirectional(row_rtl["label"][0]) == "AL"
-    assert row_rtl["screen_bounds"][0] > row_copy["screen_bounds"][0]
+    assert row_rtl["screen_bounds"][0] < row_copy["screen_bounds"][0]
+    fresh_targets = {tuple(target["path"]): target for target in native_observations[2]["targets"]}
+    fresh_row_copy = fresh_targets[("blocks", 16, "buttons", 1)]
+    assert fresh_row_copy["available"] is True and fresh_row_copy["reason"] is None
     nested = first_targets[("blocks", 17, "text", 1, "text", "button")]
     assert nested["available"] is True and nested["reason"] is None
     rtl_capture = native_observations[0]["rtl_capture"]

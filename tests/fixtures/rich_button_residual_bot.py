@@ -50,6 +50,7 @@ fillers = [
 ]
 rich_message = {
     "skip_entity_detection": True,
+    "is_rtl": True,
     "blocks": [
         {"type": "paragraph", "text": "فارسی از ابتدای ردیف آغاز می‌شود / RTL starts here"},
         *fillers[:3],

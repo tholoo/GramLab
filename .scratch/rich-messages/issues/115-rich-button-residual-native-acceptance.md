@@ -95,3 +95,16 @@ run correctly retained another availability failure at
 `artifacts/rich-button-residual-normal30-native-02.xml`. The measured19-pixel line height makes one
 additional short line sufficient to cross the top boundary while leaving roughly25 pixels of the
 34-pixel control rendered. No additional geometry or timing change is needed.
+
+The calibrated third run completed every scenario phase with a passing runner outcome in97.478
+seconds. It proves the clipped pre-dispatch rejection with zero input, RTL callback, app-process
+restart invalidation, fresh copy, one deliberately lost terminal reply, idempotent recovery and
+exactly three successful original taps. The outer oracle then exposed a separate fixture omission:
+the rich message did not set the public `is_rtl` field. Persian-leading labels do not themselves
+set `RichMessage.rtl`, and the upstream `RichButtonRowBlock` preserves payload order rather than
+reversing buttons for RTL documents. The initial copy target was also conservatively marked clipped;
+the fresh observation used for the copy action was available and succeeded. The correction sets
+`is_rtl=true`, checks copy availability on the actual fresh observation, and asserts upstream's
+preserved row order. It does not force a device locale, change the APK, or infer RTL from text.
+`artifacts/rich-button-residual-normal30-native-03.xml` remains a failed JUnit because the corrected
+RTL fixture still requires fresh native acceptance.
