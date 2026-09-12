@@ -12,10 +12,15 @@ milestone: default document classification, albums, automatic rich detection and
 current-APK regression remain open. Read the [compatibility matrix](../../docs/compatibility/matrix.md)
 before generalizing from a focused result.
 
+Patch 0031 is source-complete but not yet represented by that retained normal30 APK. It projects
+the approved detector's metadata-free mention, hashtag, cashtag, bot-command and bank-card nodes
+through their original `TL_iv` constructors and extends the strict serializer probe. A collected
+Android case covers the five projections; compilation and guest execution remain coordinator-owned.
+
 The approved source and its pinned submodules live in ignored `upstream/`. The
 [patch queue](patches/README.md) and [preparation script](prepare.py) export only pinned tracked
 files to a new dedicated build tree, sanitize upstream credential templates, install strict
-dependency verification metadata and apply all 30 patches in `series` order. Preparation itself
+dependency verification metadata and apply all 31 patches in `series` order. Preparation itself
 does not fetch dependencies, build an APK or run a client. See the current source, build and local
 artifact boundaries in the [Android build record](../../docs/development/android-build.md).
 See [source provenance](upstream-lock.json), the

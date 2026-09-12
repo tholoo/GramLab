@@ -1,0 +1,73 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+index aee97c5..d4d37d9 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -302,6 +302,41 @@ public final class GramLabRichMessage {
+             result.phone = string(record, "phone_number");
+             return result;
+         }
++        if (type.equals("mention")) {
++            fields(record, "type", "text");
++            require(record.has("text"));
++            TL_iv.textMention result = new TL_iv.textMention();
++            result.text = text(record.get("text"));
++            return result;
++        }
++        if (type.equals("hashtag")) {
++            fields(record, "type", "text");
++            require(record.has("text"));
++            TL_iv.textHashtag result = new TL_iv.textHashtag();
++            result.text = text(record.get("text"));
++            return result;
++        }
++        if (type.equals("cashtag")) {
++            fields(record, "type", "text");
++            require(record.has("text"));
++            TL_iv.textCashtag result = new TL_iv.textCashtag();
++            result.text = text(record.get("text"));
++            return result;
++        }
++        if (type.equals("bot_command")) {
++            fields(record, "type", "text");
++            require(record.has("text"));
++            TL_iv.textBotCommand result = new TL_iv.textBotCommand();
++            result.text = text(record.get("text"));
++            return result;
++        }
++        if (type.equals("bank_card_number")) {
++            fields(record, "type", "text");
++            require(record.has("text"));
++            TL_iv.textBankCard result = new TL_iv.textBankCard();
++            result.text = text(record.get("text"));
++            return result;
++        }
+         fields(record, "type", "text");
+         TL_iv.RichText result;
+         switch (type) {
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+index e313a45..2c6b3cd 100644
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -68,6 +68,22 @@ public final class BridgeProbe {
+             return new JSONObject().put("type", "phone_number").put("text", richText(link.text))
+                     .put("phone_number", link.phone);
+         }
++        if (value instanceof TL_iv.textMention) {
++            return new JSONObject().put("type", "mention").put("text", richText(value.text));
++        }
++        if (value instanceof TL_iv.textHashtag) {
++            return new JSONObject().put("type", "hashtag").put("text", richText(value.text));
++        }
++        if (value instanceof TL_iv.textCashtag) {
++            return new JSONObject().put("type", "cashtag").put("text", richText(value.text));
++        }
++        if (value instanceof TL_iv.textBotCommand) {
++            return new JSONObject().put("type", "bot_command").put("text", richText(value.text));
++        }
++        if (value instanceof TL_iv.textBankCard) {
++            return new JSONObject().put("type", "bank_card_number")
++                    .put("text", richText(value.text));
++        }
+         String type;
+         if (value instanceof TL_iv.textBold) type = "bold";
+         else if (value instanceof TL_iv.textItalic) type = "italic";

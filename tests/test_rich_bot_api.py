@@ -573,8 +573,6 @@ def test_list_http_send_edit_callback_differences_and_reopen(tmp_path: Path, for
     [
         {},
         {"blocks": []},
-        {"blocks": [{"type": "paragraph", "text": "x"}]},
-        {"blocks": [{"type": "paragraph", "text": "x"}], "skip_entity_detection": False},
         {"blocks": [{"type": "photo", "photo": "file"}], "skip_entity_detection": True},
         {
             "blocks": [
