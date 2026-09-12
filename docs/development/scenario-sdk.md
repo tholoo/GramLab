@@ -1,34 +1,65 @@
 # Experimental Python scenario client
 
-`gramlab.scenario.Scenario` now provides Python methods for the existing
+`gramlab.Scenario` provides typed scenario flows and raw Python methods for the existing
 [world control service](scenario-control.md). It runs inside a private scenario component and
 does not import world storage, launch a bot or acquire credentials. The [consumer runner](consumer-runner.md)
 now prepares selected files and launches simulation-only scenarios or headless Android captures.
 This is an experimental
 interface, not a stable SDK compatibility commitment.
 
-## Using the interface
+## Using typed scenario flows
 
 Trusted orchestration supplies `GRAMLAB_CONTROL_ENDPOINT`, `GRAMLAB_CONTROL_CAPABILITY` and
 `GRAMLAB_WORLD_ID` to the private process. Within that process:
 
 ```python
-from gramlab.scenario import Scenario
+from gramlab import Scenario
 
 scenario = Scenario.from_environment()
-user = scenario.create_user(first_name="Sara", language_code="fa")
-bot = scenario.create_user(first_name="Echo", is_bot=True)
-chat = scenario.open_private_chat(user_id=user["id"], bot_id=bot["id"])
-scenario.send_message(chat_id=chat["id"], sender_id=user["id"], text="سلام hello")
-history = scenario.history(chat["id"])
+chat = scenario.conversation(
+    user=scenario.user("Sara", language_code="fa"),
+    bot="echo",
+)
+chat.send("سلام hello")
+history = chat.wait_for_messages(2, timeout=10)
+if history[1].text != "Echo: سلام hello":
+    raise AssertionError("Unexpected bot reply")
+chat.capture("echo", contains=["سلام hello", "Echo: سلام hello"])
 ```
 
-Creating a virtual bot identity does not start a consumer bot process. The current trusted
-integration harness or consumer runner starts that separate process. With the runner, use
-`scenario.bots()["echo"]` to identify the bot declared in the manifest. Do not
+`Scenario.user()` creates a virtual non-bot participant. `Scenario.bot()` resolves a configured
+manifest bot, and `Scenario.conversation()` opens their private chat. Each returned handle belongs
+to that exact `Scenario` instance; passing it to another instance fails before a control request.
+`Conversation.send()`, `history()`, `capture()`, `type()` and `start()` bind the
+chat and participant identities. History is an immutable tuple of `Message` observations. A
+message owns `inline_button(row, column)`, whose `tap()` result exposes a `Callback` handle.
+
+`Conversation.wait_for_messages()`, `Callback.wait_until_answered()` and
+`Bot.wait_for_state()` repeatedly perform only the corresponding read operation. They never retry
+an input or another uncertain write. Each requires a positive finite timeout and raises
+`ScenarioWaitTimeout` with `operation`, `timeout` and the last safe JSON-shaped observation when
+the state is not reached. Transport and protocol failures continue to raise `ScenarioError`
+immediately. The fixed short polling interval is an implementation detail; synthetic World time is
+not advanced.
+
+Every handle provides a copied `raw` dictionary for complete contract assertions and interoperation
+with code that still consumes JSON-shaped values. Mutating that copy does not change the handle.
+The typed fields are immutable observations; call `history()`, `Callback.refresh()` or a wait method
+to observe later state.
+
+Creating a virtual bot identity through the raw interface does not start a consumer bot process.
+The current trusted integration harness or consumer runner starts that separate process. With the
+runner, `scenario.bot("echo")` identifies the bot declared in the manifest. Do not
 execute this snippet as host-side orchestration or grant it the world database directory.
 
-The interface exposes twenty operations:
+The public package exports `Scenario`, `ScenarioError`, `ScenarioWaitTimeout`,
+`ScenarioFlowError`, `User`, `Bot`, `BotStatus`, `Conversation`, `Message`, `InlineButton`,
+`InlineAction`, `Callback`, `Capture` and `InteractionReceipt`. The lower-level imports from
+`gramlab.scenario` remain supported.
+
+## Raw operations
+
+`Scenario` still exposes the original twenty JSON-shaped operations:
 
 | Method | Effect or result |
 | --- | --- |
@@ -53,7 +84,8 @@ The interface exposes twenty operations:
 | `stop_bot` | Hard-stop the expected bot generation and its descendants |
 | `start_bot` | Replace a stopped generation while preserving private bot files |
 
-Arguments and JSON-shaped results retain the existing world contract. This is not a second Bot
+Arguments and JSON-shaped results retain the existing world contract. The typed flows are an
+additive authoring interface over those operations, not a second Bot
 API client or a recreated Android interaction layer. A new HTTP connection is used for each call;
 shared instances can make concurrent calls without sharing a socket or response buffer. Tests
 exercise two shared clients with concurrent writers in two independent worlds.
@@ -121,7 +153,13 @@ bound the complete scenario lifetime. There is no connection pool or automatic p
 
 ## Verification
 
-The nine [client tests](../../tests/test_scenario_client.py) use real local HTTP. A relay lets the
+The [flow tests](../../tests/test_scenario_flows.py) exercise the typed interface through real local
+HTTP, including handle ownership, immutable message history, inline callbacks, captures, bot status,
+bounded waits and timeout evidence. The contained [echo](../../examples/echo) and
+[inline-button](../../examples/inline) scenarios import from `gramlab` and use typed flows, proving
+the runner-supplied SDK includes the complete module.
+
+The lower-level [client tests](../../tests/test_scenario_client.py) use real local HTTP. A relay lets the
 actual world commit a command, then drops its response: exactly one participant/event exists,
 and the client reports uncertainty without a retry. Other tests cover definite rejections,
 invalid responses, redirects, connection/read failures, timeouts, HTTP 5xx, local input limits,

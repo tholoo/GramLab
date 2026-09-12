@@ -19,30 +19,23 @@ See the [compatibility matrix](docs/compatibility/matrix.md) for the supported s
 Create a user, talk to a real local bot, check its reply and capture the conversation:
 
 ```python
-import time
-
-from gramlab.scenario import Scenario
+from gramlab import Scenario
 
 lab = Scenario.from_environment()
-user = lab.create_user(first_name="Alex", language_code="en")
-chat = lab.open_private_chat(user_id=user["id"], bot_id=lab.bots()["echo"])
-lab.send_message(chat_id=chat["id"], sender_id=user["id"], text="Hello!")
+chat = lab.conversation(user=lab.user("Alex", language_code="en"), bot="echo")
+chat.send("Hello!")
+history = chat.wait_for_messages(2, timeout=5)
 
-deadline = time.monotonic() + 5
-while len(lab.history(chat["id"])) < 2:
-    if time.monotonic() >= deadline:
-        raise TimeoutError("The bot did not reply")
-    time.sleep(0.05)
-
-if lab.history(chat["id"])[1]["text"] != "Echo: Hello!":
+if history[1].text != "Echo: Hello!":
     raise AssertionError("Unexpected bot reply")
-lab.capture_chat(chat_id=chat["id"], label="hello", contains=["Echo: Hello!"])
+chat.capture("hello", contains=["Echo: Hello!"])
 ```
 
 This runs inside a scenario process. The [English echo example](examples/echo/hello.toml) uses this exact [scenario](examples/echo/hello.py),
 with the bundled bot and manifest, and the runner supplies the environment. Simulation records the conversation state;
 headless Android also captures the original client. Both modes produce a local HTML report.
-The Python interface is still experimental.
+The typed handles are additive: advanced scenarios can still use the raw JSON-shaped operations
+on `Scenario`. The Python interface is still experimental.
 
 ## Try it
 

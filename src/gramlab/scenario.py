@@ -13,6 +13,15 @@ from typing import Any, Self, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from gramlab.scenario_flow import (
+    Bot,
+    Conversation,
+    User,
+    bot_from_name,
+    conversation_from_result,
+    user_from_result,
+)
+
 _READS = {"snapshot", "history", "events", "get_callback", "bots", "bot_status"}
 _REJECTIONS = {400: "invalid_request", 401: "unauthorized", 404: "unsupported", 409: "wrong_world"}
 
@@ -237,6 +246,41 @@ class Scenario:
                     "language_code": language_code,
                 },
             ),
+        )
+
+    def user(
+        self,
+        first_name: str,
+        *,
+        username: str | None = None,
+        language_code: str | None = None,
+    ) -> User:
+        """Create a virtual participant bound to this scenario run."""
+        return user_from_result(
+            self,
+            self.create_user(
+                first_name=first_name,
+                username=username,
+                language_code=language_code,
+            ),
+        )
+
+    def bot(self, name: str) -> Bot:
+        """Bind a configured manifest bot alias to this scenario run."""
+        return bot_from_name(self, name, self.bots())
+
+    def conversation(self, *, user: User, bot: str | Bot) -> Conversation:
+        """Open a private conversation while binding its participant identities."""
+        if not isinstance(user, User) or user._scenario is not self:
+            raise ValueError("User handle belongs to another Scenario instance")
+        selected = self.bot(bot) if isinstance(bot, str) else bot
+        if not isinstance(selected, Bot) or selected._scenario is not self:
+            raise ValueError("Bot handle belongs to another Scenario instance")
+        return conversation_from_result(
+            self,
+            user,
+            selected,
+            self.open_private_chat(user_id=user.id, bot_id=selected.id),
         )
 
     def open_private_chat(self, *, user_id: int, bot_id: int) -> dict[str, Any]:

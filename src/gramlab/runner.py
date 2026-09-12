@@ -188,7 +188,7 @@ def run(
         (output / "gramlab" / source.name).write_bytes(source.read_bytes())
     sdk = output / "scenario" / "gramlab"
     sdk.mkdir()
-    for name in ("__init__.py", "scenario.py", "py.typed"):
+    for name in ("__init__.py", "scenario.py", "scenario_flow.py", "py.typed"):
         (sdk / name).write_bytes((package / name).read_bytes())
     profile_json = json.dumps(asdict(profile))
     (output / "profile.json").write_text(profile_json)

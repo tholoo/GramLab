@@ -26,15 +26,15 @@ def test_inline_selection_drives_bot_edit_and_rejects_invalid_targets(
     scenario = manifest.parent / "scenario.py"
     source = scenario.read_text()
     source = source.replace(
-        "interaction = lab.tap_inline_button",
+        "callback = message.inline_button(1, 0).tap().callback",
         """from gramlab.scenario import ScenarioError
 before = lab.events()
 for arguments in (
-    {"chat_id": 999, "message_id": message["id"], "row": 1, "column": 0},
-    {"chat_id": chat["id"], "message_id": 1, "row": 0, "column": 0},
-    {"chat_id": chat["id"], "message_id": message["id"], "row": -1, "column": 0},
-    {"chat_id": chat["id"], "message_id": message["id"], "row": True, "column": 0},
-    {"chat_id": chat["id"], "message_id": message["id"], "row": 1, "column": 1},
+    {"chat_id": 999, "message_id": message.id, "row": 1, "column": 0},
+    {"chat_id": chat.id, "message_id": 1, "row": 0, "column": 0},
+    {"chat_id": chat.id, "message_id": message.id, "row": -1, "column": 0},
+    {"chat_id": chat.id, "message_id": message.id, "row": True, "column": 0},
+    {"chat_id": chat.id, "message_id": message.id, "row": 1, "column": 1},
 ):
     try:
         lab.tap_inline_button(**arguments)
@@ -43,11 +43,11 @@ for arguments in (
     else:
         raise AssertionError("Invalid target accepted")
 assert lab.events() == before
-interaction = lab.tap_inline_button""",
+callback = message.inline_button(1, 0).tap().callback""",
     )
     source += """
 try:
-    lab.tap_inline_button(chat_id=chat["id"], message_id=message["id"], row=1, column=0)
+    lab.tap_inline_button(chat_id=chat.id, message_id=message.id, row=1, column=0)
 except ScenarioError as error:
     assert error.code == "invalid_request" and not error.outcome_uncertain
 else:

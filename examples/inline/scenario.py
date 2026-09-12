@@ -1,8 +1,6 @@
 """Identical semantic scenario with virtual or actual Android button input."""
 
-import time
-
-from gramlab.scenario import Scenario
+from gramlab import Scenario
 
 
 def expect(condition: bool, message: str) -> None:
@@ -11,33 +9,24 @@ def expect(condition: bool, message: str) -> None:
 
 
 lab = Scenario.from_environment()
-user = lab.create_user(first_name="Sara", language_code="fa")
-chat = lab.open_private_chat(user_id=user["id"], bot_id=lab.bots()["inline"])
-lab.send_message(chat_id=chat["id"], sender_id=user["id"], text="سلام hello")
-deadline = time.monotonic() + 10
-while len(lab.history(chat["id"])) != 2:
-    expect(time.monotonic() < deadline, "Bot keyboard missing")
-    time.sleep(0.05)
-message = lab.history(chat["id"])[1]
-lab.capture_chat(chat_id=chat["id"], label="before-tap", contains=[message["text"]])
-interaction = lab.tap_inline_button(chat_id=chat["id"], message_id=message["id"], row=1, column=0)
-callback = interaction["callback"]
-expect(callback["data"] == "confirm" and callback["message"] == message, "Wrong keyboard cell")
-expect(callback["user_id"] == user["id"] and callback["chat_id"] == chat["id"], "Wrong persona")
-deadline = time.monotonic() + 10
-while lab.get_callback(user_id=user["id"], callback_id=callback["id"])["answer"] is None:
-    expect(time.monotonic() < deadline, "Bot callback answer missing")
-    time.sleep(0.05)
+chat = lab.conversation(user=lab.user("Sara", language_code="fa"), bot="inline")
+chat.send("سلام hello")
+message = chat.wait_for_messages(2, timeout=10)[1]
+chat.capture("before-tap", contains=[message.text])
+callback = message.inline_button(1, 0).tap().callback
+expect(callback.data == "confirm" and callback.raw["message"] == message.raw, "Wrong keyboard cell")
+expect(callback.user_id == chat.user.id and callback.chat_id == chat.id, "Wrong persona")
+callback.wait_until_answered(timeout=10)
 expect(
-    lab.history(chat["id"])[1]
+    chat.history()[1].raw
     == {
-        "id": message["id"],
-        "chat_id": chat["id"],
-        "sender_id": lab.bots()["inline"],
+        "id": message.id,
+        "chat_id": chat.id,
+        "sender_id": chat.bot.id,
         "date": 1700000000,
         "edit_date": 1700000000,
         "text": "Selected: confirm ✓",
     },
     "Unexpected bot edit",
 )
-lab.capture_chat(chat_id=chat["id"], label="after-edit", contains=["Selected: confirm ✓"])
+chat.capture("after-edit", contains=["Selected: confirm ✓"])

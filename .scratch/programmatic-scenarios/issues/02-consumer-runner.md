@@ -72,3 +72,10 @@ Ruff/format, 47-file typing, Nix/workflow checks, offline builds and privacy/loc
 Desktop/mobile report review confirms original captures and lifecycle evidence. The APK and
 client-derived patches remain unchanged. This ticket remains claimed for the remaining consumer
 workflow; the full product goal remains active.
+
+The additive public-flow follow-up is resolved in
+[ticket 06](06-scenario-flows.md). Installed and runner-contained consumers can now bind manifest
+bots, virtual users and conversations to typed immutable handles; use bounded message, callback and
+bot-state waits; and retain copied raw results for complete assertions. Echo and inline examples use
+the interface end to end. No raw operation, wire schema, execution boundary or native fidelity
+claim changed. Composer input, interactive mode and the wider product inventory remain open here.

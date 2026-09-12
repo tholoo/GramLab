@@ -21,7 +21,7 @@ scenario.mkdir()
 shutil.copy2("scenario_actor.py", scenario / "scenario_actor.py")
 sdk = scenario / "gramlab"
 sdk.mkdir()
-for name in ("__init__.py", "scenario.py"):
+for name in ("__init__.py", "scenario.py", "scenario_flow.py"):
     shutil.copy2(Path("gramlab") / name, sdk / name)
 # Prepare bot files before the scenario's isolation observations, so absence is meaningful.
 bot_fixture = FixtureBot("echo_bot.py")

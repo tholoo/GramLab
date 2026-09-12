@@ -24,6 +24,25 @@ deferred and is now frozen.
 
 ## Current completion checkpoint
 
+Recommendation 1 from the developer-excellence report is implemented on `task/scenario-flows`:
+installed and runner-contained scenarios can import `Scenario` plus typed `User`, `Bot`,
+`Conversation`, `Message`, inline-action, callback, capture and interaction handles directly from
+`gramlab`. The handles bind run identity, own common operations and expose immutable observations
+with copied raw results. Bounded conversation, callback and bot-state waits repeat reads only, so
+uncertain input operations are never retried. All twenty raw operations and the schema-1 wire
+contract remain available unchanged. The echo and inline examples now demonstrate the public flow;
+no network, fidelity, Android, licensing or publication boundary changed.
+
+The nine-case real-loopback flow collection, the affected control/client/runner collection, both
+contained echo scenarios and the contained inline callback scenario pass. Strict typing for the
+changed package and examples, scoped Ruff lint/format, diff validation and offline wheel/sdist
+inspection pass; the wheel imports the new root exports. A full non-Android run reached 88.70%
+coverage with 1,587 passes and four failures: the known default-v3/custom-emoji-v4 baseline plus
+three fixture/example compatibility failures introduced by the migration. Those three exact tests
+pass after focused fixes; at the user's direction the whole gate was not repeated. Android was not
+rerun for this additive scenario-authoring layer. Programmatic-scenarios ticket 06 contains the
+contract and evidence; ticket 02 remains open for the wider runner workflow.
+
 The three Strong architecture-review candidates are implemented on
 `task/deepen-world-and-bridge` as separate commits: `1da28fd` deepens final message publication,
 `266d804` owns complete media-group topology and delivery slicing, and `7d169f2` centralizes client
