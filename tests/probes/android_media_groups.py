@@ -50,6 +50,9 @@ class AlbumProxy:
         self._port = parsed.port
         self._capability = capability
         self._lock = threading.Lock()
+        self._publication_gate = threading.Lock()
+        self._application_observed = threading.Event()
+        self._phase = "startup"
         self._requests: list[dict[str, Any]] = []
         self._second_attempts = 0
         owner = self
@@ -90,7 +93,9 @@ class AlbumProxy:
                     "method": self.command,
                     "path": self.path,
                     "started_ns": time.monotonic_ns(),
+                    "forwarded_ns": None,
                     "finished_ns": None,
+                    "phase": None,
                     "status": None,
                     "bytes": 0,
                     "sha256": None,
@@ -102,7 +107,23 @@ class AlbumProxy:
                     record["sequence"] = len(owner._requests) + 1
                     owner._requests.append(record)
                 connection = http.client.HTTPConnection("127.0.0.1", owner._port, timeout=10)
+                owner._publication_gate.acquire()
+                with owner._lock:
+                    blocked_snapshot = owner._phase == "published" and self.path == "/v6/snapshot"
+                if blocked_snapshot:
+                    owner._publication_gate.release()
+                    if not owner._application_observed.wait(timeout=30):
+                        record["status"] = 503
+                        record["error"] = "application_barrier_timeout"
+                        record["finished_ns"] = time.monotonic_ns()
+                        self.send_error(503, "Application observation timed out")
+                        connection.close()
+                        return
+                    owner._publication_gate.acquire()
                 try:
+                    with owner._lock:
+                        record["forwarded_ns"] = time.monotonic_ns()
+                        record["phase"] = owner._phase
                     headers = {
                         "Authorization": "Bearer " + owner._capability,
                         "Connection": "close",
@@ -151,6 +172,7 @@ class AlbumProxy:
                 finally:
                     record["finished_ns"] = time.monotonic_ns()
                     connection.close()
+                    owner._publication_gate.release()
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self._server.daemon_threads = False
@@ -164,6 +186,38 @@ class AlbumProxy:
         with self._lock:
             return [dict(row) for row in self._requests]
 
+    def begin_publication(self) -> dict[str, int | str]:
+        self._publication_gate.acquire()
+        with self._lock:
+            self._phase = "publishing"
+            return {
+                "phase": self._phase,
+                "at_ns": time.monotonic_ns(),
+                "request_count": len(self._requests),
+            }
+
+    def finish_publication(self) -> dict[str, int | str]:
+        with self._lock:
+            self._phase = "published"
+            marker: dict[str, int | str] = {
+                "phase": self._phase,
+                "at_ns": time.monotonic_ns(),
+                "request_count": len(self._requests),
+            }
+        self._publication_gate.release()
+        return marker
+
+    def observe_application(self) -> dict[str, int | str]:
+        with self._lock:
+            self._phase = "applied"
+            marker: dict[str, int | str] = {
+                "phase": self._phase,
+                "at_ns": time.monotonic_ns(),
+                "request_count": len(self._requests),
+            }
+        self._application_observed.set()
+        return marker
+
     def __enter__(self) -> Self:
         self._thread.start()
         return self
@@ -174,6 +228,7 @@ class AlbumProxy:
         value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        self._application_observed.set()
         self._server.shutdown()
         self._server.server_close()
         self._thread.join(timeout=5)
@@ -295,6 +350,20 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
                 return rows
             time.sleep(0.1)
         raise RuntimeError(f"Grouped document {identifier} did not reach {event}")
+
+    def wait_application(trace_start: int) -> tuple[list[dict[str, Any]], dict[str, int | str]]:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            rows = trace()
+            if any(
+                row.get("event") == "events_applied"
+                and row.get("method") == "messages"
+                and row.get("token") == 2
+                for row in rows[trace_start:]
+            ):
+                return rows, proxy.observe_application()
+            time.sleep(0.1)
+        raise RuntimeError("Live grouped documents did not use the atomic application path")
 
     def wait_photo_assets(asset_ids: set[int]) -> list[dict[str, Any]]:
         deadline = time.monotonic() + 30
@@ -422,21 +491,40 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         photo_xml = wait_screen("album-photos", ("Album / آلبوم",))
         wait_photo_assets({item["photo"]["asset_id"] for item in photos})
         photo_xml = capture("album-photos")
-        with World.open(Path("world")) as world:
-            documents = world.send_media_group(
-                chat_id=chat["id"],
-                sender_id=bot["id"],
-                media=[
-                    {"type": "document", "media": "attach://first", "caption": DOCUMENTS[0][2]},
-                    {"type": "document", "media": "attach://second", "caption": DOCUMENTS[1][2]},
-                ],
-                uploads={
-                    "first": DocumentUpload(document_bodies["1"], DOCUMENTS[0][1]),
-                    "second": DocumentUpload(document_bodies["2"], DOCUMENTS[1][1]),
-                },
-            )
-            final_snapshot = world.client_snapshot(user["id"], version=6)
-            live_changes = world.client_changes(user["id"], after=2, limit=100, version=6)
+        publication_started = proxy.begin_publication()
+        try:
+            with World.open(Path("world")) as world:
+                documents = world.send_media_group(
+                    chat_id=chat["id"],
+                    sender_id=bot["id"],
+                    media=[
+                        {
+                            "type": "document",
+                            "media": "attach://first",
+                            "caption": DOCUMENTS[0][2],
+                        },
+                        {
+                            "type": "document",
+                            "media": "attach://second",
+                            "caption": DOCUMENTS[1][2],
+                        },
+                    ],
+                    uploads={
+                        "first": DocumentUpload(document_bodies["1"], DOCUMENTS[0][1]),
+                        "second": DocumentUpload(document_bodies["2"], DOCUMENTS[1][1]),
+                    },
+                )
+                final_snapshot = world.client_snapshot(user["id"], version=6)
+                live_changes = world.client_changes(user["id"], after=2, limit=100, version=6)
+            publication_trace_start = len(trace())
+        finally:
+            publication_completed = proxy.finish_publication()
+        publication = {
+            "started": publication_started,
+            "completed": publication_completed,
+            "trace_start": publication_trace_start,
+        }
+        application_trace, publication["application"] = wait_application(publication_trace_start)
         document_xml = wait_screen(
             "album-documents",
             tuple(
@@ -480,6 +568,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         "initial_snapshot": initial,
         "final_snapshot": final_snapshot,
         "live_changes": live_changes,
+        "publication": publication,
         "photos": photos,
         "documents": documents,
         "geometry": {
@@ -494,6 +583,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "first": first_trace,
             "second_failed": second_failed_trace,
             "final": final_trace,
+            "application": application_trace,
             "all": trace(),
         },
         "requests": requests,

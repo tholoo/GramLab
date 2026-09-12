@@ -98,6 +98,32 @@ def process_events(recorded: dict[str, Any], name: str) -> list[dict[str, Any]]:
     ]
 
 
+def public_album_projection(world: World, message: dict[str, Any]) -> dict[str, Any]:
+    """Independently project one canonical history row to its complete Bot API shape."""
+    chat = world.get_chat(message["chat_id"])
+    user = world.get_user(chat["user_id"])
+    api_chat = {"id": user["id"], "type": "private", "first_name": user["first_name"]}
+    if "username" in user:
+        api_chat["username"] = user["username"]
+    projected = {
+        "message_id": message["id"],
+        "from": world.get_user(message["sender_id"]),
+        "chat": api_chat,
+        "date": message["date"],
+        "media_group_id": message["media_group_id"],
+    }
+    if "photo" in message:
+        projected["photo"] = [world.photo_size(int(chat["bot_id"]), message["photo"]["asset_id"])]
+    else:
+        projected["document"] = world.document_file(
+            int(chat["bot_id"]), message["document"]["document_id"]
+        )
+    for field in ("caption", "caption_entities"):
+        if field in message:
+            projected[field] = message[field]
+    return projected
+
+
 def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native: bool) -> None:
     scenario = process_events(recorded, "scenario")
     bot = process_events(recorded, "bot:albums")
@@ -141,13 +167,6 @@ def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native
     assert [message["document"]["document_id"] for message in history[4:]] == ["1", "2"]
     assert result["photo_group"] == history[1:3]
     assert result["document_group"] == history[4:]
-    for index in range(2):
-        response = bot[index]["response"]
-        assert response["status"] == 200 and response["body"]["ok"] is True
-        public = response["body"]["result"]
-        assert [item["message_id"] for item in public] == ([2, 3] if index == 0 else [5, 6])
-        assert {item["media_group_id"] for item in public} == {str(index + 1)}
-        assert len(public) == 2
     assert len(bot[0]["grouped_edit_rejections"]) == 2
     for rejection in bot[0]["grouped_edit_rejections"]:
         assert rejection["status"] == 400
@@ -163,6 +182,17 @@ def assert_public_album_result(recorded: dict[str, Any], output: Path, *, native
         range(created[4]["sequence"], created[4]["sequence"] + 2)
     )
     with World.open(output / "world") as world:
+        expected_responses = [
+            {
+                "status": 200,
+                "body": {
+                    "ok": True,
+                    "result": [public_album_projection(world, message) for message in group],
+                },
+            }
+            for group in (history[1:3], history[4:6])
+        ]
+        assert [event["response"] for event in bot] == expected_responses
         snapshot = world.client_snapshot(2, version=6)
         changes = world.client_changes(2, after=0, limit=100, version=6)
         assert snapshot["messages"] == history

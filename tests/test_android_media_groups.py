@@ -165,14 +165,23 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     assert [row["data"] for row in changes["changes"]] == documents
 
     requests = observed["requests"]
-    successful_snapshots = [
+    assert all(row["started_ns"] <= row["forwarded_ns"] <= row["finished_ns"] for row in requests)
+    publication = observed["publication"]
+    assert publication["started"]["phase"] == "publishing"
+    assert publication["completed"]["phase"] == "published"
+    assert publication["application"]["phase"] == "applied"
+    assert publication["started"]["at_ns"] <= publication["completed"]["at_ns"]
+    assert publication["completed"]["at_ns"] <= publication["application"]["at_ns"]
+    startup_snapshots = [
         row
         for row in requests
         if row["path"] == "/v6/snapshot"
         and row["status"] == 200
         and row["response"]["message_position"] == 2
+        and row["phase"] == "startup"
+        and row["forwarded_ns"] <= publication["started"]["at_ns"]
     ]
-    assert len(successful_snapshots) == 1
+    assert startup_snapshots
     assert not [row for row in requests if row["status"] == 409]
     after_two = [
         row
@@ -181,9 +190,27 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     ]
     assert after_two
     live_after_two = [
-        row for row in after_two if row["response"] == {"cursor": 4, "positions": [3, 4]}
+        row
+        for row in after_two
+        if row["response"] == {"cursor": 4, "positions": [3, 4]}
+        and row["phase"] == "published"
+        and row["forwarded_ns"] >= publication["completed"]["at_ns"]
     ]
-    assert live_after_two
+    assert len(live_after_two) == 1
+    assert live_after_two[0]["forwarded_ns"] <= publication["application"]["at_ns"]
+    first_live_response = min(row["sequence"] for row in live_after_two)
+    assert not [
+        row
+        for row in requests
+        if row["path"] == "/v6/snapshot"
+        and row["status"] == 200
+        and row["response"]["message_position"] == 4
+        and (
+            row["sequence"] < first_live_response
+            or row["phase"] != "applied"
+            or row["forwarded_ns"] < publication["application"]["at_ns"]
+        )
+    ]
     assert not [row for row in requests if row["path"].startswith("/v6/changes?after=3&")]
     after_four = [
         row
@@ -195,12 +222,30 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
         row["sequence"] for row in live_after_two
     )
 
+    assert (
+        observed["traces"]["all"][: len(observed["traces"]["application"])]
+        == observed["traces"]["application"]
+    )
+    publication_trace = observed["traces"]["application"][publication["trace_start"] :]
     applied = [
         row
-        for row in observed["traces"]["all"]
+        for row in publication_trace
         if row.get("event") == "events_applied" and row.get("method") == "messages"
     ]
     assert len(applied) == 1 and applied[0]["token"] == 2
+    assert [
+        row
+        for row in observed["traces"]["all"]
+        if row.get("event") == "events_applied" and row.get("method") == "messages"
+    ] == applied
+    applied_index = publication_trace.index(applied[0])
+    before_application = publication_trace[: applied_index + 1]
+    assert not [
+        row
+        for row in before_application
+        if row.get("event") == "request" and row.get("method") == "TL_updates_getDifference"
+    ]
+    assert not [row for row in before_application if "resnapshot" in row.get("event", "")]
     assert not [row for row in observed["traces"]["all"] if "resnapshot" in row.get("event", "")]
     assert observed["geometry"]["photo_xml_labels"].count("Album / آلبوم") == 1
     document_bounds = observed["geometry"]["document_bounds"]
@@ -260,22 +305,29 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
         (200, len(bodies[1]), hashlib.sha256(bodies[1]).hexdigest()),
     ]
     expected_files = {
-        ("internal", "-1_-1.txt"): (hashlib.sha256(bodies[0]).hexdigest(), len(bodies[0])),
-        ("external", "first-album.txt"): (
+        ("internal", "./cache4/-1_-1.txt"): (
             hashlib.sha256(bodies[0]).hexdigest(),
             len(bodies[0]),
         ),
-        ("internal", "-1_-2.pdf"): (hashlib.sha256(bodies[1]).hexdigest(), len(bodies[1])),
-        ("external", "second-album.pdf"): (
+        (
+            "external",
+            "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+            "Telegram Files/first-album.txt",
+        ): (hashlib.sha256(bodies[0]).hexdigest(), len(bodies[0])),
+        ("internal", "./cache4/-1_-2.pdf"): (
             hashlib.sha256(bodies[1]).hexdigest(),
             len(bodies[1]),
         ),
+        (
+            "external",
+            "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+            "Telegram Files/second-album.pdf",
+        ): (hashlib.sha256(bodies[1]).hexdigest(), len(bodies[1])),
     }
     for inventory in (observed["final_inventory"], observed["cold_inventory"]):
         assert inventory["partials"] == []
         assert {
-            (row["scope"], Path(row["path"]).name): (row["sha256"], row["size"])
-            for row in inventory["files"]
+            (row["scope"], row["path"]): (row["sha256"], row["size"]) for row in inventory["files"]
         } == expected_files
         by_digest = Counter((row["sha256"], row["size"]) for row in inventory["files"])
         for digest, size in expected.items():
@@ -346,6 +398,8 @@ def test_album_proxy_truncates_only_the_first_second_document_body(
         hashlib.sha256(payload).hexdigest(),
     ]
     assert all(row["started_ns"] <= row["finished_ns"] for row in requests)
+    assert all(row["phase"] == "startup" for row in requests)
+    assert all(row["started_ns"] <= row["forwarded_ns"] for row in requests)
 
 
 def test_focused_probe_runs_codec_before_installing_and_launching_ui() -> None:
@@ -394,11 +448,14 @@ def test_focused_report_retains_five_original_captures_and_provenance(tmp_path: 
         "retry",
         "partial",
         "cold_get",
-        "snapshot",
+        "startup_snapshot",
+        "snapshot_application",
+        "difference_application",
         "after_three",
         "early_retry",
         "unstable_guard",
         "identity",
+        "path_parent",
         "payload",
         "resnapshot",
     ],
@@ -434,7 +491,10 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         },
         {
             "scope": "external",
-            "path": "/external/Telegram Files/first-album.txt",
+            "path": (
+                "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+                "Telegram Files/first-album.txt"
+            ),
             "size": len(bodies[0]),
             "sha256": digests[0],
         },
@@ -446,7 +506,10 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         },
         {
             "scope": "external",
-            "path": "/external/Telegram Files/second-album.pdf",
+            "path": (
+                "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
+                "Telegram Files/second-album.pdf"
+            ),
             "size": len(bodies[1]),
             "sha256": digests[1],
         },
@@ -456,6 +519,8 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         for index in range(21)
     ]
     request_defaults = {
+        "forwarded_ns": 0,
+        "phase": "startup",
         "finished_ns": 50,
         "bytes": 0,
         "sha256": hashlib.sha256(b"").hexdigest(),
@@ -476,8 +541,15 @@ def test_focused_oracle_rejects_weakened_native_evidence(
                 {"position": 4, "data": documents[1]},
             ],
         },
+        "publication": {
+            "started": {"phase": "publishing", "at_ns": 30, "request_count": 3},
+            "completed": {"phase": "published", "at_ns": 90, "request_count": 3},
+            "application": {"phase": "applied", "at_ns": 150, "request_count": 4},
+            "trace_start": 0,
+        },
         "traces": {
             "all": [{"event": "events_applied", "method": "messages", "token": 2}],
+            "application": [{"event": "events_applied", "method": "messages", "token": 2}],
             "first": [{"event": "media_load_success"}],
             "second_failed": [{"event": "media_load_failure"}],
             "final": [
@@ -501,24 +573,53 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             request_defaults
             | {
                 "sequence": 2,
+                "path": "/v6/snapshot",
+                "started_ns": 10,
+                "forwarded_ns": 10,
+                "finished_ns": 15,
+                "status": 200,
+                "response": {"message_position": 2},
+            },
+            request_defaults
+            | {
+                "sequence": 3,
                 "path": "/v6/changes?after=2&limit=100",
-                "started_ns": 100,
+                "started_ns": 20,
+                "forwarded_ns": 20,
+                "finished_ns": 25,
+                "status": 200,
+                "response": {"cursor": 2, "positions": []},
+            },
+            request_defaults
+            | {
+                "sequence": 4,
+                "path": "/v6/changes?after=2&limit=100",
+                "started_ns": 40,
+                "forwarded_ns": 100,
+                "finished_ns": 120,
+                "phase": "published",
                 "status": 200,
                 "response": {"cursor": 4, "positions": [3, 4]},
             },
             request_defaults
             | {
-                "sequence": 3,
+                "sequence": 5,
                 "path": "/v6/changes?after=4&limit=100",
                 "started_ns": 200,
+                "forwarded_ns": 200,
+                "finished_ns": 220,
+                "phase": "applied",
                 "status": 200,
                 "response": {"cursor": 4, "positions": []},
             },
             request_defaults
             | {
-                "sequence": 4,
+                "sequence": 6,
                 "path": "/v6/documents/1",
                 "started_ns": 300,
+                "forwarded_ns": 300,
+                "finished_ns": 320,
+                "phase": "applied",
                 "status": 200,
                 "bytes": len(bodies[0]),
                 "sha256": digests[0],
@@ -526,9 +627,12 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 5,
+                "sequence": 7,
                 "path": "/v6/documents/2",
                 "started_ns": 400,
+                "forwarded_ns": 400,
+                "finished_ns": 420,
+                "phase": "applied",
                 "status": 200,
                 "bytes": max(1, len(bodies[1]) // 2),
                 "sha256": hashlib.sha256(bodies[1][: max(1, len(bodies[1]) // 2)]).hexdigest(),
@@ -538,16 +642,34 @@ def test_focused_oracle_rejects_weakened_native_evidence(
             },
             request_defaults
             | {
-                "sequence": 6,
+                "sequence": 8,
                 "path": "/v6/documents/2",
                 "started_ns": 1_100,
+                "forwarded_ns": 1_100,
+                "finished_ns": 1_120,
+                "phase": "applied",
                 "status": 200,
                 "bytes": len(bodies[1]),
                 "sha256": digests[1],
                 "response": None,
             },
+            request_defaults
+            | {
+                "sequence": 9,
+                "path": "/v6/snapshot",
+                "started_ns": 2_000,
+                "forwarded_ns": 2_000,
+                "finished_ns": 2_020,
+                "phase": "applied",
+                "status": 200,
+                "response": {"message_position": 4},
+            },
         ],
-        "cold_requests": [],
+        "cold_requests": [
+            {
+                "path": "/v6/snapshot",
+            }
+        ],
         "taps": [
             {"file_name": DOCUMENT_NAMES[0], "started_ns": 500},
             {"file_name": DOCUMENT_NAMES[1], "started_ns": 600},
@@ -561,31 +683,59 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         "accounts": "Accounts: 0",
     }
     if fault == "group":
+        # Two legitimate position-2 startup snapshots must not weaken the publication oracle.
+        assert_focused_observation(tmp_path, value)
+    if fault == "group":
         value["documents"][1]["media_group_id"] = "3"
     elif fault == "positions":
         value["final_snapshot"]["message_position"] = 3
     elif fault == "cursor":
         value["live_changes"]["cursor"] = 3
     elif fault == "retry":
-        value["requests"].pop()
+        next(row for row in reversed(value["requests"]) if row["path"] == "/v6/documents/2")[
+            "path"
+        ] = "/v6/documents/3"
     elif fault == "partial":
         value["final_inventory"]["partials"] = ["orphan.part"]
     elif fault == "cold_get":
         value["cold_requests"] = [{"path": "/v6/documents/1"}]
-    elif fault == "snapshot":
-        value["requests"][0]["response"]["message_position"] = 1
+    elif fault == "startup_snapshot":
+        for row in value["requests"][:2]:
+            row["response"]["message_position"] = 1
+    elif fault == "snapshot_application":
+        value["requests"][-1]["sequence"] = 3
+        value["requests"][-1]["forwarded_ns"] = 95
+        value["requests"][-1]["phase"] = "published"
+    elif fault == "difference_application":
+        value["traces"]["all"].insert(
+            0,
+            {"event": "request", "method": "TL_updates_getDifference", "token": 9},
+        )
+        value["traces"]["application"].insert(
+            0,
+            {"event": "request", "method": "TL_updates_getDifference", "token": 9},
+        )
     elif fault == "after_three":
-        value["requests"][2]["path"] = "/v6/changes?after=3&limit=100"
+        value["requests"][4]["path"] = "/v6/changes?after=3&limit=100"
     elif fault == "early_retry":
-        value["requests"][5]["started_ns"] = 999
+        next(row for row in reversed(value["requests"]) if row["path"] == "/v6/documents/2")[
+            "started_ns"
+        ] = 999
     elif fault == "unstable_guard":
         value["retry_guard"]["samples"][-1]["request_count"] = 2
     elif fault == "identity":
         value["final_inventory"]["files"][0]["path"] = "./cache4/wrong.txt"
+    elif fault == "path_parent":
+        value["final_inventory"]["files"][1]["path"] = (
+            "/storage/emulated/0/Android/data/org.gramlab.android/files/wrong/first-album.txt"
+        )
     elif fault == "payload":
-        value["requests"][5]["bytes"] -= 1
+        next(row for row in reversed(value["requests"]) if row["path"] == "/v6/documents/2")[
+            "bytes"
+        ] -= 1
     else:
-        value["traces"]["all"].append({"event": "events_resnapshot"})
+        value["traces"]["all"].insert(0, {"event": "events_resnapshot"})
+        value["traces"]["application"].insert(0, {"event": "events_resnapshot"})
     with pytest.raises((AssertionError, KeyError)):
         assert_focused_observation(tmp_path, value)
 
