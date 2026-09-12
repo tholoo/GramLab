@@ -206,8 +206,8 @@ native claim.
 After acceptance review, the coordinator removed48 superseded guest-disk files and9 run-local APK
 copies whose SHA-256 matched the retained canonical normal30 APK, reclaiming9,478,701,056 allocated
 bytes. The cleanup revalidated the canonical APK plus371 retained JUnit/JSON/log/XML/PNG evidence
-files after deletion. Only the latest normal30 lifecycle-failure guest disk remains available for
-the unresolved timing diagnosis; all other reports and captures remain independently inspectable.
+files after deletion. The latest normal30 lifecycle-failure guest disk was retained temporarily for
+the timing diagnosis below; all other reports and captures remained independently inspectable.
 
 ### Normal30 lifecycle timing diagnosis
 
@@ -228,3 +228,9 @@ paused. The accepted normal24 run remains the proof that the current strict full
 achievable on that checkpoint. Normal30 lifecycle acceptance now needs either a clean full-horizon
 pass or explicit approval to replace that criterion with a bounded contiguous-window contract.
 No cadence, renderer, spatial check, state-order check or fidelity criterion has been changed.
+
+After extracting those interval constraints, the coordinator retired the final six AVD image files
+from the pressure rerun and reclaimed951,885,824 allocated bytes. The cleanup revalidated234
+remaining files, including both failed JUnits, every raw/PNG frame, result, guest observation and
+log, before and after deletion. No normal30 custom-emoji or residual-rich guest disk remains; the
+ignored receipt is `.cache/local-notes/guest-retirement-custom-emoji-normal30-final-01.json`.

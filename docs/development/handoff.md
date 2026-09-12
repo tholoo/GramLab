@@ -181,7 +181,9 @@ totaling2,779,159,640 bytes while retaining both canonical APKs and all
 JSON/XML/screenshots/reports. Current normal30 custom-emoji acceptance later retired48 guest disks
 and9 matching APK copies, reclaiming9,478,701,056 allocated bytes; residual rich acceptance retired
 four guest disks and four matching copies, reclaiming4,993,269,760 bytes. One custom-emoji timing-
-failure guest remains for diagnosis. Four
+failure guest was retained through diagnosis, then its final six AVD images were retired after234
+evidence files were revalidated, reclaiming another951,885,824 bytes. No guest disk from current
+normal30 custom-emoji or residual-rich acceptance remains. Four
 older custom-emoji core basetemps totaling about 618 MiB remain because deleting their copied test
 trees requires a separate explicit retention decision; their top-level JUnit/logs are already
 retained independently.
