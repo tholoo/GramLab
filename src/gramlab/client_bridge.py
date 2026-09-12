@@ -303,7 +303,7 @@ class ClientBridge:
                                     )
                                 )
                             )
-                            world._require_media_group_version(callback["message"], version)
+                            world._media_groups.require_message(callback["message"], version)
                             world._require_document_version(callback["message"], version)
                             if version < 3 and world._message_assets(callback["message"]):
                                 raise ValueError(
