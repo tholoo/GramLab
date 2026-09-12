@@ -89,5 +89,6 @@ formatted/custom-emoji caption and callback keyboard, checks exact authenticated
 rejects cross-kind/foreign-bot reuse, then sends the same file again after a callback. All three
 scenario/evidence host cases pass in `artifacts/document-ui-integrated-01.xml`. The extended
 original Android workflow passes in `artifacts/native-media-edit-android-10/`; public runner v5
-selection and mixed-content interaction coverage remain tracked separately in
-[ticket107](../../.scratch/rich-messages/issues/107-document-runner-v5.md).
+selection and mixed-content interaction coverage are integrated, and the public original-client
+callback/reuse workflow passes in `artifacts/document-runner-v5-android-06/`. See
+[ticket107](../../.scratch/rich-messages/issues/107-document-runner-v5.md) for its exact scope.

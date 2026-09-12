@@ -1,10 +1,10 @@
 # Carry ordinary documents through the public scenario runner
 
 Type: task
-Status: ready-for-agent
-Work state: integrated; direct loader/UI gates passed, public Android workflow pending
+Status: resolved
+Work state: integrated and accepted through the public original-Android workflow
 Owner: coordinator
-Blocked by: coordinator execution of the public Android workflow on reviewed normal30
+Blocked by: none
 
 The approved v5 document bridge exists in World and HTTP, but the public runner/CLI and Android
 host accept only3/4. Simulation inline callbacks use4, and native rich-button observation and
@@ -165,3 +165,43 @@ runner, CLI and Android host orchestration without changing default3 or explicit
 This integration alone is not original-renderer evidence. Direct loader native08 and direct
 original-UI native10 now pass, removing those prerequisites; the public runner's own Android
 workflow, screenshots and complete semantic comparison remain this ticket's final acceptance.
+
+## Public original-Android acceptance
+
+The coordinator added an Android-marked public CLI case to the same real contained bot/scenario
+fixture. It invokes `python -m gramlab run` in `headless-android` mode with explicit bridge5 and the
+unchanged reviewed normal30 APK, captures the initial forced document, performs the original inline
+tap, waits for the real bot's answer and stable-`file_id` reuse, then captures the resulting history
+after another client relaunch. The comparison covers complete Bot API output, World history/events,
+the frozen interaction receipt, both native captures, configuration/APK identity, zero accounts and
+the established filesystem/network observations. Simulation now records the same second semantic
+checkpoint without claiming rendering.
+
+The first four retained native attempts isolate two acceptance defects rather than product-delivery
+failures: `android-01` raced a 20-second fixture callback lifetime; `android-02` and `android-03`
+exposed an incomplete/then unmatched UIAutomator row; and diagnostic `android-04` proved the pinned
+client omits the type/filename separator space when a filename begins RTL
+(`PDF file,گزارش-English.pdf`). The matcher now retries a transiently incomplete keyboard for five
+seconds, preserves exact filename/type/size/caption checks and ambiguity rejection, and encodes that
+observed bidi separator. `android-05` completed the entire run and both captures, then exposed a
+receipt race: the native adapter reread an already-answered callback while simulation returned its
+creation-time state. Native input now returns the accepted `callback.created` event with
+`answer: null`; later `get_callback` remains authoritative for the answer.
+
+`artifacts/document-runner-v5-android-06/junit.xml` records the final 1/1 pass in 116.353 seconds.
+Its run result reports 115222ms, both consumer processes exiting normally, bridge5, API36/x86_64,
+one IPv4 and one IPv6 denial observation, exact component filesystem isolation and APK SHA-256
+`a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. Both original PNGs were
+inspected: the initial view contains the bilingual filename/caption, custom emoji and inline button;
+the post-callback view retains it and adds the reused document/caption. Result and report SHA-256 are
+`c83dbaafae0f3a1e301ae31e0936860e347cbb4c97b2b873bb41d9f67529cdb8` and
+`674203c6856f7a670c7ec01012da751b1b3ccc828c2a27cfd9e99e203ee21ac3`.
+
+The corrected loopback-only affected host gate records 43/43 passes in
+`artifacts/document-runner-v5-final-host-02/junit.xml`; the preceding 42-pass/one-failure result is
+retained only for the restored diagnostic-text compatibility correction. Scoped strict mypy, Ruff
+check/format and `git diff --check` pass. This public test does not add a second native transfer
+ledger: exact download/cache bytes remain established by native08/native10, while this gate proves
+their bridge-v5 data is usable through the public runner, real consumer callback and repeated
+original-client launches. Default upload classification, albums and the wider current-APK regression
+remain outside this ticket.

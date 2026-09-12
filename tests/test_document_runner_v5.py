@@ -150,7 +150,10 @@ print(json.dumps(
 ), flush=True)
 
 offset = updates[0]["update_id"] + 1
-deadline = time.monotonic() + 20
+# A native scenario may capture and relaunch the original client before tapping.
+# Keep the bot's long-poll lifetime inside the runner timeout instead of racing
+# that trusted Android orchestration.
+deadline = time.monotonic() + 180
 while time.monotonic() < deadline:
     incoming = call("getUpdates", {"offset": offset, "timeout": 10})
     if not incoming:
@@ -233,6 +236,9 @@ while (
 answer = lab.get_callback(user_id=user["id"], callback_id=callback["id"])["answer"]
 assert answer["text"] == scene["answer_text"]
 assert lab.events()[:len(before)] == before
+reused_capture = lab.capture_chat(
+    chat_id=chat["id"], label="ordinary-document-reused", contains=[scene["reuse_caption"]]
+)
 print(json.dumps(
     {
         "request": request,
@@ -240,6 +246,7 @@ print(json.dumps(
         "capture": capture,
         "callback": callback,
         "answer": answer,
+        "reused_capture": reused_capture,
     },
     ensure_ascii=False,
 ))
@@ -455,6 +462,20 @@ def profile() -> RuntimeProfile:
     return RuntimeProfile(bubblewrap="", python="", store_paths=())
 
 
+def require_android() -> tuple[Path, Path, Path]:
+    runtime = os.environ.get("GRAMLAB_RUNTIME_PROFILE")
+    android = os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    apk = os.environ.get("GRAMLAB_ANDROID_PROBE_APK")
+    if (
+        runtime is None
+        or android is None
+        or apk is None
+        or not os.access("/dev/kvm", os.R_OK | os.W_OK)
+    ):
+        pytest.skip("Requires provisioned runtime profiles, reviewed Android APK and KVM")
+    return Path(runtime), Path(android), Path(apk)
+
+
 def stage_public_scenario(project: Path) -> None:
     project.mkdir()
     (project / "run.toml").write_text(
@@ -472,7 +493,7 @@ def stage_public_scenario(project: Path) -> None:
         (project / name).write_bytes((ASSETS / "custom-emoji" / name).read_bytes())
 
 
-def assert_public_result(recorded: dict[str, Any]) -> None:
+def assert_public_result(recorded: dict[str, Any], *, native: bool = False) -> None:
     bot = {"id": 1, "is_bot": True, "first_name": "files"}
     user = {"id": 2, "is_bot": False, "first_name": "Sara", "language_code": "fa"}
     chat = {"id": 1, "type": "private", "user_id": 2, "bot_id": 1}
@@ -616,24 +637,34 @@ def assert_public_result(recorded: dict[str, Any]) -> None:
         },
         {"sequence": 8, "type": "message.created", "data": reused},
     ]
-    assert recorded["interactions"] == [
-        {
-            "chat_id": 1,
-            "message_id": 2,
-            "row": 0,
-            "column": 0,
-            "native": False,
-            "callback": frozen | {"answer": None},
-        }
-    ]
-    assert recorded["captures"] == [
-        {
-            "chat_id": 1,
-            "label": "ordinary-document",
-            "history": [request, world_sent],
-            "rendered": False,
-        }
-    ]
+    assert len(recorded["interactions"]) == 1
+    interaction = recorded["interactions"][0]
+    assert {key: value for key, value in interaction.items() if key != "android"} == {
+        "chat_id": 1,
+        "message_id": 2,
+        "row": 0,
+        "column": 0,
+        "native": native,
+        "callback": frozen | {"answer": None},
+    }
+    assert ("android" in interaction) is native
+    first_capture = {
+        "chat_id": 1,
+        "label": "ordinary-document",
+        "history": [request, world_sent],
+        "rendered": native,
+    }
+    reused_capture = {
+        "chat_id": 1,
+        "label": "ordinary-document-reused",
+        "history": [request, world_sent, reused],
+        "rendered": native,
+    }
+    assert [
+        {key: value for key, value in capture.items() if key != "android"}
+        for capture in recorded["captures"]
+    ] == [first_capture, reused_capture]
+    assert all(("android" in capture) is native for capture in recorded["captures"])
     scenario = json.loads(recorded["processes"]["scenario"]["stdout"])
     assert scenario == {
         "request": request,
@@ -641,6 +672,7 @@ def assert_public_result(recorded: dict[str, Any]) -> None:
         "capture": recorded["captures"][0],
         "callback": frozen | {"answer": None},
         "answer": answer,
+        "reused_capture": recorded["captures"][1],
     }
 
 
@@ -756,6 +788,76 @@ def test_public_cli_runs_real_document_bot_and_simulated_callback_at_v5(tmp_path
             name: hashlib.sha256((project / name).read_bytes()).hexdigest() for name in names
         }
     assert recorded["sources"] == expected_sources
+
+
+@pytest.mark.android
+def test_public_cli_runs_document_callback_in_original_android_at_v5(tmp_path: Path) -> None:
+    runtime, android_profile, apk = require_android()
+    project = tmp_path / "project"
+    stage_public_scenario(project)
+    manifest = project / "run.toml"
+    manifest.write_text(
+        manifest.read_text()
+        .replace('mode = "simulation-only"', 'mode = "headless-android"')
+        .replace("timeout = 30", "timeout = 300")
+    )
+    output = tmp_path / "run"
+    result = subprocess.run(  # noqa: S603 — public CLI inside the offline test boundary
+        [
+            sys.executable,
+            "-m",
+            "gramlab",
+            "run",
+            str(manifest),
+            "--output",
+            str(output),
+            "--profile",
+            str(runtime),
+            "--android-profile",
+            str(android_profile),
+            "--android-apk",
+            str(apk),
+            "--bridge-version",
+            "5",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=420,
+        env=os.environ.copy(),
+    )
+    (tmp_path / "runner.stdout.log").write_text(result.stdout)
+    (tmp_path / "runner.stderr.log").write_text(result.stderr)
+    assert result.returncode == 0, (output / "result.json").read_text()
+    recorded = json.loads((output / "result.json").read_text())
+    assert_public_result(recorded, native=True)
+    assert recorded["outcome"] == "passed" and recorded["failure"] is None
+    assert recorded["mode"] == "headless-android"
+    assert recorded["configuration"]["android"]["bridge_version"] == 5
+    assert (
+        recorded["configuration"]["android"]["apk_sha256"]
+        == hashlib.sha256(apk.read_bytes()).hexdigest()
+    )
+    observed = recorded["android"]
+    assert observed["api"] == "36" and observed["abi"] == "x86_64"
+    assert observed["network"] == {"ipv4": 1, "ipv6": 1}
+    assert observed["filesystem"] == {
+        "world_visible": False,
+        "bot_visible": False,
+        "scenario_visible": False,
+        "private_avd_visible": True,
+        "same_pid_namespace": False,
+        "same_network": True,
+    }
+    assert recorded["interactions"][0]["android"]["target"]["text"] == SCENE["button_text"]
+    for capture in recorded["captures"]:
+        native = capture["android"]
+        assert "Accounts: 0" in native["accounts"]
+        assert SCENE["file_name"] in native["ui"]
+        png = output / "captures" / f"{capture['label']}.png"
+        assert png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+    assert SCENE["button_text"] in recorded["captures"][0]["android"]["ui"]
+    assert SCENE["reuse_caption"] in recorded["captures"][1]["android"]["ui"]
+    assert (output / "report.html").read_text().count("data:image/png;base64,") == 2
 
 
 @pytest.mark.parametrize(("argument", "expected"), [(None, 3), ("3", 3), ("4", 4), ("5", 5)])
@@ -1048,6 +1150,12 @@ def test_document_accessibility_type_uses_filename_then_original_mime_fallback()
         )
         == "archive, 1.0 KB"
     )
+    assert (
+        _document_accessibility_header(
+            {"file_name": "گزارش-English.pdf", "mime_type": "application/pdf", "file_size": 88}
+        )
+        == "PDF file,گزارش-English.pdf, 88 B"
+    )
 
 
 @pytest.mark.parametrize(
@@ -1092,9 +1200,58 @@ def test_document_dispatch_rejects_wrong_native_type_or_size_before_tap(
         raise AssertionError("A mismatched document row reached native input")
 
     monkeypatch.setattr(android, "_adb", dispatch)
-    with pytest.raises(RuntimeError, match="one accessible match"):
+    with pytest.raises(RuntimeError, match="did not become accessible"):
         android._tap_inline_button(chat, message, 0, 0)
     assert taps == []
+
+
+def test_document_dispatch_waits_for_transiently_missing_keyboard_child(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    keyboard = {"inline_keyboard": [[{"text": "Open", "callback_data": "open"}]]}
+    with World.create(Path("world"), seed=107, now=1_700_000_000) as world:
+        user = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Files", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+        message = world.send_document(
+            chat_id=chat["id"],
+            sender_id=bot["id"],
+            document={"media": "attach://document"},
+            uploads={"document": DocumentUpload(b"x" * 85, "report.pdf")},
+            caption="Same caption",
+            reply_markup=keyboard,
+        )
+    native_text = "PDF file, report.pdf, 85 B\nSame caption\nReceived at 10:13 PM\n"
+    row = (
+        '<node package="org.gramlab.android" text="'
+        + native_text.replace("\n", "&#10;")
+        + '">{} </node>'
+    )
+    incomplete = "<hierarchy>" + row.format("") + "</hierarchy>"
+    complete = (
+        "<hierarchy>"
+        + row.format(
+            '<node class="android.widget.Button" text="Open" bounds="[10,100][90,130]" '
+            'clickable="true" enabled="true" />'
+        )
+        + "</hierarchy>"
+    )
+    android = Android(profile(), deadline=time.monotonic() + 2, secrets=[], bridge_version=5)
+    monkeypatch.setattr(android, "_open_chat", lambda _chat: None)
+    dumps = iter((incomplete, complete))
+    monkeypatch.setattr(android, "_wait_ui", lambda _contains: next(dumps))
+
+    class NativeInputReached(Exception):
+        pass
+
+    monkeypatch.setattr(
+        android,
+        "_adb",
+        lambda *_arguments, **_keywords: (_ for _ in ()).throw(NativeInputReached),
+    )
+    with pytest.raises(NativeInputReached):
+        android._tap_inline_button(chat, message, 0, 0)
 
 
 def test_document_dispatch_distinguishes_descriptors_and_rejects_indistinguishable_rows(

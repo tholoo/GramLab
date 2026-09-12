@@ -22,10 +22,14 @@ setup step. The runner itself never installs dependencies. `python -m gramlab ru
 entry point once the package is installed. The command uses `GRAMLAB_RUNTIME_PROFILE` supplied by
 the Nix shell; `--profile` can select another **trusted, already provisioned** runtime profile.
 Runtime profiles are not consumer manifests and must not be accepted from untrusted projects.
-The trusted `--bridge-version` option selects 3 (default) or 4 for a compatible reviewed Android
-APK; Python callers use `run(..., bridge_version=4)`. The choice is recorded with the Android
-inputs and is not a scenario manifest field. Version 4 adds the [custom-emoji contract](custom-emoji.md);
-its complete native rendering acceptance remains pending.
+The trusted `--bridge-version` option selects 3 (default), 4 or 5 for a compatible reviewed Android
+APK; Python callers pass the same explicit `bridge_version`. The choice is recorded with the Android
+inputs and is not a scenario manifest field. Version4 adds the
+[custom-emoji contract](custom-emoji.md); version5 adds
+[ordinary-document dependencies and bytes](documents-implementation-contract.md#bridge-version-5).
+The public bridge5 workflow now passes a real contained Bot API consumer, original inline tap,
+callback answer, stable-file reuse and two inspected original captures; exact transfer/cache bytes
+remain covered by the dedicated document native gates.
 
 The [example scenario](../../examples/echo/scenario.py) checks two complete conversations with an
 [ordinary HTTP echo bot](../../examples/echo/bot.py), including mixed Persian/English and emoji.

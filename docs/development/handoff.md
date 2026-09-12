@@ -23,7 +23,7 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 
 Core19 passes all **1,192 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
 commands**; the changed diagnostic scope also passes strict typing/Ruff, and configuration/links
-validate in 265 Markdown files. Typed document World99, multipart100,
+validate in 267 Markdown files. Typed document World99, multipart100,
 codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone media
 edits106, the real-bot scenario105 and the clean public runner-v5 migration107 are integrated.
 [Documents](documents.md) records implemented forced-file behavior and standalone edits, including
@@ -43,6 +43,14 @@ The prior normal29 codec gate passes34 actual native cases; the same probe rejec
 its absent codec class. Earlier failed core/native results remain retained with their specific
 corrections or unresolved causes. Do not infer an unrelated failure's cause from a later pass.
 
+Public-runner document native06 passes the complete explicit-bridge5 CLI workflow in116.353 seconds
+on the unchanged normal30 APK: the contained real bot uploads/downloads/reuses the forced document,
+the original client renders it, accepts the inline callback and survives repeated launches, and the
+scenario retains complete World/Bot API comparisons plus two inspected captures. Its adapter fixes
+the observed no-space RTL filename descriptor, retries transient incomplete accessibility children,
+and freezes tap receipts at `callback.created` despite a fast bot answer. The corrected affected
+host gate passes43 cases; exact native transfer/cache bytes remain native08/native10 evidence.
+
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
@@ -56,17 +64,16 @@ corrections or unresolved causes. Do not infer an unrelated failure's cause from
    live under Telegram Files. P1 is removed when D2 replaces it. Original screenshots, XML,
    complete World/Bot API state and the report remain under
    `artifacts/native-media-edit-android-10/`.
-3. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is cleanly
-   integrated with descriptor-bound document matching and its affected host gate passing. Direct
-   loader and UI acceptance now pass, but the public runner's own representative Android workflow
-   still requires execution; keep default3 and explicit3/4 unchanged.
+3. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is resolved.
+   Preserve default3 and explicit3/4 while bridge5 carries ordinary documents; keep exact
+   descriptor/ambiguity rejection and creation-time native callback receipts.
 4. Continue the operational milestone with default upload classification and albums. Album source
    findings are corrected, but group allocation, request bounds and complete-group publication need
    a frozen contract and user consultation before architecture changes. Automatic rich detection
    remains separately unapproved.
 
 Remaining operational work includes default upload classification, albums, approved automatic rich
-detection, wider rich-button placement/recovery and the public-runner combined/current-APK workflow.
+detection, wider rich-button placement/recovery and the combined current-APK regression.
 Preserve the full inventory; explicit unsupported errors do not complete compatibility.
 
 ## Public-source preparation

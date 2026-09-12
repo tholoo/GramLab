@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import time
+import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from contextlib import ExitStack
@@ -96,7 +97,8 @@ def _document_accessibility_header(descriptor: dict[str, Any]) -> str:
             "video/x-matroska": "mkv",
             "audio/ogg": "ogg",
         }.get(mime_type, "")
-    document_type = f"{extension.upper()} file, " if extension else ""
+    separator = "" if file_name and unicodedata.bidirectional(file_name[0]) in {"R", "AL"} else " "
+    document_type = f"{extension.upper()} file,{separator}" if extension else ""
     return f"{document_type}{file_name}, {_android_file_size(descriptor['file_size'])}"
 
 
@@ -583,24 +585,32 @@ class Android:
                     chat["user_id"], message["document"]["document_id"]
                 )[0]
         ui = self._wait_ui(fragments)
-        tree = ET.fromstring(ui)  # noqa: S314 — dedicated UIAutomator XML
         keyboard = message["reply_markup"]["inline_keyboard"]
         labels = [button["text"] for line in keyboard for button in line]
-        candidates = []
-        for node in tree.iter("node"):
-            if node.get("package") != "org.gramlab.android" or not _inline_matches(
-                message, node.get("text", ""), document_descriptor
-            ):
-                continue
-            buttons = [child for child in node if child.get("class") == "android.widget.Button"]
-            if [button.get("text") for button in buttons] == labels:
-                candidates.append((node.get("text", ""), buttons))
-        if len(candidates) != 1:
-            raise RuntimeError(
-                "Inline message and complete keyboard must have one accessible match"
-            )
+        keyboard_deadline = min(self.deadline, time.monotonic() + 5)
+        while True:
+            tree = ET.fromstring(ui)  # noqa: S314 — dedicated UIAutomator XML
+            rows = [
+                node
+                for node in tree.iter("node")
+                if node.get("package") == "org.gramlab.android"
+                and _inline_matches(message, node.get("text", ""), document_descriptor)
+            ]
+            if len(rows) > 1:
+                raise RuntimeError("Inline message identity must have one accessible match")
+            if rows:
+                buttons = [
+                    child for child in rows[0] if child.get("class") == "android.widget.Button"
+                ]
+                if [button.get("text") for button in buttons] == labels:
+                    native_text = rows[0].get("text", "")
+                    break
+            if time.monotonic() >= keyboard_deadline:
+                self.observations["unmatched_inline_ui"] = _Redactor(self.secrets).text(ui)
+                raise RuntimeError("Inline message and keyboard did not become accessible")
+            time.sleep(0.2)
+            ui = self._wait_ui(fragments)
         index = sum(len(line) for line in keyboard[:row]) + column
-        native_text, buttons = candidates[0]
         target = buttons[index]
         bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", target.get("bounds", ""))
         if bounds is None or target.get("clickable") != "true" or target.get("enabled") != "true":
@@ -647,9 +657,10 @@ class Android:
                     ):
                         raise RuntimeError("Native input produced an unexpected callback")
                     return {
-                        "callback": world.get_callback(
-                            user_id=chat["user_id"], callback_id=callbacks[0]["id"]
-                        ),
+                        # The interaction receipt is the accepted creation event. A fast
+                        # bot may answer before this poll observes it, but that later
+                        # mutation must not make native and simulated tap receipts differ.
+                        "callback": callbacks[0] | {"answer": None},
                         "android": {
                             "ui": ui,
                             "target": target.attrib,
