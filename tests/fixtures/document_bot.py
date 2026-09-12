@@ -119,6 +119,8 @@ def download(file_id: str, expected: bytes) -> dict[str, Any]:
 
 
 payload = Path("ordinary-document.bin").read_bytes()
+photo_payload = Path("replacement-photo.png").read_bytes()
+replacement_payload = Path("ordinary-document-2.bin").read_bytes()
 updates = request("getUpdates", {})["body"]["result"]
 if len(updates) != 1 or updates[0]["message"]["text"] != scene["request_text"]:
     raise RuntimeError("Expected one ordinary-document scenario request")
@@ -165,44 +167,148 @@ print(
     flush=True,
 )
 
-if sys.stdin.readline() != "callback\n":
-    raise RuntimeError("Missing document callback signal")
 offset = updates[0]["update_id"] + 1
-deadline = time.monotonic() + 20
-while time.monotonic() < deadline:
-    incoming = request("getUpdates", {"offset": offset, "timeout": 10})["body"]["result"]
-    if not incoming:
-        continue
-    callback = incoming[0].get("callback_query", {})
-    if len(incoming) != 1 or callback.get("data") != scene["callback_data"]:
-        raise RuntimeError("Expected exactly one ordinary-document callback")
-    answer = request(
-        "answerCallbackQuery",
-        {"callback_query_id": callback["id"], "text": scene["answer_text"]},
-    )["body"]["result"]
-    reused = request(
-        "sendDocument",
+
+
+def callback(step: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    global offset
+    if sys.stdin.readline() != "callback\n":
+        raise RuntimeError("Missing document callback signal")
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        incoming = request("getUpdates", {"offset": offset, "timeout": 10})["body"]["result"]
+        if not incoming:
+            continue
+        query = incoming[0].get("callback_query", {})
+        if len(incoming) != 1 or query.get("data") != step["trigger_data"]:
+            raise RuntimeError("Expected exactly one current media-edit callback")
+        answer = request(
+            "answerCallbackQuery",
+            {"callback_query_id": query["id"], "text": step["answer_text"]},
+        )["body"]["result"]
+        offset = incoming[0]["update_id"] + 1
+        return incoming[0], answer
+    raise RuntimeError("Standalone media-edit callback did not arrive")
+
+
+steps = scene["edit_sequence"]
+incoming, answer = callback(steps[0])
+reused = request(
+    "sendDocument",
+    {"chat_id": chat, "document": file_id, "caption": scene["reuse_caption"]},
+)["body"]["result"]
+edited = request(
+    "editMessageCaption",
+    {
+        "chat_id": chat,
+        "message_id": sent["message_id"],
+        "caption": steps[0]["caption"],
+        "caption_entities": steps[0]["caption_entities"],
+        "reply_markup": steps[0]["reply_markup"],
+    },
+)["body"]["result"]
+print(
+    json.dumps(
         {
-            "chat_id": chat,
-            "document": file_id,
-            "caption": scene["reuse_caption"],
+            "event": "document_caption",
+            "update": incoming,
+            "answer": answer,
+            "reused": reused,
+            "edited": edited,
         },
-    )["body"]["result"]
-    offset = incoming[0]["update_id"] + 1
-    if request("getUpdates", {"offset": offset})["body"]["result"] != []:
-        raise RuntimeError("Unexpected pending update after document reuse")
-    print(
-        json.dumps(
-            {
-                "event": "callback",
-                "update": incoming[0],
-                "answer": answer,
-                "reused": reused,
-            },
-            ensure_ascii=False,
-        ),
-        flush=True,
-    )
-    break
-else:
-    raise RuntimeError("Ordinary-document callback did not arrive")
+        ensure_ascii=False,
+    ),
+    flush=True,
+)
+
+incoming, answer = callback(steps[1])
+edited = request(
+    "editMessageMedia",
+    {
+        "chat_id": chat,
+        "message_id": sent["message_id"],
+        "media": {
+            "type": "photo",
+            "media": "attach://replacement",
+            "caption": steps[1]["caption"],
+            "caption_entities": steps[1]["caption_entities"],
+        },
+        "reply_markup": steps[1]["reply_markup"],
+    },
+    files={"replacement": ("replacement.png", photo_payload, "image/png")},
+)["body"]["result"]
+photo_file_id = edited["photo"][0]["file_id"]
+photo_download = download(photo_file_id, photo_payload)
+print(
+    json.dumps(
+        {
+            "event": "photo",
+            "update": incoming,
+            "answer": answer,
+            "edited": edited,
+            "download": photo_download,
+        },
+        ensure_ascii=False,
+    ),
+    flush=True,
+)
+
+incoming, answer = callback(steps[2])
+edited = request(
+    "editMessageCaption",
+    {
+        "chat_id": chat,
+        "message_id": sent["message_id"],
+        "caption": steps[2]["caption"],
+        "caption_entities": steps[2]["caption_entities"],
+        "reply_markup": steps[2]["reply_markup"],
+    },
+)["body"]["result"]
+print(
+    json.dumps(
+        {"event": "photo_caption", "update": incoming, "answer": answer, "edited": edited},
+        ensure_ascii=False,
+    ),
+    flush=True,
+)
+
+incoming, answer = callback(steps[3])
+edited = request(
+    "editMessageMedia",
+    {
+        "chat_id": chat,
+        "message_id": sent["message_id"],
+        "media": {
+            "type": "document",
+            "media": "attach://replacement",
+            "caption": steps[3]["caption"],
+            "caption_entities": steps[3]["caption_entities"],
+            "disable_content_type_detection": True,
+        },
+        "reply_markup": steps[3]["reply_markup"],
+    },
+    files={
+        "replacement": (
+            scene["replacement_upload_name"],
+            replacement_payload,
+            "application/octet-stream",
+        )
+    },
+)["body"]["result"]
+replacement_file_id = edited["document"]["file_id"]
+replacement_download = download(replacement_file_id, replacement_payload)
+if request("getUpdates", {"offset": offset})["body"]["result"] != []:
+    raise RuntimeError("Unexpected pending update after media edits")
+print(
+    json.dumps(
+        {
+            "event": "document_final",
+            "update": incoming,
+            "answer": answer,
+            "edited": edited,
+            "download": replacement_download,
+        },
+        ensure_ascii=False,
+    ),
+    flush=True,
+)

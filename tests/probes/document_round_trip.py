@@ -19,6 +19,10 @@ DOCUMENT_BYTES = (
     b"%PDF-1.4\n% GramLab forced ordinary document\n"
     b"Persian-English filename; exact local bytes.\x00\xff\n%%EOF\n"
 )
+PHOTO_PATH = Path("replacement-photo.png")
+REPLACEMENT_DOCUMENT_BYTES = (
+    b"%PDF-1.4\n% GramLab replacement ordinary document\nDistinct D2 exact bytes.\x01\xfe\n%%EOF\n"
+)
 SCENE: dict[str, Any] = {
     "request_text": "Send the forced document / فایل را بفرست",
     "file_name": "گزارش-English.pdf",
@@ -32,7 +36,59 @@ SCENE: dict[str, Any] = {
     "callback_data": "document:reuse",
     "answer_text": "دریافت شد / Received",
     "reuse_caption": "Same file / همان فایل",
+    "replacement_file_name": "ویرایش-English-2.pdf",
+    "replacement_upload_name": "%D9%88%DB%8C%D8%B1%D8%A7%DB%8C%D8%B4-English-2.pdf",
+    "edit_sequence": [
+        {
+            "operation": "editMessageCaption",
+            "trigger_data": "document:reuse",
+            "caption": "D1 caption edited / زیرنویس سند",
+            "caption_entities": [{"type": "bold", "offset": 0, "length": 2}],
+            "button_text": "Replace with photo / عکس",
+            "callback_data": "document:photo",
+            "answer_text": "Caption edited",
+        },
+        {
+            "operation": "editMessageMedia",
+            "trigger_data": "document:photo",
+            "caption": "P1 initial / عکس نخست",
+            "caption_entities": [{"type": "italic", "offset": 0, "length": 2}],
+            "button_text": "Edit photo caption / زیرنویس",
+            "callback_data": "photo:caption",
+            "answer_text": "Photo replaced",
+        },
+        {
+            "operation": "editMessageCaption",
+            "trigger_data": "photo:caption",
+            "caption": "P1 caption edited / عکس ویرایش شد",
+            "caption_entities": [{"type": "bold", "offset": 0, "length": 2}],
+            "button_text": "Replace with D2 / سند دوم",
+            "callback_data": "photo:document",
+            "answer_text": "Photo caption edited",
+        },
+        {
+            "operation": "editMessageMedia",
+            "trigger_data": "photo:document",
+            "caption": "D2 final / سند نهایی",
+            "caption_entities": [{"type": "italic", "offset": 0, "length": 2}],
+            "button_text": "Complete / تمام",
+            "callback_data": "document:complete",
+            "answer_text": "Document replaced",
+        },
+    ],
 }
+for _step in SCENE["edit_sequence"]:
+    _step["reply_markup"] = {
+        "inline_keyboard": [
+            [{"text": _step["button_text"], "callback_data": _step["callback_data"]}]
+        ]
+    }
+CALLBACK_TAPS = (
+    ("initial", SCENE["button_text"]),
+    ("photo", SCENE["edit_sequence"][0]["button_text"]),
+    ("photo_caption", SCENE["edit_sequence"][1]["button_text"]),
+    ("document_final", SCENE["edit_sequence"][2]["button_text"]),
+)
 
 
 def run(
@@ -136,6 +192,8 @@ def run(
 
     fixture = FixtureBot("document_bot.py")
     (fixture.data / "ordinary-document.bin").write_bytes(DOCUMENT_BYTES)
+    (fixture.data / "replacement-photo.png").write_bytes(PHOTO_PATH.read_bytes())
+    (fixture.data / "ordinary-document-2.bin").write_bytes(REPLACEMENT_DOCUMENT_BYTES)
     environment = {
         "GRAMLAB_BOT_API": "",
         "GRAMLAB_BOT_TOKEN": token,
@@ -174,19 +232,41 @@ def run(
                 if callback_status != 200:
                     raise RuntimeError("v5 document callback creation failed")
             else:
-                tap("initial", SCENE["button_text"])
-            records["callback"] = read_record(bot, "callback")
-            callback_id = records["callback"]["update"]["callback_query"]["id"]
-            bridge_records["callback_after"] = bridge_json(bridge, f"/v5/callbacks/{callback_id}")[
-                1
-            ]
-            bridge_records["reused_snapshot"] = bridge_json(bridge, "/v5/snapshot")[1]
-            bridge_records["reused_changes"] = bridge_json(bridge, "/v5/changes?after=0&limit=100")[
-                1
-            ]
-            bridge_records["reused_download"] = bridge_document(bridge, document_id)
-            if show is not None:
-                client["reused"] = show(configuration(bridge, "reused"))
+                tap(*CALLBACK_TAPS[0])
+            stage_events = ("document_caption", "photo", "photo_caption", "document_final")
+            for index, event in enumerate(stage_events):
+                if index:
+                    with World.open(directory) as world:
+                        world.advance_time(5)
+                    bot.stdin.write("callback\n")
+                    bot.stdin.flush()
+                    step = SCENE["edit_sequence"][index]
+                    if tap is None:
+                        callback_status, _ = bridge_json(
+                            bridge,
+                            "/v5/callbacks",
+                            {
+                                "request_id": f"document-tap-{index + 1}",
+                                "chat_id": 1,
+                                "message_id": 2,
+                                "data": step["trigger_data"],
+                            },
+                        )
+                        if callback_status != 200:
+                            raise RuntimeError("v5 media-edit callback creation failed")
+                    else:
+                        tap(*CALLBACK_TAPS[index])
+                records[event] = read_record(bot, event)
+                callback_id = records[event]["update"]["callback_query"]["id"]
+                bridge_records[event + "_callback"] = bridge_json(
+                    bridge, f"/v5/callbacks/{callback_id}"
+                )[1]
+                bridge_records[event + "_snapshot"] = bridge_json(bridge, "/v5/snapshot")[1]
+                bridge_records[event + "_changes"] = bridge_json(
+                    bridge, "/v5/changes?after=0&limit=100"
+                )[1]
+                if show is not None:
+                    client[event] = show(configuration(bridge, event))
             _, stderr = bot.communicate(timeout=10)
             if bot.returncode != 0 or stderr:
                 raise RuntimeError("Document bot failed after callback reuse")
@@ -199,26 +279,39 @@ def run(
         bridge_records["restarted_callback"] = bridge_json(
             reopened_bridge, f"/v5/callbacks/{callback_id}"
         )[1]
-        bridge_records["restarted_download"] = bridge_document(reopened_bridge, document_id)
         if show is not None:
             client["restart"] = show(configuration(reopened_bridge, "restart"))
         if observe is not None:
             client["observed"] = observe()
 
     with World.open(directory) as world:
-        descriptor, data = world.granted_document(1, document_id)
-        file = world.document_file(2, document_id)
+        document_grants = []
+        for retained_id in ("1", "2"):
+            descriptor, data = world.granted_document(1, retained_id)
+            document_grants.append(
+                {
+                    "descriptor": descriptor,
+                    "file": world.document_file(2, retained_id),
+                    "size": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+            )
+        photo_grant = world.granted_asset(1, 3)
+        photo_file = world.photo_size(2, 3)
         result = {
             "world_id": world_id,
             "bot": records,
             "history": world.history(1),
             "events": world.events(),
             "pending": world.poll_updates(2),
-            "grant": {
-                "descriptor": descriptor,
-                "file": file,
-                "size": len(data),
-                "sha256": hashlib.sha256(data).hexdigest(),
+            "grants": {
+                "documents": document_grants,
+                "photo": {
+                    "asset": photo_grant[0],
+                    "file": photo_file,
+                    "size": len(photo_grant[1]),
+                    "sha256": hashlib.sha256(photo_grant[1]).hexdigest(),
+                },
             },
             "v5": bridge_records,
             "api": [json.loads(line) for line in Path("bot/api.jsonl").read_text().splitlines()],

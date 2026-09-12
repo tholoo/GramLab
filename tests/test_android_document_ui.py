@@ -15,6 +15,8 @@ import pytest
 from test_android_quoted_code import assert_isolation
 from test_document_round_trip import (
     DOCUMENT_BYTES,
+    PHOTO,
+    REPLACEMENT_DOCUMENT_BYTES,
     SCENE,
     assert_document_scenario,
     stage_document_scenario,
@@ -35,6 +37,17 @@ DOCUMENT_EVENTS = {
     "media_load_cancel",
     "media_cache_hit",
 }
+
+
+def test_document_callback_taps_follow_the_current_keyboard() -> None:
+    from document_round_trip import CALLBACK_TAPS
+
+    assert CALLBACK_TAPS == (
+        ("initial", "Reuse / استفاده دوباره"),
+        ("photo", "Replace with photo / عکس"),
+        ("photo_caption", "Edit photo caption / زیرنویس"),
+        ("document_final", "Replace with D2 / سند دوم"),
+    )
 
 
 def visible_labels(xml: str) -> str:
@@ -363,7 +376,10 @@ def assert_android_document_observation(
     assert set(client["captures"]) == {
         "initial",
         "downloaded",
-        "reused",
+        "document_caption",
+        "photo",
+        "photo_caption",
+        "document_final",
         "restart-bottom",
         "restart-top",
     }
@@ -373,22 +389,42 @@ def assert_android_document_observation(
         assert png.startswith(b"\x89PNG\r\n\x1a\n") and len(png) > 1024
     initial = visible_labels(client["captures"]["initial"])
     downloaded = visible_labels(client["captures"]["downloaded"])
-    reused = visible_labels(client["captures"]["reused"])
+    document_caption = visible_labels(client["captures"]["document_caption"])
+    photo = visible_labels(client["captures"]["photo"])
+    photo_caption = visible_labels(client["captures"]["photo_caption"])
+    document_final = visible_labels(client["captures"]["document_final"])
     restarted = visible_labels(client["captures"]["restart-bottom"]) + visible_labels(
         client["captures"]["restart-top"]
     )
-    for labels in (initial, downloaded, restarted):
+    for labels in (initial, downloaded):
         assert SCENE["file_name"] in labels
         assert SCENE["caption"] in labels
         assert SCENE["button_text"] in labels
-    assert SCENE["reuse_caption"] in reused and SCENE["file_name"] in reused
-    assert SCENE["reuse_caption"] in restarted
+    assert SCENE["file_name"] in document_caption
+    assert SCENE["edit_sequence"][0]["caption"] in document_caption
+    assert SCENE["edit_sequence"][0]["button_text"] in document_caption
+    assert SCENE["edit_sequence"][1]["caption"] in photo
+    assert SCENE["edit_sequence"][1]["button_text"] in photo
+    assert SCENE["edit_sequence"][2]["caption"] in photo_caption
+    assert SCENE["edit_sequence"][2]["button_text"] in photo_caption
+    assert SCENE["replacement_file_name"] in document_final
+    assert SCENE["edit_sequence"][3]["caption"] in document_final
+    assert SCENE["edit_sequence"][3]["button_text"] in document_final
+    assert SCENE["replacement_file_name"] in restarted
+    assert SCENE["reuse_caption"] in restarted and SCENE["file_name"] in restarted
 
     assert set(client["launches"]) == {"initial", "restart"}
     for launch in client["launches"].values():
         assert "Status: ok" in launch and "LaunchState: COLD" in launch
     assert "Accounts: 0" in client["accounts"]
-    assert set(client["taps"]) == {"download", "callback"}
+    assert set(client["taps"]) == {
+        "download",
+        "document_caption",
+        "photo",
+        "photo_caption",
+        "document_final",
+        "replacement-download",
+    }
     for tap in client["taps"].values():
         left, top, right, bottom = tap["bounds"]
         assert 0 <= left < right <= 320 and 0 <= top < bottom <= 640
@@ -397,7 +433,10 @@ def assert_android_document_observation(
     assert (
         client["taps"]["download"]["requests_after"] > client["taps"]["download"]["requests_before"]
     )
-    assert client["taps"]["callback"]["label"] == SCENE["button_text"]
+    assert client["taps"]["document_caption"]["label"] == SCENE["button_text"]
+    for index, name in enumerate(("photo", "photo_caption", "document_final")):
+        assert client["taps"][name]["label"] == SCENE["edit_sequence"][index]["button_text"]
+    assert client["taps"]["replacement-download"]["label"] == SCENE["replacement_file_name"]
 
     requests = client["requests"]
     assert json.loads((tmp_path / "native-document-ui-requests.json").read_text()) == requests
@@ -422,7 +461,14 @@ def assert_android_document_observation(
             "finished_ns",
             "error",
         }
-        assert row["phase"] in {"initial", "reused", "restart"}
+        assert row["phase"] in {
+            "initial",
+            "document_caption",
+            "photo",
+            "photo_caption",
+            "document_final",
+            "restart",
+        }
         assert row["method"] in {"GET", "POST"}
         assert row["path"] in allowed or row["path"].startswith(
             ("/v5/changes?", "/v5/callbacks/", "/v5/assets/", "/v5/documents/")
@@ -431,7 +477,7 @@ def assert_android_document_observation(
         assert row["bytes"] >= 0
         assert row["finished_ns"] >= row["started_ns"] > 0
     document_requests = [row for row in requests if row["kind"] == "document"]
-    assert len(document_requests) == 1
+    assert len(document_requests) == 2
     assert document_requests == [
         {
             "sequence": document_requests[0]["sequence"],
@@ -445,36 +491,106 @@ def assert_android_document_observation(
             "started_ns": document_requests[0]["started_ns"],
             "finished_ns": document_requests[0]["finished_ns"],
             "error": None,
-        }
+        },
+        {
+            "sequence": document_requests[1]["sequence"],
+            "phase": "document_final",
+            "method": "GET",
+            "path": "/v5/documents/2",
+            "kind": "document",
+            "identifier": "2",
+            "status": 200,
+            "bytes": len(REPLACEMENT_DOCUMENT_BYTES),
+            "started_ns": document_requests[1]["started_ns"],
+            "finished_ns": document_requests[1]["finished_ns"],
+            "error": None,
+        },
     ]
     assert (
         client["taps"]["download"]["requests_before"]
         < document_requests[0]["sequence"]
         <= client["taps"]["download"]["requests_after"]
     )
+    assert (
+        client["taps"]["replacement-download"]["requests_before"]
+        < document_requests[1]["sequence"]
+        <= client["taps"]["replacement-download"]["requests_after"]
+    )
     assert any(row["path"] == "/v5/custom-emoji-documents" for row in requests)
     assert any(row["kind"] == "asset" and row["identifier"] in {"1", "2"} for row in requests)
+    photo_requests = [
+        row for row in requests if row["kind"] == "asset" and row["identifier"] == "3"
+    ]
+    assert len(photo_requests) == 1
+    assert (
+        photo_requests[0]["phase"] == "photo" and photo_requests[0]["bytes"] == PHOTO.stat().st_size
+    )
+
+    bindings = client["photo_bindings"]
+    assert list(bindings) == ["photo", "photo_caption"]
+    previous_generation = 0
+    pid = None
+    identity_keys = ("schema", "nonce", "world_id", "user_id", "peer_id")
+    for name, binding in bindings.items():
+        assert binding == json.loads((tmp_path / f"{name}-binding.json").read_text())
+        observed_identity = {key: binding[key] for key in identity_keys}
+        assert observed_identity == {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": observed["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+        }
+        assert binding["available"] is True and binding["reason"] is None
+        assert binding["generation"] > previous_generation
+        previous_generation = binding["generation"]
+        assert 0 <= binding["observed_uptime_ms"] - binding["uptime_ms"] <= 1000
+        pid = binding["pid"] if pid is None else pid
+        assert binding["pid"] == pid
+        assert len(binding["messages"]) == 1
+        message = binding["messages"][0]
+        assert message["message_id"] == 2
+        assert message["kind"] == "ordinary" and message["asset_id"] == 3
+        assert message["has_image"] is True and message["image_key"].startswith("3_1@")
+        image = message["image_bounds"]
+        visible = message["visible_bounds"]
+        assert visible[0] <= image[0] < image[2] <= visible[2]
+        assert visible[1] <= image[1] < image[3] <= visible[3]
 
     trace = client["trace"]
     assert [
         json.loads(line) for line in (tmp_path / "final-trace.jsonl").read_text().splitlines()
     ] == trace
-    ordinary = [row for row in trace if row.get("document_id") == "1"]
+    ordinary = [row for row in trace if row.get("document_id") in {"1", "2"}]
     assert ordinary
     for row in ordinary:
         assert set(row) == {"event", "document_id", "cache_file", "file_size", "digest_ok"}
         assert row["event"] in DOCUMENT_EVENTS
-        assert row["cache_file"] == "-1_-1.pdf"
-        assert row["file_size"] == len(DOCUMENT_BYTES)
+        assert row["cache_file"] == ("-1_-1.pdf" if row["document_id"] == "1" else "-2_-2.pdf")
+        assert row["file_size"] == (
+            len(DOCUMENT_BYTES) if row["document_id"] == "1" else len(REPLACEMENT_DOCUMENT_BYTES)
+        )
         assert "asset_id" not in row
     assert not any(row["event"] in {"media_load_failure", "media_load_cancel"} for row in ordinary)
     assert any(row["event"] == "media_load_start" for row in ordinary)
     assert any(
         row["event"] == "media_load_success" and row["digest_ok"] is True for row in ordinary
     )
+    photo_trace = [row for row in trace if row.get("asset_id") == 3]
+    assert photo_trace and all(row["cache_file"] == "3_1.jpg" for row in photo_trace)
+    assert any(
+        row["event"] == "media_load_success" and row["digest_ok"] is True for row in photo_trace
+    )
 
     phases = client["phases"]
-    assert list(phases) == ["initial", "reused", "restart"]
+    assert list(phases) == [
+        "initial",
+        "document_caption",
+        "photo",
+        "photo_caption",
+        "document_final",
+        "restart",
+    ]
     trace_end = request_end = 0
     for name in phases:
         phase = phases[name]
@@ -486,27 +602,66 @@ def assert_android_document_observation(
         trace_end = phase["trace_end"]
         request_end = phase["request_end"]
     assert trace_end == len(trace) and request_end == len(requests)
-    for name in ("reused", "restart"):
+    for name in ("document_caption", "photo_caption", "restart"):
         phase = phases[name]
         assert not any(
             row["kind"] == "document"
             for row in requests[phase["request_start"] : phase["request_end"]]
         )
 
-    digest = hashlib.sha256(DOCUMENT_BYTES).hexdigest()
-    destination = (
+    initial_destination = (
         "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/"
         f"Telegram Files/{SCENE['file_name']}"
     )
-    assert set(client["cache"]) == {"downloaded", "reused", "restart"}
+    final_destination = (
+        "/storage/emulated/0/Android/data/org.gramlab.android/files/Telegram/Telegram Files/"
+        + SCENE["replacement_file_name"]
+    )
+    expected_bytes = {
+        SCENE["file_name"]: DOCUMENT_BYTES,
+        "-1_-1.pdf": DOCUMENT_BYTES,
+        "3_1.jpg": PHOTO.read_bytes(),
+        SCENE["replacement_file_name"]: REPLACEMENT_DOCUMENT_BYTES,
+        "-2_-2.pdf": REPLACEMENT_DOCUMENT_BYTES,
+    }
+    assert set(client["cache"]) == {
+        "downloaded",
+        "document_caption",
+        "photo",
+        "photo_caption",
+        "document_final",
+        "restart",
+    }
     for name, value in client["cache"].items():
         assert value["partials"] == []
-        assert {row["path"] for row in value["copies"]} >= {destination}
+        paths = {row["path"] for row in value["copies"]}
+        basenames = {Path(str(path)).name for path in paths}
+        assert paths >= {initial_destination}
+        assert basenames >= {SCENE["file_name"], "-1_-1.pdf"}
         assert all(
-            row["sha256"] == digest and row["size"] == len(DOCUMENT_BYTES)
+            row["size"] == len(expected_bytes[Path(str(row["path"])).name])
+            and row["sha256"]
+            == hashlib.sha256(expected_bytes[Path(str(row["path"])).name]).hexdigest()
             for row in value["copies"]
         ), name
         assert json.loads((tmp_path / f"{name}-cache.json").read_text()) == value
+    for name in ("photo", "photo_caption"):
+        assert "3_1.jpg" in {Path(str(row["path"])).name for row in client["cache"][name]["copies"]}
+    for name in ("downloaded", "document_caption"):
+        assert SCENE["replacement_file_name"] not in {
+            Path(str(row["path"])).name for row in client["cache"][name]["copies"]
+        }
+    for name in ("document_final", "restart"):
+        paths = {row["path"] for row in client["cache"][name]["copies"]}
+        assert paths >= {
+            initial_destination,
+            final_destination,
+        }
+        assert {Path(str(path)).name for path in paths} >= {
+            SCENE["replacement_file_name"],
+            "-2_-2.pdf",
+        }
+        assert "3_1.jpg" not in {Path(str(path)).name for path in paths}
 
     apk_digest = hashlib.sha256(apk.read_bytes()).hexdigest()
     assert hashlib.sha256((tmp_path / "client.apk").read_bytes()).hexdigest() == apk_digest
@@ -514,8 +669,8 @@ def assert_android_document_observation(
     write_report(
         report_path or tmp_path / "report.html",
         Report(
-            run_id="ordinary-document-download-callback-restart",
-            title="Ordinary document in the original Android renderer",
+            run_id="standalone-media-edits-original-android",
+            title="Standalone media edits in the original Android renderer",
             mode="headless-android",
             outcome="passed",
             seed=105,
@@ -529,16 +684,17 @@ def assert_android_document_observation(
                 "APK SHA-256": apk_digest,
             },
             summary=(
-                "A contained real bot sends a forced PDF with formatted bilingual content and "
-                "an original callback keyboard. The original client downloads exact bytes, "
-                "creates the callback, renders file-ID reuse, and retains the conversation and "
-                "saved destination through a cold restart."
+                "A contained real bot drives four callbacks through D1 caption editing, P1 photo "
+                "replacement and caption editing, and final forced D2 replacement. The original "
+                "client renders each transition, transfers exact media, cleans the replaced photo, "
+                "and retains final state plus unchanged D1 reuse through a cold restart."
                 + (" " + acceptance_note if acceptance_note else "")
             ),
             evidence={
                 "Semantic Bot API and World round trip": observed,
                 "Native bridge requests": requests,
                 "Original media trace": ordinary,
+                "Original P1 receiver bindings": bindings,
                 "Saved destinations": client["cache"],
                 "Phase boundaries": phases,
                 "Network isolation": full["network"],
@@ -553,15 +709,18 @@ def assert_android_document_observation(
                 for name in (
                     "initial",
                     "downloaded",
-                    "reused",
+                    "document_caption",
+                    "photo",
+                    "photo_caption",
+                    "document_final",
                     "restart-bottom",
                     "restart-top",
                 )
             ),
             limitations=(
                 "The retained original screenshots still require visual inspection.",
-                "This fixture covers an explicitly forced non-image PDF; default classification, "
-                "albums, document edits and external viewer behavior remain outside this run.",
+                "Default classification, albums and external viewer behavior remain outside "
+                "this run.",
             ),
         ),
     )

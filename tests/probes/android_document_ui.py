@@ -19,11 +19,20 @@ from typing import Any, NoReturn, Self, cast
 from urllib.parse import urlsplit
 
 from android_guest import main
-from document_round_trip import DOCUMENT_BYTES, SCENE, run
+from document_round_trip import (
+    CALLBACK_TAPS,
+    DOCUMENT_BYTES,
+    PHOTO_PATH,
+    REPLACEMENT_DOCUMENT_BYTES,
+    SCENE,
+    run,
+)
 
 PACKAGE = "org.gramlab.android"
 CONFIG = "files/gramlab/config.json"
 TRACE = "files/gramlab/trace.jsonl"
+PHOTO_OBSERVATION = "files/gramlab/photo-observation.json"
+PHOTO_OBSERVATION_RESULT = "files/gramlab/photo-observation-result.json"
 BOUNDS = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 MEDIA_EVENTS = {
     "media_load_start",
@@ -298,6 +307,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
     launches: dict[str, str] = {}
     taps: dict[str, Any] = {}
     cache: dict[str, Any] = {}
+    photo_bindings: dict[str, dict[str, Any]] = {}
     phases: dict[str, dict[str, int]] = {}
     active_phase = ""
 
@@ -417,6 +427,27 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             input=json.dumps(native),
         )
 
+    def activate_photo_observer(configuration: dict[str, Any]) -> None:
+        activation = {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": configuration["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+            "targets": [{"message_id": 2, "kind": "ordinary", "asset_ids": [3]}],
+        }
+        adb("shell", "run-as", PACKAGE, "rm", "-f", PHOTO_OBSERVATION_RESULT)
+        adb(
+            "shell",
+            "-T",
+            "run-as",
+            PACKAGE,
+            "sh",
+            "-c",
+            f"'cat > {PHOTO_OBSERVATION}'",
+            input=json.dumps(activation),
+        )
+
     def launch(name: str) -> None:
         result = adb(
             "shell",
@@ -448,7 +479,13 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         ]
         copies: list[dict[str, str | int]] = []
         for path, internal in paths:
-            if Path(path).name not in (SCENE["file_name"], "-1_-1.pdf"):
+            if Path(path).name not in (
+                SCENE["file_name"],
+                SCENE["replacement_file_name"],
+                "-1_-1.pdf",
+                "-2_-2.pdf",
+                "3_1.jpg",
+            ):
                 continue
             quoted = shlex.quote(path)
             command = ("shell", "run-as", PACKAGE) if internal else ("shell",)
@@ -493,23 +530,106 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             time.sleep(0.2)
         fail("download", "Original document download did not complete")
 
+    def wait_for_media(
+        name: str, kind: str, identifier: str, size: int, request_start: int
+    ) -> None:
+        deadline = time.monotonic() + 45
+        key = "document_id" if kind == "document" else "asset_id"
+        expected = int(identifier) if kind == "asset" else identifier
+        while time.monotonic() < deadline:
+            rows = trace(name)
+            current = proxy.requests()[request_start:] if proxy is not None else []
+            if any(
+                row["kind"] == kind
+                and row["identifier"] == identifier
+                and row["status"] == 200
+                and row["bytes"] == size
+                and row["error"] is None
+                for row in current
+            ) and any(
+                row.get("event") == "media_load_success"
+                and row.get(key) == expected
+                and row.get("digest_ok") is True
+                for row in rows
+            ):
+                return
+            time.sleep(0.2)
+        fail(name, f"Original {kind} transfer did not complete")
+
+    def wait_for_photo_cleanup(name: str) -> None:
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            value = cache_files(name)
+            if not any(Path(str(row["path"])).name == "3_1.jpg" for row in value["copies"]):
+                return
+            time.sleep(0.2)
+        fail(name, "Replaced P1 selected destination survived D2 application")
+
+    def wait_for_photo_binding(name: str, configuration: dict[str, Any]) -> None:
+        deadline = time.monotonic() + 20
+        pid = int(adb("shell", "pidof", PACKAGE).stdout.strip())
+        previous_generation = max(
+            (int(binding["generation"]) for binding in photo_bindings.values()), default=0
+        )
+        identity = {
+            "schema": 2,
+            "nonce": "standalone-media-edit-p1",
+            "world_id": configuration["world_id"],
+            "user_id": 1,
+            "peer_id": 2,
+            "pid": pid,
+        }
+        while time.monotonic() < deadline:
+            result = guest("shell", "run-as", PACKAGE, "cat", PHOTO_OBSERVATION_RESULT)
+            if result.returncode == 0:
+                value = json.loads(result.stdout)
+                if any(value.get(key) != expected for key, expected in identity.items()):
+                    fail(name + "-binding", "Original P1 observer identity mismatch")
+                uptime = float(adb("shell", "cat", "/proc/uptime").stdout.split()[0]) * 1000
+                messages = value.get("messages", [])
+                if (
+                    value.get("available") is True
+                    and value.get("reason") is None
+                    and int(value.get("generation", 0)) > previous_generation
+                    and 0 <= uptime - float(value.get("uptime_ms", -1)) <= 1000
+                    and len(messages) == 1
+                    and messages[0].get("message_id") == 2
+                    and messages[0].get("kind") == "ordinary"
+                    and messages[0].get("asset_id") == 3
+                    and messages[0].get("has_image") is True
+                    and str(messages[0].get("image_key", "")).startswith("3_1@")
+                ):
+                    photo_bindings[name] = value | {"observed_uptime_ms": uptime}
+                    retain(name + "-binding.json", json.dumps(photo_bindings[name]))
+                    return
+            time.sleep(0.1)
+        fail(name + "-binding", "Original P1 bitmap did not bind to message 2")
+
     def show(configuration: dict[str, Any]) -> str:
         nonlocal proxy
         name = str(configuration["stage"])
-        if name not in ("initial", "reused", "restart"):
+        if name not in (
+            "initial",
+            "document_caption",
+            "photo",
+            "photo_caption",
+            "document_final",
+            "restart",
+        ):
             raise RuntimeError("Unexpected document UI phase")
         if proxy is None:
             adb("install", "--no-streaming", "/work/client.apk", timeout=60)
             proxy = BridgeProxy(configuration["endpoint"], configuration["capability"])
             proxy.__enter__()
             write_config(configuration)
+            activate_photo_observer(configuration)
             begin_phase("initial")
             launch("initial")
             ui = screen(
                 "initial",
                 (SCENE["file_name"], SCENE["caption"], SCENE["button_text"]),
             )
-            before = len(proxy.requests())
+            before = phases[name]["request_start"]
             if any(row["kind"] == "document" for row in proxy.requests()):
                 fail(
                     "download-preload",
@@ -537,10 +657,68 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             )
             return ui
 
-        if name == "reused":
+        if name == "document_caption":
             proxy.retarget(configuration["endpoint"])
-            ui = screen("reused", (SCENE["file_name"], SCENE["reuse_caption"]), applied=True)
-            cache_files("reused")
+            step = SCENE["edit_sequence"][0]
+            ui = screen(
+                name, (SCENE["file_name"], step["caption"], step["button_text"]), applied=True
+            )
+            cache_files(name)
+            return ui
+
+        if name == "photo":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][1]
+            before = phases[name]["request_start"]
+            ui = screen(name, (step["caption"], step["button_text"]), applied=True)
+            wait_for_media(name, "asset", "3", PHOTO_PATH.stat().st_size, before)
+            wait_for_photo_binding(name, configuration)
+            cache_files(name)
+            return ui
+
+        if name == "photo_caption":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][2]
+            ui = screen(name, (step["caption"], step["button_text"]), applied=True)
+            wait_for_photo_binding(name, configuration)
+            cache_files(name)
+            return ui
+
+        if name == "document_final":
+            proxy.retarget(configuration["endpoint"])
+            step = SCENE["edit_sequence"][3]
+            ui = screen(
+                name,
+                (SCENE["replacement_file_name"], step["caption"], step["button_text"]),
+                applied=True,
+            )
+            before = len(proxy.requests())
+            if any(
+                row["kind"] == "document" and row["identifier"] == "2" for row in proxy.requests()
+            ):
+                fail("replacement-download-preload", "D2 transferred before its filename tap", ui)
+            bounds = target(ui, SCENE["replacement_file_name"])
+            taps["replacement-download"] = {
+                "label": SCENE["replacement_file_name"],
+                "bounds": bounds,
+                "requests_before": before,
+            }
+            adb(
+                "shell",
+                "input",
+                "tap",
+                str((bounds[0] + bounds[2]) // 2),
+                str((bounds[1] + bounds[3]) // 2),
+            )
+            wait_for_media(
+                "document-final-downloaded",
+                "document",
+                "2",
+                len(REPLACEMENT_DOCUMENT_BYTES),
+                before,
+            )
+            taps["replacement-download"]["requests_after"] = len(proxy.requests())
+            wait_for_photo_cleanup(name)
             return ui
 
         adb("shell", "am", "force-stop", PACKAGE)
@@ -548,18 +726,22 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         write_config(configuration)
         begin_phase("restart")
         launch("restart")
-        ui = screen("restart-bottom", (SCENE["file_name"], SCENE["reuse_caption"]))
+        final = SCENE["edit_sequence"][3]
+        ui = screen(
+            "restart-bottom",
+            (SCENE["replacement_file_name"], final["caption"], final["button_text"]),
+        )
         for attempt in range(5):
             adb("shell", "uiautomator", "dump", "/data/local/tmp/document-ui.xml", timeout=15)
             older = adb("shell", "cat", "/data/local/tmp/document-ui.xml").stdout
-            if SCENE["caption"] in older and SCENE["button_text"] in older:
+            if SCENE["reuse_caption"] in older and SCENE["file_name"] in older:
                 captures["restart-top"] = retain("restart-top.xml", older)
                 screenshot("restart-top")
                 break
             if attempt == 4:
                 fail(
                     "restart-top",
-                    "Cold restart did not retain the original document and keyboard",
+                    "Cold restart did not retain unchanged D1 reuse above final D2",
                     older,
                 )
             adb("shell", "input", "swipe", "160", "220", "160", "520", "300")
@@ -568,12 +750,22 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
         return ui
 
     def tap(name: str, label: str) -> None:
-        if name != "initial" or label != SCENE["button_text"] or proxy is None:
+        if proxy is None:
             raise RuntimeError("Unexpected document callback target")
-        begin_phase("reused")
-        ui = captures["downloaded"]
+        targets = dict(CALLBACK_TAPS)
+        if name not in targets or label != targets[name]:
+            raise RuntimeError("Unexpected document callback label")
+        phase = "document_caption" if name == "initial" else name
+        begin_phase(phase)
+        source = {
+            "initial": "downloaded",
+            "photo": "document_caption",
+            "photo_caption": "photo",
+            "document_final": "photo_caption",
+        }[name]
+        ui = captures[source]
         bounds = target(ui, label)
-        taps["callback"] = {"label": label, "bounds": bounds}
+        taps[phase] = {"label": label, "bounds": bounds}
         adb(
             "shell",
             "input",
@@ -592,6 +784,7 @@ def probe(guest: Callable[..., subprocess.CompletedProcess[str]]) -> dict[str, o
             "launches": launches,
             "taps": taps,
             "cache": cache,
+            "photo_bindings": photo_bindings,
             "phases": phases,
             "requests": proxy.requests(),
             "trace": rows,
