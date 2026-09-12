@@ -144,3 +144,16 @@ additional D2 request or `media_load_start`. The host independently recomputes t
 Pillow and has explicit final-arrow and cold-reload weakened-evidence cases. The corrected
 external-only inventory also matches the predecessor ordinary-document acceptance. The focused
 host selection passes25/25 and the four-file Ruff/mypy scope passes; normal31 remains unchanged.
+
+The hardened fourth attempt passed in `artifacts/album-normal31-focused-04.xml`. Its report and raw
+result are retained below `artifacts/album-normal31-focused-04-work/`; their SHA-256 values are
+`22a478271396382da24096bfe0e1ce43646df26e6b93d09f8d1598b042d8ed93` and
+`8e88ebab58b0ee305b30908d00bb4935f98522c684621dda16673f674e83a0e2`. All48 codec cases,
+the exact atomic `[3,4]` live application, one causal D2 retry, exact transfer/cache/destination
+identities, stable final/cold glyphs and the cold open with20 samples/no reload passed. The report
+contains exactly five original screenshots; manual inspection confirmed the two-photo stock
+collage/caption, ordered document rows, failed D2 arrow, completed live D2 glyph and identical cold
+completed glyph. The client copy retained SHA-256
+`e60a873fc0283b270a35538c63a5f6e701e74cfecb8f10cfce35af670c57be7a`; provenance, zero accounts,
+loopback-only local traffic and IPv4/IPv6 denial passed. This accepts the focused gate and resolves
+ticket113. The public-v6 and final current-APK gates remain.

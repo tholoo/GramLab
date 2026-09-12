@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: coordinator
 Blocked by: none
 
@@ -96,3 +96,12 @@ retained at `.cache/local-notes/normal31-build-provenance.json`. To preserve the
 exactly three normal31 guests, the app-process green is combined with ticket114's first focused
 album guest rather than booting a fourth codec-only guest. This ticket remains claimed by the
 coordinator until that combined gate passes.
+
+The combined focused gate passed on unchanged normal31 in
+`artifacts/album-normal31-focused-04.xml`. All48 independently authored app-process cases passed,
+including exact v5 compatibility, literal-null rejection, grouped topology, complete paging,
+atomic applications and split-cursor recovery. The same guest then passed the original stock album
+UI/transfer/restart acceptance described in ticket114. The retained client copy SHA-256 is the
+immutable normal31 value above, the report embeds five manually inspected original screenshots,
+and IPv4/IPv6 denial, loopback-only local transport and zero Android accounts passed. This closes
+the adapter's pending native green without another codec-only guest or any APK rebuild.
