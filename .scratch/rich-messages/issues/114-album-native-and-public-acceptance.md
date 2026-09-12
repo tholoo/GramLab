@@ -157,3 +157,28 @@ completed glyph. The client copy retained SHA-256
 `e60a873fc0283b270a35538c63a5f6e701e74cfecb8f10cfce35af670c57be7a`; provenance, zero accounts,
 loopback-only local traffic and IPv4/IPv6 denial passed. This accepts the focused gate and resolves
 ticket113. The public-v6 and final current-APK gates remain.
+
+## Coordinator public-v6 acceptance
+
+The accepted public runner passed in `artifacts/album-normal31-public-v6-04.xml` with SHA-256
+`90d4df9b473e5357c031abcf3874f763244aa7e50e76244812cc260f4ad367d6`. The retained result and
+report SHA-256 values are `c3481133c6d962930b3bb873293824ee701e4c0a47be4e55b2c3034f91ac128b`
+and `487821c583c7d34d434d731c552fa4aed3c8d7cbb717b8c2d726207121c45bd9`. The copied client
+matched immutable normal31 at
+`e60a873fc0283b270a35538c63a5f6e701e74cfecb8f10cfce35af670c57be7a`.
+
+The real contained bot received one original `/start` action and one Persian/English native
+composer action, returned complete two-photo and two-document `sendMediaGroup` responses and
+retained exact World history/events/bridge-v6 state. Both original 320x640 captures were manually
+inspected: the photo members form one stock collage with the caption only on the first member, and
+the documents form one ordered stock list with both exact filenames and captions. Zero accounts,
+component filesystem isolation, loopback-only transport and denied IPv4/IPv6 external probes all
+passed.
+
+Three preceding diagnostic guests are retained as failed outer gates, not accepted results. The
+first exposed that stock Telegram can settle on its original enabled composer instead of the
+optional Start Bot overlay; `96ae388` now accepts either original control without changing the APK.
+The next two completed the entire scenario and exposed test-only receipt-redaction and XML-entity
+oracles; `73f8a41` and `5500390` correct those checks. Their retained successful inner results were
+replayed through the corrected oracle before the final guest. No Android source changed and
+normal31 was never rebuilt. The final inventoried current-APK Android regression remains.
