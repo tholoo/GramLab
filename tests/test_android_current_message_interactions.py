@@ -174,6 +174,50 @@ def test_composer_uses_configured_snapshot_for_current_visible_messages(
     ]
 
 
+def test_start_bot_uses_original_composer_when_stock_overlay_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
+        user = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Bot", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+
+    android = _android(6)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(android, "_open_chat", lambda _chat: "external Android launch")
+    composer_ui = (
+        '<hierarchy><node text="Bot" package="org.gramlab.android" />'
+        '<node text="Message" package="org.gramlab.android" '
+        'class="android.widget.EditText" enabled="true" /></hierarchy>'
+    )
+    monkeypatch.setattr(android, "_wait_ui", lambda _contains, **_options: composer_ui)
+
+    def enter(text: str) -> dict[str, Any]:
+        assert text == "/start"
+        with World.open(Path("world")) as current:
+            current.send_client_message(
+                user_id=chat["user_id"],
+                chat_id=chat["id"],
+                request_id="composer-start",
+                text=text,
+                version=6,
+            )
+        return {
+            "ok": True,
+            "input": "bounded-external-substitute",
+            "text_verified": True,
+            "send_actions": 1,
+            "uid": 2000,
+        }
+
+    monkeypatch.setattr(android, "_enter_text", enter)
+    observed = android._send_composer_action(chat, None, {"text": "/start"})
+
+    assert observed["android"]["input"]["input"] == "bounded-external-substitute"
+    assert observed["sends"][0]["message"]["text"] == "/start"
+
+
 def test_rich_photo_caption_identity_matches_text_and_credit_and_rejects_ambiguity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

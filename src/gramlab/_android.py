@@ -376,7 +376,7 @@ class Android:
         self._active_chat = chat["id"]
         return launched.stdout
 
-    def _wait_ui(self, contains: list[str]) -> str:
+    def _wait_ui(self, contains: list[str], *, start_control: bool = False) -> str:
         ui_deadline = min(self.deadline, time.monotonic() + 45)
         ui = ""
         while time.monotonic() < ui_deadline:
@@ -384,15 +384,27 @@ class Android:
             ui = self._adb("shell", "cat", "/data/local/tmp/gramlab-capture.xml").stdout
             # UIAutomator produces this XML inside the dedicated guest; no external entities.
             nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314
-            if all(any(text in node.get("text", "") for node in nodes) for text in contains) and (
-                contains
-                or any(
-                    node.get("package") == "org.gramlab.android"
-                    and node.get("class") == "android.widget.EditText"
-                    and node.get("enabled") == "true"
-                    for node in nodes
-                )
-            ):
+            editors = [
+                node
+                for node in nodes
+                if node.get("package") == "org.gramlab.android"
+                and node.get("class") == "android.widget.EditText"
+                and node.get("enabled") == "true"
+            ]
+            start_targets = [
+                node
+                for node in nodes
+                if node.get("text") == "Start Bot"
+                and node.get("package") == "org.gramlab.android"
+                and node.get("enabled") == node.get("clickable") == "true"
+            ]
+            ready = bool(contains) or bool(editors)
+            if start_control:
+                ready = bool(start_targets) or len(editors) == 1
+            contains_all = all(
+                any(text in node.get("text", "") for node in nodes) for text in contains
+            )
+            if contains_all and ready:
                 break
             time.sleep(0.2)
         else:
@@ -467,7 +479,11 @@ class Android:
         )
         with World.open(Path("world")) as world:
             title = world.get_user(chat["bot_id"])["first_name"]
-        ui = self._wait_ui([title, "Start Bot"] if text is None else [title])
+        ui = (
+            self._wait_ui([title], start_control=True)
+            if text is None
+            else self._wait_ui([title])
+        )
         with World.open(Path("world")) as world:
             if world.get_chat(chat["id"]) != chat:
                 raise RuntimeError("Composer chat changed before input")
@@ -476,7 +492,18 @@ class Android:
             position = world.client_snapshot(chat["user_id"], version=self._bridge_version)[
                 "message_position"
             ]
-        entered = self._click_start(ui) if text is None else self._enter_text(text)
+        start_targets = [
+            node
+            for node in ET.fromstring(ui).iter("node")  # noqa: S314 — dedicated UIAutomator XML
+            if node.get("text") == "Start Bot"
+            and node.get("package") == "org.gramlab.android"
+            and node.get("enabled") == node.get("clickable") == "true"
+        ]
+        entered = (
+            self._click_start(ui)
+            if text is None and start_targets
+            else self._enter_text("/start" if text is None else text)
+        )
         return self._accepted_composer_send(
             chat, position, expected, started, launched, ui, entered
         )
