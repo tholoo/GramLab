@@ -695,13 +695,25 @@ def assert_public_result(
     scenario_lines = process_json(recorded, "scenario")
     assert len(scenario_lines) == 1
     scenario = scenario_lines[0]
+    scenario_interaction = recorded["interactions"][0]
+    if native:
+        scenario_interaction = {
+            **scenario_interaction,
+            "android": {
+                **scenario_interaction["android"],
+                "target": {
+                    **scenario_interaction["android"]["target"],
+                    "password": "false",
+                },
+            },
+        }
     assert scenario == {
         "static": emoji_descriptors()[0],
         "animated": emoji_descriptors()[1],
         "incoming": initial[0],
         "initial_history": initial,
         "initial_capture": recorded["captures"][0],
-        "interaction": recorded["interactions"][0],
+        "interaction": scenario_interaction,
         "answer": ANSWER,
         "edited_capture": recorded["captures"][1],
         "relaunch_capture": recorded["captures"][2],
@@ -790,6 +802,10 @@ def test_public_runner_captures_custom_emoji_in_original_android_at_v5(tmp_path:
         "same_network": True,
     }
     assert recorded["interactions"][0]["android"]["target"]["text"] == ("Animate / متحرک")
+    recorded_target = recorded["interactions"][0]["android"]["target"]
+    scenario_target = process_json(recorded, "scenario")[0]["interaction"]["android"]["target"]
+    assert recorded_target["password"] == "[REDACTED]"  # noqa: S105 — UI redaction oracle
+    assert scenario_target["password"] == "false"  # noqa: S105 — UI attribute, not a credential
     for capture in recorded["captures"]:
         android = capture["android"]
         assert "Accounts: 0" in android["accounts"]

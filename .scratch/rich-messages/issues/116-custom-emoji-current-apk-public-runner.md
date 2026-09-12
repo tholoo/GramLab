@@ -138,3 +138,12 @@ exited with code zero. That case passed five consecutive contained runs at
 passed **152/152** at `artifacts/current-acceptance-host-after-launch-fix-02.xml`; strict mypy and
 Ruff check/format pass for all changed files. The retained native attempt is
 `artifacts/custom-emoji-normal30-native-02.xml`; it is diagnostic evidence, not a native pass.
+
+The third normal30 run completed the complete native workflow with `result.json` outcome `passed`
+in80.319 seconds: all three captures, the exact original inline callback, edits and cold relaunches
+were retained. Pytest then found an oracle-only redaction mismatch. The scenario's JSON transcript
+correctly retained UIAutomator's non-secret target attribute `password="false"`, while final evidence
+correctly applied the generic key redactor and stored `[REDACTED]`. The oracle now models and checks
+both representations explicitly. It passes against the retained native result and its host case,
+and strict mypy/Ruff pass. `artifacts/custom-emoji-normal30-native-03.xml` remains a failed JUnit;
+a fresh passing JUnit is still required before accepting the native case.
