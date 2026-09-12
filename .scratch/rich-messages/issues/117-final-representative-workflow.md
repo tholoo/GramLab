@@ -4,7 +4,7 @@ Type: task
 Status: needs-info
 Work state: open
 Owner: coordinator
-Blocked by: 93, 110, 111–116
+Blocked by: user decisions for 93, 110, 111 and 116; implementation tickets 110–114
 
 Focused evidence across older APKs does not prove the requested operational milestone. After the
 pending fidelity decisions and tickets110–116 are integrated, build one public real-bot workflow in
@@ -28,3 +28,29 @@ Before acceptance, rerun the complete current non-Android inventory once and col
 Android case manifest. Run every current-APK Android case serially under `android-gate`, fail on
 unexpected skips, and reconcile the final compatibility matrix and reproducible setup from those
 results. Do not reuse the stale historical 53-case count.
+
+## Comments
+
+### Approval-independent current-source preflight
+
+At commit `b3217bd`, cache-disabled collection found exactly1,247 non-Android and68 Android cases
+with no overlap. The ordered manifests are retained at
+`artifacts/current-source-{non-android,android}-collection-01.json`; their SHA-256 values are
+`9d9d83ccb990b22f17a8798fc1fbf834a044dfc956ee59b5506807d934e85603` and
+`f49d81b3fa3f76e6820c749e36b5ac9924e6e8bb5e56e3d0445445593720b2d8` respectively.
+
+The complete host inventory then passed **1,247/1,247** in111.47 seconds with88.12% coverage and no
+failures, errors or skips at `artifacts/current-source-core-20.xml` (SHA-256
+`d307bbb7830a875dae4e63883264e431ab1e76f126e5763f0f34efc5cbf005e3`). It ran inside a fresh user
+and network namespace with loopback as its only interface. The contributor and manual-CI recipes
+had omitted the integrated document-v5, custom-emoji-v5 and residual-rich strict typing scopes;
+adding those three commands makes the complete current static recipe70 commands. Static19 passes
+all70 at
+`artifacts/coordinator-static-19.log` (SHA-256
+`347f729d75085a864b1f42539d7f30640dd39824cb4cc3f40fa2a759235cd0d2`). A separate direct
+invocation of the manual-CI validator passes configuration and local-link checks across278 Markdown
+files; its one-line terminal result is not misrepresented as part of the static log.
+
+No Android case ran during this preflight. The complete68-case normal30 gate is intentionally not
+started before the pending album contract because album delivery requires a new normal31 APK and a
+new final inventory. This collection is a precise baseline, not final native acceptance.

@@ -21,17 +21,18 @@ was submitted separately and remains unapproved; elapsed time is not approval.
 
 ## Accepted integration checkpoint
 
-Core19 passes all **1,192 non-Android tests at 88.11% coverage**. Static17 passes all **67 documented
-commands**; the changed diagnostic scope also passes strict typing/Ruff, and configuration/links
-validate in 267 Markdown files. Typed document World99, multipart100,
+Core20 passes all **1,247 non-Android tests at 88.12% coverage** with no failures, errors or skips.
+Static19 passes all **70 documented commands**, including the public document-v5, custom-emoji-v5
+and residual-rich acceptance scopes that were absent from the previous recipe; configuration/links
+validate in 278 Markdown files. Typed document World99, multipart100,
 codec101, Bot API102, v5 client HTTP103 and atomic World creation13 are resolved. Standalone media
 edits106, the real-bot scenario105 and the clean public runner-v5 migration107 are integrated.
 [Documents](documents.md) records implemented forced-file behavior and standalone edits, including
 their limits.
 
-The current checkout collects 1,240 non-Android and66 Android cases; core19 therefore remains a
-valid historical checkpoint rather than the latest complete inventory. A fresh approval-independent
-rich-target/clipboard/unrelated-edit/recovery host selection passes52/52 in14.533 seconds at
+The current checkout collects exactly1,247 non-Android and68 Android cases with no overlap. Their
+ordered manifests are retained as `artifacts/current-source-{non-android,android}-collection-01.json`.
+A fresh approval-independent rich-target/clipboard/unrelated-edit/recovery host selection passes52/52 in14.533 seconds at
 `artifacts/rich-button-current-host-01.xml`. Do not reuse the historical 53-case Android count for
 the final gate.
 

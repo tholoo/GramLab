@@ -113,6 +113,9 @@ uv run --locked mypy --strict src/gramlab/_captures.py tests/test_runner_custom_
 uv run --locked mypy --strict src/gramlab/_interactions.py tests/test_runner_current_inline_callbacks.py
 uv run --locked mypy --strict src/gramlab/_android.py tests/test_android_current_message_interactions.py tests/fixtures/current_message_interactions_bot.py
 uv run --locked mypy --strict tests/fixtures/custom_emoji_bot.py tests/probes/custom_emoji_round_trip.py tests/test_custom_emoji_round_trip.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases \
+  tests/fixtures/custom_emoji_runner_bot.py tests/custom_emoji_runner_scenario.py \
+  tests/test_runner_custom_emoji_v5.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/custom_emoji_fault_server.py tests/test_custom_emoji_fault_server.py
 MYPYPATH=tests/probes uv run --locked mypy --strict --explicit-package-bases tests/probes/android_custom_emoji_faults.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/test_android_custom_emoji_faults.py
@@ -120,6 +123,9 @@ uv run --locked mypy --strict src/gramlab/_rich_buttons.py src/gramlab/_rich_but
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/rich_targets_bot.py tests/rich_targets_scenario.py tests/test_runner_rich_targets.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/probes/rich_native_clipboard_supervisor.py tests/rich_native_clipboard_plugin.py tests/rich_clipboard_scenario.py tests/test_runner_rich_clipboard.py
 MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases tests/fixtures/unrelated_target_bot.py tests/unrelated_target_scenario.py tests/probes/unrelated_target_supervisor.py tests/test_runner_unrelated_target.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases \
+  tests/fixtures/rich_button_residual_bot.py tests/rich_button_residual_scenario.py \
+  tests/probes/rich_button_residual_supervisor.py tests/test_runner_rich_button_residual.py
 uv run --locked mypy --strict src/gramlab/bot_api.py tests/test_multipart_uploads.py tests/test_multipart_filename_decoding.py
 uv run --locked mypy --strict src/gramlab/world.py tests/test_media_world.py tests/test_media_storage_migration.py tests/fixtures/media_storage_v7/generate.py
 uv run --locked mypy --strict src/gramlab/_document_metadata.py tests/test_document_metadata.py tests/fixtures/document_metadata/regenerate.py
@@ -131,6 +137,8 @@ MYPYPATH=tests uv run --locked mypy --strict src/gramlab/client_bridge.py tests/
 uv run --locked mypy --strict src/gramlab/world.py tests/test_world_creation.py
 uv run --locked mypy --strict tests/fixtures/document_bot.py tests/probes/document_round_trip.py tests/probes/android_document_ui.py tests/test_document_round_trip.py tests/test_android_document_ui.py
 uv run --locked mypy --strict tests/probes/android_document_delivery.py tests/test_android_document_delivery.py
+MYPYPATH=tests uv run --locked mypy --strict --explicit-package-bases \
+  tests/test_document_runner_v5.py
 uv run --locked mypy --strict src/gramlab/world.py src/gramlab/bot_api.py tests/test_media_edits_world.py tests/test_media_edits_http.py
 uv run --locked pytest -m 'not android' -n 4 --cov=src/gramlab --cov-report=term-missing --cov-fail-under=80
 ```
