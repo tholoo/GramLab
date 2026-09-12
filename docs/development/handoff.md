@@ -24,6 +24,22 @@ deferred and is now frozen.
 
 ## Current completion checkpoint
 
+The three Strong architecture-review candidates are implemented on
+`task/deepen-world-and-bridge` as separate commits: `1da28fd` deepens final message publication,
+`266d804` owns complete media-group topology and delivery slicing, and `7d169f2` centralizes client
+bridge version policy and complete semantic envelopes. World keeps the existing client façades;
+the HTTP adapter no longer reads World private implementation. `CONTEXT.md` now defines message
+publication, media group and client bridge schema. No persisted/public schema, fidelity target,
+network, licensing or grouped-edit decision changed, and Android was not rerun.
+
+Focused publication, topology, World and HTTP bridge checks pass, including a new 24-case public
+version matrix. Scoped Ruff lint/format and strict mypy pass. The clean-shell complete non-Android
+gate passes 1,581 tests at 88.61% coverage with one baseline failure: the unchanged current-inline
+CLI test uses default bridge v3 but expects a custom-emoji callback requiring v4. The same isolated
+test fails at pre-branch `f1a5200`; architecture-deepening issue 02 records the required maintainer
+choice without changing the preserved default. Full Ruff lint passes; full format checking reports
+only an unchanged pre-branch layout in `tests/test_media_group_runner_v6.py`.
+
 Commit `5cbe830` adds the public bridge-v6
 [representative workflow](representative-workflow.md). The same real local bot/scenario passes in
 simulation and in the original normal31 Android renderer. It composes bilingual ordinary text,

@@ -155,9 +155,7 @@ class MessagePublication:
     def _require_user(self, user_id: Any) -> None:
         if type(user_id) is not int or user_id <= 0:
             raise ValueError("Invalid virtual user ID")
-        exists = self._connection.execute(
-            "SELECT 1 FROM users WHERE id=?", (user_id,)
-        ).fetchone()
+        exists = self._connection.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone()
         if exists is None:
             raise ValueError("Unknown virtual user")
 
