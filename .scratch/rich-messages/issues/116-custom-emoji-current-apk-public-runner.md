@@ -1,10 +1,10 @@
 # Verify custom emoji through bridge v5 and the current APK
 
 Type: task
-Status: needs-info
+Status: ready-for-agent
 Work state: claimed
 Owner: coordinator
-Blocked by: user decision on the normal30 lifecycle timing criterion
+Blocked by: 120
 
 Custom emoji is functionally implemented and has strong normal24 lifecycle, codec and fault
 evidence. Normal30 includes later patches that overlap Bridge, Runtime, RichMessage, Media and
@@ -234,3 +234,13 @@ from the pressure rerun and reclaimed951,885,824 allocated bytes. The cleanup re
 remaining files, including both failed JUnits, every raw/PNG frame, result, guest observation and
 log, before and after deletion. No normal30 custom-emoji or residual-rich guest disk remains; the
 ignored receipt is `.cache/local-notes/guest-retirement-custom-emoji-normal30-final-01.json`.
+
+### Approved bounded timing criterion
+
+On 2026-09-12 the user approved the recommended bounded contiguous-window rule. Every one of the24
+captures must still match an authored frame; the complete sequence must still preserve forward
+quarter-frame order, observe all four states and remain synchronized across ordinary, rich and
+rich-button carriers. The one-second phase feasibility test may succeed on any contiguous window of
+at least20 captures spanning at least5 seconds instead of requiring one phase to fit the entire
+recording. Ticket120 owns the independent oracle change and replay; no pixel, spatial, state-order,
+carrier-consistency, transfer, cache, restart or fault criterion is relaxed.

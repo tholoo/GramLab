@@ -6,11 +6,13 @@ Work state: open
 Owner: unassigned
 Blocked by: 112
 
-After bridge v6 is accepted at the host boundary, add one successor patch that maps canonical group
-IDs to `TL_message.grouped_id`, validates complete group topology, recovers split cursors through a
-v6 resnapshot and applies each live creation group through one stock `TL_updates` batch before
-advancing the cursor. Own only `clients/android/patches/0031-atomic-media-groups.patch`, the patch
-series/readme, `tests/fixtures/android_media_groups/**`,
+After bridge v6 is accepted at the host boundary, add patch
+`clients/android/patches/0032-atomic-media-groups.patch` after the approved rich-detection patch. It
+maps canonical group IDs to `TL_message.grouped_id`, validates complete group topology, recovers
+split cursors through a v6 resnapshot and applies each live creation group through one stock
+`TL_updates` batch before advancing the cursor. Own only
+`clients/android/patches/0032-atomic-media-groups.patch`, the patch series/readme,
+`tests/fixtures/android_media_groups/**`,
 `tests/probes/android_media_groups_codec.py` and `tests/test_android_media_groups_codec.py`.
 Do not modify original renderer/layout classes or recreate album presentation.
 

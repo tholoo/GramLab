@@ -80,10 +80,10 @@ handoff.
   source/history, explicit source licenses, an original English glass preview and a verified README
   example. Both GitHub branches use the approved cleaned history; visibility remains private.
 
-## Awaiting fidelity decisions
+## Approved implementation queue
 
-- [110: default document classification](issues/110-default-document-classification.md): proposed
-  conservative specialized-family detection; implementation awaits user approval.
+- [110: default document classification](issues/110-default-document-classification.md): approved
+  conservative specialized-family detection is assigned for implementation.
 - [111: album contract](issues/111-album-contract.md): resolved with the complete recommended atomic
   2–10 member photo/document contract frozen and grouped edits deferred.
 - [112: album core and bridge](issues/112-album-core-and-bridge-v6.md),
@@ -92,8 +92,11 @@ handoff.
   but are specified and ready in dependency order. Ticket112 remains blocked on serialized
   completion of ticket110 because core classification and album parsing overlap; tickets113 and114
   follow it.
-- [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) remains an
-  unapproved local fidelity proposal.
+- [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) is an approved
+  frozen local fidelity policy; [119](issues/119-rich-auto-detection-implementation.md) owns its
+  core, original-Android projection and focused acceptance.
+- [120: bounded custom-emoji timing](issues/120-custom-emoji-bounded-timing.md) owns the approved
+  contiguous-window oracle and retained normal30 replay before ticket116 can resolve.
 
 ## Approval-independent current work
 
@@ -104,4 +107,4 @@ handoff.
 - [118: current reproducible setup docs](issues/118-current-reproducible-setup-docs.md) corrects
   stale scaffold/build/patch-queue instructions without claiming pending behavior.
 - [117: final representative workflow](issues/117-final-representative-workflow.md) remains blocked
-  on the fidelity decisions and all focused implementation/acceptance tickets.
+  on the approved fidelity implementations and all focused implementation/acceptance tickets.

@@ -1,6 +1,11 @@
 # Proposed default document classification
 
-Status: proposed fidelity policy; unapproved and not implemented.
+Status: frozen fidelity policy; approved on 2026-09-12 and not implemented.
+
+The user approved the complete recommended bounded local policy and its signature table. General
+files remain ordinary documents, recognized specialized families reject until their complete typed
+contracts exist, and explicit forced-file uploads remain unchanged. Changing that policy requires
+renewed consultation.
 
 This proposal closes the omitted/false `disable_content_type_detection` gap without claiming to
 reproduce Telegram's inaccessible server detector. It needs user approval because the local
@@ -74,7 +79,7 @@ This policy intentionally detects only whether GramLab knows an upload belongs t
 specialized family. It does not manufacture partial animation/audio/video/sticker attributes, and
 it does not turn detection into a no-op by silently treating false as true.
 
-## Consequences to approve
+## Approved consequences
 
 - This is a conservative GramLab emulation. It may reject files Telegram would retain as ordinary
   documents and admit files Telegram would specialize.

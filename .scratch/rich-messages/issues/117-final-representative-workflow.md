@@ -4,10 +4,10 @@ Type: task
 Status: needs-info
 Work state: open
 Owner: coordinator
-Blocked by: user decisions for 93, 110 and 116; implementation tickets 110 and 112–114
+Blocked by: implementation tickets 110, 112–114, 119 and 120; completion of 116
 
 Focused evidence across older APKs does not prove the requested operational milestone. After the
-pending fidelity decisions and tickets110–116 are integrated, build one public real-bot workflow in
+approved fidelity implementations and tickets110–116,119–120 are integrated, build one public real-bot workflow in
 simulation and headless Android that composes the approved surfaces rather than substituting a
 narrow explicit subset.
 

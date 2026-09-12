@@ -1,9 +1,9 @@
 # Prepare a reviewable offline rich automatic-detection policy
 
 Type: task
-Status: needs-info
+Status: ready-for-agent
 Work state: resolved
-Blocked by: user consultation before implementation
+Blocked by: none
 
 Own this ticket and new `docs/development/rich-auto-detection-proposal.md` only. No runtime,
 implementation, tests, dependencies, ADR changes, source adaptation, guest or new research.
@@ -36,3 +36,9 @@ runtime scanner and keeps dependency/source adaptation behind a separate licensi
 The fidelity policy remains unapproved. No runtime, test, dependency, ADR or implementation file
 was changed, and exact Telegram server parity remains unresolved. The repository configuration and
 all local links in 239 Markdown files validate with the documented CI check.
+
+## Approval
+
+On 2026-09-12 the user approved the proposed deterministic offline scanner as a documented GramLab
+emulation. The proposal is frozen; implementation moves to ticket119. Exact Telegram-server parity
+remains outside the claim.

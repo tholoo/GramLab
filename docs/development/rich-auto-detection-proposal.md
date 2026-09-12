@@ -1,6 +1,10 @@
 # Proposed offline rich-text automatic detection
 
-Status: proposed fidelity policy; unapproved and not implemented.
+Status: frozen fidelity policy; approved on 2026-09-12 and not implemented.
+
+The user approved the complete deterministic offline scanner below as an explicit GramLab
+emulation, including its candidate classes, precedence, tree boundaries and acceptance limits.
+It does not claim exact Telegram-server parity. Changing that policy requires renewed consultation.
 
 This proposal would let an offline GramLab bot omit `skip_entity_detection` without pretending
 that local behavior exactly matches Telegram's server. It needs user approval because it changes
@@ -153,14 +157,13 @@ library supplies parsers and Unicode data, not this scanner. Android `Linkify` b
 separate GPL client boundary. Adapting TDLib's entity detector would require its own provenance and
 [licensing review](licensing.md), and would still not prove server-side rich-block scope.
 
-Two fidelity choices remain available:
+The approved fidelity choice is:
 
-1. **Approve this local policy.** It is deterministic, offline and reviewable, but intentionally
-   diverges wherever Telegram behavior is unknown.
-2. **Wait for independently supplied server observations.** This best preserves the fidelity goal,
-   while the operational milestone remains blocked.
+1. **Use this local policy.** It is deterministic, offline and reviewable, but intentionally
+   diverges wherever Telegram behavior is unknown. Waiting for independently supplied server
+   observations remains a possible later fidelity revision, not a prerequisite for this slice.
 
-If the local policy is approved, implementation should prefer reviewed, reusable, permissively
+Implementation should prefer reviewed, reusable, permissively
 licensed scanner components wherever their behavior satisfies this contract. That can accelerate
 delivery, but it does not create a third fidelity policy: the selected component remains subordinate
 to these rules and needs dependency, provenance and licensing review. No dependency or source
