@@ -180,6 +180,7 @@ def snapshot(
 def changes(
     messages: list[dict[str, Any]],
     *,
+    version: int = 6,
     kinds: list[str] | None = None,
     assets: list[dict[str, Any]] | None = None,
     documents: list[dict[str, Any]] | None = None,
@@ -197,7 +198,7 @@ def changes(
         for index, message in enumerate(messages)
     ]
     return {
-        "schema": 6,
+        "schema": version,
         "world_id": WORLD,
         "user_id": 1,
         "cursor": after + len(rows),
@@ -309,6 +310,70 @@ def cases() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
         difference_group_ids=[None, "4", "4", None],
     )
 
+    ten_members = [photo(index, "10") for index in range(1, 11)]
+    add(
+        "snapshot-valid-ten-member-group",
+        {"snapshots": [snapshot(ten_members, assets=[PHOTO])]},
+        returncode=0,
+        group_ids=["10"] * 10,
+    )
+    consecutive_groups = [
+        photo(1, "11"),
+        photo(2, "11"),
+        photo(3, "12"),
+        photo(4, "12"),
+    ]
+    add(
+        "changes-two-consecutive-complete-groups",
+        {
+            "snapshots": [snapshot([], message_position=0)],
+            "mode": "changes",
+            "get": {
+                "/v6/changes?after=0&limit=100": {
+                    "body": changes(consecutive_groups, assets=[PHOTO])
+                }
+            },
+        },
+        returncode=0,
+        application_counts=[2, 2],
+        application_sequences=[2, 4],
+    )
+
+    limit_one_group = [photo(1, "13"), photo(2, "13")]
+    add(
+        "changes-limit-one-expands-complete-group",
+        {
+            "snapshots": [snapshot([], message_position=0)],
+            "mode": "changes-limit-1",
+            "get": {
+                "/v6/changes?after=0&limit=1": {"body": changes(limit_one_group, assets=[PHOTO])}
+            },
+        },
+        returncode=0,
+        final_atomic_count=2,
+        final_sequence=2,
+        paths=["/v6/snapshot", "/v6/changes?after=0&limit=1"],
+    )
+
+    maximum_expansion = [text(index, f"standalone-{index}") for index in range(1, 1000)]
+    maximum_expansion += [photo(index, "14") for index in range(1000, 1010)]
+    add(
+        "changes-limit-one-thousand-expands-to-one-thousand-nine",
+        {
+            "snapshots": [snapshot([], message_position=0)],
+            "mode": "changes-limit-1000",
+            "get": {
+                "/v6/changes?after=0&limit=1000": {
+                    "body": changes(maximum_expansion, assets=[PHOTO])
+                }
+            },
+        },
+        returncode=0,
+        final_atomic_count=10,
+        final_sequence=1009,
+        paths=["/v6/snapshot", "/v6/changes?after=0&limit=1000"],
+    )
+
     expanded_messages = [text(index, f"standalone-{index}") for index in range(1, 100)]
     expanded_messages += [photo(100, "5"), photo(101, "5"), photo(102, "5")]
     add(
@@ -363,6 +428,63 @@ def cases() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
         returncode=0,
         send={"id": 1, "pts": 1, "pts_count": 1, "date": 1700000000},
         paths=["/v6/snapshot", "/v6/messages"],
+    )
+
+    add(
+        "v5-valid-snapshot-path",
+        {"bridge_version": 5, "snapshots": [snapshot([text(1)], version=5)]},
+        returncode=0,
+        paths=["/v5/snapshot"],
+    )
+    add(
+        "v5-valid-changes-path",
+        {
+            "bridge_version": 5,
+            "snapshots": [snapshot([], version=5, message_position=0)],
+            "mode": "changes",
+            "get": {"/v5/changes?after=0&limit=100": {"body": changes([text(1)], version=5)}},
+        },
+        returncode=0,
+        application_counts=[1],
+        application_sequences=[1],
+        paths=["/v5/snapshot", "/v5/changes?after=0&limit=100"],
+    )
+    add(
+        "v5-valid-messages-path",
+        {
+            "bridge_version": 5,
+            "snapshots": [snapshot([], version=5, message_position=0)],
+            "mode": "send",
+            "post": {
+                "/v5/messages": {
+                    "body": {
+                        "schema": 5,
+                        "world_id": WORLD,
+                        "user_id": 1,
+                        "send": {"request_id": "42", "position": 1, "message": send_message},
+                        "users": USERS,
+                        "assets": [],
+                        "custom_emoji": [],
+                        "documents": [],
+                        "message_revision": 1,
+                    }
+                }
+            },
+            "expected_request": {
+                "/v5/messages": {
+                    "keys": ["request_id", "chat_id", "text", "entities"],
+                    "values": {
+                        "request_id": "42",
+                        "chat_id": 1,
+                        "text": "album codec send",
+                        "entities": [],
+                    },
+                }
+            },
+        },
+        returncode=0,
+        send={"id": 1, "pts": 1, "pts_count": 1, "date": 1700000000},
+        paths=["/v5/snapshot", "/v5/messages"],
     )
 
     callback_message = photo(1, "6")
@@ -498,6 +620,17 @@ def cases() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     )
     reject("group-message-id-gap", snapshot([photo(1, "8"), photo(3, "8")], assets=[PHOTO]))
     reject("group-duplicate-message-id", snapshot([photo(1, "8"), photo(1, "8")], assets=[PHOTO]))
+    reject("group-reordered-message-id", snapshot([photo(2, "8"), photo(1, "8")], assets=[PHOTO]))
+
+    for name, revisions in (
+        ("gapped", [1, 3]),
+        ("duplicate", [1, 1]),
+        ("reordered", [2, 1]),
+    ):
+        revision_snapshot = snapshot([photo(1, "15"), photo(2, "15")], assets=[PHOTO])
+        for record, revision in zip(revision_snapshot["message_revisions"], revisions, strict=True):
+            record["revision"] = revision
+        reject(f"snapshot-group-revision-{name}", revision_snapshot)
     reject(
         "group-disjoint-reuse",
         snapshot(
@@ -564,6 +697,27 @@ def cases() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
             }
         },
     )
+    duplicate_response_message = [photo(1, "16"), photo(2, "16"), text(2)]
+    reject(
+        "changes-duplicate-grouped-and-standalone-message-id",
+        snapshot([], message_position=0),
+        mode="changes",
+        get={
+            "/v6/changes?after=0&limit=100": {
+                "body": changes(duplicate_response_message, assets=[PHOTO])
+            }
+        },
+    )
+    reject(
+        "difference-duplicate-grouped-and-standalone-message-id",
+        snapshot([], message_position=0),
+        mode="difference",
+        get={
+            "/v6/changes?after=0&limit=100": {
+                "body": changes(duplicate_response_message, assets=[PHOTO])
+            }
+        },
+    )
     too_many_standalone = [text(index, f"m{index}") for index in range(1, 102)]
     reject(
         "changes-over-limit-without-group-expansion",
@@ -590,6 +744,8 @@ def test_patch_and_fixture_freeze_bridge_v6_album_invariants() -> None:
         "message.flags |= 1 << 17;",
         "validateCompleteGroups(snapshotTopology);",
         "validateCompleteGroups(changeTopology);",
+        'responseMessages.add(record.chatId + ":" + record.messageId)',
+        "groupMember(record, version, revisionValue, null)",
         "records.length() <= (version == 6 ? limit + 9 : limit)",
         "application.envelope(current, batch.now)",
         "eventCursor = application.finalPosition;",
@@ -621,7 +777,7 @@ def test_patch_and_fixture_freeze_bridge_v6_album_invariants() -> None:
 def test_independent_case_inventory_covers_contract_boundaries() -> None:
     authored, expected = cases()
     names = [case["name"] for case in authored]
-    assert len(names) == len(set(names)) == 35
+    assert len(names) == len(set(names)) == 48
     assert set(names) == set(expected)
     assert all(case["snapshots"] for case in authored)
     assert {
@@ -630,7 +786,14 @@ def test_independent_case_inventory_covers_contract_boundaries() -> None:
         "snapshot-caption-custom-emoji-scope",
         "changes-one-atomic-group-application",
         "difference-complete-group-topology",
+        "snapshot-valid-ten-member-group",
+        "changes-two-consecutive-complete-groups",
+        "changes-limit-one-expands-complete-group",
+        "changes-limit-one-thousand-expands-to-one-thousand-nine",
         "changes-limit-plus-group-remainder",
+        "v5-valid-snapshot-path",
+        "v5-valid-changes-path",
+        "v5-valid-messages-path",
         "v6-messages-route",
         "v6-callback-route-carries-grouped-member",
         "v6-custom-emoji-document-route",
@@ -639,7 +802,13 @@ def test_independent_case_inventory_covers_contract_boundaries() -> None:
         "group-eleven-members",
         "group-cross-chat",
         "group-disjoint-reuse",
+        "group-reordered-message-id",
+        "snapshot-group-revision-gapped",
+        "snapshot-group-revision-duplicate",
+        "snapshot-group-revision-reordered",
         "changes-response-local-extra-dependency",
+        "changes-duplicate-grouped-and-standalone-message-id",
+        "difference-duplicate-grouped-and-standalone-message-id",
     } <= set(names)
 
 

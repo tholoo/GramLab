@@ -248,11 +248,12 @@ acceptance.
 
 `0032-atomic-media-groups.patch` negotiates bridge v6 and maps canonical positive signed-64-bit
 album IDs to original `TL_message.grouped_id` with flag 17. It validates complete 2–10-member,
-same-chat/same-kind contiguous topology in snapshots and creation changes, admits the bounded
-limit-plus-nine page expansion, classifies the exact split-cursor 409 for complete-snapshot
-recovery, and applies each live group through one stock `TL_updates` envelope before advancing its
-cursor. Version-6 response-local media/document/custom-emoji dependencies retain the established
-scope checks, while complete snapshots retain their existing dependency superset. The patch changes
-only adapter, transfer-route and serializer-observer seams; original message cells, grouped layout,
+same-chat/same-kind contiguous topology in snapshots and creation changes, including response-wide
+chat/message uniqueness and ordered contiguous grouped snapshot revisions. It admits the bounded
+limit-plus-nine page expansion, classifies the exact split-cursor 409 for complete-snapshot recovery,
+and applies each live group through one stock `TL_updates` envelope before advancing its cursor.
+Version-6 response-local media/document/custom-emoji dependencies retain the established scope
+checks, while complete snapshots retain their existing dependency superset. The patch changes only
+adapter, transfer-route and serializer-observer seams; original message cells, grouped layout,
 renderer resources and input handlers remain unchanged. The worker owns source staging and the
 normal30 unsupported-v6 red; the coordinator owns the album-era APK build and green native codec.

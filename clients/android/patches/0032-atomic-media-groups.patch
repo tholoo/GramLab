@@ -1,5 +1,5 @@
 diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
-index b9d9954..c627675 100644
+index b9d9954..2df822c 100644
 --- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 +++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
 @@ -28,6 +28,9 @@ import java.util.Set;
@@ -62,7 +62,7 @@ index b9d9954..c627675 100644
          if (record.has("caption_entities")) {
              require(hasMedia && !record.has("entities"));
              message.entities = entities(record.getJSONArray("caption_entities"), message.message);
-@@ -179,6 +214,60 @@ public final class GramLabBridge {
+@@ -179,6 +214,62 @@ public final class GramLabBridge {
          return message;
      }
  
@@ -70,17 +70,17 @@ index b9d9954..c627675 100644
 +        final long groupId;
 +        final long chatId;
 +        final int messageId;
-+        final int position;
++        final long position;
 +        final String kind;
 +        final String changeType;
-+        GroupMember(long groupId, long chatId, int messageId, int position, String kind,
++        GroupMember(long groupId, long chatId, int messageId, long position, String kind,
 +                String changeType) {
 +            this.groupId = groupId; this.chatId = chatId; this.messageId = messageId;
 +            this.position = position; this.kind = kind; this.changeType = changeType;
 +        }
 +    }
 +
-+    private static GroupMember groupMember(JSONObject record, int version, int position,
++    private static GroupMember groupMember(JSONObject record, int version, long position,
 +            String changeType) throws JSONException {
 +        long groupId = mediaGroupIdentifier(record, version);
 +        String kind = record.has("photo") ? "photo" : record.has("document") ? "document" : "none";
@@ -90,7 +90,10 @@ index b9d9954..c627675 100644
 +
 +    private static void validateCompleteGroups(List<GroupMember> records) {
 +        Set<Long> finished = new HashSet<>();
-+        Set<String> groupedMessages = new HashSet<>();
++        Set<String> responseMessages = new HashSet<>();
++        for (GroupMember record : records) {
++            require(responseMessages.add(record.chatId + ":" + record.messageId));
++        }
 +        int index = 0;
 +        while (index < records.size()) {
 +            GroupMember first = records.get(index);
@@ -106,11 +109,10 @@ index b9d9954..c627675 100644
 +                GroupMember member = records.get(end);
 +                require(member.chatId == first.chatId && member.kind.equals(first.kind)
 +                        && !"none".equals(member.kind)
-+                        && (member.changeType == null || "message.created".equals(member.changeType))
-+                        && groupedMessages.add(member.chatId + ":" + member.messageId));
++                        && (member.changeType == null || "message.created".equals(member.changeType)));
 +                if (previous != null) {
 +                    require(member.messageId == previous.messageId + 1
-+                            && (member.position == 0 || member.position == previous.position + 1));
++                            && member.position == previous.position + 1);
 +                }
 +                previous = member;
 +                end++;
@@ -123,7 +125,7 @@ index b9d9954..c627675 100644
      private static boolean boundary(String text, int index) {
          return index >= 0 && index <= text.length() && !(index > 0 && index < text.length()
                  && Character.isHighSurrogate(text.charAt(index - 1))
-@@ -336,6 +425,27 @@ public final class GramLabBridge {
+@@ -336,6 +427,27 @@ public final class GramLabBridge {
                  try (java.io.OutputStream output = connection.getOutputStream()) { output.write(payload); }
              }
              int status = connection.getResponseCode();
@@ -151,7 +153,7 @@ index b9d9954..c627675 100644
              if (status == 400) throw new IllegalArgumentException("GRAMLAB_BRIDGE_HTTP_400");
              if (status != 200) {
                  throw new IllegalStateException("GRAMLAB_BRIDGE_HTTP_" + status);
-@@ -353,7 +463,9 @@ public final class GramLabBridge {
+@@ -353,7 +465,9 @@ public final class GramLabBridge {
          } finally {
              connection.disconnect();
          }
@@ -162,7 +164,7 @@ index b9d9954..c627675 100644
          require(integer(body, "schema") == expectedSchema && worldId.equals(body.getString("world_id"))
                  && identifier(body, "user_id") == persona);
          return body;
-@@ -367,7 +479,7 @@ public final class GramLabBridge {
+@@ -367,7 +481,7 @@ public final class GramLabBridge {
          if (previousSnapshot != null) boundState(configuration, previousSnapshot);
          IdentityKnowledge identities = previousSnapshot == null ? new IdentityKnowledge() : previousSnapshot.identities;
          int version = configuration.has("bridge_version") ? integer(configuration, "bridge_version") : 2;
@@ -171,7 +173,7 @@ index b9d9954..c627675 100644
          JSONObject body = exchange(configuration, "/v" + version + "/snapshot", null);
          String worldId = configuration.getString("world_id");
          long persona = identifier(configuration, "user_id");
-@@ -376,9 +488,9 @@ public final class GramLabBridge {
+@@ -376,9 +490,9 @@ public final class GramLabBridge {
          require(integer(body, "schema") == version && worldId.equals(body.getString("world_id"))
                  && identifier(body, "user_id") == persona);
          require(version >= 4 || !body.has("custom_emoji"));
@@ -183,7 +185,7 @@ index b9d9954..c627675 100644
          if (version < 4) GramLabMedia.beginWorld(configuration, worldId);
          if (version >= 3) { if (version < 4) GramLabMedia.install(body.getJSONArray("assets")); body.getJSONArray("message_revisions"); }
          else require(!body.has("assets") && !body.has("message_revisions"));
-@@ -425,12 +537,13 @@ public final class GramLabBridge {
+@@ -425,12 +539,13 @@ public final class GramLabBridge {
          JSONArray revisions = version >= 3 ? body.getJSONArray("message_revisions") : null;
          if (revisions != null) require(revisions.length() == records.length());
          Map<Long, Set<Integer>> seen = new LinkedHashMap<>();
@@ -198,7 +200,7 @@ index b9d9954..c627675 100644
              long revisionValue = 0;
              if (revisions != null) {
                  JSONObject revision = revisions.getJSONObject(index);
-@@ -442,10 +555,13 @@ public final class GramLabBridge {
+@@ -442,10 +557,13 @@ public final class GramLabBridge {
              long chat = identifier(record, "chat_id");
              require(peersByChat.containsKey(chat));
              long bot = peersByChat.get(chat);
@@ -206,14 +208,14 @@ index b9d9954..c627675 100644
 +            TLRPC.TL_message message = message(record, persona, bot,
 +                    version >= 3 ? users.keySet() : null, revisionValue, version);
              require(seen.get(chat).add(message.id));
-+            snapshotTopology.add(groupMember(record, version, 0, null));
++            snapshotTopology.add(groupMember(record, version, revisionValue, null));
              histories.get(bot).messages.add(message);
          }
 +        if (version == 6) validateCompleteGroups(snapshotTopology);
          for (Map.Entry<Long, Long> entry : peersByChat.entrySet()) {
              TLRPC.TL_messages_messages history = histories.get(entry.getValue());
              history.messages.sort((left, right) -> Integer.compare(right.id, left.id));
-@@ -461,7 +577,7 @@ public final class GramLabBridge {
+@@ -461,7 +579,7 @@ public final class GramLabBridge {
          records = body.getJSONArray("sends");
          int previous = 0;
          for (int index = 0; index < records.length(); index++) {
@@ -222,7 +224,7 @@ index b9d9954..c627675 100644
              require(send.position > previous && send.position <= result.messagePosition);
              previous = send.position;
              sends.add(send);
-@@ -507,10 +623,12 @@ public final class GramLabBridge {
+@@ -507,10 +625,12 @@ public final class GramLabBridge {
          public final int position;
          public final TLRPC.Update update;
          public final SendResult send;
@@ -237,7 +239,7 @@ index b9d9954..c627675 100644
          }
          public TLRPC.TL_updates envelope(Snapshot state, int date) {
              TLRPC.TL_updates result = new TLRPC.TL_updates();
-@@ -523,15 +641,47 @@ public final class GramLabBridge {
+@@ -523,15 +643,47 @@ public final class GramLabBridge {
          }
      }
  
@@ -285,7 +287,7 @@ index b9d9954..c627675 100644
          }
      }
  
-@@ -620,7 +770,7 @@ public final class GramLabBridge {
+@@ -620,7 +772,7 @@ public final class GramLabBridge {
          throw new IllegalArgumentException("GRAMLAB_BRIDGE_UNKNOWN_CHAT");
      }
  
@@ -294,7 +296,7 @@ index b9d9954..c627675 100644
          fields(record, "request_id", "position", "message");
          String id = record.getString("request_id");
          require(id.matches("[A-Za-z0-9_-]{1,128}"));
-@@ -628,7 +778,7 @@ public final class GramLabBridge {
+@@ -628,7 +780,7 @@ public final class GramLabBridge {
          require(position > 0);
          JSONObject data = record.getJSONObject("message");
          long peer = peerForChat(state, identifier(data, "chat_id"));
@@ -303,7 +305,7 @@ index b9d9954..c627675 100644
          require(message.out && message.edit_date == 0);
          return new SendResult(id, position, peer, message);
      }
-@@ -641,8 +791,8 @@ public final class GramLabBridge {
+@@ -641,8 +793,8 @@ public final class GramLabBridge {
          JSONObject body = exchange(configuration, ("/v" + version + "/changes") + "?after=" + after + "&limit=" + limit, null);
          fields(body, "schema", "world_id", "user_id", "cursor", "head", "now", "changes", "users", "assets", "custom_emoji", "documents");
          require(version >= 4 || !body.has("custom_emoji"));
@@ -314,7 +316,7 @@ index b9d9954..c627675 100644
          UserDependencies dependencies = version >= 3 ? dependencyUsers(body.getJSONArray("users"), state) : null;
          if (version >= 3) { if (version < 4) GramLabMedia.install(body.getJSONArray("assets")); }
          else require(!body.has("users") && !body.has("assets"));
-@@ -653,8 +803,9 @@ public final class GramLabBridge {
+@@ -653,8 +805,9 @@ public final class GramLabBridge {
          int head = integer(body, "head");
          require(cursor >= after && cursor <= head);
          ArrayList<Change> changes = new ArrayList<>();
@@ -325,7 +327,7 @@ index b9d9954..c627675 100644
          long previous = after;
          for (int index = 0; index < records.length(); index++) {
              JSONObject record = records.getJSONObject(index);
-@@ -666,7 +817,9 @@ public final class GramLabBridge {
+@@ -666,7 +819,9 @@ public final class GramLabBridge {
              String type = record.getString("type");
              JSONObject data = record.getJSONObject("data");
              long peer = peerForChat(state, identifier(data, "chat_id"));
@@ -336,7 +338,7 @@ index b9d9954..c627675 100644
              TLRPC.Update update;
              SendResult send = null;
              if ("message.created".equals(type)) {
-@@ -676,7 +829,7 @@ public final class GramLabBridge {
+@@ -676,7 +831,7 @@ public final class GramLabBridge {
                  update = created;
                  if (record.has("request_id")) {
                      send = sendResult(new JSONObject().put("request_id", record.get("request_id"))
@@ -345,7 +347,7 @@ index b9d9954..c627675 100644
                  }
              } else if ("message.edited".equals(type)) {
                  require(!record.has("request_id"));
-@@ -685,9 +838,21 @@ public final class GramLabBridge {
+@@ -685,9 +840,21 @@ public final class GramLabBridge {
                  edited.pts = position; edited.pts_count = 1;
                  update = edited;
              } else throw new UnsupportedOperationException("GRAMLAB_UNSUPPORTED_CLIENT_CHANGE");
@@ -368,7 +370,7 @@ index b9d9954..c627675 100644
          int now = integer(body, "now");
          if (mediaScope != null) mediaScope.requireExactDependencies();
          synchronized (state.identities) {
-@@ -782,14 +947,14 @@ public final class GramLabBridge {
+@@ -782,14 +949,14 @@ public final class GramLabBridge {
                  .put("text", query.message).put("entities", entities);
          int version = configuration.optInt("bridge_version", 2);
          boundState(configuration, state);
@@ -389,7 +391,7 @@ index b9d9954..c627675 100644
          require(result.requestId.equals(id) && result.peer == query.peer.user_id
                  && result.message.message.equals(query.message));
          require(outgoingEntities(result.message.entities, result.message.message).toString().equals(entities.toString()));
-@@ -841,16 +1006,17 @@ public final class GramLabBridge {
+@@ -841,16 +1008,17 @@ public final class GramLabBridge {
          while (true) {
              fields(body, "schema", "world_id", "user_id", "callback", "users", "assets", "message_revision", "custom_emoji", "documents");
              require(version >= 4 || !body.has("custom_emoji"));
@@ -411,7 +413,7 @@ index b9d9954..c627675 100644
              String receivedId = record.getString("id");
              require(captured.id == query.msg_id && receivedId.matches("[A-Za-z0-9_-]{1,128}") && (id == null || id.equals(receivedId)));
              id = receivedId;
-@@ -878,7 +1044,7 @@ public final class GramLabBridge {
+@@ -878,7 +1046,7 @@ public final class GramLabBridge {
              java.util.List<Long> requested) throws Exception {
          boundState(configuration, state);
          int version = integer(configuration, "bridge_version");
@@ -589,7 +591,7 @@ index 5ee5d0d..67673e6 100644
                  java.net.URL targetUrl = new java.net.URL(endpoint, route);
                  active = (java.net.HttpURLConnection) targetUrl.openConnection(java.net.Proxy.NO_PROXY);
 diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
-index 2c6b3cd..7ea5dae 100644
+index 2c6b3cd..e511a1f 100644
 --- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
 +++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
 @@ -322,6 +322,12 @@ public final class BridgeProbe {
@@ -627,13 +629,18 @@ index 2c6b3cd..7ea5dae 100644
          String rejectedReconnect = null;
          if (args.length > 1 && "reconnect-recovery".equals(args[1])) {
              try {
-@@ -440,16 +461,24 @@ public final class BridgeProbe {
+@@ -440,16 +461,27 @@ public final class BridgeProbe {
                  .put("dialog_message_count", dialogs.messages.size());
          if (args.length > 1) observation.put("history_users", historyUsers);
          if (rejectedReconnect != null) observation.put("rejected_reconnect", rejectedReconnect);
+-        if (args.length > 1 && "changes".equals(args[1])) {
+-            GramLabBridge.EventBatch batch = GramLabBridge.events(config, snapshot, 0, 100);
 +        if (groupRecovery != null) observation.put("media_group_resnapshot", groupRecovery);
-         if (args.length > 1 && "changes".equals(args[1])) {
-             GramLabBridge.EventBatch batch = GramLabBridge.events(config, snapshot, 0, 100);
++        if (args.length > 1 && ("changes".equals(args[1])
++                || args[1].startsWith("changes-limit-"))) {
++            int limit = "changes".equals(args[1]) ? 100
++                    : Integer.parseInt(args[1].substring("changes-limit-".length()));
++            GramLabBridge.EventBatch batch = GramLabBridge.events(config, snapshot, 0, limit);
              JSONArray envelopes = new JSONArray();
 -            for (GramLabBridge.Change change : batch.changes) {
 +            for (GramLabBridge.Application application : batch.applications) {
@@ -656,7 +663,7 @@ index 2c6b3cd..7ea5dae 100644
              }
              observation.put("changes", new JSONObject().put("cursor", batch.cursor).put("head", batch.head)
                      .put("now", batch.now).put("envelopes", envelopes));
-@@ -477,6 +506,18 @@ public final class BridgeProbe {
+@@ -477,6 +509,18 @@ public final class BridgeProbe {
              observation.put("callback", new JSONObject().put("text", callback.message)
                      .put("show_alert", callback.alert).put("cache_time", callback.cache_time));
          }

@@ -44,13 +44,17 @@ integration, retaining ownership of the APK and shared docs.
 - Patch 0032 changes exactly five GPL client files: `GramLabBridge`, `GramLabMedia`,
   `GramLabRuntime`, `FileLoader` and `BridgeProbe`. It does not touch the renderer, grouped layout,
   resources or input handlers. Its SHA-256 is
-  `442dcc4d5e9f6fbb8a75bfe6db4e23a69f157e3c03a20ee111653c5b185e6f9a`.
-- `.cache/album-adapter-stage02/stage.json` is `ready`: all five preimages and postimages matched,
+  `1ccd93f32530b6bd313652607889187d97c0df007ef11a0c69561a2a87507135`.
+- `.cache/album-adapter-stage03/stage.json` is `ready`: all five preimages and postimages matched,
   no files were added, and system `patch --batch --fuzz=0 -p1` reported no fuzz or offset. A fresh
-  complete export at `.cache/album-adapter-source32-green-02` applied all 32 patches and matched the
+  complete export at `.cache/album-adapter-source32-green-03` applied all 32 patches and matched the
   five independently recorded postimage hashes byte-for-byte. The authorized upstream remained
   clean at `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c`.
-- The independently authored oracle freezes 35 cases across all ticket boundaries. The test module
+- The independently authored oracle freezes 48 cases across all ticket boundaries. The follow-up
+  cases prove response-wide chat/message uniqueness in both changes and difference, contiguous
+  snapshot group revisions, reordered rejection, complete ten-member and consecutive groups,
+  exact limit-one and limit-1,000 expansion, and valid v5 snapshot/changes/messages behavior. The
+  test module
   collects five tests: three host/static tests plus the normal30 red and album-era green native
   selectors. Focused host/static tests plus the complete patch-staging suite passed 18/18. Ruff
   check/format and strict mypy passed for both Python files. The adjacent button-disarm, document
@@ -68,7 +72,9 @@ integration, retaining ownership of the APK and shared docs.
   fixture with zero accounts and no build/download. Evidence is retained in
   `artifacts/album-adapter-normal30-red-01.xml` and
   `artifacts/album-adapter-normal30-red-01/test_actual_pre_album_apk_reje0/`. The emulator stopped,
-  its dedicated AVD and duplicate APKs were removed, and the lock was released.
+  its dedicated AVD and duplicate APKs were removed, and the lock was released. The review
+  follow-up did not change the launcher, Python guest protocol or explicit normal30 input, so this
+  retained red remains valid and was not rerun.
 
 ## Deliberate boundary
 
@@ -77,4 +83,6 @@ ticket113 does not alter `src/gramlab/_android.py`, `runner.py`, `__main__.py`,
 `_android_rich_buttons.py` or `_interactions.py`. The coordinator may exercise the ticket113 green
 through its direct contained app-process selector on the fresh album-era APK; this worker does not
 claim that the public runner selects integer 6 yet. The album-era build, provenance and green native
-codec remain coordinator-owned.
+codec remain coordinator-owned. Native execution proof for runtime `processUpdates` batching, UI
+resnapshot reconciliation and cursor advancement is likewise deferred to ticket114; ticket113 owns
+their reviewed/static adapter sequencing and the direct bridge codec contract only.
