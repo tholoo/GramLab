@@ -3,7 +3,7 @@
 Type: task
 Status: in-progress
 Work state: claimed
-Owner: task/ordinary-document-native-delivery
+Owner: task/document-delivery-fixture-init
 Blocked by: original production delivery/UI native acceptance pending
 
 Implement the GPL adapter side of the [frozen document contract](../../../docs/development/documents-implementation-contract.md).
@@ -198,3 +198,27 @@ watchdog samples retain the same stack, with no database queue thread among the1
 The240-second deadline still fails. Archive packing/retrieval now both return0 and exact diagnostics
 are retained. These partial results do not close native delivery or cold restart. Investigate the
 first initialization cause and reduced fixture prerequisites before a production correction.
+
+## Fixture initialization follow-up
+
+The `task/document-delivery-fixture-init` worker owns the fixture-only correction. Acceptance is
+limited to mirroring production's validated-context initialization order for `AndroidUtilities`,
+capturing at most four throwable levels and four frames per level with cycle detection and
+`ExceptionInInitializerError.getException()` precedence, and draining the original
+`FilePathDatabase` queue through an eight-second barrier that always releases its latch and surfaces
+the originating `Throwable`. The normal30 production APK/patch, native deadline, case order and
+oracles remain unchanged. Host regressions must fail before the correction; focused host, strict
+Python and fixture javac/D8 checks must pass. Android execution remains coordinator-owned.
+
+The worker's three focused regressions first failed on the unmodified fixture: there was no
+AndroidUtilities initialization call, no recursive throwable serializer, and no immediate
+FilePathDatabase initialization barrier. After the fixture-only correction, all47 non-Android
+document-delivery checks pass. Strict mypy passes for the test and its imported probe; Ruff lint
+and format checks pass. Javac with warnings as errors and D8 pass against the unchanged normal30
+compile classes (`2e61edd1d92c9a339c7da9ac836619b0fb0c8cb32b0def91ceb28e978a4381ea`)
+and APK (`a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`).
+The compiled fixture source is
+`1347d528f0268fe8c2538bc100b62664e23dc6a2a89e9290c482b6c79ec60c42`, and the
+resulting DEX is `119668fd7063fd7f6c52c0eb6df9d6186d59900cf3b2d6e365a3279d266e534c`.
+No production patch, after-hash manifest, case/oracle, deadline, Android build or guest run changed.
+Actual native delivery and UI acceptance remain pending coordinator execution.

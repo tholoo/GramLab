@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +29,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLoadOperation;
 import org.telegram.messenger.FileLoader;
@@ -166,19 +169,39 @@ public final class DocumentDeliveryProbe {
         value=value.replace(CAPABILITY,"[REDACTED]");
         return value.substring(0,Math.min(512,value.length()));
     }
+    private static Throwable diagnosticCause(Throwable actual) {
+        if(actual instanceof ExceptionInInitializerError) {
+            Throwable exception=((ExceptionInInitializerError)actual).getException();
+            if(exception!=null)return exception;
+        }
+        return actual.getCause();
+    }
+    private static JSONObject diagnosticThrowable(Throwable actual,int depth,IdentityHashMap<Throwable,Boolean> seen) throws Exception {
+        seen.put(actual,Boolean.TRUE);
+        JSONObject result=new JSONObject().put("exception",actual.getClass().getName())
+                .put("message",diagnosticText(actual.getMessage()));
+        JSONArray frames=new JSONArray();StackTraceElement[] trace=actual.getStackTrace();
+        for(int i=0;i<Math.min(4,trace.length);i++)frames.put(diagnosticText(trace[i].toString()));
+        result.put("frames",frames);
+        Throwable cause=diagnosticCause(actual);
+        if(cause!=null) {
+            if(seen.containsKey(cause))result.put("cause_cycle",true);
+            else if(depth < 3)result.put("cause",diagnosticThrowable(cause,depth+1,seen));
+            else result.put("causes_omitted",true);
+        }
+        return result;
+    }
+    private static JSONObject diagnosticThrowable(Throwable actual) throws Exception {
+        return diagnosticThrowable(actual,0,new IdentityHashMap<>());
+    }
     private static void run(String name, Check check) throws Exception {
         phase = name;diagnosticStep="case_start";diagnosticCheckpoint("case_start",null);
         JSONObject result = new JSONObject().put("name", name);
         try { check.run(); result.put("status", "passed"); }
         catch (Throwable failure) {
             Throwable actual = failure instanceof InvocationTargetException && failure.getCause() != null
-                    ? failure.getCause() : failure;
-            result.put("status", "failed").put("exception", actual.getClass().getName()).put("stage",diagnosticStep);
-            JSONArray frames=new JSONArray();StackTraceElement[] trace=actual.getStackTrace();
-            for(int i=0;i<Math.min(4,trace.length);i++)frames.put(diagnosticText(trace[i].toString()));
-            result.put("message",diagnosticText(actual.getMessage())).put("frames",frames);
-            if(actual.getCause()!=null)result.put("cause",new JSONObject().put("exception",actual.getCause().getClass().getName())
-                    .put("message",diagnosticText(actual.getCause().getMessage())));
+                    ? ((InvocationTargetException)failure).getTargetException() : failure;
+            result=diagnosticThrowable(actual).put("name",name).put("status","failed").put("stage",diagnosticStep);
             // Assertion messages are authored static codes, never arbitrary transport errors.
             if (actual instanceof AssertionError) result.put("assertion", String.valueOf(actual.getMessage()));
         }
@@ -470,7 +493,11 @@ public final class DocumentDeliveryProbe {
         SparseArray<File> dirs = new SparseArray<>();
         for (int kind = 0; kind <= 6; kind++) { File dir = new File(caseDirectory,Integer.toString(kind)); require(dir.mkdir(), "media_directory"); dirs.put(kind,dir); }
         FileLoader.setMediaDirs(dirs);
-        if (loader == null) loader = new FileLoader(3);
+        if (loader == null) {
+            loader = new FileLoader(3);
+            diagnosticStep="loader.file_path_database_initialization";
+            databaseBarrier(loader.getFileDatabase());
+        }
         listener = new Listener(); loader.setDelegate(listener);
     }
     private static Result await() throws Exception {
@@ -482,8 +509,17 @@ public final class DocumentDeliveryProbe {
         require(Arrays.equals(Files.readAllBytes(result.file.toPath()),expected), "published_bytes");
     }
     private static void databaseBarrier(FilePathDatabase database) throws Exception {
-        CountDownLatch drained=new CountDownLatch(1);database.getQueue().postRunnable(drained::countDown);
+        CountDownLatch drained=new CountDownLatch(1);AtomicReference<Throwable> failure=new AtomicReference<>();
+        database.getQueue().postRunnable(()->{
+            try {database.ensureDatabaseCreated();}
+            catch(Throwable error){failure.set(error);}
+            finally {drained.countDown();}
+        });
         require(drained.await(8,TimeUnit.SECONDS),"database_queue_timeout");
+        Throwable error=failure.get();
+        if(error instanceof Exception)throw (Exception)error;
+        if(error instanceof Error)throw (Error)error;
+        if(error!=null)throw new AssertionError("database_queue_failure",error);
     }
     private static void noPartials() throws Exception {
         try (java.util.stream.Stream<java.nio.file.Path> paths = Files.walk(directory.toPath())) {
@@ -851,14 +887,10 @@ public final class DocumentDeliveryProbe {
         }
     }
     public static JSONObject diagnosticFailure(Throwable error,String failurePhase) throws Exception {
-        Throwable actual=error instanceof InvocationTargetException && error.getCause()!=null?error.getCause():error;
-        JSONObject result=new JSONObject().put("schema",1).put("phase",failurePhase).put("stage",diagnosticStep)
-                .put("exception",actual.getClass().getName()).put("message",diagnosticText(actual.getMessage()));
-        JSONArray frames=new JSONArray();StackTraceElement[] trace=actual.getStackTrace();
-        for(int i=0;i<Math.min(4,trace.length);i++)frames.put(diagnosticText(trace[i].toString()));
-        if(actual.getCause()!=null)result.put("cause",new JSONObject().put("exception",actual.getCause().getClass().getName())
-                .put("message",diagnosticText(actual.getCause().getMessage())));
-        return result.put("frames",frames);
+        Throwable actual=error instanceof InvocationTargetException
+                &&((InvocationTargetException)error).getTargetException()!=null
+                ?((InvocationTargetException)error).getTargetException():error;
+        return diagnosticThrowable(actual).put("schema",1).put("phase",failurePhase).put("stage",diagnosticStep);
     }
     /** The framework supplies this actual installed target application and its Context. */
     public static JSONObject instrumented(ApplicationLoader application,Context context,String mode) throws Exception {
@@ -871,6 +903,8 @@ public final class DocumentDeliveryProbe {
                 && context.getAttributionSource().getUid()==android.os.Process.myUid()
                 && context.getPackageName().equals(context.getAttributionSource().getPackageName()),"instrumentation_target_identity");
         ApplicationLoader.applicationLoaderInstance=application;ApplicationLoader.applicationContext=context;
+        diagnosticStep="instrumentation.android_utilities";
+        require("Hello World!".equals(AndroidUtilities.getHelloWorld()),"original_android_utilities");
         ApplicationLoader.applicationHandler=new Handler(Looper.getMainLooper());
         diagnosticStep="instrumentation.private_directory";
         directory=new File(context.getFilesDir(),mode.equals("filesystem")?"document-delivery-filesystem-probe":mode.equals("rename")?"document-delivery-rename-probe":"document-delivery-probe").getCanonicalFile();
@@ -952,12 +986,7 @@ public final class DocumentDeliveryProbe {
             Looper.loop();
         } catch(Throwable error) {
             try {
-                Throwable actual=error instanceof InvocationTargetException && error.getCause()!=null?error.getCause():error;
-                JSONObject failure=new JSONObject().put("schema",1).put("phase","initialization").put("stage",diagnosticStep)
-                        .put("exception",actual.getClass().getName()).put("message",diagnosticText(actual.getMessage()));
-                JSONArray frames=new JSONArray();StackTraceElement[] trace=actual.getStackTrace();
-                for(int i=0;i<Math.min(4,trace.length);i++)frames.put(diagnosticText(trace[i].toString()));
-                System.out.println(failure.put("frames",frames));
+                System.out.println(diagnosticFailure(error,"initialization"));
             } catch(Exception ignored) {System.out.println("{\"schema\":1,\"phase\":\"initialization\"}");}
             System.exit(2);
         }
