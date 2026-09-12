@@ -61,14 +61,31 @@ the full product scope documented in the handoff.
 - [103: document client bridge](issues/103-document-client-bridge.md): resolved with 78 affected
   HTTP/World checks and combined core16/static15.
 - [104: original document loading](issues/104-ordinary-document-native-delivery.md) and
-  [105: real-bot document UI](issues/105-ordinary-document-native-ui.md): active implementation;
-  original external-files publication and complete native acceptance remain pending.
+  [105: real-bot document UI](issues/105-ordinary-document-native-ui.md): resolved on normal30 with
+  original external-files publication, transfer/cache/restart evidence and inspected UI.
 
 - [106: standalone media edits](issues/106-standalone-media-edits.md): resolved at the World/HTTP
   boundary with core18/static17; native acceptance is assigned separately.
-- [108: native media-edit workflow](issues/108-native-standalone-media-edits.md): extend the existing
-  real-bot document scenario; original Android execution remains gated on104 delivery.
+- [108: native media-edit workflow](issues/108-native-standalone-media-edits.md): resolved by the
+  original Android D1→P1→D2 workflow, exact transfer/cache state and cold restart.
+
+- [107: public document runner](issues/107-document-runner-v5.md): resolved through the explicit-v5
+  public CLI, contained real bot, original inline tap, stable reuse and two inspected Android views.
 
 - [109: public-source preparation](issues/109-public-source-readiness.md): resolved with audited
   source/history, explicit source licenses, an original English glass preview and a verified README
   example. Both GitHub branches use the approved cleaned history; visibility remains private.
+
+## Awaiting fidelity decisions
+
+- [110: default document classification](issues/110-default-document-classification.md): proposed
+  conservative specialized-family detection; implementation awaits user approval.
+- [111: album contract](issues/111-album-contract.md): proposed atomic 2–10 member photo/document
+  albums, bridge-v6 complete-group delivery and explicit local identity/bounds choices.
+- [112: album core and bridge](issues/112-album-core-and-bridge-v6.md),
+  [113: Android adapter](issues/113-album-android-adapter.md) and
+  [114: native/public acceptance](issues/114-album-native-and-public-acceptance.md) remain unassigned
+  and blocked on ticket111. Core classification and album parsing must be serialized where their
+  ownership overlaps.
+- [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) remains an
+  unapproved local fidelity proposal.

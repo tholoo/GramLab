@@ -1,8 +1,8 @@
 # Prepare a reviewable offline rich automatic-detection policy
 
 Type: task
-Status: ready-for-agent
-Work state: implemented on `task/rich-auto-detection-policy-proposal`; coordinator review pending
+Status: needs-info
+Work state: resolved
 Blocked by: user consultation before implementation
 
 Own this ticket and new `docs/development/rich-auto-detection-proposal.md` only. No runtime,

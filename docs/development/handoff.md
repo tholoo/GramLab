@@ -67,10 +67,17 @@ host gate passes43 cases; exact native transfer/cache bytes remain native08/nati
 3. [107: public runner v5](../../.scratch/rich-messages/issues/107-document-runner-v5.md) is resolved.
    Preserve default3 and explicit3/4 while bridge5 carries ordinary documents; keep exact
    descriptor/ambiguity rejection and creation-time native callback receipts.
-4. Continue the operational milestone with default upload classification and albums. Album source
-   findings are corrected, but group allocation, request bounds and complete-group publication need
-   a frozen contract and user consultation before architecture changes. Automatic rich detection
-   remains separately unapproved.
+4. Continue the operational milestone with default upload classification and albums. The
+   [classification proposal](default-document-classification-proposal.md) corrects the earlier
+   PNG/JPEG-to-photo suggestion: the recommended local policy keeps general files as documents and
+   rejects recognized unsupported specialized families. [Ticket110](../../.scratch/rich-messages/issues/110-default-document-classification.md)
+   remains `needs-info` pending approval.
+5. The [album proposal](albums-implementation-proposal.md) separates source-backed 2–10 member
+   photo/document behavior from four synthetic decisions: a 100,000,000-byte logical aggregate,
+   rollback-safe World-wide group IDs, bridge-v6 complete-group pagination, and grouped-edit scope.
+   [Tickets111–114](../../.scratch/rich-messages/issues/111-album-contract.md) are unassigned or
+   coordinator-only until those choices are approved. Automatic rich detection remains separately
+   unapproved.
 
 Remaining operational work includes default upload classification, albums, approved automatic rich
 detection, wider rich-button placement/recovery and the combined current-APK regression.
