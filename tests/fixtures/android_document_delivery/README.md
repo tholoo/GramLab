@@ -55,11 +55,22 @@ AttributionSource. No hidden-API exemption, target SDK change, privileged filesy
 substituted destination is used. The probe records groups, SELinux context and mount fingerprint.
 
 The instrumentation deliberately suppresses `callApplicationOnCreate`, retaining the actual
-original Application object. It initializes original NativeLoader and native_setJava(false),
-without accounts, native_init or full application lifecycle. This is explicitly recorded in runtime
-evidence. The separate UI gate runs normal LaunchActivity initialization and drawing. The second
+original Application object. After validating and installing the target Application/Context, it
+invokes the original `AndroidUtilities.getHelloWorld()` initialization hook before NativeLoader,
+matching the ordering in production `ApplicationLoader.onCreate`. The first fixture-created
+FileLoader initializes its original FilePathDatabase on that database's own queue through an
+eight-second barrier; the barrier catches every Throwable, always releases its fixture latch and
+rethrows the original Exception or Error on the instrumentation thread. It then initializes
+original NativeLoader and native_setJava(false), without accounts, native_init or full application
+lifecycle. This is explicitly recorded in runtime evidence. The separate UI gate runs normal
+LaunchActivity initialization and drawing. The second
 instrumentation invocation must have a different PID under the same UID and read saved paths from
 original SQLite without new HTTP. It does not stand in for the full UI restart/cache gate.
+
+Initialization and case diagnostics retain a redacted throwable chain of at most four levels and
+four frames per level. `ExceptionInInitializerError.getException()` is followed before the ordinary
+cause, cycles are marked without recursion, and the existing 128 KiB diagnostic-record bound still
+applies.
 
 The independent Python oracle specifies all35 suite cases, ordered HTTP effects, immutable
 metadata, full signed-ID boundaries, caption/entity/keyboard outputs and the cold-process result.

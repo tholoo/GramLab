@@ -151,6 +151,54 @@ OBSERVATIONS = [
 ]
 
 
+def test_fixture_initializes_android_utilities_before_native_logging() -> None:
+    source = (FIXTURE / "DocumentDeliveryProbe.java").read_text()
+    instrumented = source[source.index("public static JSONObject instrumented(") :]
+    context = instrumented.index("ApplicationLoader.applicationContext=context;")
+    utilities = instrumented.index("AndroidUtilities.getHelloWorld()")
+    native = instrumented.index("NativeLoader.initNativeLibs(context)")
+    assert context < utilities < native
+    assert 'diagnosticStep="instrumentation.android_utilities"' in instrumented[:native]
+
+
+def test_fixture_retains_a_bounded_recursive_initialization_failure() -> None:
+    source = (FIXTURE / "DocumentDeliveryProbe.java").read_text()
+    assert "private static JSONObject diagnosticThrowable(" in source
+    assert "new IdentityHashMap<>()" in source
+    assert "ExceptionInInitializerError" in source
+    assert ".getException()" in source
+    assert "diagnosticCause(actual)" in source
+    assert "depth < 3" in source
+    assert "Math.min(4,trace.length)" in source
+    assert 'put("cause_cycle",true)' in source
+    assert source.count("actual.getCause()") == 1
+
+
+def test_fixture_initializes_the_original_file_database_without_a_latch_leak() -> None:
+    source = (FIXTURE / "DocumentDeliveryProbe.java").read_text()
+    setup = source[
+        source.index("private static void loadSetup()") : source.index(
+            "private static Result await()"
+        )
+    ]
+    created = setup.index("loader = new FileLoader(3);")
+    barrier = setup.index("databaseBarrier(loader.getFileDatabase());")
+    assert created < barrier
+    implementation = source[
+        source.index("private static void databaseBarrier(") : source.index(
+            "private static void noPartials()"
+        )
+    ]
+    assert "AtomicReference<Throwable>" in implementation
+    assert "database.ensureDatabaseCreated();" in implementation
+    assert "catch(Throwable error)" in implementation
+    assert "finally" in implementation
+    assert "drained.countDown();" in implementation
+    assert "drained.await(8,TimeUnit.SECONDS)" in implementation
+    assert "throw (Exception)error;" in implementation
+    assert "throw (Error)error;" in implementation
+
+
 def assert_native_suite(value: dict[str, Any], *, restart: bool = False) -> None:
     expected = {"cold_process_saved_destinations": []} if restart else CASE_REQUESTS
     assert set(value) == {
