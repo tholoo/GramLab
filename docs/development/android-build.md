@@ -1,9 +1,10 @@
 # Android build preparation
 
-Status: a complete x86_64 preparation APK has rebuilt from exported sources and cached dependencies
-with strict verification inside independent network containment. Signature/manifest inspection
-passed. The fourth patch adds contained [synthetic startup and rendering](android-application.md);
-the earlier disabled preparation artifacts below remain historical build evidence.
+Status: the current source preparation applies the complete ordered 30-patch queue to the pinned
+Telegram Android revision. A reviewed local x86_64 normal30 APK has complete source provenance and
+passes the recorded bridge-v5 document workflows in the original client. The repository does not
+contain or publish that APK; its retained hash is evidence, not a download or a promise that a new
+locally signed build will be byte-identical.
 
 Read [licensing](licensing.md), [upstream maintenance](upstream.md), and
 [offline safety](offline-safety.md) first. Dependency provisioning can access public registries;
@@ -15,7 +16,14 @@ Use the unchanged acquired checkout under `clients/android/upstream/`, with the 
 the [source lock](../../clients/android/upstream-lock.json). `prepare.py` verifies every pinned
 revision and exports tracked files from Git objects, rather than copying a developer's working
 tree or ignored configuration. It applies the [ordered patch queue](../../clients/android/patches/README.md)
-and refuses existing destinations.
+and refuses existing destinations. The script makes no network request; if the approved pinned root
+checkout or any of its ten submodules is absent or has the wrong revision, stop rather than acquiring
+or updating source implicitly.
+
+The following commands are source/build preparation steps. This documentation reconciliation
+audited their repository paths but did not acquire source, provision dependencies, build an APK or
+run Android. The first Gradle invocation can fetch missing dependencies and therefore belongs to a
+separately approved provisioning phase, never to an offline bot/client run:
 
 ```sh
 nix develop .#android
@@ -31,17 +39,22 @@ keytool -genkeypair -keystore .gramlab/debug.keystore \
 ```
 
 Choose a fresh ignored destination for a new export. Subsequent builds of that tree use its
-existing GramLab-only key. The preparation removes upstream signing/service templates and replaces
-the upstream API/hash/key declarations with inert values; it does not record their original
-values in the patch queue. No real Telegram identity or production credential is used.
+existing GramLab-only key. `prepare.py` verifies the locked root and submodule revisions before
+creating output, exports only tracked Git objects, removes upstream signing/service templates,
+replaces upstream API/hash/key declarations with inert values, applies each filename from
+`clients/android/patches/series`, and copies the committed source lock and dependency checksum
+record. It does not record original credential values in the patch queue. No real Telegram identity
+or production credential is used.
 
 The new application ID is `org.gramlab.android`, with a distinct unofficial label and original
 vector icon. The shared Telegram renderer, Java resources and JLatexMath implementation are
 preserved; the second patch adds narrow [native transport guards](android-native-guard.md).
 Cloud/distribution Gradle plugins and unrelated application variants are
-excluded from this selected build. The fourth patch enables the application only with synthetic
-configuration and audited startup/transport seams. Independent containment remains mandatory;
-not all cloud runtime dependencies have been removed.
+excluded from this selected build. The fourth patch first enables the application only with
+synthetic configuration and audited startup/transport seams; the remaining ordered patches add the
+documented composer, recovery, rich-message, media, custom-emoji, rich-button and ordinary-document
+adapter surfaces. Independent containment remains mandatory; not all cloud runtime dependencies
+have been removed.
 
 The shared library and APK target x86_64. Native compilation uses a Ninja job pool with two
 compile jobs and one link job by default; `-PgramlabNativeJobs=<count>` selects another compile
@@ -132,46 +145,28 @@ separately and repeat the contained build after reviewing any dependency changes
 
 ## Current evidence
 
-- Gradle 8.11.1 downloaded, passed checksum verification and reported the expected version.
-- The upstream Kotlin build plugin, JLatexMath and Telegram Java renderer compiled.
-- A fresh pinned export applied the patch queue successfully. All 6,666 checked files under the
-  original UI Java and main resource directories matched the acquired source byte-for-byte.
-- Upstream credential templates, ignored build data and non-inert credential declarations were
-  absent from that export. An attempted repeat refused to overwrite the existing tree.
-- The generated packaged manifest identifies `org.gramlab.android` and disables the application
-  and backup. No client was installed or launched.
-- Native configuration initially selected ARM as well. That build was deliberately stopped;
-  the revised shared-library configuration selects x86_64, with verified compiler job pools.
-- The complete preparation APK contains only x86_64 native libraries, including
-  `libtmessages.49.so`. Its signature verifies with the dedicated `GramLab Development` signer.
-  The contained build's APK SHA-256 is
-  `9c4f26abef38d55d7a345a511e7259d8c88d63acba0feeda15740561fb1a8936` (96,140,183 bytes).
-  This identifies the observed artifact, not a bit-for-bit reproducibility guarantee; signing keys,
-  paths and build metadata can change APK bytes.
-- The first contained attempt compiled Java/resources but exposed SDK Ninja's `/bin/sh`
-  requirement. The Android profile now resolves that path to pinned Bash; the boundary regression
-  failed before the change and passed afterward. Native compilation and APK packaging completed
-  inside the same independent boundary using only cached dependencies.
-- `apksigner` verified the resulting APK's v1/v2 signatures; `aapt2` inspected its binary manifest
-  and confirmed the GramLab package with application and backup disabled. No client was installed.
-- Deliberately replacing the accepted AGP JAR digest with an incorrect checksum caused strict
-  offline Gradle configuration to fail on that exact artifact. The committed metadata was restored
-  byte-for-byte afterward, and strict offline configuration passed again. All thirteen
-  process/guest tests pass with 90.91% statement coverage.
-
-The subsequent native-guard build also completes inside containment with strict offline
-verification. A fresh two-patch export matches its changed source inputs, retains the dependency
-record and preserves all 6,666 checked UI/resource files. Its APK SHA-256 is
-`4433d32d1168bf737e194b49ebad9af78eed0886981fda308e7843b11ad98855`.
-The v1/v2 signatures verify, and the binary manifest still disables application and backup.
-The [native guard record](android-native-guard.md) separates its probe evidence from the remaining
-synthetic application startup gate.
-
-The third patch's Java snapshot adapter and guest probe compile with the same cached dependencies
-and native guards. A fresh export reproduces these new source inputs; the
-[semantic adapter evidence](android-semantic-bridge.md) records the real HTTP/TL round trip and
-its limits. That three-patch preparation artifact remains disabled; the fourth
-[startup patch](android-application.md) activates the synthetic application.
+- The retained normal30 source-provenance record names upstream revision
+  `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c` and contains all 30 ordered patch filenames and
+  SHA-256 values, ending with `0030-ordinary-document-delivery.patch`. Host controls reject an
+  incomplete series, changed first/final patch, upstream mismatch or changed APK bytes.
+- The reviewed local normal30 APK SHA-256 is
+  `a964bbaccaaf59719d966a72ecd85de4288d146887e3f7ff7d50be7281df726b`. The public bridge-v5
+  runner passes a contained real bot, original document render, inline tap/callback, stable-file
+  reuse and repeated original-client launches on those bytes. Dedicated native gates separately
+  pass original loader/cache/destination behavior and the document→photo→document edit lifecycle.
+  See [local ordinary documents](documents.md) for the precise scope and remaining limits.
+- This hash identifies one retained, locally built artifact. It is not checked into the source
+  repository, is not available at a repository URL and is not a bit-for-bit reproducibility target:
+  signing keys, paths and build metadata can change APK bytes. Reproduction means exporting the
+  locked tracked source, applying the exact ordered patch queue, using the pinned toolchain and
+  verified dependencies, and recording the resulting source/APK provenance.
+- Earlier one-, two- and three-patch preparation builds remain historical evidence for build,
+  native-guard and semantic-adapter bring-up; their disabled manifests and old APK hashes do not
+  describe the current 30-patch application. Patch 4 first activated synthetic startup, and later
+  records cover each added surface at its own checkpoint.
+- The current build still targets only the documented x86_64 evidence profile. Distribution remains
+  blocked on the dependency/asset license audit and corresponding-source review; successful local
+  build or runtime evidence does not authorize binary publication.
 
 Build logs, local signing material, absolute paths, timings and live process handles belong in
 ignored `.cache/` or `artifacts/`. Preserve a live build across handoffs and poll its actual handle;
