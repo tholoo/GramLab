@@ -61,15 +61,19 @@ class ClientBridge:
                 self.reply(
                     status,
                     {
-                        "schema": 5
-                        if self.path.startswith("/v5/")
+                        "schema": 6
+                        if self.path.startswith("/v6/")
                         else (
-                            4
-                            if self.path.startswith("/v4/")
+                            5
+                            if self.path.startswith("/v5/")
                             else (
-                                3
-                                if self.path.startswith("/v3/")
-                                else (2 if self.path.startswith("/v2/") else 1)
+                                4
+                                if self.path.startswith("/v4/")
+                                else (
+                                    3
+                                    if self.path.startswith("/v3/")
+                                    else (2 if self.path.startswith("/v2/") else 1)
+                                )
                             )
                         ),
                         "error": {"code": code, "message": message},
@@ -137,10 +141,13 @@ class ClientBridge:
                                 "/v3/callbacks",
                                 "/v4/callbacks",
                                 "/v5/callbacks",
+                                "/v6/callbacks",
                                 "/v4/messages",
                                 "/v5/messages",
+                                "/v6/messages",
                                 "/v4/custom-emoji-documents",
                                 "/v5/custom-emoji-documents",
+                                "/v6/custom-emoji-documents",
                             ):
                                 self.error(404, "unsupported", "Unknown client bridge operation")
                                 return
@@ -149,6 +156,7 @@ class ClientBridge:
                             if url.path in (
                                 "/v4/custom-emoji-documents",
                                 "/v5/custom-emoji-documents",
+                                "/v6/custom-emoji-documents",
                             ):
                                 parameters = self.command_parameters(
                                     {"custom_emoji_ids"}, set(), 16384
@@ -163,17 +171,30 @@ class ClientBridge:
                                     )
                                     return
                                 result = {
-                                    "schema": 5 if url.path.startswith("/v5/") else 4,
+                                    "schema": (
+                                        6
+                                        if url.path.startswith("/v6/")
+                                        else (5 if url.path.startswith("/v5/") else 4)
+                                    ),
                                     "world_id": world.world_id,
                                     "user_id": persona,
                                     "custom_emoji": custom_emoji,
                                     "assets": assets,
                                 }
-                            elif url.path in ("/v2/messages", "/v4/messages", "/v5/messages"):
+                            elif url.path in (
+                                "/v2/messages",
+                                "/v4/messages",
+                                "/v5/messages",
+                                "/v6/messages",
+                            ):
                                 version = (
-                                    5
-                                    if url.path.startswith("/v5/")
-                                    else (4 if url.path.startswith("/v4/") else 2)
+                                    6
+                                    if url.path.startswith("/v6/")
+                                    else (
+                                        5
+                                        if url.path.startswith("/v5/")
+                                        else (4 if url.path.startswith("/v4/") else 2)
+                                    )
                                 )
                                 sent = world.send_client_message(
                                     user_id=persona,
@@ -213,7 +234,7 @@ class ClientBridge:
                                         "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",  # noqa: E501
                                         (message["chat_id"], message["id"]),
                                     ).fetchone()[0]
-                                    if version == 5:
+                                    if version >= 5:
                                         result["documents"] = [
                                             world.document_descriptor(str(identifier))
                                             for identifier in sorted(
@@ -222,12 +243,16 @@ class ClientBridge:
                                         ]
                             else:
                                 version = (
-                                    5
-                                    if url.path == "/v5/callbacks"
+                                    6
+                                    if url.path == "/v6/callbacks"
                                     else (
-                                        4
-                                        if url.path == "/v4/callbacks"
-                                        else (3 if url.path == "/v3/callbacks" else 1)
+                                        5
+                                        if url.path == "/v5/callbacks"
+                                        else (
+                                            4
+                                            if url.path == "/v4/callbacks"
+                                            else (3 if url.path == "/v3/callbacks" else 1)
+                                        )
                                     )
                                 )
                                 callback = world.create_callback(
@@ -257,6 +282,7 @@ class ClientBridge:
                                 "/v3/callbacks/",
                                 "/v4/callbacks/",
                                 "/v5/callbacks/",
+                                "/v6/callbacks/",
                             )
                         ):
                             if fields:
@@ -265,14 +291,19 @@ class ClientBridge:
                                 user_id=persona, callback_id=url.path.rsplit("/", 1)[1]
                             )
                             version = (
-                                5
-                                if url.path.startswith("/v5/")
+                                6
+                                if url.path.startswith("/v6/")
                                 else (
-                                    4
-                                    if url.path.startswith("/v4/")
-                                    else (3 if url.path.startswith("/v3/") else 1)
+                                    5
+                                    if url.path.startswith("/v5/")
+                                    else (
+                                        4
+                                        if url.path.startswith("/v4/")
+                                        else (3 if url.path.startswith("/v3/") else 1)
+                                    )
                                 )
                             )
+                            world._require_media_group_version(callback["message"], version)
                             world._require_document_version(callback["message"], version)
                             if version < 3 and world._message_assets(callback["message"]):
                                 raise ValueError(
@@ -302,6 +333,7 @@ class ClientBridge:
                             "/v3/snapshot",
                             "/v4/snapshot",
                             "/v5/snapshot",
+                            "/v6/snapshot",
                         ):
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
@@ -312,6 +344,7 @@ class ClientBridge:
                             "/v3/changes",
                             "/v4/changes",
                             "/v5/changes",
+                            "/v6/changes",
                         ):
                             if "after" not in fields or fields.keys() - {"after", "limit"}:
                                 raise ValueError("Events require after and optionally limit")
@@ -330,14 +363,20 @@ class ClientBridge:
                                     version=4
                                     if url.path.startswith("/v4/")
                                     else (
-                                        5
-                                        if url.path.startswith("/v5/")
-                                        else (3 if url.path.startswith("/v3/") else 2)
+                                        6
+                                        if url.path.startswith("/v6/")
+                                        else (
+                                            5
+                                            if url.path.startswith("/v5/")
+                                            else (3 if url.path.startswith("/v3/") else 2)
+                                        )
                                     ),
                                 )
                             else:
                                 result = world.client_events(persona, after=after, limit=limit)
-                        elif url.path.startswith(("/v3/assets/", "/v4/assets/", "/v5/assets/")):
+                        elif url.path.startswith(
+                            ("/v3/assets/", "/v4/assets/", "/v5/assets/", "/v6/assets/")
+                        ):
                             if (
                                 fields
                                 or "Range" in self.headers
@@ -369,15 +408,20 @@ class ClientBridge:
                             self.end_headers()
                             self.wfile.write(data)
                             return
-                        elif url.path.startswith("/v5/documents/"):
+                        elif url.path.startswith(("/v5/documents/", "/v6/documents/")):
                             if (
                                 fields
                                 or "Range" in self.headers
                                 or "Transfer-Encoding" in self.headers
                             ):
                                 raise ValueError("Document download parameters are unsupported")
+                            document_prefix = (
+                                "/v6/documents/"
+                                if url.path.startswith("/v6/")
+                                else "/v5/documents/"
+                            )
                             identifier = canonical_document_id(
-                                url.path.removeprefix("/v5/documents/")
+                                url.path.removeprefix(document_prefix)
                             )
                             try:
                                 descriptor, data = world.granted_document(persona, str(identifier))
@@ -400,7 +444,10 @@ class ClientBridge:
                             return
                         self.reply(200, result)
                     except ValueError as error:
-                        self.error(400, "invalid_request", str(error))
+                        if str(error) == "Client cursor splits a media group":
+                            self.error(409, "resnapshot_required", str(error))
+                        else:
+                            self.error(400, "invalid_request", str(error))
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self._server.daemon_threads = False

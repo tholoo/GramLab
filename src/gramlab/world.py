@@ -93,6 +93,24 @@ _DOCUMENT_GRANTS_TABLE = (
     "CREATE TABLE document_grants (user_id INTEGER NOT NULL REFERENCES users(id), "
     "document_id INTEGER NOT NULL REFERENCES documents(id), PRIMARY KEY(user_id, document_id))"
 )
+_MEDIA_GROUP_COUNTER_TABLE = (
+    "CREATE TABLE media_group_counter (singleton INTEGER PRIMARY KEY CHECK(singleton=1), "
+    "last_id INTEGER NOT NULL CHECK(last_id BETWEEN 0 AND 9223372036854775807))"
+)
+_MEDIA_GROUPS_TABLE = (
+    "CREATE TABLE media_groups (id INTEGER PRIMARY KEY "
+    "CHECK(id BETWEEN 1 AND 9223372036854775807), "
+    "chat_id INTEGER NOT NULL REFERENCES chats(id), kind TEXT NOT NULL "
+    "CHECK(kind IN ('photo','document')), member_count INTEGER NOT NULL "
+    "CHECK(member_count BETWEEN 2 AND 10), UNIQUE(id, chat_id))"
+)
+_MEDIA_GROUP_MEMBERS_TABLE = (
+    "CREATE TABLE media_group_members (group_id INTEGER NOT NULL, ordinal INTEGER NOT NULL "
+    "CHECK(ordinal BETWEEN 0 AND 9), chat_id INTEGER NOT NULL, message_id INTEGER NOT NULL, "
+    "PRIMARY KEY(group_id, ordinal), UNIQUE(chat_id, message_id), "
+    "FOREIGN KEY(group_id, chat_id) REFERENCES media_groups(id, chat_id), "
+    "FOREIGN KEY(chat_id, message_id) REFERENCES messages(chat_id, id))"
+)
 
 
 def _inline_keyboard(markup: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -214,7 +232,11 @@ class World:
                 {_DOCUMENTS_TABLE};
                 {_BOT_DOCUMENT_FILES_TABLE};
                 {_DOCUMENT_GRANTS_TABLE};
-                PRAGMA user_version=9;
+                {_MEDIA_GROUP_COUNTER_TABLE};
+                INSERT INTO media_group_counter VALUES (1, 0);
+                {_MEDIA_GROUPS_TABLE};
+                {_MEDIA_GROUP_MEMBERS_TABLE};
+                PRAGMA user_version=10;
             """  # noqa: S608
                 )
                 connection.execute(
@@ -359,7 +381,18 @@ class World:
                         if connection.execute("PRAGMA foreign_key_check").fetchall():
                             raise ValueError("World document migration violates foreign keys")
                         connection.execute("PRAGMA user_version=9")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 9:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 9:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    if connection.execute("PRAGMA user_version").fetchone()[0] == 9:
+                        connection.execute(_MEDIA_GROUP_COUNTER_TABLE)
+                        connection.execute("INSERT INTO media_group_counter VALUES (1, 0)")
+                        connection.execute(_MEDIA_GROUPS_TABLE)
+                        connection.execute(_MEDIA_GROUP_MEMBERS_TABLE)
+                        if connection.execute("PRAGMA foreign_key_check").fetchall():
+                            raise ValueError("World album migration violates foreign keys")
+                        connection.execute("PRAGMA user_version=10")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 10:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -873,7 +906,7 @@ class World:
         entities: list[dict[str, Any]] | None = None,
         version: int = 2,
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 4, 5):
+        if type(version) is not int or version not in (2, 4, 5, 6):
             raise ValueError("Unsupported client message version")
         if (
             not isinstance(request_id, str)
@@ -1278,6 +1311,59 @@ class World:
             raise ValueError("Invalid stored document reference")
         return {canonical_document_id(document["document_id"])}
 
+    def _validate_media_group_message(self, message: dict[str, Any]) -> None:
+        stored = self._connection.execute(
+            "SELECT m.group_id, m.ordinal, g.kind, g.member_count "
+            "FROM media_group_members m JOIN media_groups g "
+            "ON g.id=m.group_id AND g.chat_id=m.chat_id "
+            "WHERE m.chat_id=? AND m.message_id=?",
+            (message.get("chat_id"), message.get("id")),
+        ).fetchone()
+        value = message.get("media_group_id")
+        if stored is None:
+            if value is not None:
+                raise ValueError("Invalid stored media group")
+            return
+        if (
+            not isinstance(value, str)
+            or re.fullmatch(r"[1-9][0-9]*", value) is None
+            or int(value) >= 2**63
+            or int(value) != stored[0]
+        ):
+            raise ValueError("Invalid stored media group")
+        group_id, ordinal, kind, member_count = stored
+        rows = self._connection.execute(
+            "SELECT m.ordinal, m.chat_id, m.message_id, messages.body "
+            "FROM media_group_members m JOIN messages "
+            "ON messages.chat_id=m.chat_id AND messages.id=m.message_id "
+            "WHERE m.group_id=? ORDER BY m.ordinal",
+            (group_id,),
+        ).fetchall()
+        if len(rows) != member_count or [row[0] for row in rows] != list(range(member_count)):
+            raise ValueError("Invalid stored media group")
+        identifiers = [int(row[2]) for row in rows]
+        if identifiers != list(range(identifiers[0], identifiers[0] + member_count)):
+            raise ValueError("Invalid stored media group")
+        for member_ordinal, chat_id, _message_id, body in rows:
+            member = json.loads(body)
+            if (
+                chat_id != message["chat_id"]
+                or member.get("media_group_id") != value
+                or member.get("sender_id") != self.get_chat(chat_id)["bot_id"]
+                or (kind == "photo") != ("photo" in member)
+                or (kind == "document") != ("document" in member)
+                or ("photo" in member and "document" in member)
+            ):
+                raise ValueError("Invalid stored media group")
+            if member_ordinal == ordinal and member != message:
+                raise ValueError("Invalid stored media group")
+
+    def _require_media_group_version(self, message: dict[str, Any], version: int) -> None:
+        if "media_group_id" in message and version < 6:
+            raise ValueError("GRAMLAB_UNSUPPORTED: media groups require client bridge v6")
+        if version >= 6:
+            self._validate_media_group_message(message)
+
     def _require_document_version(self, message: dict[str, Any], version: int) -> None:
         if version < 5 and self._message_documents(message):
             raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
@@ -1426,6 +1512,205 @@ class World:
                 (chat["user_id"], resolved["asset_id"]),
             )
             return message
+
+    def _allocate_media_group_id(self) -> int:
+        row = self._connection.execute(
+            "UPDATE media_group_counter SET last_id=last_id+1 "
+            "WHERE singleton=1 AND last_id<9223372036854775807 RETURNING last_id"
+        ).fetchone()
+        if row is None:
+            raise ValueError("Media group identifier space is exhausted")
+        return int(row[0])
+
+    def _publish_media_group_member(
+        self,
+        *,
+        chat: dict[str, Any],
+        sender_id: int,
+        group_id: int,
+        ordinal: int,
+        content: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Publish one final member inside the caller's album transaction."""
+        message_id = int(
+            self._connection.execute(
+                "SELECT COALESCE(MAX(id), 0)+1 FROM messages WHERE chat_id=?", (chat["id"],)
+            ).fetchone()[0]
+        )
+        now = int(self._connection.execute("SELECT now FROM configuration").fetchone()[0])
+        message: dict[str, Any] = {
+            "id": message_id,
+            "chat_id": chat["id"],
+            "sender_id": sender_id,
+            "date": now,
+            "text": "",
+            "media_group_id": str(group_id),
+            **content,
+        }
+        self._grant_custom_emoji(chat["user_id"], message)
+        encoded = json.dumps(message)
+        self._connection.execute(
+            "INSERT INTO messages VALUES (?, ?, ?)", (chat["id"], message_id, encoded)
+        )
+        revision = self._emit("message.created", message)
+        self._connection.execute(
+            "INSERT INTO message_revisions VALUES (?, ?, ?)",
+            (chat["id"], message_id, revision),
+        )
+        self._connection.execute(
+            "INSERT INTO media_group_members VALUES (?, ?, ?, ?)",
+            (group_id, ordinal, chat["id"], message_id),
+        )
+        for asset_id in self._message_assets(message):
+            self._connection.execute(
+                "INSERT OR IGNORE INTO asset_grants VALUES (?, ?)",
+                (chat["user_id"], asset_id),
+            )
+        for document_id in self._message_documents(message):
+            self._connection.execute(
+                "INSERT OR IGNORE INTO document_grants VALUES (?, ?)",
+                (chat["user_id"], document_id),
+            )
+        return message
+
+    def send_media_group(
+        self,
+        *,
+        chat_id: int,
+        sender_id: int,
+        media: list[dict[str, Any]],
+        uploads: Mapping[str, bytes | DocumentUpload] | None = None,
+    ) -> list[dict[str, Any]]:
+        if not isinstance(media, list) or not 2 <= len(media) <= 10:
+            raise ValueError("Media group must contain 2 to 10 items")
+        if uploads is not None and not isinstance(uploads, Mapping):
+            raise TypeError("Media group uploads must be a mapping")
+
+        prepared: list[tuple[str, dict[str, Any], str | None, list[dict[str, Any]] | None]] = []
+        used: set[str] = set()
+        kind: str | None = None
+        for item in media:
+            if not isinstance(item, dict):
+                raise ValueError("Media group items must be objects")
+            item_kind = item.get("type")
+            if item_kind not in ("photo", "document"):
+                raise ValueError("GRAMLAB_UNSUPPORTED: InputMedia type")
+            allowed = {
+                "type",
+                "media",
+                "caption",
+                "caption_entities",
+                "show_caption_above_media",
+            }
+            if item_kind == "document":
+                allowed.add("disable_content_type_detection")
+            if item.keys() - allowed or "media" not in item:
+                raise ValueError("GRAMLAB_UNSUPPORTED: InputMedia parameters")
+            if kind is None:
+                kind = item_kind
+            elif kind != item_kind:
+                raise ValueError("GRAMLAB_UNSUPPORTED: mixed media groups")
+            selected = item["media"]
+            if not isinstance(selected, str):
+                raise ValueError("InputMedia media must be a string")
+            above = item.get("show_caption_above_media", False)
+            if type(above) is not bool:
+                raise ValueError("show_caption_above_media must be a Boolean")
+            if above:
+                raise ValueError("GRAMLAB_UNSUPPORTED: captions above media")
+            if item_kind == "document":
+                detection = item.get("disable_content_type_detection", False)
+                if type(detection) is not bool:
+                    raise ValueError("disable_content_type_detection must be a Boolean")
+            caption = item.get("caption")
+            if caption is not None:
+                if not isinstance(caption, str) or len(caption) > 1024:
+                    raise ValueError("Caption must contain 0 to 1024 characters")
+                caption.encode("utf-8", errors="strict")
+            formatting = formatting_entities(caption or "", item.get("caption_entities"))
+            if selected.startswith("attach://"):
+                name = selected.removeprefix("attach://")
+                if not name:
+                    raise ValueError("Media group attachment is unavailable")
+                used.add(name)
+            prepared.append((item_kind, {"media": selected}, caption, formatting))
+
+        supplied = set(uploads or {})
+        if supplied != used:
+            raise ValueError("Media group uploads must exactly match referenced attachments")
+        if kind is None:
+            raise RuntimeError("Validated media group has no kind")
+        if kind == "photo" and any(type(value) is not bytes for value in (uploads or {}).values()):
+            raise TypeError("Photo attachment must contain bytes")
+        if kind == "document" and any(
+            type(value) is not DocumentUpload for value in (uploads or {}).values()
+        ):
+            raise TypeError("Document attachment must be a DocumentUpload")
+        physical_size = 0
+        for upload in (uploads or {}).values():
+            physical_size += len(upload) if isinstance(upload, bytes) else len(upload.data)
+        if physical_size > 100_000_000:
+            raise ValueError("Uploaded file data exceeds the request limit")
+
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat = self.get_chat(chat_id)
+            if sender_id != chat["bot_id"]:
+                raise ValueError("Only chat bots can send media groups")
+            resolved: list[dict[str, Any]] = []
+            logical_size = 0
+            for item_kind, value, caption, formatting in prepared:
+                if item_kind == "photo":
+                    photo_uploads = {
+                        name: upload
+                        for name, upload in (uploads or {}).items()
+                        if type(upload) is bytes
+                    }
+                    item_content: dict[str, Any] = {
+                        "photo": self._resolve_photo(
+                            sender_id, {"type": "photo", **value}, photo_uploads
+                        )
+                    }
+                    logical_size += int(
+                        self.asset_descriptor(item_content["photo"]["asset_id"])["file_size"]
+                    )
+                else:
+                    document_uploads = {
+                        name: upload
+                        for name, upload in (uploads or {}).items()
+                        if type(upload) is DocumentUpload
+                    }
+                    item_content = {
+                        "document": self._resolve_document(sender_id, value, document_uploads)
+                    }
+                    logical_size += int(
+                        self.document_descriptor(item_content["document"]["document_id"])[
+                            "file_size"
+                        ]
+                    )
+                if logical_size > 100_000_000:
+                    raise ValueError("Media group exceeds the 100000000-byte logical limit")
+                if caption is not None:
+                    item_content["caption"] = caption
+                if formatting:
+                    item_content["caption_entities"] = formatting
+                resolved.append(item_content)
+
+            group_id = self._allocate_media_group_id()
+            self._connection.execute(
+                "INSERT INTO media_groups VALUES (?, ?, ?, ?)",
+                (group_id, chat_id, kind, len(resolved)),
+            )
+            return [
+                self._publish_media_group_member(
+                    chat=chat,
+                    sender_id=sender_id,
+                    group_id=group_id,
+                    ordinal=ordinal,
+                    content=content,
+                )
+                for ordinal, content in enumerate(resolved)
+            ]
 
     def _store_document(self, upload: DocumentUpload) -> int:
         sha256, file_name, mime_type, file_unique_id = _storage_fields(upload)
@@ -1742,7 +2027,7 @@ class World:
     ) -> dict[str, Any]:
         if not self._connection.in_transaction:
             raise RuntimeError("Callback effect requires an active World transaction")
-        if type(version) is not int or version not in (1, 3, 4, 5):
+        if type(version) is not int or version not in (1, 3, 4, 5, 6):
             raise ValueError("Unsupported client callback version")
         if (
             not isinstance(request_id, str)
@@ -1769,6 +2054,7 @@ class World:
             if previous[1] != command:
                 raise ValueError("Request ID already identifies another callback")
             stored = self.get_callback(user_id=user_id, callback_id=previous[0])
+            self._require_media_group_version(stored["message"], version)
             self._require_document_version(stored["message"], version)
             if version < 3 and self._message_assets(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
@@ -1777,6 +2063,7 @@ class World:
             if version < 4 and self._message_custom_emoji(stored["message"]):
                 raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
             return stored
+        self._require_media_group_version(message, version)
         self._require_document_version(message, version)
         if version < 3 and self._message_assets(message):
             raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
@@ -1949,7 +2236,7 @@ class World:
         }
 
     def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 2, 3, 4, 5):
+        if type(version) is not int or version not in (1, 2, 3, 4, 5, 6):
             raise ValueError("Unsupported client snapshot version")
         with self._connection:
             # Pin one SQLite read snapshot before reading either data or its journal cursor.
@@ -1980,6 +2267,8 @@ class World:
                 "chats": chats,
                 "messages": [message for chat in chats for message in self.history(chat["id"])],
             }
+            for message in result["messages"]:
+                self._require_media_group_version(message, version)
             if version < 5 and any(
                 self._message_documents(message) for message in result["messages"]
             ):
@@ -2043,7 +2332,7 @@ class World:
                         (user_id,),
                     )
                 ]
-            if version == 5:
+            if version >= 5:
                 result["documents"] = [
                     self.document_descriptor(str(row[0]))
                     for row in self._connection.execute(
@@ -2057,7 +2346,7 @@ class World:
     def client_changes(
         self, user_id: int, *, after: int, limit: int = 100, version: int = 2
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 3, 4, 5):
+        if type(version) is not int or version not in (2, 3, 4, 5, 6):
             raise ValueError("Unsupported client changes version")
         if type(after) is not int or not 0 <= after < 2**63:
             raise ValueError("Invalid client message position")
@@ -2072,6 +2361,16 @@ class World:
                 raise ValueError(
                     "Client message position is ahead of this world; resnapshot required"
                 )
+            if version == 6:
+                split = self._connection.execute(
+                    "SELECT 1 FROM media_groups g JOIN media_group_members m ON m.group_id=g.id "
+                    "JOIN message_revisions r ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
+                    "JOIN client_changes c ON c.user_id=? AND c.event_sequence=r.revision "
+                    "GROUP BY g.id HAVING MIN(c.position)<=? AND ?<MAX(c.position) LIMIT 1",
+                    (user_id, after, after),
+                ).fetchone()
+                if split is not None:
+                    raise ValueError("Client cursor splits a media group")
             world_id, now = self._connection.execute(
                 "SELECT world_id, now FROM configuration"
             ).fetchone()
@@ -2082,6 +2381,45 @@ class World:
                 "WHERE c.user_id=? AND c.position>? ORDER BY c.position LIMIT ?",
                 (user_id, after, limit),
             ).fetchall()
+            if version == 6 and rows:
+                trailing = json.loads(rows[-1][2])
+                trailing_group = trailing.get("media_group_id")
+                if rows[-1][1] == "message.created" and trailing_group is not None:
+                    additional = self._connection.execute(
+                        "SELECT c.position, e.type, e.body, s.request_id FROM client_changes c "
+                        "JOIN events e ON e.sequence=c.event_sequence "
+                        "LEFT JOIN client_sends s ON s.user_id=c.user_id AND s.position=c.position "
+                        "WHERE c.user_id=? AND c.position>? AND e.type='message.created' "
+                        "AND json_extract(e.body, '$.media_group_id')=? "
+                        "ORDER BY c.position LIMIT 9",
+                        (user_id, rows[-1][0], trailing_group),
+                    ).fetchall()
+                    rows.extend(additional)
+                grouped_positions: dict[str, list[int]] = {}
+                for position, event_kind, body, _request_id in rows:
+                    data = json.loads(body)
+                    group = data.get("media_group_id")
+                    if group is not None:
+                        if event_kind != "message.created":
+                            raise ValueError("Invalid stored media group")
+                        grouped_positions.setdefault(str(group), []).append(int(position))
+                for group, positions in grouped_positions.items():
+                    complete = [
+                        int(row[0])
+                        for row in self._connection.execute(
+                            "SELECT c.position FROM client_changes c JOIN events e "
+                            "ON e.sequence=c.event_sequence WHERE c.user_id=? "
+                            "AND e.type='message.created' "
+                            "AND json_extract(e.body, '$.media_group_id')=? ORDER BY c.position",
+                            (user_id, group),
+                        )
+                    ]
+                    if (
+                        positions != complete
+                        or not 2 <= len(complete) <= 10
+                        or complete != list(range(complete[0], complete[0] + len(complete)))
+                    ):
+                        raise ValueError("Invalid stored media group")
             changes = []
             asset_ids: set[int] = set()
             document_ids: set[int] = set()
@@ -2089,6 +2427,7 @@ class World:
             emoji_ids: set[int] = set()
             for position, kind, body, request_id in rows:
                 change = {"position": position, "type": kind, "data": json.loads(body)}
+                self._require_media_group_version(change["data"], version)
                 documents = self._message_documents(change["data"])
                 if version < 5 and documents:
                     raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
@@ -2139,7 +2478,7 @@ class World:
                 result["custom_emoji"] = [
                     self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
                 ]
-            if version == 5:
+            if version >= 5:
                 result["documents"] = [
                     self.document_descriptor(str(identifier)) for identifier in sorted(document_ids)
                 ]
@@ -2159,9 +2498,10 @@ class World:
     def _callback_dependencies(
         self, user_id: int, callback: dict[str, Any], *, version: int = 3
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (3, 4, 5):
+        if type(version) is not int or version not in (3, 4, 5, 6):
             raise ValueError("Unsupported client callback version")
         message = callback["message"]
+        self._require_media_group_version(message, version)
         self._require_document_version(message, version)
         assets = [
             self.asset_descriptor(asset_id) for asset_id in sorted(self._message_assets(message))
@@ -2191,7 +2531,7 @@ class World:
             result["custom_emoji"] = [
                 self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
             ]
-        if version == 5:
+        if version >= 5:
             result["documents"] = [
                 self.document_descriptor(str(identifier))
                 for identifier in sorted(self._message_documents(message))
