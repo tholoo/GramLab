@@ -88,3 +88,10 @@ scrolling, coordinates, a renderer patch or a new visibility rule. The complete 
 still passes **4/4** at `artifacts/rich-button-residual-spacing-host-02.xml` (SHA-256
 `492635be098e8e48da7a5fae1da39fde296c0056b77444add701f6fb295cb504`); scoped Ruff, format and strict
 mypy checks pass. A fresh native run must prove the resulting partial geometry and all later phases.
+
+That first correction moved only the intended row by38 pixels to `[22,10,302,44]`; all later target
+coordinates remained fixed. The rectangle was still fully inside the screen, so the second native
+run correctly retained another availability failure at
+`artifacts/rich-button-residual-normal30-native-02.xml`. The measured19-pixel line height makes one
+additional short line sufficient to cross the top boundary while leaving roughly25 pixels of the
+34-pixel control rendered. No additional geometry or timing change is needed.
