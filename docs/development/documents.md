@@ -2,7 +2,9 @@
 
 GramLab's experimental Bot API now supports explicit forced-file uploads and bot-scoped file reuse.
 Typed storage and authenticated version5 client HTTP delivery are integrated. Original Android
-file loading is still in development; this page does not establish an operational document UI.
+file loading, standalone document/photo edits and a public bridge-v5 document workflow pass on the
+reviewed normal30 client. This evidence is limited to explicitly forced ordinary documents; default
+content classification and albums remain unimplemented.
 Run bots and clients only inside the [offline boundary](offline-safety.md).
 
 ## Sending and reusing a file

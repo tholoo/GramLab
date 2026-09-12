@@ -57,6 +57,13 @@ the observed no-space RTL filename descriptor, retries transient incomplete acce
 and freezes tap receipts at `callback.created` despite a fast bot answer. The corrected affected
 host gate passes43 cases; exact native transfer/cache bytes remain native08/native10 evidence.
 
+The pre-existing public rich-target Android case now also passes1/1 on the unchanged normal30 APK
+in103.950 seconds at `artifacts/rich-button-normal30-baseline-01.xml`. All six retained original
+frames were inspected: row/inline callback, copy and disabled states remain visible with mixed
+English/Persian labels; both clipboard confirmations and unrelated-message stability are present.
+The run-local APK matched the canonical normal30 hash and was removed after the evidence was packed;
+the JUnit, report, observations, journals and frames remain.
+
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
@@ -84,11 +91,13 @@ host gate passes43 cases; exact native transfer/cache bytes remain native08/nati
    [Tickets111–114](../../.scratch/rich-messages/issues/111-album-contract.md) are unassigned or
    coordinator-only until those choices are approved. Automatic rich detection remains separately
    unapproved.
-6. Approval-independent work is split into
+6. Approval-independent acceptance work is split into
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),
    and [118: reproducible setup docs](../../.scratch/rich-messages/issues/118-current-reproducible-setup-docs.md).
-   Their host/docs preparation can run in parallel; every Android guest remains serialized. The
+   Ticket118 is resolved: the public example, Android source/build boundaries and complete 30-patch
+   queue are current without publishing or embedding an APK. Tickets115/116 remain in progress;
+   every Android guest remains serialized. The
    final composed workflow is
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close
    before the pending fidelity choices and album work.

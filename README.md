@@ -9,8 +9,9 @@
 Test Telegram bots locally and inspect their messages in the actual Telegram Android client.
 No Telegram account or production token is needed.
 
-**Experimental.** Text, callbacks, rich messages, photos and custom emoji have tested workflows.
-File delivery on Android, albums and other parts of Telegram compatibility are still in progress.
+**Experimental.** Text, callbacks, rich messages, photos, custom emoji and explicit forced-file
+delivery have tested original-Android workflows. Default file classification, albums and other
+parts of Telegram compatibility are still in progress.
 See the [compatibility matrix](docs/compatibility/matrix.md) for the supported scope.
 
 ## Write a scenario

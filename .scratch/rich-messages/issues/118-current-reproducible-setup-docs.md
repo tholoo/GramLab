@@ -1,8 +1,8 @@
 # Reconcile the current reproducible setup documentation
 
 Type: task
-Status: ready-for-agent
-Work state: claimed
+Status: done
+Work state: resolved
 Owner: current-setup-docs
 Blocked by: none
 
@@ -67,3 +67,8 @@ Verification on 2026-09-12:
 No bot, scenario, Android guest, APK build, dependency command, external network access or upstream
 acquisition ran. The ticket remains claimed until coordinator review and integration, per the
 parallel workflow.
+
+- 2026-09-12 coordinator integration: reviewed and merged worker commit
+  `e22f99d87296165aae5eb88b61414ff82f0cd334`. The root README and document profile were then
+  reconciled with the already passing bounded normal30 document evidence. No behavior, Android
+  source/patch, runtime input or fidelity target changed. The ticket is resolved.
