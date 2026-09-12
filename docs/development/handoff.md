@@ -96,7 +96,9 @@ the JUnit, report, observations, journals and frames remain.
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),
    and [118: reproducible setup docs](../../.scratch/rich-messages/issues/118-current-reproducible-setup-docs.md).
    Ticket118 is resolved: the public example, Android source/build boundaries and complete 30-patch
-   queue are current without publishing or embedding an APK. Tickets115/116 remain in progress;
+   queue are current without publishing or embedding an APK. The documented echo command also
+   passes with explicit bridge5 in a fresh loopback-only namespace at
+   `artifacts/setup-echo-v5-01/`. Tickets115/116 remain in progress;
    every Android guest remains serialized. The
    final composed workflow is
    [117](../../.scratch/rich-messages/issues/117-final-representative-workflow.md) and cannot close

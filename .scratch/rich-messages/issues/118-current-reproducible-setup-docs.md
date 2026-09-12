@@ -72,3 +72,7 @@ parallel workflow.
   `e22f99d87296165aae5eb88b61414ff82f0cd334`. The root README and document profile were then
   reconciled with the already passing bounded normal30 document evidence. No behavior, Android
   source/patch, runtime input or fidelity target changed. The ticket is resolved.
+- The coordinator also ran the documented `examples/echo/run.toml` command with explicit bridge5
+  in a fresh loopback-only namespace. It passed in simulation mode with two isolated conversations,
+  exact mixed Persian/English/emoji echoes, scenario exit0, runner-owned bot shutdown, empty stderr
+  and no surviving task process. The local report is retained under `artifacts/setup-echo-v5-01/`.
