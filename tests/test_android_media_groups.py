@@ -88,7 +88,9 @@ def assert_focused_observation(root: Path, observed: dict[str, Any]) -> None:
     assert [row.get("media_group_id") for row in documents] == ["2", "2"]
     assert [row.get("caption") for row in documents] == ["First / نخست", "Second / دوم"]
     assert observed["initial_snapshot"]["messages"] == photos
+    assert observed["initial_snapshot"]["message_position"] == 2
     assert observed["final_snapshot"]["messages"] == [*photos, *documents]
+    assert observed["final_snapshot"]["message_position"] == 4
     changes = observed["live_changes"]
     assert changes["cursor"] == changes["head"] == 4
     assert [row["position"] for row in changes["changes"]] == [3, 4]
@@ -211,7 +213,7 @@ def test_focused_probe_runs_codec_before_installing_and_launching_ui() -> None:
     assert 'row.get("event") == "events_applied" and row.get("token") == 2' in source
 
 
-@pytest.mark.parametrize("fault", ["group", "cursor", "retry", "partial", "cold_get"])
+@pytest.mark.parametrize("fault", ["group", "positions", "cursor", "retry", "partial", "cold_get"])
 def test_focused_oracle_rejects_weakened_native_evidence(
     tmp_path: Path, fault: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -248,8 +250,8 @@ def test_focused_oracle_rejects_weakened_native_evidence(
         "codec": {},
         "photos": photos,
         "documents": documents,
-        "initial_snapshot": {"messages": photos},
-        "final_snapshot": {"messages": [*photos, *documents]},
+        "initial_snapshot": {"messages": photos, "message_position": 2},
+        "final_snapshot": {"messages": [*photos, *documents], "message_position": 4},
         "live_changes": {
             "cursor": 4,
             "head": 4,
@@ -286,6 +288,8 @@ def test_focused_oracle_rejects_weakened_native_evidence(
     }
     if fault == "group":
         value["documents"][1]["media_group_id"] = "3"
+    elif fault == "positions":
+        value["final_snapshot"]["message_position"] = 3
     elif fault == "cursor":
         value["live_changes"]["cursor"] = 3
     elif fault == "retry":
