@@ -944,6 +944,8 @@ def test_android_v5_writes_selected_app_configuration(
 
     def boundary(*arguments: str, **keywords: Any) -> subprocess.CompletedProcess[str]:
         calls.append((arguments, keywords))
+        if arguments[:3] == ("shell", "pidof", "org.gramlab.android"):
+            return subprocess.CompletedProcess(arguments, 1, stdout="")
         stdout = "Success" if arguments[:3] == ("shell", "pm", "clear") else "Status: ok"
         return subprocess.CompletedProcess(arguments, 0, stdout=stdout)
 

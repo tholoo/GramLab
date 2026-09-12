@@ -698,6 +698,8 @@ def test_launch_hook_runs_after_persona_clear_and_configuration_before_start(
 
     def boundary(*args: str, **kwargs: Any) -> Any:
         calls.append(args)
+        if args[:3] == ("shell", "pidof", "org.gramlab.android"):
+            return subprocess.CompletedProcess(args, 1, stdout="")
         return subprocess.CompletedProcess(
             args, 0, stdout="Success" if args[:3] == ("shell", "pm", "clear") else "Status: ok"
         )
@@ -708,7 +710,8 @@ def test_launch_hook_runs_after_persona_clear_and_configuration_before_start(
 
     def activate() -> None:
         assert calls[0][:3] == ("shell", "am", "force-stop")
-        assert calls[1][:3] == ("shell", "pm", "clear")
+        assert calls[1][:3] == ("shell", "pidof", "org.gramlab.android")
+        assert calls[2][:3] == ("shell", "pm", "clear")
         assert "config.json" in calls[-1][-1]
         calls.append(("activate-private-observer",))
 
@@ -720,6 +723,49 @@ def test_launch_hook_runs_after_persona_clear_and_configuration_before_start(
     assert calls[0][:3] == ("shell", "am", "force-stop")
     assert calls[-1][:3] == ("shell", "am", "start")
     assert not any(call == ("activate-private-observer",) for call in calls)
+
+
+def test_open_chat_waits_for_the_previous_app_process_to_stop_before_launch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+    from types import SimpleNamespace
+
+    monkeypatch.chdir(tmp_path)
+    with World.create(Path("world"), seed=7, now=100) as world:
+        user = world.create_user(first_name="Sara")
+        bot = world.create_user(first_name="Bot", is_bot=True)
+        chat = world.open_private_chat(user_id=user["id"], bot_id=bot["id"])
+    android = Android(
+        RuntimeProfile(bubblewrap="", python="", store_paths=()),
+        deadline=time.monotonic() + 5,
+        secrets=[],
+        bridge_version=5,
+    )
+    calls: list[tuple[str, ...]] = []
+    pid_checks = iter(("4321\n", ""))
+
+    def boundary(*arguments: str, **_keywords: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(arguments)
+        if arguments[:3] == ("shell", "pidof", "org.gramlab.android"):
+            output = next(pid_checks)
+            return subprocess.CompletedProcess(arguments, 0 if output else 1, stdout=output)
+        output = "Success" if arguments[:3] == ("shell", "pm", "clear") else "Status: ok"
+        return subprocess.CompletedProcess(arguments, 0, stdout=output)
+
+    monkeypatch.setattr(android, "_adb", boundary)
+    monkeypatch.setattr(android, "_guest", SimpleNamespace(poll=lambda: None))
+    monkeypatch.setattr(android, "_bridge", SimpleNamespace(base_url="http://127.0.0.1:12345"))
+    monkeypatch.setattr(time, "sleep", lambda _delay: None)
+
+    android._open_chat(chat)
+    launch = next(index for index, call in enumerate(calls) if call[:3] == ("shell", "am", "start"))
+    pidof = [
+        index
+        for index, call in enumerate(calls)
+        if call[:3] == ("shell", "pidof", "org.gramlab.android")
+    ]
+    assert len(pidof) == 2 and pidof[-1] < launch
 
 
 def test_disarm_failure_keeps_confirmed_effect_and_blocks_another_input(staged: Any) -> None:

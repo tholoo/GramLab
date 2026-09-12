@@ -319,6 +319,16 @@ class Android:
         if self._bridge is None:
             raise RuntimeError("Dedicated client bridge did not start")
         self._adb("shell", "am", "force-stop", "org.gramlab.android")
+        stop_deadline = min(self.deadline, time.monotonic() + 5)
+        while True:
+            stopped = self._adb("shell", "pidof", "org.gramlab.android", timeout=5, check=False)
+            if stopped.returncode == 1 and not stopped.stdout.strip():
+                break
+            if stopped.returncode != 0:
+                raise RuntimeError("Dedicated client stop status was unavailable")
+            if time.monotonic() >= stop_deadline:
+                raise RuntimeError("Dedicated client app process did not stop")
+            time.sleep(0.05)
         if self._persona != chat["user_id"]:
             cleared = self._adb("shell", "pm", "clear", "org.gramlab.android")
             if cleared.stdout.strip() != "Success":
