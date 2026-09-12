@@ -160,7 +160,9 @@ def test_v4_changes_have_revisions_and_legacy_events_reject(tmp_path: Path) -> N
         world.edit_message(
             chat_id=chat["id"], message_id=message["id"], bot_id=bot["id"], text="plain"
         )
-        assert not world._message_custom_emoji(world.get_message(chat["id"], message["id"]))
+        assert "entities" not in world.get_message(chat["id"], message["id"])
         with pytest.raises(ValueError, match="v4"):
             world.client_events(user["id"], after=0)
-        assert world._message_custom_emoji(callback["message"]) == {4}
+        assert world.callback_dependencies(user["id"], callback, version=4)["custom_emoji"] == [
+            world.custom_emoji_descriptor(4)
+        ]

@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from gramlab._client_bridge_schema import require_runtime_bridge_version
 from gramlab._composer import composer_text
 from gramlab.world import World
 
@@ -23,10 +24,8 @@ class Interactions:
         compose: Callable[..., dict[str, Any]] | None = None,
         start_chat: Callable[..., dict[str, Any]] | None = None,
     ) -> None:
-        if type(bridge_version) is not int or bridge_version not in (3, 4, 5, 6):
-            raise ValueError("Interaction bridge version must be 3, 4, 5 or 6")
         self.directory = directory
-        self._bridge_version = bridge_version
+        self._bridge_version = require_runtime_bridge_version(bridge_version, owner="Interaction")
         self._lock = lock
         self.tap = tap
         self.compose = compose

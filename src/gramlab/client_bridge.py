@@ -15,6 +15,11 @@ from types import TracebackType
 from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
 
+from gramlab._client_bridge_schema import (
+    BridgeVersion,
+    bridge_version_from_path,
+    error_envelope,
+)
 from gramlab.documents import canonical_document_id
 from gramlab.world import World
 
@@ -58,27 +63,7 @@ class ClientBridge:
                     pass
 
             def error(self, status: int, code: str, message: str) -> None:
-                self.reply(
-                    status,
-                    {
-                        "schema": 6
-                        if self.path.startswith("/v6/")
-                        else (
-                            5
-                            if self.path.startswith("/v5/")
-                            else (
-                                4
-                                if self.path.startswith("/v4/")
-                                else (
-                                    3
-                                    if self.path.startswith("/v3/")
-                                    else (2 if self.path.startswith("/v2/") else 1)
-                                )
-                            )
-                        ),
-                        "error": {"code": code, "message": message},
-                    },
-                )
+                self.reply(status, error_envelope(self.path, code, message))
 
             def do_GET(self) -> None:
                 self.handle_operation()
@@ -170,32 +155,19 @@ class ClientBridge:
                                         404, "document_unavailable", "Document is unavailable"
                                     )
                                     return
-                                result = {
-                                    "schema": (
-                                        6
-                                        if url.path.startswith("/v6/")
-                                        else (5 if url.path.startswith("/v5/") else 4)
-                                    ),
-                                    "world_id": world.world_id,
-                                    "user_id": persona,
-                                    "custom_emoji": custom_emoji,
-                                    "assets": assets,
-                                }
+                                result = world.client_custom_emoji_envelope(
+                                    persona,
+                                    custom_emoji,
+                                    assets,
+                                    version=bridge_version_from_path(url.path),
+                                )
                             elif url.path in (
                                 "/v2/messages",
                                 "/v4/messages",
                                 "/v5/messages",
                                 "/v6/messages",
                             ):
-                                version = (
-                                    6
-                                    if url.path.startswith("/v6/")
-                                    else (
-                                        5
-                                        if url.path.startswith("/v5/")
-                                        else (4 if url.path.startswith("/v4/") else 2)
-                                    )
-                                )
+                                version = bridge_version_from_path(url.path)
                                 sent = world.send_client_message(
                                     user_id=persona,
                                     **self.command_parameters(
@@ -203,58 +175,9 @@ class ClientBridge:
                                     ),
                                     version=version,
                                 )
-                                result = {
-                                    "schema": version,
-                                    "world_id": world.world_id,
-                                    "user_id": persona,
-                                    "send": sent,
-                                }
-                                if version >= 4:
-                                    message = sent["message"]
-                                    result["users"] = world._identity_dependencies(
-                                        persona, [message]
-                                    )
-                                    emoji_ids = world._message_custom_emoji(message)
-                                    descriptors = [
-                                        world.custom_emoji_descriptor(i) for i in sorted(emoji_ids)
-                                    ]
-                                    result["custom_emoji"] = descriptors
-                                    asset_ids = set(world._message_assets(message))
-                                    for descriptor in descriptors:
-                                        asset_ids.update(
-                                            (
-                                                descriptor["main_asset_id"],
-                                                descriptor["thumbnail_asset_id"],
-                                            )
-                                        )
-                                    result["assets"] = [
-                                        world.asset_descriptor(i) for i in sorted(asset_ids)
-                                    ]
-                                    result["message_revision"] = world._connection.execute(
-                                        "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",  # noqa: E501
-                                        (message["chat_id"], message["id"]),
-                                    ).fetchone()[0]
-                                    if version >= 5:
-                                        result["documents"] = [
-                                            world.document_descriptor(str(identifier))
-                                            for identifier in sorted(
-                                                world._message_documents(message)
-                                            )
-                                        ]
+                                result = world.client_send_envelope(persona, sent, version=version)
                             else:
-                                version = (
-                                    6
-                                    if url.path == "/v6/callbacks"
-                                    else (
-                                        5
-                                        if url.path == "/v5/callbacks"
-                                        else (
-                                            4
-                                            if url.path == "/v4/callbacks"
-                                            else (3 if url.path == "/v3/callbacks" else 1)
-                                        )
-                                    )
-                                )
+                                version = bridge_version_from_path(url.path)
                                 callback = world.create_callback(
                                     user_id=persona,
                                     version=version,
@@ -264,18 +187,9 @@ class ClientBridge:
                                         16384,
                                     ),
                                 )
-                                result = {
-                                    "schema": version,
-                                    "world_id": world.world_id,
-                                    "user_id": persona,
-                                    "callback": callback,
-                                }
-                                if version >= 3:
-                                    result.update(
-                                        world.callback_dependencies(
-                                            persona, callback, version=version
-                                        )
-                                    )
+                                result = world.client_callback_envelope(
+                                    persona, callback, version=version
+                                )
                         elif url.path.startswith(
                             (
                                 "/v1/callbacks/",
@@ -290,43 +204,11 @@ class ClientBridge:
                             callback = world.get_callback(
                                 user_id=persona, callback_id=url.path.rsplit("/", 1)[1]
                             )
-                            version = (
-                                6
-                                if url.path.startswith("/v6/")
-                                else (
-                                    5
-                                    if url.path.startswith("/v5/")
-                                    else (
-                                        4
-                                        if url.path.startswith("/v4/")
-                                        else (3 if url.path.startswith("/v3/") else 1)
-                                    )
-                                )
+                            result = world.client_callback_envelope(
+                                persona,
+                                callback,
+                                version=bridge_version_from_path(url.path),
                             )
-                            world._media_groups.require_message(callback["message"], version)
-                            world._require_document_version(callback["message"], version)
-                            if version < 3 and world._message_assets(callback["message"]):
-                                raise ValueError(
-                                    "GRAMLAB_UNSUPPORTED: media requires client bridge v3"
-                                )
-                            if version < 3 and world._message_users(callback["message"]):
-                                raise ValueError(
-                                    "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
-                                )
-                            if version < 4 and world._message_custom_emoji(callback["message"]):
-                                raise ValueError(
-                                    "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
-                                )
-                            result = {
-                                "schema": version,
-                                "world_id": world.world_id,
-                                "user_id": persona,
-                                "callback": callback,
-                            }
-                            if version >= 3:
-                                result.update(
-                                    world.callback_dependencies(persona, callback, version=version)
-                                )
                         elif url.path in (
                             "/v1/snapshot",
                             "/v2/snapshot",
@@ -337,7 +219,9 @@ class ClientBridge:
                         ):
                             if fields:
                                 raise ValueError("Snapshot does not accept query parameters")
-                            result = world.client_snapshot(persona, version=int(url.path[2]))
+                            result = world.client_snapshot(
+                                persona, version=bridge_version_from_path(url.path)
+                            )
                         elif url.path in (
                             "/v1/events",
                             "/v2/changes",
@@ -360,17 +244,7 @@ class ClientBridge:
                                     persona,
                                     after=after,
                                     limit=limit,
-                                    version=4
-                                    if url.path.startswith("/v4/")
-                                    else (
-                                        6
-                                        if url.path.startswith("/v6/")
-                                        else (
-                                            5
-                                            if url.path.startswith("/v5/")
-                                            else (3 if url.path.startswith("/v3/") else 2)
-                                        )
-                                    ),
+                                    version=bridge_version_from_path(url.path),
                                 )
                             else:
                                 result = world.client_events(persona, after=after, limit=limit)
@@ -393,7 +267,10 @@ class ClientBridge:
                             except ValueError:
                                 self.error(404, "asset_unavailable", "Asset is unavailable")
                                 return
-                            if url.path.startswith("/v3/") and descriptor["mime_type"] in (
+                            policy = BridgeVersion.for_operation(
+                                bridge_version_from_path(url.path), "snapshot"
+                            )
+                            if not policy.custom_emoji and descriptor["mime_type"] in (
                                 "image/webp",
                                 "video/webm",
                             ):

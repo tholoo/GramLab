@@ -18,6 +18,11 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from gramlab._client_bridge_schema import (
+    BridgeVersion,
+    ClientBridgeSchema,
+    message_users,
+)
 from gramlab._media_group_topology import MediaGroupTopology
 from gramlab._message_publication import (
     MediaGroupPosition,
@@ -155,6 +160,7 @@ class World:
         connection.execute("PRAGMA foreign_keys=ON")
         self._messages = MessagePublication(connection)
         self._media_groups = MediaGroupTopology(connection)
+        self._client_schema = ClientBridgeSchema(connection, self, self._media_groups)
 
     @classmethod
     def create(cls, directory: Path, *, seed: int, now: int) -> Self:
@@ -714,9 +720,6 @@ class World:
             "duration_ms": row[5],
         }
 
-    def _message_custom_emoji(self, message: dict[str, Any]) -> set[int]:
-        return message_custom_emoji(message)
-
     def custom_emoji_stickers(
         self, bot_id: int, custom_emoji_ids: list[Any]
     ) -> list[dict[str, Any]]:
@@ -832,8 +835,7 @@ class World:
         entities: list[dict[str, Any]] | None = None,
         version: int = 2,
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 4, 5, 6):
-            raise ValueError("Unsupported client message version")
+        BridgeVersion.for_operation(version, "message")
         if (
             not isinstance(request_id, str)
             or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
@@ -844,7 +846,7 @@ class World:
         text.encode("utf-8", errors="strict")
         formatting = formatting_entities(text, entities)
         probe = {"entities": formatting}
-        if version < 4 and self._message_custom_emoji(probe):
+        if version < 4 and message_custom_emoji(probe):
             raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
         command = json.dumps({"text": text, "entities": formatting}, sort_keys=True)
         with self._connection:
@@ -1182,37 +1184,6 @@ class World:
                 caption_entities=formatting,
                 reply_markup=keyboard,
             )
-
-    def _message_assets(self, message: dict[str, Any]) -> set[int]:
-        return message_assets(message)
-
-    def _message_documents(self, message: dict[str, Any]) -> set[int]:
-        return message_documents(message)
-
-    def _require_document_version(self, message: dict[str, Any], version: int) -> None:
-        if version < 5 and self._message_documents(message):
-            raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
-
-    def _message_users(self, message: dict[str, Any]) -> set[int]:
-        users: set[int] = set()
-        pending: list[Any] = [message.get("rich_message")]
-        while pending:
-            value = pending.pop()
-            if isinstance(value, dict):
-                if value.get("type") == "text_mention" and "user_id" in value:
-                    users.add(int(value["user_id"]))
-                pending.extend(value.values())
-            elif isinstance(value, list):
-                pending.extend(value)
-        return users
-
-    def _identity_dependencies(
-        self, user_id: int, messages: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
-        for message in messages:
-            identifiers.update(self._message_users(message))
-        return [self.get_user(identifier) for identifier in sorted(identifiers)]
 
     def _store_asset(self, image: ImageAsset) -> int:
         row = self._connection.execute(
@@ -1772,8 +1743,7 @@ class World:
     ) -> dict[str, Any]:
         if not self._connection.in_transaction:
             raise RuntimeError("Callback effect requires an active World transaction")
-        if type(version) is not int or version not in (1, 3, 4, 5, 6):
-            raise ValueError("Unsupported client callback version")
+        BridgeVersion.for_operation(version, "callback")
         if (
             not isinstance(request_id, str)
             or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id) is None
@@ -1799,23 +1769,11 @@ class World:
             if previous[1] != command:
                 raise ValueError("Request ID already identifies another callback")
             stored = self.get_callback(user_id=user_id, callback_id=previous[0])
-            self._media_groups.require_message(stored["message"], version)
-            self._require_document_version(stored["message"], version)
-            if version < 3 and self._message_assets(stored["message"]):
-                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-            if version < 3 and self._message_users(stored["message"]):
-                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-            if version < 4 and self._message_custom_emoji(stored["message"]):
-                raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
+            self._client_schema.require_message(
+                stored["message"], version=version, operation="callback"
+            )
             return stored
-        self._media_groups.require_message(message, version)
-        self._require_document_version(message, version)
-        if version < 3 and self._message_assets(message):
-            raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-        if version < 3 and self._message_users(message):
-            raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-        if version < 4 and self._message_custom_emoji(message):
-            raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
+        self._client_schema.require_message(message, version=version, operation="callback")
         world_id = self._connection.execute("SELECT world_id FROM configuration").fetchone()[0]
         callback = {
             "id": str(uuid.uuid4()),
@@ -1981,274 +1939,51 @@ class World:
         }
 
     def client_snapshot(self, user_id: int, *, version: int = 1) -> dict[str, Any]:
-        if type(version) is not int or version not in (1, 2, 3, 4, 5, 6):
-            raise ValueError("Unsupported client snapshot version")
-        with self._connection:
-            # Pin one SQLite read snapshot before reading either data or its journal cursor.
-            self._connection.execute("BEGIN")
-            user = self.get_user(user_id)
-            if user["is_bot"]:
-                raise ValueError("Client personas must be virtual users")
-            world_id, now = self._connection.execute(
-                "SELECT world_id, now FROM configuration"
-            ).fetchone()
-            cursor = self._connection.execute(
-                "SELECT COALESCE(MAX(sequence), 0) FROM events"
-            ).fetchone()[0]
-            chats = [
-                self.get_chat(row[0])
-                for row in self._connection.execute(
-                    "SELECT id FROM chats WHERE user_id=? ORDER BY id", (user_id,)
-                )
-            ]
-            try:
-                messages = [message for chat in chats for message in self.history(chat["id"])]
-            except (TypeError, ValueError):
-                if version == 6:
-                    raise ValueError("Invalid stored media group") from None
-                raise
-            visible_users = {user_id, *(chat["bot_id"] for chat in chats)}
-            result = {
-                "schema": version,
-                "world_id": world_id,
-                "user_id": user_id,
-                "cursor": cursor,
-                "now": now,
-                "users": [self.get_user(identifier) for identifier in sorted(visible_users)],
-                "chats": chats,
-                "messages": messages,
-            }
-            self._media_groups.require_messages(
-                ((message, None) for message in result["messages"]), version
-            )
-            if version < 5 and any(
-                self._message_documents(message) for message in result["messages"]
-            ):
-                raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
-            if version < 3 and any(self._message_assets(message) for message in result["messages"]):
-                raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-            if version < 3 and any(self._message_users(message) for message in result["messages"]):
-                raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-            if version < 4 and any(
-                self._message_custom_emoji(message) for message in result["messages"]
-            ):
-                raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-            if version == 2:
-                result["message_position"] = self._message_position(user_id)
-                result["sends"] = [
-                    json.loads(row[0])
-                    for row in self._connection.execute(
-                        "SELECT body FROM client_sends WHERE user_id=? ORDER BY position",
-                        (user_id,),
-                    )
-                ]
-            if version >= 3:
-                result["users"] = self._identity_dependencies(user_id, result["messages"])
-                result["message_position"] = self._message_position(user_id)
-                result["sends"] = [
-                    json.loads(row[0])
-                    for row in self._connection.execute(
-                        "SELECT body FROM client_sends WHERE user_id=? ORDER BY position",
-                        (user_id,),
-                    )
-                ]
-                granted_assets = [
-                    self.asset_descriptor(row[0])
-                    for row in self._connection.execute(
-                        "SELECT asset_id FROM asset_grants WHERE user_id=? ORDER BY asset_id",
-                        (user_id,),
-                    )
-                ]
-                result["assets"] = [
-                    descriptor
-                    for descriptor in granted_assets
-                    if version >= 4 or descriptor["mime_type"] in ("image/png", "image/jpeg")
-                ]
-                result["message_revisions"] = [
-                    {
-                        "chat_id": message["chat_id"],
-                        "message_id": message["id"],
-                        "revision": self._connection.execute(
-                            "SELECT revision FROM message_revisions "
-                            "WHERE chat_id=? AND message_id=?",
-                            (message["chat_id"], message["id"]),
-                        ).fetchone()[0],
-                    }
-                    for message in result["messages"]
-                ]
-            if version >= 4:
-                result["custom_emoji"] = [
-                    self.custom_emoji_descriptor(row[0])
-                    for row in self._connection.execute(
-                        "SELECT custom_emoji_id FROM custom_emoji_grants WHERE user_id=? ORDER BY custom_emoji_id",  # noqa: E501
-                        (user_id,),
-                    )
-                ]
-            if version >= 5:
-                result["documents"] = [
-                    self.document_descriptor(str(row[0]))
-                    for row in self._connection.execute(
-                        "SELECT document_id FROM document_grants "
-                        "WHERE user_id=? ORDER BY document_id",
-                        (user_id,),
-                    )
-                ]
-            return result
+        return self._client_schema.snapshot(user_id, version=version)
 
     def client_changes(
         self, user_id: int, *, after: int, limit: int = 100, version: int = 2
     ) -> dict[str, Any]:
-        if type(version) is not int or version not in (2, 3, 4, 5, 6):
-            raise ValueError("Unsupported client changes version")
-        if type(after) is not int or not 0 <= after < 2**63:
-            raise ValueError("Invalid client message position")
-        if type(limit) is not int or not 1 <= limit <= 1000:
-            raise ValueError("Client change limit must be between 1 and 1000")
-        with self._connection:
-            self._connection.execute("BEGIN")
-            if self.get_user(user_id)["is_bot"]:
-                raise ValueError("Client personas must be virtual users")
-            head = self._message_position(user_id)
-            if after > head:
-                raise ValueError(
-                    "Client message position is ahead of this world; resnapshot required"
-                )
-            world_id, now = self._connection.execute(
-                "SELECT world_id, now FROM configuration"
-            ).fetchone()
-            rows = self._media_groups.change_page(
-                user_id=user_id, after=after, limit=limit, version=version
-            )
-            parsed_rows = []
-            for row in rows:
-                try:
-                    data = json.loads(row.body)
-                except (TypeError, ValueError):
-                    if version == 6:
-                        raise ValueError("Invalid stored media group") from None
-                    raise
-                if version == 6 and not isinstance(data, dict):
-                    raise ValueError("Invalid stored media group")
-                parsed_rows.append((row, data))
-            self._media_groups.require_messages(
-                ((data, row.event_sequence) for row, data in parsed_rows), version
-            )
-            changes = []
-            asset_ids: set[int] = set()
-            document_ids: set[int] = set()
-            mentioned_ids: set[int] = set()
-            emoji_ids: set[int] = set()
-            for row, data in parsed_rows:
-                change = {"position": row.position, "type": row.kind, "data": data}
-                documents = self._message_documents(change["data"])
-                if version < 5 and documents:
-                    raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
-                media = self._message_assets(change["data"])
-                if version < 3 and media:
-                    raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-                mentions = self._message_users(change["data"])
-                if version < 3 and mentions:
-                    raise ValueError("GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3")
-                emojis = self._message_custom_emoji(change["data"])
-                if version < 4 and emojis:
-                    raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-                emoji_ids.update(emojis)
-                asset_ids.update(media)
-                document_ids.update(documents)
-                mentioned_ids.update(mentions)
-                if version >= 3:
-                    change["revision"] = self._connection.execute(
-                        "SELECT event_sequence FROM client_changes WHERE user_id=? AND position=?",
-                        (user_id, row.position),
-                    ).fetchone()[0]
-                if row.request_id is not None:
-                    change["request_id"] = row.request_id
-                changes.append(change)
-            result = {
-                "schema": version,
-                "world_id": world_id,
-                "user_id": user_id,
-                "cursor": rows[-1].position if rows else after,
-                "head": head,
-                "now": now,
-                "changes": changes,
-            }
-            if version >= 3:
-                identifiers = {entry["id"] for entry in self.client_visible_users(user_id)}
-                identifiers.update(mentioned_ids)
-                result["users"] = [self.get_user(identifier) for identifier in sorted(identifiers)]
-                if version >= 4:
-                    for identifier in emoji_ids:
-                        descriptor = self.custom_emoji_descriptor(identifier)
-                        asset_ids.update(
-                            (descriptor["main_asset_id"], descriptor["thumbnail_asset_id"])
-                        )
-                result["assets"] = [
-                    self.asset_descriptor(asset_id) for asset_id in sorted(asset_ids)
-                ]
-            if version >= 4:
-                result["custom_emoji"] = [
-                    self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
-                ]
-            if version >= 5:
-                result["documents"] = [
-                    self.document_descriptor(str(identifier)) for identifier in sorted(document_ids)
-                ]
-            return result
+        return self._client_schema.changes(user_id, after=after, limit=limit, version=version)
+
+    def client_send_envelope(
+        self, user_id: int, sent: dict[str, Any], *, version: int
+    ) -> dict[str, Any]:
+        return self._client_schema.send_envelope(user_id, sent, version=version)
+
+    def client_callback_envelope(
+        self, user_id: int, callback: dict[str, Any], *, version: int
+    ) -> dict[str, Any]:
+        if self._connection.in_transaction:
+            return self._client_schema.callback_envelope(user_id, callback, version=version)
+        self._connection.execute("BEGIN")
+        try:
+            return self._client_schema.callback_envelope(user_id, callback, version=version)
+        finally:
+            self._connection.rollback()
+
+    def client_custom_emoji_envelope(
+        self,
+        user_id: int,
+        custom_emoji: list[dict[str, Any]],
+        assets: list[dict[str, Any]],
+        *,
+        version: int,
+    ) -> dict[str, Any]:
+        return self._client_schema.custom_emoji_envelope(
+            user_id, custom_emoji, assets, version=version
+        )
 
     def callback_dependencies(
         self, user_id: int, callback: dict[str, Any], *, version: int = 3
     ) -> dict[str, Any]:
         if self._connection.in_transaction:
-            return self._callback_dependencies(user_id, callback, version=version)
+            return self._client_schema.callback_dependencies(user_id, callback, version=version)
         self._connection.execute("BEGIN")
         try:
-            return self._callback_dependencies(user_id, callback, version=version)
+            return self._client_schema.callback_dependencies(user_id, callback, version=version)
         finally:
             self._connection.rollback()
-
-    def _callback_dependencies(
-        self, user_id: int, callback: dict[str, Any], *, version: int = 3
-    ) -> dict[str, Any]:
-        if type(version) is not int or version not in (3, 4, 5, 6):
-            raise ValueError("Unsupported client callback version")
-        message = callback["message"]
-        self._media_groups.require_message(message, version)
-        self._require_document_version(message, version)
-        assets = [
-            self.asset_descriptor(asset_id) for asset_id in sorted(self._message_assets(message))
-        ]
-        row = self._connection.execute(
-            "SELECT message_revision FROM callback_revisions WHERE callback_id=?",
-            (callback["id"],),
-        ).fetchone()
-        if row is None:
-            raise ValueError("Callback message revision is unavailable")
-        emoji_ids = self._message_custom_emoji(message)
-        if version < 4 and emoji_ids:
-            raise ValueError("GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4")
-        if version >= 4:
-            for identifier in emoji_ids:
-                descriptor = self.custom_emoji_descriptor(identifier)
-                for asset_id in (descriptor["main_asset_id"], descriptor["thumbnail_asset_id"]):
-                    if asset_id not in {entry["asset_id"] for entry in assets}:
-                        assets.append(self.asset_descriptor(asset_id))
-            assets.sort(key=lambda item: item["asset_id"])
-        result = {
-            "users": self._identity_dependencies(user_id, [message]),
-            "assets": assets,
-            "message_revision": int(row[0]),
-        }
-        if version >= 4:
-            result["custom_emoji"] = [
-                self.custom_emoji_descriptor(identifier) for identifier in sorted(emoji_ids)
-            ]
-        if version >= 5:
-            result["documents"] = [
-                self.document_descriptor(str(identifier))
-                for identifier in sorted(self._message_documents(message))
-            ]
-        return result
 
     def client_events(self, user_id: int, *, after: int, limit: int = 100) -> dict[str, Any]:
         if type(after) is not int or not 0 <= after < 2**63:
@@ -2281,15 +2016,15 @@ class World:
                 data = json.loads(body)
                 if kind in ("message.created", "message.edited"):
                     visible = data["chat_id"] in chats
-                    if visible and self._message_documents(data):
+                    if visible and message_documents(data):
                         raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
-                    if visible and self._message_assets(data):
+                    if visible and message_assets(data):
                         raise ValueError("GRAMLAB_UNSUPPORTED: media requires client bridge v3")
-                    if visible and self._message_users(data):
+                    if visible and message_users(data):
                         raise ValueError(
                             "GRAMLAB_UNSUPPORTED: rich mentions require client bridge v3"
                         )
-                    if visible and self._message_custom_emoji(data):
+                    if visible and message_custom_emoji(data):
                         raise ValueError(
                             "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
                         )
@@ -2301,9 +2036,9 @@ class World:
                     visible = True
                 elif kind in ("callback.created", "callback.answered"):
                     visible = data["user_id"] == user_id
-                    if visible and self._message_documents(data.get("message", {})):
+                    if visible and message_documents(data.get("message", {})):
                         raise ValueError("GRAMLAB_UNSUPPORTED: documents require client bridge v5")
-                    if visible and self._message_custom_emoji(data.get("message", {})):
+                    if visible and message_custom_emoji(data.get("message", {})):
                         raise ValueError(
                             "GRAMLAB_UNSUPPORTED: custom emoji requires client bridge v4"
                         )

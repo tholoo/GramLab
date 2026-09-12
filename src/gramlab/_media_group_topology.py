@@ -27,30 +27,23 @@ class MediaGroupTopology:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
-    def require_message(
-        self, message: Any, version: int, *, revision: int | None = None
-    ) -> None:
-        if isinstance(message, dict) and "media_group_id" in message and version < 6:
-            raise ValueError("GRAMLAB_UNSUPPORTED: media groups require client bridge v6")
-        if version >= 6:
-            self._validate_message(message, revision=revision)
+    def require_message(self, message: Any, *, revision: int | None = None) -> None:
+        self._validate_message(message, revision=revision)
 
-    def require_messages(
-        self, messages: Iterable[tuple[Any, int | None]], version: int
-    ) -> None:
+    def require_messages(self, messages: Iterable[tuple[Any, int | None]]) -> None:
         validated_groups: set[int] = set()
         for message, revision in messages:
             group_id = self._group_identifier(message)
-            if version >= 6 and group_id is not None:
+            if group_id is not None:
                 if group_id in validated_groups:
                     continue
                 validated_groups.add(group_id)
-            self.require_message(message, version, revision=revision)
+            self.require_message(message, revision=revision)
 
     def change_page(
-        self, *, user_id: int, after: int, limit: int, version: int
+        self, *, user_id: int, after: int, limit: int, complete_groups: bool
     ) -> tuple[ChangePageRow, ...]:
-        if version == 6:
+        if complete_groups:
             split = self._connection.execute(
                 "SELECT 1 FROM media_groups g JOIN media_group_members m ON m.group_id=g.id "
                 "JOIN message_revisions r ON r.chat_id=m.chat_id AND r.message_id=m.message_id "
@@ -68,7 +61,7 @@ class MediaGroupTopology:
             "WHERE c.user_id=? AND c.position>? ORDER BY c.position LIMIT ?",
             (user_id, after, limit),
         ).fetchall()
-        if version == 6 and rows:
+        if complete_groups and rows:
             self._complete_trailing_group(user_id, rows)
             self._require_complete_groups(user_id, rows)
         return tuple(
@@ -200,9 +193,7 @@ class MediaGroupTopology:
                 kind=str(kind),
             )
 
-    def _stored_membership(
-        self, chat_id: int, message_id: int, *, revision: int | None
-    ) -> Any:
+    def _stored_membership(self, chat_id: int, message_id: int, *, revision: int | None) -> Any:
         query = (
             "SELECT m.group_id, m.ordinal, g.kind, g.member_count, m.chat_id, m.message_id "
             "FROM media_group_members m JOIN media_groups g "
@@ -213,8 +204,7 @@ class MediaGroupTopology:
                 query + "WHERE m.chat_id=? AND m.message_id=?", (chat_id, message_id)
             ).fetchone()
         rows = self._connection.execute(
-            query
-            + "JOIN message_revisions r "
+            query + "JOIN message_revisions r "
             "ON r.chat_id=m.chat_id AND r.message_id=m.message_id WHERE r.revision=?",
             (revision,),
         ).fetchall()

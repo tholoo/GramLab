@@ -429,12 +429,12 @@ def test_callback_dependencies_use_one_sqlite_read_snapshot(
         version=5,
     )
     ready, written = threading.Event(), threading.Event()
-    original = world._identity_dependencies
+    original = world.client_visible_users
 
-    def pause(user_id: int, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def pause(user_id: int) -> list[dict[str, Any]]:
         ready.set()
         assert written.wait(timeout=10)
-        return original(user_id, messages)
+        return original(user_id)
 
     def writer() -> None:
         assert ready.wait(timeout=10)
@@ -442,7 +442,7 @@ def test_callback_dependencies_use_one_sqlite_read_snapshot(
             connection.execute("UPDATE documents SET file_name='changed.txt' WHERE id=1")
         written.set()
 
-    monkeypatch.setattr(world, "_identity_dependencies", pause)
+    monkeypatch.setattr(world, "client_visible_users", pause)
     with ThreadPoolExecutor(max_workers=1) as workers:
         future = workers.submit(writer)
         dependencies = world.callback_dependencies(user["id"], callback, version=5)

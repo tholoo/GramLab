@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
 from gramlab._android import IMAGE_PACKAGE
+from gramlab._client_bridge_schema import require_runtime_bridge_version
 from gramlab._rich_button_journal import recover_journal
 from gramlab.reports import Report, Screenshot, _Redactor, write_report
 from gramlab.runtime import RuntimeProfile, Sandbox, _data_directory
@@ -147,8 +148,7 @@ def run(
     bridge_version: int = 3,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
-    if type(bridge_version) is not int or bridge_version not in (3, 4, 5, 6):
-        raise ValueError("Android bridge version must be 3, 4, 5 or 6")
+    bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
     config, inputs = _inputs(manifest)
     config["bridge_version"] = bridge_version
     apk = None

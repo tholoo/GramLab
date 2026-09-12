@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from gramlab._captures import _rich_text
+from gramlab._client_bridge_schema import require_runtime_bridge_version
 from gramlab.client_bridge import ClientBridge
 from gramlab.reports import _png, _Redactor
 from gramlab.runtime import RuntimeProfile, Sandbox
@@ -112,9 +113,10 @@ def _inline_matches(
             # Match the complete authored text before the pinned receipt metadata.
             # A prefix match makes a one-line message indistinguishable from a
             # different multiline message with the same first line.
-            return re.fullmatch(
-                re.escape(message["text"]) + r"\nReceived at [^\n]+\n", native_text
-            ) is not None
+            return (
+                re.fullmatch(re.escape(message["text"]) + r"\nReceived at [^\n]+\n", native_text)
+                is not None
+            )
         if not message.get("caption"):
             return False
         if "photo" in message:
@@ -153,9 +155,7 @@ class Android:
         secrets: list[str],
         bridge_version: int = 3,
     ) -> None:
-        if type(bridge_version) is not int or bridge_version not in (3, 4, 5, 6):
-            raise ValueError("Android bridge version must be 3, 4, 5 or 6")
-        self._bridge_version = bridge_version
+        self._bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
         self.profile = profile
         self.deadline = deadline
         self.secrets = secrets
@@ -484,11 +484,7 @@ class Android:
         )
         with World.open(Path("world")) as world:
             title = world.get_user(chat["bot_id"])["first_name"]
-        ui = (
-            self._wait_ui([title], start_control=True)
-            if text is None
-            else self._wait_ui([title])
-        )
+        ui = self._wait_ui([title], start_control=True) if text is None else self._wait_ui([title])
         with World.open(Path("world")) as world:
             if world.get_chat(chat["id"]) != chat:
                 raise RuntimeError("Composer chat changed before input")
