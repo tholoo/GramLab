@@ -41,3 +41,40 @@ Use the single normal31 APK from ticket113 for exactly three serial runs: focuse
 then one final inventoried `pytest -m android` current-APK regression with no skips after fixes settle.
 Never rebuild between them. Retire every successful guest and remove hash-verified APK copies after
 extracting evidence; retain one immutable normal31 APK.
+
+## Worker implementation evidence
+
+- The public selector now admits only exact integer bridge versions 3, 4, 5 and 6, preserving the
+  default of 3 and rejecting booleans, nonintegers and 7 before run creation. The selected version
+  is retained as an explicit top-level run-input/result configuration field, passed into both the
+  Android runtime and simulated `Interactions`, and used for virtual callback creation. The native
+  rich-button observer also admits v6 without changing its v4/v5 behavior.
+- `media_group_bot.py` makes two real multipart `sendMediaGroup` calls. The contained public
+  scenario starts the bot, captures the initial two-photo group, sends the original-composer-
+  compatible `documents / اسناد` trigger, and captures the two-document group without a fixed
+  sleep. Its retained output compares complete Bot API responses, grouped-edit rejections, World
+  history/events and bridge-v6 snapshot/changes state. The host public/selector slice passes 11/11.
+- The focused Android selector is one test and one `android_guest.main` lifecycle. Its probe first
+  invokes all 48 existing app-process codec/carrier cases in the same AVD, then installs normal31
+  for stock UI/runtime/cache acceptance. The initial screenshot waits for both original photo
+  transfers and retains a 320x640 nonblank PNG plus XML/caption evidence; the grouped carrier codec
+  supplies decoded grouped IDs and flag17. No grouped-photo observer is activated because the
+  existing normal31 observer intentionally rejects `getCurrentMessagesGroup() != null`.
+- The probe publishes the two distinct documents after the initial snapshot, requires exactly one
+  `events_applied/messages` trace row with token 2 and records the bridge cursor transition from
+  position 2 to 4. It freezes ordered XML row bounds, truncates only document 2's first body after
+  document 1 completes, uses the original mdpi radial point for one retry, requires request counts
+  1 and 2, exact two-copy cache/presentation bytes per document, no partials, and no document GET on
+  cold restart. Five original PNG/XML pairs are retained for coordinator inspection.
+- The final affected host selection passes 177/177 with no failures or skips under the documented
+  isolated network guard; its JUnit is `artifacts/album-native-host-01.xml`. Ruff check/format pass,
+  and strict mypy passes the six production and six new test/probe files. No Android guest or APK
+  build ran in this worker.
+
+## Remaining coordinator gates
+
+Run `test_actual_album_codec_ui_retry_and_cold_cache_share_one_guest` first with the immutable
+normal31 APK and codec probe APK, then inspect all five original captures and retained XML. This is
+normal31 guest one and closes ticket113's pending green codec gate. Run the separate public-v6
+Android selector second, then the complete inventoried current-APK Android regression third. Do not
+rebuild normal31 between them; keep this ticket claimed until those native results pass.

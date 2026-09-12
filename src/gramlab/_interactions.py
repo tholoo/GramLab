@@ -18,11 +18,15 @@ class Interactions:
         directory: Path,
         *,
         lock: threading.Lock,
+        bridge_version: int = 5,
         tap: Callable[..., dict[str, Any]] | None = None,
         compose: Callable[..., dict[str, Any]] | None = None,
         start_chat: Callable[..., dict[str, Any]] | None = None,
     ) -> None:
+        if type(bridge_version) is not int or bridge_version not in (3, 4, 5, 6):
+            raise ValueError("Interaction bridge version must be 3, 4, 5 or 6")
         self.directory = directory
+        self._bridge_version = bridge_version
         self._lock = lock
         self.tap = tap
         self.compose = compose
@@ -166,7 +170,7 @@ class Interactions:
                         message_id=message_id,
                         data=button["callback_data"],
                         request_id=uuid.uuid4().hex,
-                        version=5,
+                        version=self._bridge_version,
                     )
                 else:
                     try:

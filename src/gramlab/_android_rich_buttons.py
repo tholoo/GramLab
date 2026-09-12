@@ -395,7 +395,7 @@ class AndroidRichInput:
         return sample
 
     def observe(self, record: dict[str, Any]) -> str:
-        _require(self.android._bridge_version in (4, 5))
+        _require(self.android._bridge_version in (4, 5, 6))
         snapshot = self._current(record)
         if self._live is not None:
             previous = self._operations[self._live]
