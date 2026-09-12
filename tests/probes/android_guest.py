@@ -58,6 +58,15 @@ def startup_log_command(adb: str) -> list[str]:
     ]
 
 
+def reset_adb_server(adb: str) -> None:
+    """Discard transports retained from an earlier guest using the fixed serial."""
+    result = subprocess.run(  # noqa: S603 — pinned supervisor-provided adb path.
+        [adb, "kill-server"], capture_output=True, text=True, timeout=10, check=False
+    )
+    if result.returncode:
+        raise RuntimeError(f"Failed to reset the dedicated ADB server: {result.stderr}")
+
+
 class StartupLogCollector:
     """Drain an owned child while retaining a bounded prefix of its merged output."""
 
@@ -291,6 +300,9 @@ def main(
     started = time.monotonic()
     observations: dict[str, object] = {}
     startup_log: StartupLogCollector | None = None
+    # A serial Android gate reuses emulator-5554 across tests in one network
+    # namespace. Do not let the ADB daemon retain the preceding guest's transport.
+    reset_adb_server(adb)
     with Sandbox(profile).component(command, data=data, kvm=True) as guest:
         try:
 

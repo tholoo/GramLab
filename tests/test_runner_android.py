@@ -243,6 +243,7 @@ if lab.events() != before:
     assert len(recorded["interactions"]) == 2
     assert recorded["interactions"][1]["failure"] == "RuntimeError"
     assert recorded["android"]["input_failure"] in (
+        "Inline message identity must have one accessible match",
         "Inline message text is ambiguous in this chat",
         "Inline message and complete keyboard must have one accessible match",
     )

@@ -222,9 +222,14 @@ def test_native_quoted_code_codec_and_independent_rejections(tmp_path: Path) -> 
     for case in cases:
         actual = observed["cases"][case["name"]]
         if case["expected"] is None:
+            error = (
+                "GRAMLAB_BRIDGE_INVALID_CUSTOM_EMOJI"
+                if case["name"] == "unsupported"
+                else "GRAMLAB_BRIDGE_INVALID_DATA"
+            )
             assert actual == {
                 "returncode": 2,
-                "result": {"error": "GRAMLAB_BRIDGE_INVALID_DATA"},
+                "result": {"error": error},
             }, case["name"]
         else:
             message = baseline["messages"][0] | {

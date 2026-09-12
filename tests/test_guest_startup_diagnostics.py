@@ -1,6 +1,7 @@
 """Real-process checks for bounded guest startup log collection."""
 
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 import pytest
 from probes.android_guest import (
     StartupLogCollector,
+    reset_adb_server,
     startup_log_command,
     wait_for_system_report,
 )
@@ -57,6 +59,26 @@ def test_startup_log_command_uses_dedicated_serial_and_system_tag_allowlist() ->
     assert "android.hardware.uwb-service:I" in command
     assert "BugreportManagerService:I" in command
     assert all("gramlab" not in argument.lower() for argument in command)
+
+
+def test_reset_adb_server_discards_a_preceding_fixed_serial_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    def run(command: list[str], **options: object) -> subprocess.CompletedProcess[str]:
+        calls.append((command, options))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    reset_adb_server("/tools/adb")
+
+    assert calls == [
+        (
+            ["/tools/adb", "kill-server"],
+            {"capture_output": True, "text": True, "timeout": 10, "check": False},
+        )
+    ]
 
 
 def test_collector_retains_beginning_and_reaps_live_child() -> None:

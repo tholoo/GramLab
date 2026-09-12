@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: album-native-acceptance
 Blocked by: 112 and 113
 
@@ -181,4 +181,24 @@ optional Start Bot overlay; `96ae388` now accepts either original control withou
 The next two completed the entire scenario and exposed test-only receipt-redaction and XML-entity
 oracles; `73f8a41` and `5500390` correct those checks. Their retained successful inner results were
 replayed through the corrected oracle before the final guest. No Android source changed and
-normal31 was never rebuilt. The final inventoried current-APK Android regression remains.
+normal31 was never rebuilt.
+
+## Coordinator current-APK regression
+
+The inventoried 73-case current-APK command completed in1:22:10 with68 passes, five disclosed
+failures and no skips. Four failures were outside album behavior and passed in the exact failed-case
+rerun retained at `artifacts/normal31-failed-five-03.xml`; the matched normal31 document
+instrumentation APK is bound by its create-only inputs record. The album failure was an inherited
+ADB transport from a preceding guest reusing fixed serial `emulator-5554`: the large codec stdout
+was truncated at exactly40,960 bytes in the full diagnostic and the following shell command lost
+the transport. The focused album gate had already passed the same payload four times from a fresh
+daemon with432,478 characters intact.
+
+The shared guest bootstrap now kills only its isolated-namespace ADB daemon before starting each
+fresh emulator, preventing a preceding fixed-serial transport from leaking across serial tests.
+Fourteen focused host checks pass. The single album rerun then passed all48 codec cases, UI retry,
+exact transfer/cache identities and cold restart in `artifacts/normal31-failed-album-04.xml`
+(SHA-256 `7e8151e40554edfd4090e10173565fdc7488d9ef953753e10fd225abf539c746`), with no skips; its large
+case retained all432,478 characters and return code0. At the user's explicit direction, the
+already-completed 73-case command was not repeated: acceptance uses its68 passing cases plus the
+five exact failed-case reruns. Immutable normal31 remained byte-identical.

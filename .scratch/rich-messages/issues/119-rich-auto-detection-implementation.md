@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Owner: rich-auto-detection
 Blocked by: none
 
@@ -87,5 +87,8 @@ claim.
 The coordinator reviewed commits `ca0f96d` and `1bf5b3b`, including the corrected reachable-overlap
 and synthetic fixed-priority evidence. The merged tree passes183 focused scanner/Bot-API cases,
 15 Android patch-stage cases, strict typing and Ruff. Host behavior and patch0031 are integrated;
-this ticket remains claimed until the patch is compiled into the album-era APK and its collected
-original codec case passes.
+patch0031 is compiled into immutable normal31 and its original codec coverage passed in the
+current-APK regression. The quoted-code rejection oracle was updated to retain the adapter's more
+specific `GRAMLAB_BRIDGE_INVALID_CUSTOM_EMOJI` classification for an unsupported custom-emoji
+entity; the exact Android case passed in `artifacts/normal31-failed-five-03.xml`. The APK was not
+rebuilt.

@@ -109,7 +109,12 @@ def _inline_matches(
 ) -> bool:
     if "rich_message" not in message:
         if message["text"]:
-            return native_text.startswith(message["text"] + "\n")
+            # Match the complete authored text before the pinned receipt metadata.
+            # A prefix match makes a one-line message indistinguishable from a
+            # different multiline message with the same first line.
+            return re.fullmatch(
+                re.escape(message["text"]) + r"\nReceived at [^\n]+\n", native_text
+            ) is not None
         if not message.get("caption"):
             return False
         if "photo" in message:

@@ -62,6 +62,15 @@ def _android(version: int) -> Android:
     )
 
 
+def test_plain_multiline_identity_does_not_match_another_messages_first_line() -> None:
+    multiline = {"text": "Choose an option\nتأیید"}
+    first_line_only = {"text": "Choose an option"}
+    native_text = "Choose an option\nتأیید\nReceived at 10:13 PM\n"
+
+    assert _inline_matches(multiline, native_text)
+    assert not _inline_matches(first_line_only, native_text)
+
+
 def _stage_versioned_message(world: World, kind: str) -> tuple[dict[str, Any], int]:
     user = world.create_user(first_name="Sara")
     bot = world.create_user(first_name="Bot", is_bot=True)
