@@ -1,15 +1,15 @@
-# Proposed offline rich-text automatic detection
+# Offline rich-text automatic detection
 
-Status: frozen fidelity policy; approved on 2026-09-12 and not implemented.
+Status: frozen fidelity policy; approved and host/adapter implemented on 2026-09-12; native codec
+acceptance awaits the album-era APK.
 
 The user approved the complete deterministic offline scanner below as an explicit GramLab
 emulation, including its candidate classes, precedence, tree boundaries and acceptance limits.
 It does not claim exact Telegram-server parity. Changing that policy requires renewed consultation.
 
-This proposal would let an offline GramLab bot omit `skip_entity_detection` without pretending
-that local behavior exactly matches Telegram's server. It needs user approval because it changes
-the fidelity target. Until then, GramLab must continue rejecting omitted or false detection rather
-than silently treating it as disabled.
+This contract lets an offline GramLab bot omit `skip_entity_detection` without pretending that
+local behavior exactly matches Telegram's server. Omitted and false run the approved scanner; true
+keeps explicit structured content unchanged.
 
 ## Established facts and policy choices
 

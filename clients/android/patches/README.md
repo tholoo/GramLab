@@ -9,9 +9,9 @@ the upstream source headers. [`COPYING`](COPYING) contains the upstream GPLv2 li
 Original preparation tooling and notes retain the root MIT license. This does not relicense the
 client's separately licensed dependencies or establish distribution readiness.
 
-The current `series` contains exactly 30 patches and ends with the ordinary-document-delivery
-patch. The retained normal30 APK is local evidence tied to that complete ordered series and the
-pinned upstream revision; no APK or binary download is distributed by this repository. The
+The current `series` contains exactly 31 patches and ends with the rich-auto-detection projection.
+The retained normal30 APK remains evidence for the first 30 entries only; patch 0031 still requires
+a fresh build and native run. No APK or binary download is distributed by this repository. The
 filenames below are presented in application order.
 
 `0001-build-preparation.patch` selects only the shared client library, its existing JLatexMath
@@ -237,3 +237,11 @@ coalescing, cache/destination handling and collision-safe no-replace publication
 local rejection for unsupported encrypted or oversized filename-only preload paths. See the
 [document profile](../../../docs/development/documents.md) and
 [native delivery ticket](../../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md).
+
+`0031-rich-auto-detection.patch` admits the approved scanner's five metadata-free canonical nodes
+at the semantic adapter boundary and projects them into the pinned original `TL_iv.textMention`,
+`textHashtag`, `textCashtag`, `textBotCommand` and `textBankCard` constructors. The serializer probe
+round-trips those exact original types. It does not scan text on Android or change the renderer;
+Python supplies the already canonical enriched tree. Host patch application and Android test
+collection are worker gates; APK compilation and serialized native execution remain coordinator
+acceptance.

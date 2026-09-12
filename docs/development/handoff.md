@@ -86,6 +86,11 @@ captures. The approved bounded-window oracle selects captures2–23 for every ca
 frames across6.84 seconds while retaining whole-sequence state-order checks. Its32-case focused
 suite, strict typing and Ruff checks pass; tickets120 and116 are resolved without another guest run.
 
+The approved offline rich detector and Android patch0031 are integrated. The merged focused gate
+passes183 scanner/Bot-API cases; all15 patch-stage cases, strict typing and Ruff pass. The worker's
+exact full pre-integration gate passed1,401/1,401 at88.25% coverage. Ticket119 remains claimed only
+until patch0031 is compiled into the album-era APK and its collected original codec case passes.
+
 ## Active work and next actions
 
 1. [104: original document delivery](../../.scratch/rich-messages/issues/104-ordinary-document-native-delivery.md)
@@ -111,8 +116,9 @@ suite, strict typing and Ruff checks pass; tickets120 and116 are resolved withou
    logical aggregate, rollback-safe World-wide group IDs, bridge-v6 complete-group pagination and
    grouped edits deferred. [Ticket111](../../.scratch/rich-messages/issues/111-album-contract.md) is
    resolved. Tickets112–114 are specified in dependency order; ticket112 starts after serialized
-   completion of ticket110. The approved automatic rich
-   detector is assigned separately in [ticket119](../../.scratch/rich-messages/issues/119-rich-auto-detection-implementation.md).
+   completion of ticket110. The approved automatic rich detector's host behavior and patch0031 are
+   integrated in [ticket119](../../.scratch/rich-messages/issues/119-rich-auto-detection-implementation.md);
+   its original codec gate awaits the album-era APK.
 6. Approval-independent acceptance work is split into
    [115: residual rich-button native acceptance](../../.scratch/rich-messages/issues/115-rich-button-residual-native-acceptance.md),
    [116: current-APK public custom emoji](../../.scratch/rich-messages/issues/116-custom-emoji-current-apk-public-runner.md),

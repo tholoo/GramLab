@@ -92,8 +92,8 @@ handoff.
   but are specified in dependency order. Ticket112 is assigned after serialized completion of
   ticket110; tickets113 and114 follow it.
 - [93: rich automatic detection](issues/93-rich-auto-detection-policy-proposal.md) is an approved
-  frozen local fidelity policy; [119](issues/119-rich-auto-detection-implementation.md) owns its
-  core, original-Android projection and focused acceptance.
+  frozen local fidelity policy; [119](issues/119-rich-auto-detection-implementation.md) has integrated
+  host behavior and patch0031, with original-Android codec acceptance awaiting the album-era APK.
 - [120: bounded custom-emoji timing](issues/120-custom-emoji-bounded-timing.md) is resolved: every
   retained frame remains exact and synchronized, with captures2–23 proving6.84 seconds of timing.
 
