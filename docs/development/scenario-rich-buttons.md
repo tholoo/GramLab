@@ -1,6 +1,6 @@
 # Public rich-button scenarios
 
-The experimental runner exposes `Scenario.rich_buttons(chat_id=..., message_id=...)` and
+The experimental runner exposes `Scenario.rich_buttons(chat_id=..., message_id=..., user_id=...)` and
 `Scenario.tap_rich_button(target_id=...)` for canonical rich-message buttons. The shared contract
 covers callback, copy and disabled actions in simulation and headless Android. The integrated
 simulation scenario and host boundary checks pass. Original native15 proves all six visible
@@ -11,7 +11,8 @@ normal27/28 results, not a current-APK or full operational-milestone pass.
 
 ## Observe and select
 
-Within an already configured private scenario component:
+Within an already configured private scenario component, the actor is inferred from the private
+chat:
 
 ```python
 observed = scenario.rich_buttons(chat_id=chat_id, message_id=message_id)
@@ -21,6 +22,20 @@ selected = next(
 receipt = scenario.tap_rich_button(target_id=selected["target_id"])
 assert receipt["status"] == "succeeded", receipt
 ```
+
+For a supergroup, the actor is explicit and must be a non-bot member:
+
+```python
+observed = scenario.rich_buttons(
+    chat_id=group.id,
+    message_id=message.id,
+    user_id=member.id,
+)
+```
+
+That selected member is retained through allocation, dispatch, callback creation, receipt evidence
+and recovery. A missing member, bot, outsider, or private-chat actor mismatch rejects before target
+allocation or input.
 
 An observation contains `chat_id`, `message_id`, `message_revision` and `targets`. Each target has
 an opaque `target_id`, canonical `path`, complete `button` and flattened `label`. Select by the

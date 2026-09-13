@@ -771,10 +771,10 @@ def test_patch_and_fixture_freeze_bridge_v6_album_invariants() -> None:
     )
     series = Path("clients/android/patches/series").read_text().splitlines()
     assert series[-4:] == [
-        "0031-rich-auto-detection.patch",
         "0032-atomic-media-groups.patch",
         "0033-rich-navigation-buttons.patch",
         "0034-synthetic-group-chats.patch",
+        "0035-group-rich-button-input.patch",
     ]
     assert series.count("0032-atomic-media-groups.patch") == 1
     assert series.count("0033-rich-navigation-buttons.patch") == 1

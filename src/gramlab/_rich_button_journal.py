@@ -60,6 +60,17 @@ def _positive(value: Any, context: str) -> int:
     return int(value)
 
 
+def _chat_identifier(value: Any, context: str) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value == 0
+        or not -(2**63) < value < 2**63
+    ):
+        raise ValueError(f"Invalid rich-button {context}")
+    return int(value)
+
+
 def _timestamp(value: Any, context: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < 2**63:
         raise ValueError(f"Invalid rich-button {context}")
@@ -143,7 +154,7 @@ def _target(value: Any, *, complete: bool) -> dict[str, Any]:
     if complete:
         result.update(
             {
-                "chat_id": _positive(item["chat_id"], "chat identifier"),
+                "chat_id": _chat_identifier(item["chat_id"], "chat identifier"),
                 "message_id": _positive(item["message_id"], "message identifier"),
                 "message_revision": _positive(item["message_revision"], "message revision"),
             }
@@ -153,7 +164,7 @@ def _target(value: Any, *, complete: bool) -> dict[str, Any]:
 
 def _observation(value: Any) -> dict[str, Any]:
     item = _object(value, {"chat_id", "message_id", "message_revision", "targets"}, "observation")
-    chat_id = _positive(item["chat_id"], "chat identifier")
+    chat_id = _chat_identifier(item["chat_id"], "chat identifier")
     message_id = _positive(item["message_id"], "message identifier")
     revision = _positive(item["message_revision"], "message revision")
     if not isinstance(item["targets"], list):
@@ -306,7 +317,7 @@ def _callback(value: Any) -> dict[str, Any]:
     )
     callback_id = _identifier(callback["id"], "callback identifier")
     user_id = _positive(callback["user_id"], "callback user identifier")
-    chat_id = _positive(callback["chat_id"], "callback chat identifier")
+    chat_id = _chat_identifier(callback["chat_id"], "callback chat identifier")
     if callback["answer"] is not None:
         raise ValueError("Rich-button callback must retain its creation-time null answer")
     if (
@@ -325,7 +336,7 @@ def _callback(value: Any) -> dict[str, Any]:
     if required - set(message) or set(message) - allowed:
         raise ValueError("Invalid rich-button callback message fields")
     _positive(message["id"], "callback message identifier")
-    message_chat = _positive(message["chat_id"], "callback message chat")
+    message_chat = _chat_identifier(message["chat_id"], "callback message chat")
     _positive(message["sender_id"], "callback message sender")
     message_date = _timestamp(message["date"], "callback message date")
     if message_chat != chat_id or message["text"] != "":

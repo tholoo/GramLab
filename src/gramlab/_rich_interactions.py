@@ -71,16 +71,29 @@ class RichInteractions:
         self.failed = True
         self.failure = self.failure or code
 
-    def rich_buttons(self, *, chat_id: int, message_id: int) -> dict[str, Any]:
-        if any(type(value) is not int or not 0 < value < 2**63 for value in (chat_id, message_id)):
-            raise ValueError("Rich observation requires positive integer message identifiers")
+    def rich_buttons(
+        self, *, chat_id: int, message_id: int, user_id: int | None = None
+    ) -> dict[str, Any]:
+        if (
+            type(chat_id) is not int
+            or chat_id == 0
+            or not -(2**63) < chat_id < 2**63
+            or type(message_id) is not int
+            or not 0 < message_id < 2**63
+        ):
+            raise ValueError("Rich observation requires a chat and positive message identifier")
         with self._input_lock:
             with World.open(self.directory) as world:
                 if world.world_id != self.world_id:
                     raise ValueError("Control world has been replaced")
                 chat = world.get_chat(chat_id)
+                selected_user = (
+                    chat["user_id"] if chat["type"] == "private" and user_id is None else user_id
+                )
+                if selected_user is None:
+                    raise ValueError("Rich group input requires a member persona")
                 record = world.rich_button_snapshot(
-                    user_id=chat["user_id"], chat_id=chat_id, message_id=message_id
+                    user_id=selected_user, chat_id=chat_id, message_id=message_id
                 )
             found = occurrences(record["message"]["rich_message"])
             observation: dict[str, Any] = {
@@ -93,7 +106,7 @@ class RichInteractions:
                 return observation
             self._interactions.check_rich_capacity(len(found))
             self.journal.preflight_allocation(
-                observation, user_id=chat["user_id"], client_nonce="0" * 128
+                observation, user_id=selected_user, client_nonce="0" * 128
             )
             for target in observation["targets"]:
                 possible = {
@@ -115,23 +128,23 @@ class RichInteractions:
                 try:
                     nonce = self._native.observe(record)
                     self.journal.preflight_allocation(
-                        observation, user_id=chat["user_id"], client_nonce=nonce
+                        observation, user_id=selected_user, client_nonce=nonce
                     )
                 except Exception:
                     self._fail("rich_button_component_failed")
                     raise RuntimeError("Rich-button client observation failed") from None
             else:
-                nonce = self._interactions.select_virtual_persona(chat["user_id"])
+                nonce = self._interactions.select_virtual_persona(selected_user)
                 if nonce != self._client_nonce:
                     self._clipboard.clear()
-            self._persona = chat["user_id"]
+            self._persona = selected_user
             self._client_nonce = nonce
             with self._registry_lock:
                 try:
                     self._interactions.reserve_rich_targets(
                         len(found),
                         lambda: self.journal.allocate(
-                            observation, user_id=chat["user_id"], client_nonce=nonce
+                            observation, user_id=selected_user, client_nonce=nonce
                         ),
                     )
                 except (OSError, RuntimeError):
@@ -145,7 +158,7 @@ class RichInteractions:
                             "message_revision": record["revision"],
                             **copy.deepcopy(target),
                         },
-                        "user_id": chat["user_id"],
+                        "user_id": selected_user,
                         "client_nonce": nonce,
                     }
             return copy.deepcopy(observation)

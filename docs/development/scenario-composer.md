@@ -23,8 +23,10 @@ when already open. The pinned client can change its first-use display while load
 empty dialog, so a restart is not a substitute for pressing this button. The action has no deep-link
 parameter or unblock behavior. It is distinct from `start_bot`, which restarts a bot **process**.
 
-`type_message` requires existing conversation history. A new bot chat must be started first;
-a scenario may also use the existing synthetic-message API to prepare an established fixture.
+`type_message` requires existing history in a private bot conversation, so a new private chat must
+be started first. A supergroup member may type the group's first message without a private-chat
+Start step; `start_bot_chat` rejects supergroups. A scenario may also use the existing
+synthetic-message API to prepare an established private fixture.
 Each call checks an empty native draft, enters the raw text using Android accessibility, verifies
 the resulting draft, and activates the original Send control once. It does not call a hidden
 application text setter or insert a synthetic send as an Android fallback.
@@ -40,9 +42,9 @@ output. Input duration includes launch/observation and is not a gesture-only lat
 The chat determines the virtual sender. Private chats use their sole user; supergroups require the
 explicit bound member from `Scenario.group()`. A bot or unrelated persona cannot compose for the
 group. Invalid chat IDs, unsupported input, stale Start Bot requests and typing into a new empty
-conversation fail before input. Composer, Start Bot and inline-button actions share the 64-record
-per-run limit and the same renderer lock as captures. Shared scenario clients can call concurrently,
-but actual guest actions execute serially.
+private conversation fail before input. Composer, Start Bot and inline-button actions share the
+64-record per-run limit and the same renderer lock as captures. Shared scenario clients can call
+concurrently, but actual guest actions execute serially.
 
 Each call is a new physical or virtual action. Equal text sent twice receives distinct send
 identities. The SDK never retries after a lost response. Transport loss and backend errors report

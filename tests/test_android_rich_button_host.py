@@ -45,7 +45,7 @@ class ExternalGuest(AndroidRichInput):
         self.baseline: str | None = None
 
     def launch(self, chat: dict[str, Any], *, before_launch: Any = None) -> str:
-        assert chat == self.record["chat"]
+        assert chat == self.record["chat"] | {"user_id": self.record["user_id"]}
         self.android._persona = chat["user_id"]
         self.android._active_chat = chat["id"]
         assert before_launch is not None
@@ -126,7 +126,7 @@ class ExternalGuest(AndroidRichInput):
                     message_id=effect["message_id"],
                     data=button["callback_data"],
                     request_id="http-exact",
-                    version=4,
+                    version=self.android._bridge_version,
                 )
             effect.update(
                 action="callback",
@@ -192,7 +192,12 @@ def staged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
             revision = world.client_snapshot(user["id"], version=4)["message_revisions"][0][
                 "revision"
             ]
-            record = {"chat": chat, "message": message, "revision": revision}
+            record = {
+                "chat": chat,
+                "message": message,
+                "revision": revision,
+                "user_id": user["id"],
+            }
             world_id = world.world_id
         android = Android(
             RuntimeProfile(bubblewrap="", python="", store_paths=()),
@@ -231,6 +236,86 @@ def staged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 
     monkeypatch.chdir(tmp_path)
     return make
+
+
+def test_group_member_observes_and_dispatches_the_negative_chat_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    with World.create(tmp_path / "world", seed=8, now=100) as world:
+        creator = world.create_user(first_name="Creator")
+        member = world.create_user(first_name="Member")
+        bot = world.create_user(first_name="Bot", is_bot=True)
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=creator["id"],
+            member_ids=[member["id"]],
+            bot_ids=[bot["id"]],
+        )
+        message = world.send_rich_message(
+            chat_id=group["id"],
+            sender_id=bot["id"],
+            rich_message={
+                "skip_entity_detection": True,
+                "blocks": [
+                    {
+                        "type": "buttons",
+                        "buttons": [{"text": "Same", "callback_data": "group"}],
+                    }
+                ],
+            },
+        )
+        revision = world.client_snapshot(member["id"], version=6)["message_revisions"][0][
+            "revision"
+        ]
+        world_id = world.world_id
+    record = {
+        "chat": group,
+        "message": message,
+        "revision": revision,
+        "user_id": member["id"],
+    }
+    android = Android(
+        RuntimeProfile(bubblewrap="", python="", store_paths=()),
+        deadline=time.monotonic() + 5,
+        secrets=[],
+        bridge_version=6,
+    )
+    guest = ExternalGuest(android, record, world_id)
+    monkeypatch.setattr(android, "_open_chat", guest.launch)
+    monkeypatch.setattr(android, "_adb", guest.touch)
+    nonce = guest.observe(record)
+    receipt: dict[str, Any] = {
+        "operation_id": "operation-group",
+        "target": {
+            "target_id": "target-group",
+            "chat_id": group["id"],
+            "message_id": message["id"],
+            "message_revision": revision,
+            "path": ["blocks", 0, "buttons", 0],
+            "button": {"text": "Same", "callback_data": "group"},
+            "label": "Same",
+        },
+        "status": "in_progress",
+        "dispatch": "not_dispatched",
+        "effect": None,
+        "reason": None,
+        "evidence": {
+            "mode": "headless-android",
+            "world_event_sequences": [],
+            "clipboard_observation": None,
+            "native": {"observation": None, "effect": None, "captures": []},
+        },
+    }
+
+    prepared = guest.prepare(receipt, client_nonce=nonce)
+    result = guest.dispatch(receipt, prepared)
+
+    assert guest.files["rich-button-observe.json"]["chat_id"] == -1
+    assert result["status"] == "succeeded"
+    assert result["effect"]["callback"]["user_id"] == member["id"]
+    assert result["effect"]["callback"]["chat_id"] == group["id"]
+    assert guest.touches == 1
 
 
 def test_prepare_freezes_the_validated_newer_draw(
@@ -888,7 +973,12 @@ def test_offscreen_duplicate_does_not_disable_visible_occurrence(staged: Any) ->
         revision = world.client_snapshot(guest.record["chat"]["user_id"], version=4)[
             "message_revisions"
         ][0]["revision"]
-    guest.record = {"chat": guest.record["chat"], "message": message, "revision": revision}
+    guest.record = {
+        "chat": guest.record["chat"],
+        "message": message,
+        "revision": revision,
+        "user_id": guest.record["user_id"],
+    }
     write = guest._write
 
     def boundary(name: str, value: dict[str, Any]) -> None:

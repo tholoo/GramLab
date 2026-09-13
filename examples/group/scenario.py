@@ -1,4 +1,6 @@
-"""A causal group journey using a distinct creator and acting member."""
+"""A causal rich group journey using a distinct creator and acting member."""
+
+import time
 
 from gramlab import Scenario
 
@@ -20,11 +22,17 @@ expect(
 
 group.send("/game")
 reply = group.wait_for_messages(2, timeout=10)[1]
-expect(reply.text == "Ready for the group", "Unexpected group reply")
+expect(reply.text == "" and "rich_message" in reply.raw, "Unexpected rich group reply")
 group.capture("group-before", contains=["/game", "Ready for the group"])
-callback = reply.inline_button(0, 0).tap().callback
-expect(callback.user_id == member.id and callback.data == "continue", "Wrong group actor")
-callback.wait_until_answered(timeout=10)
+targets = lab.rich_buttons(chat_id=group.id, message_id=reply.id, user_id=member.id)["targets"]
+expect([target["label"] for target in targets] == ["Continue"], "Wrong rich group target")
+receipt = lab.tap_rich_button(target_id=targets[0]["target_id"])
+callback = receipt["effect"]["callback"]
+expect(callback["user_id"] == member.id and callback["data"] == "continue", "Wrong group actor")
+deadline = time.monotonic() + 10
+while lab.get_callback(user_id=member.id, callback_id=callback["id"])["answer"] is None:
+    expect(time.monotonic() < deadline, "Group callback answer missing")
+    time.sleep(0.02)
 expect(group.history()[1].text == "Continued for the group", "Group edit was not retained")
 group.capture("group-after", contains=["/game", "Continued for the group"])
 
@@ -34,5 +42,8 @@ started = lab.start_bot("helper", generation=stopped["generation"])
 expect(started["generation"] == initial.generation + 1, "Wrong replacement generation")
 group.type("after restart")
 restarted_reply = group.wait_for_messages(4, timeout=10)[-1]
-expect(restarted_reply.text == "Ready for the group", "Group delivery failed after bot restart")
+expect(
+    restarted_reply.text == "" and "rich_message" in restarted_reply.raw,
+    "Rich group delivery failed after bot restart",
+)
 group.capture("group-restarted", contains=["after restart", "Ready for the group"])

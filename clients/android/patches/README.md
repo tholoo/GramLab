@@ -9,7 +9,7 @@ the upstream source headers. [`COPYING`](COPYING) contains the upstream GPLv2 li
 Original preparation tooling and notes retain the root MIT license. This does not relicense the
 client's separately licensed dependencies or establish distribution readiness.
 
-The current `series` contains exactly 34 patches and ends with synthetic group-chat support. No APK
+The current `series` contains exactly 35 patches and ends with group rich-button input support. No APK
 or binary download is distributed by this repository. The filenames below are presented in
 application order.
 
@@ -275,3 +275,9 @@ when its group, persona and authored source message all match. The patch changes
 files and leaves original UI/resources/input handlers unchanged. The offline APK SHA-256 is
 `432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f`; focused native codec and
 public callback/edit/composer/restart acceptance pass with inspected original screenshots.
+
+`0035-group-rich-button-input.patch` admits the already-mapped signed group chat identifier at the
+private rich-button observer's activation and arm checks. It reuses `GramLabBridge.chatIdentifier`
+and changes only `GramLabButtonObserver`; target geometry, the original renderer, the original touch
+handler, UI sources and resources remain unchanged. The host still requires an explicit authorized
+non-bot member and correlates the resulting callback to that actor and durable negative group ID.

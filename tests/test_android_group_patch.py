@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 
-def test_group_patch_is_last_bounded_and_preserves_original_ui_sources() -> None:
+def test_group_patch_is_bounded_and_preserves_original_ui_sources() -> None:
     path = Path("clients/android/patches/0034-synthetic-group-chats.patch")
     patch = path.read_text()
     affected = re.findall(r"^diff --git a/(\S+) b/\1$", patch, re.MULTILINE)
@@ -27,10 +27,25 @@ def test_group_patch_is_last_bounded_and_preserves_original_ui_sources() -> None
         assert contract in patch
 
     series = Path("clients/android/patches/series").read_text().splitlines()
-    assert series[-4:] == [
-        "0031-rich-auto-detection.patch",
-        "0032-atomic-media-groups.patch",
-        "0033-rich-navigation-buttons.patch",
-        path.name,
+    assert series[-2:] == [path.name, "0035-group-rich-button-input.patch"]
+    assert series.count(path.name) == 1
+
+
+def test_group_rich_input_patch_only_accepts_signed_chat_identity_at_the_probe_boundary() -> None:
+    path = Path("clients/android/patches/0035-group-rich-button-input.patch")
+    patch = path.read_text()
+    affected = re.findall(r"^diff --git a/(\S+) b/\1$", patch, re.MULTILINE)
+
+    assert affected == [
+        "TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java"
     ]
+    assert all("/org/telegram/ui/" not in name and "/res/" not in name for name in affected)
+    assert patch.count('GramLabBridge.chatIdentifier(activation, "chat_id")') == 2
+    assert 'GramLabBridge.chatIdentifier(candidate, "chat_id")' in patch
+    assert 'positive(activation, "chat_id")' in patch
+    assert '-                || positive(candidate, "chat_id")' in patch
+    assert '+                || positive(candidate, "chat_id")' not in patch
+
+    series = Path("clients/android/patches/series").read_text().splitlines()
+    assert series[-1] == path.name
     assert series.count(path.name) == 1

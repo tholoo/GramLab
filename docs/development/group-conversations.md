@@ -34,12 +34,14 @@ the actor explicitly:
 owner = lab.user("Mina")
 member = lab.user("Arman")
 group = lab.group("Study group", creator=owner, user=member, bot="helper")
-group.send("/game")
+group.type("/game")
 reply = group.wait_for_messages(2)[-1]
-callback = reply.inline_button(0, 0).tap().callback
+observed = lab.rich_buttons(chat_id=group.id, message_id=reply.id, user_id=member.id)
+target = next(item for item in observed["targets"] if item["label"] == "Continue")
+callback = lab.tap_rich_button(target_id=target["target_id"])["effect"]["callback"]
 ```
 
-`Conversation.user` is the actor used by `send()` and simulated callback input. Handles remain
+`Conversation.user` is the actor used by `send()`, `type()` and simulated callback input. Handles remain
 bound to one Scenario instance. Raw callers can create groups with several bots; the typed helper
 currently binds one configured bot because a conversation action needs one unambiguous consumer.
 
@@ -61,16 +63,27 @@ The original composer may represent a group member as `inputPeerUserFromMessage`
 that form only when the embedded channel is the target group, the user is the selected persona and
 the referenced history message was authored by that persona. A bot-authored or cross-group
 reference fails before semantic send. Group capture/input APIs likewise require an explicit member
-persona; bots and unrelated users cannot act as the client.
+persona; bots and unrelated users cannot act as the client. Rich-button observation similarly
+requires an explicit non-bot member and retains that actor with the group's signed chat ID through
+the native arm, original touch, callback correlation and durable receipt.
 
 The focused native codec serializes the complete group, decodes its writable permission record,
 performs one member send and rejects a bot-authored identity reference. The public Android example
-then performs a real member callback, observes the bot edit, types another member message through
-the original composer, restarts the bot and cold-launches the app. Its final four-message history
-and three original screenshots agree, Android reports zero accounts and both guest egress probes
-remain blocked. The reviewed local APK is identified by SHA-256
-`432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f` and Android profile SHA-256
+then observes and taps an actual rich button as the selected member, correlates callback actor `3`
+and durable chat `-1`, observes the bot edit, restarts the bot, types another member message through
+the original composer and cold-launches the app. Its final four-message history and three inspected
+original screenshots agree, Android reports zero accounts and both guest egress probes remain
+blocked. The 110.19-second retained run is under `artifacts/group-rich-native-05/`; its result
+SHA-256 is `910176a564bbdbdda4ae09b5cabb006b612ca2d156ebb94f3ffc542246bdb3ab`.
+The reviewed local 35-patch APK is identified by SHA-256
+`fff0c33f6991202b08a63e77a501f3bc188eecda9ae45047bf1cf39400c11521` and Android profile SHA-256
 `fe878c649232bd571a1a64f075a79c11f5db19d30b6e3b04c9573307da83c68f`.
+
+Two preceding attempts timed out before scenario startup at the former 120-second guest-boot cap;
+a third booted after 159.34 seconds but hit the separate 40-second first-client-draw cap. The runner
+now allows at most 180 seconds for boot and 90 seconds for `am start -W`, each still bounded by the
+manifest deadline. The passing run booted in 55.63 seconds. These retained failures document why
+the timing correction exists; they are not counted as feature evidence.
 
 ## Evidence boundary
 

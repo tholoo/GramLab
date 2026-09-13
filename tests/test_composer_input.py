@@ -301,6 +301,38 @@ def test_new_bot_chat_requires_explicit_start_before_typing(tmp_path: Path):
         assert lab.history(1) == [started["sends"][0]["message"], typed["sends"][0]["message"]]
 
 
+def test_group_member_can_type_the_first_message_without_private_start(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=19, now=1700000000) as world:
+        world.create_user(first_name="Sara")
+        world.create_user(first_name="Composer", is_bot=True)
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=1,
+            member_ids=[],
+            bot_ids=[2],
+        )
+    interactions = Interactions(directory, lock=threading.Lock())
+    with WorldControl(
+        directory,
+        type_message=interactions.type_message,
+        start_bot_chat=interactions.start_bot_chat,
+    ) as control:
+        lab = Scenario(control.base_url, capability=control.capability, world_id=control.world_id)
+        typed = lab.type_message(chat_id=group["id"], user_id=1, text="hello group")
+        assert typed["sends"][0]["message"] == {
+            "id": 1,
+            "chat_id": -1,
+            "sender_id": 1,
+            "date": 1700000000,
+            "text": "hello group",
+        }
+        with pytest.raises(ScenarioError) as failure:
+            lab.start_bot_chat(chat_id=group["id"], user_id=1)
+        assert failure.value.code == "invalid_request" and not failure.value.outcome_uncertain
+        assert lab.history(group["id"]) == [typed["sends"][0]["message"]]
+
+
 def test_committed_backend_failure_is_uncertain_and_retained_by_control(tmp_path: Path):
     directory = tmp_path / "world"
     with World.create(directory, seed=19, now=1700000000) as world:

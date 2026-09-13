@@ -366,7 +366,12 @@ def mixed_rich_guest(
             for item in snapshot["message_revisions"]
             if item["message_id"] == target["id"]
         )
-        record = {"chat": chat, "message": target, "revision": revision}
+        record = {
+            "chat": chat,
+            "message": target,
+            "revision": revision,
+            "user_id": user["id"],
+        }
         world_id = world.world_id
 
     expected_messages = [emoji, photo, *([document] if document is not None else []), target]
@@ -1081,6 +1086,7 @@ def test_rich_input_keeps_v3_explicitly_unsupported(
             "revision": world.client_snapshot(user["id"], version=3)["message_revisions"][0][
                 "revision"
             ],
+            "user_id": user["id"],
         }
         world_id = world.world_id
     android = Android(profile(), deadline=time.monotonic() + 5, secrets=[], bridge_version=3)

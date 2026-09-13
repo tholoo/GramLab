@@ -1,6 +1,24 @@
 # Next-agent handoff
 
-## Synthetic group checkpoint
+## Group rich-input checkpoint
+
+Programmatic-scenarios ticket 09 adds generic explicit-member rich-button input for supergroups and
+permits a member's first composer message without weakening the private Start Bot invariant. The
+public Android group scenario passes one original rendered-button tap with callback actor `3` and
+chat `-1`, bot edit/restart, original-composer send, exact history and three inspected screenshots.
+Patch 0035 changes only `GramLabButtonObserver`, stages exactly against patch 0034 and builds offline.
+The local APK SHA-256 is
+`fff0c33f6991202b08a63e77a501f3bc188eecda9ae45047bf1cf39400c11521`; the retained passing result
+under `artifacts/group-rich-native-05/` has SHA-256
+`910176a564bbdbdda4ae09b5cabb006b612ca2d156ebb94f3ffc542246bdb3ab`.
+
+The complete contained non-Android gate passes all 1,623 tests in 119.62s at 89% coverage with zero
+failures or skips. The JUnit SHA-256 is
+`19ce0aef52550ac08d989eb0580b66cc8f109fa043815e1cb1d958afed6f718d`; maintained strict typing,
+repository Ruff lint and repository Ruff formatting checks also pass. Publication remains subject
+to explicit remote approval.
+
+## Earlier synthetic group checkpoint
 
 Programmatic-scenarios tickets 07 and 08 now provide synthetic supergroups through the World,
 local Bot API, schema-1 control service, typed scenario SDK, contained runner and original Android

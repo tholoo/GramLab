@@ -115,9 +115,11 @@ class Interactions:
                 ):
                     raise ValueError("Composer requires a group member persona")
                 history = world.history(chat_id)
+                if start and chat["type"] != "private":
+                    raise ValueError("Start Bot requires a private conversation")
                 if start and history:
                     raise ValueError("Start Bot requires a new empty conversation")
-                if not start and not history:
+                if not start and chat["type"] == "private" and not history:
                     raise ValueError("Start the new bot conversation before typing")
                 record: dict[str, Any] = {
                     "operation": "start_bot_chat" if start else "type_message",

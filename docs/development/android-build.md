@@ -1,7 +1,7 @@
 # Android build preparation
 
-Status: the current source preparation applies the complete ordered 34-patch queue to the pinned
-Telegram Android revision. A reviewed local x86_64 build through patch 0034 has complete source
+Status: the current source preparation applies the complete ordered 35-patch queue to the pinned
+Telegram Android revision. A reviewed local x86_64 build through patch 0035 has complete source
 provenance and passes the recorded bridge-v6 group workflow in the original client. The repository
 does not contain or publish that APK; its retained hash is evidence, not a download or a promise
 that a new locally signed build will be byte-identical.
@@ -145,6 +145,13 @@ separately and repeat the contained build after reviewing any dependency changes
 
 ## Current evidence
 
+- Patch 0035's reviewed one-file stage applies to the patch-0034 source with exact pre/postimage
+  SHA-256 manifests and no fuzz or offsets. The complete 35-patch offline build succeeds; its local
+  APK SHA-256 is `fff0c33f6991202b08a63e77a501f3bc188eecda9ae45047bf1cf39400c11521`.
+  The public group scenario then passes an original-client rich-button tap by an explicit member,
+  callback correlation to signed chat `-1`, bot edit/restart, original-composer send and three
+  inspected captures on Android profile SHA-256
+  `fe878c649232bd571a1a64f075a79c11f5db19d30b6e3b04c9573307da83c68f`.
 - Patch 0034's reviewed three-file stage applies with exact pre/postimage SHA-256 manifests and no
   fuzz or offsets. Its locally built offline APK SHA-256 is
   `432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f`; the focused group codec and

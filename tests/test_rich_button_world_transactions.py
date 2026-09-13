@@ -38,6 +38,7 @@ def test_rich_button_snapshot_keeps_owner_message_and_journal_revision(tmp_path:
                 "rich_message": content("a"),
             },
             "revision": 4,
+            "user_id": 1,
         }
         assert world.rich_button_snapshot(user_id=1, chat_id=1, message_id=1) == expected
         outsider = world.create_user(first_name="Other")
@@ -124,6 +125,7 @@ def test_rich_callback_effect_commits_or_rolls_back_with_its_validated_target(
                 "chat": {"id": 1, "type": "private", "user_id": 1, "bot_id": 2},
                 "message": message,
                 "revision": 4,
+                "user_id": 1,
             }
             callback = world._create_callback_locked(
                 user_id=1, chat_id=1, message_id=1, data="a", request_id="once", version=4

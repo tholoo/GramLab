@@ -1,0 +1,23 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabButtonObserver.java
+@@ -122,7 +122,8 @@
+         if (positive(activation, "schema") != 1 || !token(activation, "nonce").equals(activation.getString("nonce"))
+                 || !snapshot.worldId.equals(activation.opt("world_id"))
+                 || positive(activation, "user_id") != snapshot.persona
+-                || !snapshot.chatIdsByPeer.containsValue(positive(activation, "chat_id")))
++                || !snapshot.chatIdsByPeer.containsValue(
++                        GramLabBridge.chatIdentifier(activation, "chat_id")))
+             throw invalid();
+         positive(activation, "message_id");
+         positive(activation, "revision");
+@@ -164,7 +165,8 @@
+                 || !clientNonce.equals(token(candidate, "client_nonce"))
+                 || !activation.getString("world_id").equals(candidate.opt("world_id"))
+                 || positive(candidate, "user_id") != positive(activation, "user_id")
+-                || positive(candidate, "chat_id") != positive(activation, "chat_id")
++                || GramLabBridge.chatIdentifier(candidate, "chat_id")
++                        != GramLabBridge.chatIdentifier(activation, "chat_id")
+                 || positive(candidate, "message_id") != positive(activation, "message_id")
+                 || positive(candidate, "revision") != positive(activation, "revision")
+                 || !(candidate.opt("path") instanceof JSONArray)

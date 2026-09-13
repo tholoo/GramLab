@@ -522,7 +522,12 @@ class Scenario:
         )
 
     def rich_buttons(
-        self, *, chat_id: int, message_id: int, timeout: float = 180
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        user_id: int | None = None,
+        timeout: float = 180,
     ) -> dict[str, Any]:
         """Issue canonical targets bound to this run, message revision and client lifetime.
 
@@ -534,7 +539,13 @@ class Scenario:
         return cast(
             dict[str, Any],
             self._request(
-                "rich_buttons", {"chat_id": chat_id, "message_id": message_id}, timeout=timeout
+                "rich_buttons",
+                {
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    **({"user_id": user_id} if user_id is not None else {}),
+                },
+                timeout=timeout,
             ),
         )
 

@@ -42,12 +42,25 @@ while True:
             if owner["status"] != "creator":
                 raise RuntimeError("Unexpected group creator")
             call(
-                "sendMessage",
+                "sendRichMessage",
                 {
                     "chat_id": message["chat"]["id"],
-                    "text": "Ready for the group",
-                    "reply_markup": {
-                        "inline_keyboard": [[{"text": "Continue", "callback_data": "continue"}]]
+                    "rich_message": {
+                        "skip_entity_detection": True,
+                        "blocks": [
+                            {"type": "heading", "size": 2, "text": "Group choice"},
+                            {"type": "paragraph", "text": "Ready for the group"},
+                            {
+                                "type": "buttons",
+                                "buttons": [
+                                    {
+                                        "text": "Continue",
+                                        "style": "primary",
+                                        "callback_data": "continue",
+                                    }
+                                ],
+                            },
+                        ],
                     },
                 },
             )

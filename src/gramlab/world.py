@@ -1106,11 +1106,21 @@ class World:
     def _rich_button_record(self, *, user_id: int, chat_id: int, message_id: int) -> dict[str, Any]:
         if type(user_id) is not int or not 0 < user_id < 2**63:
             raise ValueError("access_denied")
+        user = self.get_user(user_id)
+        if user["is_bot"]:
+            raise ValueError("access_denied")
         chat = self.get_chat(chat_id)
-        if chat["user_id"] != user_id:
+        if chat["type"] == "private":
+            available = chat["user_id"] == user_id
+        else:
+            available = any(member["user_id"] == user_id for member in chat["members"])
+        if not available:
             raise ValueError("access_denied")
         message = self.get_message(chat_id, message_id)
-        if message["sender_id"] != chat["bot_id"]:
+        sender = self.get_user(message["sender_id"])
+        if not sender["is_bot"] or (
+            chat["type"] == "private" and message["sender_id"] != chat["bot_id"]
+        ):
             raise ValueError("target_unavailable")
         revision = self._connection.execute(
             "SELECT revision FROM message_revisions WHERE chat_id=? AND message_id=?",
@@ -1118,7 +1128,7 @@ class World:
         ).fetchone()
         if revision is None:
             raise RuntimeError("Bot message has no journal revision")
-        return {"chat": chat, "message": message, "revision": revision[0]}
+        return {"chat": chat, "message": message, "revision": revision[0], "user_id": user_id}
 
     def rich_button_snapshot(
         self, *, user_id: int, chat_id: int, message_id: int

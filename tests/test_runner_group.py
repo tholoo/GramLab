@@ -44,9 +44,9 @@ def test_group_example_proves_membership_delivery_callback_and_edit(tmp_path: Pa
         "/game",
         "Continued for the group",
         "after restart",
-        "Ready for the group",
+        "",
     ]
-    assert result["interactions"][0]["callback"]["user_id"] == 3
+    assert result["interactions"][0]["effect"]["callback"]["user_id"] == 3
     assert [record["operation"] for record in result["lifecycle"]] == [
         "stop_bot",
         "start_bot",
@@ -70,7 +70,7 @@ def test_group_example_renders_callback_edit_and_restarts_in_original_android(
     manifest.write_text(
         manifest.read_text()
         .replace('mode = "simulation-only"', 'mode = "headless-android"')
-        .replace("timeout = 15", "timeout = 300")
+        .replace("timeout = 15", "timeout = 420")
     )
     output = tmp_path / "run"
 
@@ -89,10 +89,10 @@ def test_group_example_renders_callback_edit_and_restarts_in_original_android(
         "/game",
         "Continued for the group",
         "after restart",
-        "Ready for the group",
+        "",
     ]
-    assert result["interactions"][0]["native"] is True
-    assert result["interactions"][0]["callback"]["user_id"] == 3
+    assert result["interactions"][0]["evidence"]["mode"] == "headless-android"
+    assert result["interactions"][0]["effect"]["callback"]["user_id"] == 3
     assert result["interactions"][1]["operation"] == "type_message"
     assert result["interactions"][1]["native"] is True
     expected = {

@@ -271,7 +271,7 @@ class Android:
                 startup_timeout=self._remaining(10),
             )
         )
-        boot_deadline = min(self.deadline, started + 120)
+        boot_deadline = min(self.deadline, started + 180)
         while time.monotonic() < boot_deadline:
             if self._guest.poll() is not None:
                 raise RuntimeError("Dedicated emulator exited during startup")
@@ -489,7 +489,7 @@ class Android:
             "--el",
             target[0],
             str(target[1]),
-            timeout=40,
+            timeout=90,
         )
         if "Status: ok" not in launched.stdout:
             raise RuntimeError("Dedicated client activity failed to launch")

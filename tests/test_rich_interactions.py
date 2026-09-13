@@ -92,6 +92,94 @@ def test_concurrent_claims_retain_one_complete_callback_and_recover_exactly(tmp_
     assert recovered["incomplete_tail"] is False
 
 
+def test_group_rich_callback_uses_explicit_member_and_rejects_other_personas(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
+        world.create_user(first_name="Creator")
+        world.create_user(first_name="Member")
+        world.create_user(first_name="Bot", is_bot=True)
+        world.create_user(first_name="Outsider")
+        private = world.open_private_chat(user_id=1, bot_id=3)
+        private_message = world.send_rich_message(
+            chat_id=private["id"],
+            sender_id=3,
+            rich_message={
+                "skip_entity_detection": True,
+                "blocks": [
+                    {
+                        "type": "buttons",
+                        "buttons": [{"text": "Private", "callback_data": "private"}],
+                    }
+                ],
+            },
+        )
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=1,
+            member_ids=[2],
+            bot_ids=[3],
+        )
+        message = world.send_rich_message(
+            chat_id=group["id"],
+            sender_id=3,
+            rich_message={
+                "skip_entity_detection": True,
+                "blocks": [
+                    {
+                        "type": "buttons",
+                        "buttons": [{"text": "Play", "callback_data": "play"}],
+                    }
+                ],
+            },
+        )
+    lock = threading.Lock()
+    ordinary = Interactions(directory, lock=lock)
+    rich = RichInteractions(directory, lock=lock, interactions=ordinary)
+    with WorldControl(
+        directory,
+        rich_buttons=rich.rich_buttons,
+        tap_rich_button=rich.tap_rich_button,
+    ) as control:
+        lab = Scenario(control.base_url, capability=control.capability, world_id=control.world_id)
+        for parameters in (
+            {"chat_id": group["id"], "message_id": message["id"]},
+            {"chat_id": group["id"], "message_id": message["id"], "user_id": 3},
+            {"chat_id": group["id"], "message_id": message["id"], "user_id": 4},
+            {"chat_id": group["id"], "message_id": message["id"], "user_id": True},
+            {"chat_id": private["id"], "message_id": private_message["id"], "user_id": 2},
+        ):
+            with pytest.raises(ScenarioError) as failure:
+                lab.rich_buttons(**parameters)
+            assert failure.value.code == "invalid_request" and not failure.value.outcome_uncertain
+        assert ordinary.records == []
+        empty_journal = recover_journal(tmp_path / "rich-button-journal.jsonl")
+        assert empty_journal["receipts"] == empty_journal["unclaimed_target_ids"] == []
+        assert empty_journal["incomplete_tail"] is False
+
+        observed = lab.rich_buttons(chat_id=group["id"], message_id=message["id"], user_id=2)
+        assert observed["targets"][0]["label"] == "Play"
+        receipt = lab.tap_rich_button(target_id=observed["targets"][0]["target_id"])
+        assert receipt["status"] == "succeeded", receipt
+        assert receipt["target"]["chat_id"] == -1
+        callback = receipt["effect"]["callback"]
+        assert callback == {
+            "id": callback["id"],
+            "user_id": 2,
+            "chat_id": -1,
+            "message": message,
+            "data": "play",
+            "chat_instance": callback["chat_instance"],
+            "answer": None,
+        }
+    with World.open(directory) as world:
+        created = [event["data"] for event in world.events() if event["type"] == "callback.created"]
+        assert created == [{key: callback[key] for key in callback if key != "answer"}]
+        assert world.poll_updates(3) == [{"update_id": 1, "callback_query": created[0]}]
+    rich.close()
+
+
 @pytest.mark.parametrize(
     "phase", ["observe", "invalid_nonce", "prepare", "invalid_preparation", "dispatch"]
 )

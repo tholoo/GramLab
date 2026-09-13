@@ -72,6 +72,10 @@ def _integer(value: Any, minimum: int = 0) -> bool:
     return type(value) is int and minimum <= value < 2**63
 
 
+def _chat_identifier(value: Any) -> bool:
+    return type(value) is int and value != 0 and -(2**63) < value < 2**63
+
+
 def _token(value: Any) -> bool:
     return type(value) is str and _ID.fullmatch(value) is not None
 
@@ -319,28 +323,21 @@ class AndroidRichInput:
             output.write(screenshot)
 
     def _current(self, record: dict[str, Any]) -> dict[str, Any]:
-        _fields(record, {"chat", "message", "revision"})
+        _fields(record, {"chat", "message", "revision", "user_id"})
         chat, message = record["chat"], record["message"]
         _require(isinstance(chat, dict) and isinstance(message, dict), "access_denied")
+        _require(_integer(record["user_id"], 1), "access_denied")
         _require(_integer(record["revision"], 1), "message_revision_changed")
         with World.open(Path("world")) as world:
-            snapshot = world.client_snapshot(chat["user_id"], version=self.android._bridge_version)
-        _require(chat in snapshot["chats"], "access_denied")
+            current = world.rich_button_snapshot(
+                user_id=record["user_id"], chat_id=chat["id"], message_id=message["id"]
+            )
+            snapshot = world.client_snapshot(
+                record["user_id"], version=self.android._bridge_version
+            )
+        _require(current["chat"] == chat, "access_denied")
         _require(
-            message["sender_id"] == chat["bot_id"] and message["chat_id"] == chat["id"],
-            "access_denied",
-        )
-        revisions = [
-            r
-            for r in snapshot["message_revisions"]
-            if r["chat_id"] == chat["id"] and r["message_id"] == message["id"]
-        ]
-        _require(
-            revisions
-            == [
-                {"chat_id": chat["id"], "message_id": message["id"], "revision": record["revision"]}
-            ]
-            and message in snapshot["messages"],
+            current["message"] == message and current["revision"] == record["revision"],
             "message_revision_changed",
         )
         return snapshot
@@ -360,8 +357,9 @@ class AndroidRichInput:
             },
         )
         _require(type(sample["schema"]) is int and sample["schema"] == 1)
-        for field in ("user_id", "chat_id", "message_id", "revision", "pid"):
+        for field in ("user_id", "message_id", "revision", "pid"):
             _require(_integer(sample[field], 1))
+        _require(_chat_identifier(sample["chat_id"]))
         _require(_token(sample["nonce"]) and _token(sample["client_nonce"]))
         _require(_integer(sample["generation"]) and _integer(sample["drawn_uptime_ms"]))
         if self._activation is None or self._record is None:
@@ -425,13 +423,14 @@ class AndroidRichInput:
             "schema": 1,
             "nonce": uuid.uuid4().hex,
             "world_id": snapshot["world_id"],
-            "user_id": record["chat"]["user_id"],
+            "user_id": record["user_id"],
             "chat_id": record["chat"]["id"],
             "message_id": record["message"]["id"],
             "revision": record["revision"],
         }
+        chat = record["chat"]
         self.android._open_chat(
-            record["chat"],
+            chat if chat["type"] == "private" else chat | {"user_id": record["user_id"]},
             before_launch=lambda: self._write("rich-button-observe.json", self._activation or {}),
         )
         end = min(self.android.deadline, time.monotonic() + 10)
@@ -555,8 +554,9 @@ class AndroidRichInput:
             {"target_id", "chat_id", "message_id", "message_revision", "path", "button", "label"},
         )
         _require(_token(target["target_id"]) and _path(target["path"]))
-        for field in ("chat_id", "message_id", "message_revision"):
+        for field in ("message_id", "message_revision"):
             _require(_integer(target[field], 1))
+        _require(_chat_identifier(target["chat_id"]))
         record = self._record
         _require(
             target["chat_id"] == record["chat"]["id"]
@@ -720,8 +720,9 @@ class AndroidRichInput:
             },
         )
         _require(type(value["schema"]) is int and value["schema"] == 1)
-        for field in ("user_id", "chat_id", "message_id", "revision"):
+        for field in ("user_id", "message_id", "revision"):
             _require(_integer(value[field], 1))
+        _require(_chat_identifier(value["chat_id"]))
         for field in ("nonce", "client_nonce", "operation_id"):
             _require(_token(value[field]))
         _require(_path(value["path"]))
@@ -946,8 +947,9 @@ class AndroidRichInput:
         try:
             armed = self._read("rich-button-arm.json")
             _fields(armed, set(state["arm"]))
-            for field in ("schema", "user_id", "chat_id", "message_id", "revision"):
+            for field in ("schema", "user_id", "message_id", "revision"):
                 _require(_integer(armed[field], 1))
+            _require(_chat_identifier(armed["chat_id"]))
             _require(_path(armed["path"]) and _integer(armed["observation_generation"]))
             _require(armed == state["arm"])
             effect = self._effect(state, self._read("rich-button-effect.json"))
