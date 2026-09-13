@@ -79,7 +79,9 @@ class MessagePublication:
         self._require_transaction()
         chat = self._chat(draft.chat_id)
         self._require_user(draft.sender_id)
-        if draft.sender_id not in (chat["user_id"], chat["bot_id"]):
+        if draft.sender_id not in {*chat["user_ids"], *chat["bot_ids"]}:
+            if chat["type"] == "supergroup":
+                raise ValueError("Sender is not a member of this group")
             raise ValueError("Sender is not a participant in this chat")
         protected = {"id", "chat_id", "sender_id", "date"}
         if draft.content.keys() & protected:
@@ -99,12 +101,13 @@ class MessagePublication:
         }
         if draft.media_group is not None:
             message["media_group_id"] = str(draft.media_group.group_id)
-        self._grant_message(chat["user_id"], message)
+        for user_id in chat["user_ids"]:
+            self._grant_message(user_id, message)
         self._connection.execute(
             "INSERT INTO messages VALUES (?, ?, ?)",
             (draft.chat_id, message_id, json.dumps(message)),
         )
-        revision = self._emit_message("message.created", chat["user_id"], message)
+        revision = self._emit_message("message.created", chat["user_ids"], message)
         self._connection.execute(
             "INSERT INTO message_revisions VALUES (?, ?, ?)",
             (draft.chat_id, message_id, revision),
@@ -119,19 +122,21 @@ class MessagePublication:
                     message_id,
                 ),
             )
-        if draft.sender_id == chat["user_id"]:
-            self._enqueue_message(chat["bot_id"], message)
+        if draft.sender_id in chat["user_ids"]:
+            for bot_id in chat["bot_ids"]:
+                self._enqueue_message(bot_id, message)
         return message
 
     def replace(self, *, message: dict[str, Any]) -> dict[str, Any]:
         self._require_transaction()
         chat = self._chat(message["chat_id"])
-        self._grant_message(chat["user_id"], message)
+        for user_id in chat["user_ids"]:
+            self._grant_message(user_id, message)
         self._connection.execute(
             "UPDATE messages SET body=? WHERE chat_id=? AND id=?",
             (json.dumps(message), message["chat_id"], message["id"]),
         )
-        revision = self._emit_message("message.edited", chat["user_id"], message)
+        revision = self._emit_message("message.edited", chat["user_ids"], message)
         self._connection.execute(
             "INSERT OR REPLACE INTO message_revisions VALUES (?, ?, ?)",
             (message["chat_id"], message["id"], revision),
@@ -142,15 +147,34 @@ class MessagePublication:
         if not self._connection.in_transaction:
             raise RuntimeError("Message publication requires an active World transaction")
 
-    def _chat(self, chat_id: Any) -> dict[str, int]:
-        if type(chat_id) is not int or not 0 < chat_id < 2**63:
+    def _chat(self, chat_id: Any) -> dict[str, Any]:
+        if type(chat_id) is not int or chat_id == 0 or not -(2**63) < chat_id < 2**63:
             raise ValueError("Invalid chat ID")
         row = self._connection.execute(
             "SELECT user_id, bot_id FROM chats WHERE id=?", (chat_id,)
         ).fetchone()
         if row is None:
             raise ValueError("Unknown chat")
-        return {"user_id": int(row[0]), "bot_id": int(row[1])}
+        group = self._connection.execute(
+            "SELECT 1 FROM group_chats WHERE chat_id=?", (chat_id,)
+        ).fetchone()
+        if group is None:
+            return {
+                "type": "private",
+                "user_ids": [int(row[0])],
+                "bot_ids": [int(row[1])],
+            }
+        members = self._connection.execute(
+            "SELECT chat_members.user_id, json_extract(users.body, '$.is_bot') "
+            "FROM chat_members JOIN users ON users.id=chat_members.user_id "
+            "WHERE chat_members.chat_id=? ORDER BY chat_members.user_id",
+            (chat_id,),
+        ).fetchall()
+        return {
+            "type": "supergroup",
+            "user_ids": [int(user_id) for user_id, is_bot in members if not is_bot],
+            "bot_ids": [int(user_id) for user_id, is_bot in members if is_bot],
+        }
 
     def _require_user(self, user_id: Any) -> None:
         if type(user_id) is not int or user_id <= 0:
@@ -159,22 +183,23 @@ class MessagePublication:
         if exists is None:
             raise ValueError("Unknown virtual user")
 
-    def _emit_message(self, kind: str, user_id: int, message: dict[str, Any]) -> int:
+    def _emit_message(self, kind: str, user_ids: list[int], message: dict[str, Any]) -> int:
         event = self._connection.execute(
             "INSERT INTO events(type, body) VALUES (?, ?)", (kind, json.dumps(message))
         )
         if event.lastrowid is None:
             raise RuntimeError("SQLite did not allocate an event sequence")
-        position = int(
+        for user_id in user_ids:
+            position = int(
+                self._connection.execute(
+                    "SELECT COALESCE(MAX(position), 0) FROM client_changes WHERE user_id=?",
+                    (user_id,),
+                ).fetchone()[0]
+            )
             self._connection.execute(
-                "SELECT COALESCE(MAX(position), 0) FROM client_changes WHERE user_id=?",
-                (user_id,),
-            ).fetchone()[0]
-        )
-        self._connection.execute(
-            "INSERT INTO client_changes VALUES (?, ?, ?)",
-            (user_id, position + 1, event.lastrowid),
-        )
+                "INSERT INTO client_changes VALUES (?, ?, ?)",
+                (user_id, position + 1, event.lastrowid),
+            )
         return int(event.lastrowid)
 
     def _grant_message(self, user_id: int, message: dict[str, Any]) -> None:

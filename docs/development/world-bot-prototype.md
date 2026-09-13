@@ -9,7 +9,8 @@ HTTP and real-bot recovery evidence; Android translation of those additions is p
 ## Implemented behavior
 
 [`World`](../../src/gramlab/world.py) creates a new dedicated directory, preserves virtual users,
-private user–bot chats, world time and seed metadata, and refuses to overwrite an existing world.
+private user–bot chats, [synthetic groups](group-conversations.md), world time and seed metadata,
+and refuses to overwrite an existing world.
 Message history, ordered semantic events and bot updates are written in one SQLite transaction.
 Four concurrent writers retain a single message/event/update order. IDs are local to their world;
 private chat IDs exposed to a bot are the virtual user's ID, while internal conversation IDs are
@@ -34,8 +35,9 @@ requires a loopback-only interface list. The authoritative isolation mechanism i
 | --- | --- |
 | `getMe` | Locally issued capability returns the virtual bot identity; wrong-world/malformed tokens fail |
 | `getUpdates` | Pending messages/callbacks, positive confirmation, limits 1–100, bounded long polling and [persistent filters/negative offsets](update-delivery.md); documented validation/conflict/future-offset differences remain |
-| `sendMessage` | Plain text and callback-only inline keyboards in existing private chats |
+| `sendMessage` | Plain text and callback-only inline keyboards in existing private chats and synthetic groups |
 | `editMessageText` | Sending bot edits its text/keyboard atomically; returns the persisted message |
+| `getChatMember` | A group member bot reads one explicit synthetic membership; unrelated bots and nonmembers fail |
 | `answerCallbackQuery` | Durable answer to its own query; text/alert with caching disabled |
 | Transport | Case-insensitive methods, GET/POST query parameters, POST JSON and URL-encoded forms; serialized keyboard/entity parameters; [encoding evidence and limits](bot-request-encoding.md) |
 | Rejection | Unknown methods/parameters, wrong bot, duplicate JSON fields and oversized integer identifiers fail without state changes |

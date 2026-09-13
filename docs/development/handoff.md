@@ -1,5 +1,18 @@
 # Next-agent handoff
 
+## Synthetic group checkpoint
+
+Programmatic-scenarios ticket 07 adds generic simulation-only supergroups through the World, local
+Bot API, schema-1 control service, typed scenario SDK, and contained runner. Schema 11 migrates the
+client journal to allow one event to reach several members and removes the chat table's private-pair
+uniqueness assumption while preserving explicit private-chat deduplication. The runnable group
+example proves distinct creator/member identities, `getChatMember`, member-to-bot delivery,
+callback/edit/answer, a real bot restart, post-restart delivery, histories and semantic captures.
+The neighboring 66-case collection and the full 1,615-case non-Android gate pass at 88.92%
+coverage. Full Ruff, primary and scoped strict typing, configuration, 297 local Markdown links,
+and the privacy scan pass. The Android bridge remains private-only; no native group evidence is
+claimed.
+
 ## Objective and authorization
 
 GramLab runs real local bots against one SQLite World and uses the actual Telegram Android

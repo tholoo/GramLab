@@ -40,6 +40,7 @@ _APPLICATION_TABLES = [
     "bots",
     "callback_revisions",
     "callbacks",
+    "chat_members",
     "chats",
     "client_changes",
     "client_sends",
@@ -52,6 +53,7 @@ _APPLICATION_TABLES = [
     "document_grants",
     "documents",
     "events",
+    "group_chats",
     "media_blobs",
     "media_group_counter",
     "media_group_members",
@@ -76,7 +78,7 @@ def test_fresh_schema_is_complete_and_supports_conversation_after_reopen(tmp_pat
         assert world.events() == []
         with closing(sqlite3.connect(directory / "world.sqlite3")) as independent:
             assert independent.execute("PRAGMA journal_mode").fetchone() == ("wal",)
-            assert independent.execute("PRAGMA user_version").fetchone() == (10,)
+            assert independent.execute("PRAGMA user_version").fetchone() == (11,)
             assert independent.execute("PRAGMA foreign_key_check").fetchall() == []
             assert independent.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
             assert independent.execute(

@@ -19,10 +19,19 @@ from gramlab.scenario_flow import (
     User,
     bot_from_name,
     conversation_from_result,
+    group_conversation_from_result,
     user_from_result,
 )
 
-_READS = {"snapshot", "history", "events", "get_callback", "bots", "bot_status"}
+_READS = {
+    "snapshot",
+    "history",
+    "events",
+    "get_callback",
+    "get_chat_member",
+    "bots",
+    "bot_status",
+}
 _REJECTIONS = {400: "invalid_request", 401: "unauthorized", 404: "unsupported", 409: "wrong_world"}
 
 
@@ -283,10 +292,63 @@ class Scenario:
             self.open_private_chat(user_id=user.id, bot_id=selected.id),
         )
 
+    def group(
+        self,
+        title: str,
+        *,
+        user: User,
+        bot: str | Bot,
+        creator: User | None = None,
+        members: tuple[User, ...] = (),
+    ) -> Conversation:
+        """Create a group and bind the user who performs subsequent scenario actions."""
+        selected_bot = self.bot(bot) if isinstance(bot, str) else bot
+        selected_creator = user if creator is None else creator
+        handles = (user, selected_creator, *members)
+        if any(not isinstance(handle, User) or handle._scenario is not self for handle in handles):
+            raise ValueError("User handle belongs to another Scenario instance")
+        if not isinstance(selected_bot, Bot) or selected_bot._scenario is not self:
+            raise ValueError("Bot handle belongs to another Scenario instance")
+        member_ids = [handle.id for handle in (user, *members) if handle.id != selected_creator.id]
+        if len(set([selected_creator.id, *member_ids])) != 1 + len(member_ids):
+            raise ValueError("Group user handles must not repeat")
+        return group_conversation_from_result(
+            self,
+            user,
+            selected_bot,
+            self.create_group_chat(
+                title=title,
+                creator_id=selected_creator.id,
+                member_ids=member_ids,
+                bot_ids=[selected_bot.id],
+            ),
+        )
+
     def open_private_chat(self, *, user_id: int, bot_id: int) -> dict[str, Any]:
         return cast(
             dict[str, Any],
             self._request("open_private_chat", {"user_id": user_id, "bot_id": bot_id}),
+        )
+
+    def create_group_chat(
+        self,
+        *,
+        title: str,
+        creator_id: int,
+        member_ids: list[int],
+        bot_ids: list[int],
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._request(
+                "create_group_chat",
+                {
+                    "title": title,
+                    "creator_id": creator_id,
+                    "member_ids": member_ids,
+                    "bot_ids": bot_ids,
+                },
+            ),
         )
 
     def register_custom_emoji(
@@ -365,6 +427,12 @@ class Scenario:
     def snapshot(self) -> dict[str, Any]:
         return cast(dict[str, Any], self._request("snapshot", {}))
 
+    def get_chat_member(self, *, chat_id: int, user_id: int) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._request("get_chat_member", {"chat_id": chat_id, "user_id": user_id}),
+        )
+
     def bots(self) -> dict[str, int]:
         """Return the manifest's bot aliases and their world identities."""
         return cast(dict[str, int], self._request("bots", {}))
@@ -411,7 +479,14 @@ class Scenario:
         )
 
     def tap_inline_button(
-        self, *, chat_id: int, message_id: int, row: int, column: int, timeout: float = 180
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        row: int,
+        column: int,
+        user_id: int | None = None,
+        timeout: float = 180,
     ) -> dict[str, Any]:
         """Select a current keyboard cell, using actual native input in Android mode.
 
@@ -424,7 +499,13 @@ class Scenario:
             dict[str, Any],
             self._request(
                 "tap_inline_button",
-                {"chat_id": chat_id, "message_id": message_id, "row": row, "column": column},
+                {
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "row": row,
+                    "column": column,
+                    **({"user_id": user_id} if user_id is not None else {}),
+                },
                 timeout=timeout,
             ),
         )

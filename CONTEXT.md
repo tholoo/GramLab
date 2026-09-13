@@ -29,6 +29,14 @@ or rendering match for a fidelity profile.
 
 **Conversation example**: A synthetic, labeled conversation used for previews, tutorials or help.
 
+**Synthetic group**: A titled shared chat in one simulated world with explicit virtual-user and
+bot memberships. It is not a private-chat approximation and does not by itself imply native client
+support.
+
+**Group membership**: One virtual user's or bot's durable role in a synthetic group. The public
+creation seam currently assigns `creator` and `member`; `administrator` is reserved by the stored
+membership model for later lifecycle operations.
+
 
 **Media asset**: Immutable validated media belonging to one simulated world. Different messages
 can refer to the same asset without changing its bytes.

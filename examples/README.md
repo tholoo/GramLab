@@ -42,7 +42,9 @@ download or build Android inputs. `interactive-android` remains unsupported. See
 
 Additional runnable examples cover [inline callbacks](inline), [bot recovery](recovery),
 [bounded composer input](composer), [rich messages](rich), [rich buttons](rich_inline) and
-[rich lists](rich_lists). Their `run.toml` and `android.toml` manifests select the corresponding
+[rich lists](rich_lists). The simulation-only [group example](group) covers explicit memberships,
+group delivery, callback/edit behavior, and a real bot restart. Their `run.toml` and `android.toml`
+manifests select the corresponding
 mode; support remains limited by the [compatibility matrix](../docs/compatibility/matrix.md).
 
 The [representative workflow](representative) is the bridge-v6 composed milestone example. It adds

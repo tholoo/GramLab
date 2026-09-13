@@ -134,11 +134,23 @@ class Interactions:
             return record
 
     def tap_inline_button(
-        self, *, chat_id: int, message_id: int, row: int, column: int
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        row: int,
+        column: int,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
-        if any(
-            type(value) is not int or not 0 <= value < 2**63
-            for value in (chat_id, message_id, row, column)
+        if (
+            type(chat_id) is not int
+            or chat_id == 0
+            or not -(2**63) < chat_id < 2**63
+            or any(
+                type(value) is not int or not 0 <= value < 2**63
+                for value in (message_id, row, column)
+            )
+            or (user_id is not None and (type(user_id) is not int or not 0 < user_id < 2**63))
         ):
             raise ValueError("Inline target requires nonnegative integer identifiers and indices")
         with self._lock:
@@ -146,9 +158,15 @@ class Interactions:
             with World.open(self.directory) as world:
                 chat = world.get_chat(chat_id)
                 message = world.get_message(chat_id, message_id)
+                selected_user = chat["user_id"] if chat["type"] == "private" else user_id
+                if selected_user is None or (
+                    chat["type"] == "supergroup"
+                    and not any(member["user_id"] == selected_user for member in chat["members"])
+                ):
+                    raise ValueError("Inline target requires a group member persona")
                 keyboard = message.get("reply_markup", {}).get("inline_keyboard", [])
                 if (
-                    message["sender_id"] != chat["bot_id"]
+                    not world.get_user(message["sender_id"])["is_bot"]
                     or row >= len(keyboard)
                     or column >= len(keyboard[row])
                 ):
@@ -162,9 +180,9 @@ class Interactions:
                     "native": False,
                 }
                 if self.tap is None:
-                    self.select_virtual_persona(chat["user_id"])
+                    self.select_virtual_persona(selected_user)
                     record["callback"] = world.create_callback(
-                        user_id=chat["user_id"],
+                        user_id=selected_user,
                         chat_id=chat_id,
                         message_id=message_id,
                         data=button["callback_data"],
@@ -172,6 +190,8 @@ class Interactions:
                         version=self._bridge_version,
                     )
                 else:
+                    if chat["type"] == "supergroup":
+                        raise ValueError("Android group interactions are not yet supported")
                     try:
                         observed = self.tap(chat, message, row, column)
                         record.update(observed)
