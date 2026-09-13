@@ -9,7 +9,7 @@ import copy
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -289,6 +289,50 @@ def test_observe_waits_for_the_native_window_focus_draw(
     assert "rich-button-arm.json" not in guest.writes
 
 
+def test_prepare_retries_a_transient_window_manager_sample(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    guest_state = guest._guest_state
+    samples = 0
+
+    def transient_state(*, allow_owned_popup: bool = False) -> tuple[int, int]:
+        nonlocal samples
+        samples += 1
+        if samples == 1:
+            raise ValueError("target_unavailable")
+        return cast(tuple[int, int], guest_state(allow_owned_popup=allow_owned_popup))
+
+    monkeypatch.setattr(guest, "_guest_state", transient_state)
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    assert samples >= 2
+    assert guest.touches == 0
+    guest.abort_prepared(receipt, prepared)
+
+
+def test_prepare_waits_for_a_transiently_offscreen_target(
+    staged: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guest, receipt = staged()
+    read = guest._read
+    observations = 0
+
+    def settling_read(name: str) -> dict[str, Any]:
+        nonlocal observations
+        sample = cast(dict[str, Any], read(name))
+        if name == "rich-button-observation.json":
+            observations += 1
+            if observations <= 2:
+                sample["targets"][0].update(available=False, reason="offscreen")
+        return sample
+
+    monkeypatch.setattr(guest, "_read", settling_read)
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    assert observations >= 2
+    assert guest.touches == 0
+    guest.abort_prepared(receipt, prepared)
+
+
 def test_exact_original_callback_and_frozen_world_message(staged: Any) -> None:
     guest, receipt = staged()
     original = copy.deepcopy(receipt)
@@ -366,6 +410,22 @@ def test_screenshot_precedes_final_revision_and_lifetime_checks(staged: Any) -> 
     with pytest.raises(ValueError, match="client_restarted"):
         guest.prepare(receipt, client_nonce="process-original")
     assert guest.touches == 0
+
+
+def test_slow_original_screenshot_keeps_unchanged_focused_target_usable(staged: Any) -> None:
+    guest, receipt = staged()
+    guest.capture_hook = lambda: setattr(guest, "now", 16000)
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    assert guest.touches == 0
+    guest.abort_prepared(receipt, prepared)
+
+
+def test_aged_but_unchanged_freshly_observed_target_remains_usable(staged: Any) -> None:
+    guest, receipt = staged()
+    guest.now = 16000
+    prepared = guest.prepare(receipt, client_nonce="process-original")
+    assert guest.touches == 0
+    guest.abort_prepared(receipt, prepared)
 
 
 @pytest.mark.parametrize(

@@ -22,7 +22,8 @@ nix develop .#android
 uv sync --locked --offline
 mkdir -p artifacts
 uv run --locked --offline gramlab run examples/echo/android.toml \
-  --android-apk "$GRAMLAB_ANDROID_APK" --output artifacts/echo-android
+  --android-apk "$GRAMLAB_ANDROID_APK" --android-theme dark \
+  --output artifacts/echo-android
 ```
 
 The shell supplies `GRAMLAB_ANDROID_RUNTIME_PROFILE`; `--android-profile` can select another
@@ -36,6 +37,12 @@ The pinned AOSP 36 default x86_64 image uses KVM, `swangle` software graphics, 3
 default fonts and unchanged app animation settings. Reports record observed API/ABI, build
 fingerprint, graphics backend, package version and boot duration. Every run has a fresh dedicated
 AVD with private files; it does not attach to a personal device.
+
+Android starts a bounded local screen recording for failure diagnosis. Successful operations
+discard it; a failed capture or run retains `captures/failure-capture.mp4` or
+`captures/failure-run.mp4` when the guest produced a valid bounded MP4. A vanished client also
+records the crash log buffer and recent logcat text. These are synthetic local artifacts and are
+not embedded as playable media in the HTML report.
 
 ## Capture contract
 

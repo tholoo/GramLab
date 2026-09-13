@@ -243,9 +243,7 @@ def test_scenario_interaction_restores_only_the_nonsecret_ui_password_value() ->
         "interactions": [
             {
                 "android": {
-                    "input": {
-                        "target": {"text": "Start Bot", "password": REDACTED_UI_VALUE}
-                    }
+                    "input": {"target": {"text": "Start Bot", "password": REDACTED_UI_VALUE}}
                 }
             },
             {"android": {"input": {"input": "accessibility"}}},

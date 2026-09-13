@@ -257,3 +257,11 @@ checks, while complete snapshots retain their existing dependency superset. The 
 adapter, transfer-route and serializer-observer seams; original message cells, grouped layout,
 renderer resources and input handlers remain unchanged. The worker owns source staging and the
 normal30 unsupported-v6 red; the coordinator owns the album-era APK build and green native codec.
+
+`0033-rich-navigation-buttons.patch` extends the bridge-v6 rich-button codec with URL and
+`switch_inline_query_chosen_chat` actions and preserves generated-entity metadata required by the
+original constructors. URL and chosen-chat buttons remain original Telegram UI actions rather than
+GramLab scenario input targets. The patch applies to the pinned source with zero fuzz or offsets;
+the rebuilt APK SHA-256 is
+`23d71d51e9db7e901d44df5381f1b2b8489fef844513f00403c7792c146059c0`. Focused native codec and
+repository-owned consumer light/dark rendering checks pass.

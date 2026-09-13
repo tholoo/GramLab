@@ -2,6 +2,13 @@
 
 All notable changes to the published Python package are recorded here.
 
+## Unreleased
+
+- Let trusted callers select an independently provisioned runtime profile for each declared bot,
+  while retaining GramLab's own profile for the scenario and supervisor.
+- Record per-bot runtime fingerprints and keep profile dependency closures isolated between bot
+  components.
+
 ## 0.1.0a1 - 2026-09-13
 
 First experimental prerelease.

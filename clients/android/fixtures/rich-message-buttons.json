@@ -352,6 +352,31 @@
       ]
     },
     {
+      "type": "buttons",
+      "buttons": [
+        {
+          "text": "Add to a group",
+          "url": "https://t.me/example_bot?startgroup=true",
+          "style": "primary"
+        }
+      ]
+    },
+    {
+      "type": "buttons",
+      "buttons": [
+        {
+          "text": "Choose a chat",
+          "switch_inline_query_chosen_chat": {
+            "query": "connect4",
+            "allow_user_chats": true,
+            "allow_bot_chats": false,
+            "allow_group_chats": true,
+            "allow_channel_chats": false
+          }
+        }
+      ]
+    },
+    {
       "type": "table",
       "caption": {
         "type": "button",

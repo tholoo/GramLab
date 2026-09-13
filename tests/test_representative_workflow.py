@@ -164,7 +164,7 @@ def assert_representative(recorded: dict[str, Any], output: Path, *, native: boo
         "Auto ",
         {"type": "url", "text": "example.test", "url": "https://example.test"},
         " ",
-        {"type": "mention", "text": "@sample_bot"},
+        {"type": "mention", "text": "@sample_bot", "username": "sample_bot"},
     ]
     assert initial_rich["blocks"][1]["text"] == [
         {"type": "url", "text": "Link", "url": "https://example.test/local"},

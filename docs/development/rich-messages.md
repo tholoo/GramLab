@@ -1,7 +1,9 @@
 # Structured rich messages
 
 The independent world and local Bot API support a bounded block-based subset of Bot API 10.3.
-`sendRichMessage` accepts `chat_id`, `rich_message` and the existing callback-only `reply_markup`.
+`sendRichMessage` accepts `chat_id`, `rich_message`, the existing callback-only `reply_markup` and
+the standard `disable_notification` delivery flag. GramLab accepts that flag for Bot API client
+compatibility; it has no distinct simulated or rendered effect.
 `editMessageText` accepts `rich_message` instead of `text`/`entities`, plus the existing chat,
 message and keyboard fields. Requests can use JSON or JSON-serialized objects in form fields.
 Normal execution remains subject to [offline containment](offline-safety.md).
@@ -20,11 +22,13 @@ Normal execution remains subject to [offline containment](offline-safety.md).
 }
 ```
 
-Automatic entity detection is unimplemented: `skip_entity_detection` must explicitly be `true`.
-Omission or `false` returns `GRAMLAB_UNSUPPORTED` before mutation. It is an input control, so the
-stored and returned `rich_message` contains only `blocks` and optional true `is_rtl`. Ordinary
-API `text` and `entities` are absent from rich-only responses. Internally the world retains
-`text: ""` for existing consumers; it is never a flattened rendition of the blocks.
+Automatic entity detection is enabled when `skip_entity_detection` is omitted or false and is
+disabled by explicit true. URL, email, phone, mention, hashtag, cashtag, bot-command and bank-card
+nodes retain their canonical metadata fields in World, Bot API, capture targeting and Android
+projection. The flag is an input control, so stored and returned rich messages contain only
+`blocks` and optional true `is_rtl`. Ordinary API `text` and `entities` are absent from rich-only
+responses. Internally the world retains `text: ""` for existing consumers; it is never a flattened
+rendition of the blocks.
 
 ## Supported content
 
@@ -37,7 +41,8 @@ Structured links have `type` equal to `url`, `email_address` or `phone_number`, 
 and a required string metadata field with the same name as the type. Metadata uses the existing
 cleaner; empty and non-address strings are preserved. Captures match visible labels and exclude
 destinations. [Core, real-bot, capture and focused original Android checks pass](rich-links-contract.md);
-combined native acceptance remains in progress. This support does not enable navigation or automatic detection.
+combined native acceptance remains separate. Structured text links do not enable scenario-driven
+navigation.
 
 Explicit mentions accept `{type: "text_mention", text: RichText, user: User}`. The bot must know
 the referenced synthetic identity through a private conversation, or mention itself. Only the ID
@@ -68,12 +73,15 @@ Original native photo acceptance remains in progress; caption text in a simulati
 rendering evidence. Photo block input, public API output and stored asset references have distinct
 shapes, as specified in the [media contract](media-implementation-contract.md).
 
-Rich buttons use the [callback/copy/disabled contract](rich-buttons-contract.md). An inline
+Rich buttons use the [callback/copy/disabled contract](rich-buttons-contract.md). They also retain
+URL and `switch_inline_query_chosen_chat` actions for compatible rendering by the original Android
+client. An inline
 RichText button has `type: "button"` and a `button` object; row and inline buttons share plain
 string/recursive-array labels, optional normalized style, and exactly one direct action field.
 Labels and copied text are cleaned; callback bytes are preserved. Captures read labels and exclude
-action metadata. Core/API and public simulation capture checks pass. The rebuilt normal APK passes focused native
-codec and real-bot rendering/live RTL edit/cold-restart checks; the full Android gate is running. Public `tap_inline_button` still selects reply-markup cells.
+action metadata. URL and chosen-chat actions are not exposed as scenario input targets. Core/API
+and public simulation capture checks pass. The rebuilt normal APK passes focused native codec and
+consumer rendering checks. Public `tap_inline_button` still selects reply-markup cells.
 
 List items require `blocks`, including an empty array, and accept optional boolean `has_checkbox`
 and `is_checked`, signed 32-bit integer `value`, and label `type`. An absent or empty type means
@@ -105,8 +113,8 @@ Admitted plain RichText leaves and preformatted language undergo the pinned
 direction-marker normalization and per-leaf UTF-8 truncation. Optional plain-empty fields omit
 after cleaning; required text and nested wrappers/arrays preserve their structure.
 Unknown fields, unsupported wrappers/blocks and ambiguous text plus rich content fail explicitly.
-HTML/Markdown parsing, automatic entities, ordinary link entities, navigation actions, media, custom emoji, streaming,
-and the remaining rich inventory are still open. No network asset is fetched.
+HTML/Markdown parsing, active navigation input, streaming, and the remaining rich inventory are
+still open. No network asset is fetched.
 
 ## State and evidence
 

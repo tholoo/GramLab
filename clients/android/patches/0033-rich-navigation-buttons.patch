@@ -1,0 +1,251 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRichMessage.java
+@@ -4,6 +4,7 @@
+ import org.json.JSONArray;
+ import org.json.JSONException;
+ import org.json.JSONObject;
++import org.telegram.tgnet.TLRPC;
+ import org.telegram.tgnet.tl.TL_iv;
+ import org.telegram.tgnet.tl.TL_keyboard;
+ 
+@@ -143,17 +144,49 @@
+     }
+ 
+     private TL_keyboard.PageButton button(JSONObject record) throws JSONException {
+-        fields(record, "text", "style", "callback_data", "copy_text", "disabled");
++        fields(record, "text", "style", "url", "callback_data",
++                "switch_inline_query_chosen_chat", "copy_text", "disabled");
+         require((record.has("callback_data") ? 1 : 0) + (record.has("copy_text") ? 1 : 0)
+-                + (record.has("disabled") ? 1 : 0) == 1);
++                + (record.has("disabled") ? 1 : 0) + (record.has("url") ? 1 : 0)
++                + (record.has("switch_inline_query_chosen_chat") ? 1 : 0) == 1);
+         TL_keyboard.PageButton result = new TL_keyboard.PageButton();
+         result.text = buttonLabel(record.opt("text"));
+-        if (record.has("callback_data")) {
++        if (record.has("url")) {
++            TL_keyboard.TL_inlineButtonTypeUrl action = new TL_keyboard.TL_inlineButtonTypeUrl();
++            action.url = buttonString(string(record, "url"));
++            require(!action.url.isEmpty());
++            result.type = action;
++        } else if (record.has("callback_data")) {
+             TL_keyboard.TL_inlineButtonTypeCallback callback = new TL_keyboard.TL_inlineButtonTypeCallback();
+             callback.data = string(record, "callback_data").getBytes(StandardCharsets.UTF_8);
+             require(callback.data.length >= 1 && callback.data.length <= 64);
+             callback.requires_password = false;
+             result.type = callback;
++        } else if (record.has("switch_inline_query_chosen_chat")) {
++            require(record.opt("switch_inline_query_chosen_chat") instanceof JSONObject);
++            JSONObject chosen = record.getJSONObject("switch_inline_query_chosen_chat");
++            fields(chosen, "query", "allow_user_chats", "allow_bot_chats",
++                    "allow_group_chats", "allow_channel_chats");
++            TL_keyboard.TL_inlineButtonTypeSwitchInline action =
++                    new TL_keyboard.TL_inlineButtonTypeSwitchInline();
++            action.same_peer = false;
++            action.query = chosen.has("query") ? buttonString(string(chosen, "query")) : "";
++            boolean filtered = chosen.has("allow_user_chats") || chosen.has("allow_bot_chats")
++                    || chosen.has("allow_group_chats") || chosen.has("allow_channel_chats");
++            if (filtered) {
++                action.peer_types = new ArrayList<>();
++                if (flag(chosen, "allow_user_chats"))
++                    action.peer_types.add(new TLRPC.TL_inlineQueryPeerTypePM());
++                if (flag(chosen, "allow_bot_chats"))
++                    action.peer_types.add(new TLRPC.TL_inlineQueryPeerTypeBotPM());
++                if (flag(chosen, "allow_group_chats")) {
++                    action.peer_types.add(new TLRPC.TL_inlineQueryPeerTypeChat());
++                    action.peer_types.add(new TLRPC.TL_inlineQueryPeerTypeMegagroup());
++                }
++                if (flag(chosen, "allow_channel_chats"))
++                    action.peer_types.add(new TLRPC.TL_inlineQueryPeerTypeBroadcast());
++            }
++            result.type = action;
+         } else if (record.has("copy_text")) {
+             require(record.opt("copy_text") instanceof JSONObject);
+             JSONObject copy = record.getJSONObject("copy_text");
+@@ -176,7 +209,8 @@
+                 case "danger": style.bg_danger = true; break;
+                 case "success": style.bg_success = true; break;
+                 case "link":
+-                    require(result.type instanceof TL_keyboard.TL_inlineButtonTypeCallback);
++                    require(result.type instanceof TL_keyboard.TL_inlineButtonTypeCallback
++                            || result.type instanceof TL_keyboard.TL_inlineButtonTypeUrl);
+                     style.link = true;
+                     break;
+                 default: require(false);
+@@ -304,35 +338,40 @@
+         }
+         if (type.equals("mention")) {
+-            fields(record, "type", "text");
+-            require(record.has("text"));
++            fields(record, "type", "text", "username");
++            require(record.has("text") && record.has("username"));
++            string(record, "username");
+             TL_iv.textMention result = new TL_iv.textMention();
+             result.text = text(record.get("text"));
+             return result;
+         }
+         if (type.equals("hashtag")) {
+-            fields(record, "type", "text");
+-            require(record.has("text"));
++            fields(record, "type", "text", "hashtag");
++            require(record.has("text") && record.has("hashtag"));
++            string(record, "hashtag");
+             TL_iv.textHashtag result = new TL_iv.textHashtag();
+             result.text = text(record.get("text"));
+             return result;
+         }
+         if (type.equals("cashtag")) {
+-            fields(record, "type", "text");
+-            require(record.has("text"));
++            fields(record, "type", "text", "cashtag");
++            require(record.has("text") && record.has("cashtag"));
++            string(record, "cashtag");
+             TL_iv.textCashtag result = new TL_iv.textCashtag();
+             result.text = text(record.get("text"));
+             return result;
+         }
+         if (type.equals("bot_command")) {
+-            fields(record, "type", "text");
+-            require(record.has("text"));
++            fields(record, "type", "text", "bot_command");
++            require(record.has("text") && record.has("bot_command"));
++            string(record, "bot_command");
+             TL_iv.textBotCommand result = new TL_iv.textBotCommand();
+             result.text = text(record.get("text"));
+             return result;
+         }
+         if (type.equals("bank_card_number")) {
+-            fields(record, "type", "text");
+-            require(record.has("text"));
++            fields(record, "type", "text", "bank_card_number");
++            require(record.has("text") && record.has("bank_card_number"));
++            string(record, "bank_card_number");
+             TL_iv.textBankCard result = new TL_iv.textBankCard();
+             result.text = text(record.get("text"));
+             return result;
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -69,20 +69,29 @@
+                     .put("phone_number", link.phone);
+         }
+         if (value instanceof TL_iv.textMention) {
+-            return new JSONObject().put("type", "mention").put("text", richText(value.text));
++            String text = generatedText(value.text);
++            return new JSONObject().put("type", "mention").put("text", text)
++                    .put("username", withoutSigil(text));
+         }
+         if (value instanceof TL_iv.textHashtag) {
+-            return new JSONObject().put("type", "hashtag").put("text", richText(value.text));
++            String text = generatedText(value.text);
++            return new JSONObject().put("type", "hashtag").put("text", text)
++                    .put("hashtag", withoutSigil(text));
+         }
+         if (value instanceof TL_iv.textCashtag) {
+-            return new JSONObject().put("type", "cashtag").put("text", richText(value.text));
++            String text = generatedText(value.text);
++            return new JSONObject().put("type", "cashtag").put("text", text)
++                    .put("cashtag", withoutSigil(text));
+         }
+         if (value instanceof TL_iv.textBotCommand) {
+-            return new JSONObject().put("type", "bot_command").put("text", richText(value.text));
++            String text = generatedText(value.text);
++            return new JSONObject().put("type", "bot_command").put("text", text)
++                    .put("bot_command", withoutSigil(text));
+         }
+         if (value instanceof TL_iv.textBankCard) {
+-            return new JSONObject().put("type", "bank_card_number")
+-                    .put("text", richText(value.text));
++            String text = generatedText(value.text);
++            return new JSONObject().put("type", "bank_card_number").put("text", text)
++                    .put("bank_card_number", bankCardNumber(text));
+         }
+         String type;
+         if (value instanceof TL_iv.textBold) type = "bold";
+@@ -109,13 +118,42 @@
+         throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_LABEL");
+     }
+ 
++    private static String generatedText(TL_iv.RichText value) throws Exception {
++        Object text = richText(value);
++        if (!(text instanceof String)) {
++            throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_GENERATED_TEXT");
++        }
++        return (String) text;
++    }
++
++    private static String withoutSigil(String text) throws Exception {
++        if (text.length() < 2) {
++            throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_GENERATED_TEXT");
++        }
++        return text.substring(1);
++    }
++
++    private static String bankCardNumber(String text) throws Exception {
++        StringBuilder digits = new StringBuilder();
++        for (int index = 0; index < text.length(); index++) {
++            char value = text.charAt(index);
++            if (value >= '0' && value <= '9') digits.append(value);
++        }
++        if (digits.length() == 0) {
++            throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_GENERATED_TEXT");
++        }
++        return digits.toString();
++    }
++
+     private static JSONObject richButton(int flags, TL_iv.RichText text,
+             TL_keyboard.InlineButtonType action, TL_keyboard.RichButtonStyle style) throws Exception {
+         if (flags != (style == null ? 0 : 1)) {
+             throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_FLAGS");
+         }
+         JSONObject result = new JSONObject().put("text", buttonLabel(text));
+-        if (action instanceof TL_keyboard.TL_inlineButtonTypeCallback) {
++        if (action instanceof TL_keyboard.TL_inlineButtonTypeUrl) {
++            result.put("url", ((TL_keyboard.TL_inlineButtonTypeUrl) action).url);
++        } else if (action instanceof TL_keyboard.TL_inlineButtonTypeCallback) {
+             TL_keyboard.TL_inlineButtonTypeCallback callback = (TL_keyboard.TL_inlineButtonTypeCallback) action;
+             if (callback.flags != 0 || callback.requires_password) {
+                 throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_CALLBACK_FLAGS");
+@@ -125,6 +163,32 @@
+                 throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_CALLBACK_ENCODING");
+             }
+             result.put("callback_data", data);
++        } else if (action instanceof TL_keyboard.TL_inlineButtonTypeSwitchInline) {
++            TL_keyboard.TL_inlineButtonTypeSwitchInline chosen =
++                    (TL_keyboard.TL_inlineButtonTypeSwitchInline) action;
++            int expectedFlags = (chosen.same_peer ? 1 : 0) | (chosen.peer_types == null ? 0 : 2);
++            if (chosen.same_peer || chosen.flags != expectedFlags) {
++                throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_SWITCH_INLINE_FLAGS");
++            }
++            boolean users = chosen.peer_types == null;
++            boolean bots = chosen.peer_types == null;
++            boolean groups = chosen.peer_types == null;
++            boolean channels = chosen.peer_types == null;
++            if (chosen.peer_types != null) {
++                for (TLRPC.InlineQueryPeerType peer : chosen.peer_types) {
++                    users |= peer instanceof TLRPC.TL_inlineQueryPeerTypePM;
++                    bots |= peer instanceof TLRPC.TL_inlineQueryPeerTypeBotPM;
++                    groups |= peer instanceof TLRPC.TL_inlineQueryPeerTypeChat
++                            || peer instanceof TLRPC.TL_inlineQueryPeerTypeMegagroup;
++                    channels |= peer instanceof TLRPC.TL_inlineQueryPeerTypeBroadcast;
++                }
++            }
++            result.put("switch_inline_query_chosen_chat", new JSONObject()
++                    .put("query", chosen.query)
++                    .put("allow_user_chats", users)
++                    .put("allow_bot_chats", bots)
++                    .put("allow_group_chats", groups)
++                    .put("allow_channel_chats", channels));
+         } else if (action instanceof TL_keyboard.TL_inlineButtonTypeCopy) {
+             result.put("copy_text", new JSONObject().put("text",
+                     ((TL_keyboard.TL_inlineButtonTypeCopy) action).copy_text));
+@@ -135,7 +199,8 @@
+             int bits = (style.bg_primary ? 1 : 0) | (style.bg_danger ? 2 : 0)
+                     | (style.bg_success ? 4 : 0) | (style.link ? 8 : 0);
+             if (style.flags != bits || Integer.bitCount(bits) != 1
+-                    || (style.link && !(action instanceof TL_keyboard.TL_inlineButtonTypeCallback))) {
++                    || (style.link && !(action instanceof TL_keyboard.TL_inlineButtonTypeCallback)
++                            && !(action instanceof TL_keyboard.TL_inlineButtonTypeUrl))) {
+                 throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_BUTTON_STYLE");
+             }
+             result.put("style", style.bg_primary ? "primary" : style.bg_danger ? "danger"

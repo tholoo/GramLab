@@ -32,7 +32,21 @@ def execute() -> None:
             bot = world.create_user(first_name=alias, is_bot=True)
             bots[alias] = bot["id"]
             tokens[alias] = world.issue_bot_token(bot["id"])
-    processes = Processes(sandbox, deadline=deadline, bots=set(bots))
+    bot_profiles_path = Path("bot-profiles.json")
+    bot_profiles = (
+        {
+            alias: RuntimeProfile(**value)
+            for alias, value in json.loads(bot_profiles_path.read_text()).items()
+        }
+        if bot_profiles_path.exists()
+        else {}
+    )
+    processes = Processes(
+        sandbox,
+        deadline=deadline,
+        bots=set(bots),
+        bot_sandboxes={alias: Sandbox(profile) for alias, profile in bot_profiles.items()},
+    )
     failure: str | None = None
     secrets = list(tokens.values())
     android = None
@@ -42,6 +56,7 @@ def execute() -> None:
             deadline=deadline,
             secrets=secrets,
             bridge_version=config["android"]["bridge_version"],
+            theme=config["android"]["theme"],
         )
     renderer_lock = threading.Lock()
     captures = Captures(
@@ -117,7 +132,7 @@ def execute() -> None:
                 failure = failure or "rich_button_journal_failed"
         if android is not None:
             try:
-                android.close()
+                android.close(retain_failure=failure is not None)
             except (OSError, RuntimeError):
                 failure = failure or "android_cleanup_failed"
     if interactions.failed:

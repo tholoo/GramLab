@@ -11,7 +11,8 @@ import stat
 import subprocess
 import time
 import tomllib
-from dataclasses import asdict
+from collections.abc import Mapping
+from dataclasses import asdict, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
@@ -41,6 +42,8 @@ def _report_sections(evidence: dict[str, Any]) -> dict[str, Any]:
         "Source fingerprints": evidence["sources"],
         "Failure": evidence["failure"],
     }
+    if evidence.get("bot_runtime_profiles"):
+        sections["Bot runtime profiles"] = evidence["bot_runtime_profiles"]
     for name, value in sections.items():
         serialized = json.dumps(value, ensure_ascii=True, indent=2)
         if len(serialized) > 128 * 1024:
@@ -145,11 +148,20 @@ def run(
     profile: RuntimeProfile,
     android_profile: RuntimeProfile | None = None,
     android_apk: Path | None = None,
+    android_theme: Literal["light", "dark"] = "light",
     bridge_version: int = 3,
+    bot_profiles: Mapping[str, RuntimeProfile] | None = None,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
+    if android_theme not in ("light", "dark"):
+        raise ValueError("Android theme must be light or dark")
     bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
     config, inputs = _inputs(manifest)
+    bot_profiles = dict(bot_profiles or {})
+    unknown_profiles = bot_profiles.keys() - config["bots"].keys()
+    if unknown_profiles:
+        names = ", ".join(sorted(unknown_profiles))
+        raise ValueError(f"Bot runtime profiles target undeclared aliases: {names}")
     config["bridge_version"] = bridge_version
     apk = None
     android_json = None
@@ -169,7 +181,31 @@ def run(
             "profile_sha256": hashlib.sha256(android_json.encode()).hexdigest(),
             "image_package": IMAGE_PACKAGE,
             "bridge_version": bridge_version,
+            "theme": android_theme,
         }
+    if bot_profiles:
+        encoded_bot_profiles = {
+            alias: json.dumps(asdict(bot_profile), sort_keys=True, separators=(",", ":"))
+            for alias, bot_profile in bot_profiles.items()
+        }
+        bot_profile_hashes = {
+            alias: hashlib.sha256(encoded.encode()).hexdigest()
+            for alias, encoded in encoded_bot_profiles.items()
+        }
+        selected_profile = replace(
+            selected_profile,
+            store_paths=tuple(
+                dict.fromkeys(
+                    (
+                        *selected_profile.store_paths,
+                        *(path for item in bot_profiles.values() for path in item.store_paths),
+                    )
+                )
+            ),
+        )
+    else:
+        encoded_bot_profiles = {}
+        bot_profile_hashes = {}
     output = output.absolute()
     with _data_directory(output.parent) as parent:
         os.mkdir(output.name, mode=0o700, dir_fd=parent)
@@ -192,6 +228,13 @@ def run(
         (sdk / name).write_bytes((package / name).read_bytes())
     profile_json = json.dumps(asdict(profile))
     (output / "profile.json").write_text(profile_json)
+    if encoded_bot_profiles:
+        (output / "bot-profiles.json").write_text(
+            json.dumps(
+                {alias: json.loads(value) for alias, value in encoded_bot_profiles.items()},
+                sort_keys=True,
+            )
+        )
     (output / "run-input.json").write_text(json.dumps(config, indent=2))
     started = time.monotonic()
     observation: dict[str, Any] = {"failure": "supervisor_failed", "processes": {}}
@@ -237,6 +280,8 @@ def run(
         "configuration": {key: value for key, value in config.items() if key != "sources"},
         "profile_sha256": hashlib.sha256(profile_json.encode()).hexdigest(),
     }
+    if bot_profile_hashes:
+        evidence["bot_runtime_profiles"] = bot_profile_hashes
     run_id = "uninitialized"
     if (output / "world" / "world.sqlite3").is_file():
         with World.open(output / "world") as world:

@@ -16,7 +16,21 @@ pytestmark = pytest.mark.android
 
 
 def node(kind: str, text: Any) -> dict[str, Any]:
-    return {"type": kind, "text": text}
+    metadata = {
+        "mention": "username",
+        "hashtag": "hashtag",
+        "cashtag": "cashtag",
+        "bot_command": "bot_command",
+        "bank_card_number": "bank_card_number",
+    }[kind]
+    normalized = ""
+    if isinstance(text, str):
+        normalized = (
+            "".join(value for value in text if value.isascii() and value.isdigit())
+            if kind == "bank_card_number"
+            else text[1:]
+        )
+    return {"type": kind, "text": text, metadata: normalized}
 
 
 def cases() -> list[dict[str, Any]]:

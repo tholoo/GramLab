@@ -71,11 +71,17 @@ def request(
             "+98 (21) 1234-5678",
             entity("phone_number", "+98 (21) 1234-5678", phone_number="+982112345678"),
         ),
-        ("@gramlab_1", entity("mention", "@gramlab_1")),
-        ("#آزمایش_۱۲", entity("hashtag", "#آزمایش_۱۲")),
-        ("$GRAM", entity("cashtag", "$GRAM")),
-        ("/start@detector_bot", entity("bot_command", "/start@detector_bot")),
-        ("4111 1111 1111 1111", entity("bank_card_number", "4111 1111 1111 1111")),
+        ("@gramlab_1", entity("mention", "@gramlab_1", username="gramlab_1")),
+        ("#آزمایش_۱۲", entity("hashtag", "#آزمایش_۱۲", hashtag="آزمایش_۱۲")),
+        ("$GRAM", entity("cashtag", "$GRAM", cashtag="GRAM")),
+        (
+            "/start@detector_bot",
+            entity("bot_command", "/start@detector_bot", bot_command="start@detector_bot"),
+        ),
+        (
+            "4111 1111 1111 1111",
+            entity("bank_card_number", "4111 1111 1111 1111", bank_card_number="4111111111111111"),
+        ),
     ],
 )
 def test_each_candidate_family_and_canonical_metadata(raw: str, expected: dict[str, Any]) -> None:
@@ -115,7 +121,7 @@ def test_punctuation_balancing_and_unicode_boundaries() -> None:
             "). [",
             entity("url", "www.example.test/x", url="https://www.example.test/x"),
             "], واژه#نه؛ ",
-            entity("hashtag", "#بله"),
+            entity("hashtag", "#بله", hashtag="بله"),
             "!",
         ]
     )
@@ -300,11 +306,15 @@ def test_split_siblings_never_join_and_explicit_generated_nodes_round_trip() -> 
     assert "https://example.test" not in json.dumps(detected)
     generated = paragraph(
         [
-            entity("mention", "@alpha"),
-            entity("hashtag", "#tag"),
-            entity("cashtag", "$USD"),
-            entity("bot_command", "/go"),
-            entity("bank_card_number", "4111111111111111"),
+            entity("mention", "@alpha", username="alpha"),
+            entity("hashtag", "#tag", hashtag="tag"),
+            entity("cashtag", "$USD", cashtag="USD"),
+            entity("bot_command", "/go", bot_command="go"),
+            entity(
+                "bank_card_number",
+                "4111111111111111",
+                bank_card_number="4111111111111111",
+            ),
         ],
         skip_entity_detection=True,
     )

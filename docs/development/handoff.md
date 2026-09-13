@@ -24,6 +24,29 @@ deferred and is now frozen.
 
 ## Current completion checkpoint
 
+Generic consumer compatibility now supports independent bot environments through trusted per-bot
+profiles. `sendRichMessage` accepts `disable_notification`; URL and chosen-chat rich buttons
+survive World/API/bridge/native projection; and generated rich entities retain required metadata.
+Android runs select light or dark explicitly, detect a vanished client while waiting for UI, and
+retain a bounded MP4 plus crash-oriented logcat on failure. Patch
+`0033-rich-navigation-buttons.patch` stages against the pinned source without fuzz, and its rebuilt
+APK passed an offline external-consumer validation in both themes. Consumer-runtime-profiles ticket
+02 contains the focused generic contract and evidence. The capability set is verified for main
+integration.
+
+The consumer runner now accepts trusted per-bot runtime-profile overrides through
+`--bot-profile ALIAS=PROFILE` and the equivalent Python mapping. A real contained bot imports a
+dependency absent from GramLab's default profile, exchanges an update through the local Bot API,
+and passes. A two-bot Python-runner case verifies that each component sees only its selected
+profile closure even though the outer supervisor mounts their union for nested setup. Unknown
+aliases and repeated bindings reject before output creation; results retain only SHA-256 profile
+fingerprints. Focused runner cases, scoped Ruff and package strict typing pass. Android was not
+required because component selection does not change the Android profile, adapter or rendering.
+The final serialized non-Android gate passes all 1,608 tests at 88.96% coverage. The former
+current-inline fixture mismatch is resolved by explicitly selecting bridge v4 for its custom-emoji
+interaction while the public default remains v3. Consumer-runtime-profiles ticket 01 contains the
+red/green record.
+
 The Python-only [0.1.0a1 prerelease](https://pypi.org/project/gramlab/0.1.0a1/) is published from
 tag `v0.1.0a1` at commit `2d0ec88e806fba189ef420f0745c74b464255e85`. It retains the tested
 Python 3.13 and Pillow 12.3.0 constraints. GitHub Actions run

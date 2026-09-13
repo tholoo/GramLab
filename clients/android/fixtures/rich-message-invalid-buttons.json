@@ -193,7 +193,7 @@
     }
   },
   {
-    "name": "unsupported-action",
+    "name": "unsupported-web-app-action",
     "rich_message": {
       "blocks": [
         {
@@ -201,7 +201,7 @@
           "buttons": [
             {
               "text": "x",
-              "url": "https://invalid.example/"
+              "web_app": {"url": "https://invalid.example/"}
             }
           ]
         }

@@ -22,11 +22,27 @@ setup step. The runner itself never installs dependencies. `python -m gramlab ru
 entry point once the package is installed. The command uses `GRAMLAB_RUNTIME_PROFILE` supplied by
 the Nix shell; `--profile` can select another **trusted, already provisioned** runtime profile.
 Runtime profiles are not consumer manifests and must not be accepted from untrusted projects.
-The trusted `--bridge-version` option selects 3 (default), 4 or 5 for a compatible reviewed Android
+When a bot needs dependencies outside GramLab's profile, bind its declared alias to a separately
+provisioned profile:
+
+```sh
+gramlab run run.toml --output artifacts/run \
+  --bot-profile my_bot=/trusted/profiles/my-bot-runtime.json
+```
+
+Repeat `--bot-profile ALIAS=PROFILE` for bots with different runtimes. Python callers pass the
+equivalent `bot_profiles={"my_bot": RuntimeProfile.load(path)}` mapping to `runner.run`. Unknown
+aliases and repeated CLI bindings fail before output creation. These paths are trusted provisioning
+arguments rather than manifest fields, so a consumer project cannot select host mounts by changing
+its scenario manifest.
+
+The trusted `--bridge-version` option selects 3 (default), 4, 5 or 6 for a compatible reviewed Android
 APK; Python callers pass the same explicit `bridge_version`. The choice is recorded with the Android
 inputs and is not a scenario manifest field. Version4 adds the
 [custom-emoji contract](custom-emoji.md); version5 adds
-[ordinary-document dependencies and bytes](documents-implementation-contract.md#bridge-version-5).
+[ordinary-document dependencies and bytes](documents-implementation-contract.md#bridge-version-5),
+and version6 adds atomic media-group topology. `--android-theme light|dark` selects and records the
+guest system appearance before the client starts; Python callers pass `android_theme`.
 The public bridge5 workflow now passes a real contained Bot API consumer, original inline tap,
 callback answer, stable-file reuse and two inspected original captures; exact transfer/cache bytes
 remain covered by the dedicated document native gates.
@@ -70,7 +86,8 @@ Ambient project files, `.env` files and host environment variables are not copie
 The scenario's root `gramlab` package is reserved for the supplied SDK.
 
 Declare pure Python dependencies and data as individual `files`, or use dependencies already
-provided by the trusted runtime closure. `/work` is on the component's Python import path.
+provided by GramLab's runtime closure or the bot's selected trusted runtime profile. `/work` is on
+the component's Python import path. GramLab does not create these profiles or install dependencies.
 There is no requirements resolver, wheel installer, arbitrary command language or framework
 adapter yet. Native dependencies need a compatible provisioned closure. Consumer code is never
 executed on the host or inside trusted orchestration as a discovery or installation step.
@@ -91,7 +108,11 @@ The runner creates each manifest bot identity before launching consumer processe
 `Scenario.bots()` returns the alias-to-world-ID mapping, for example `{"echo": 1}`. Creating
 another bot identity through `create_user(is_bot=True)` does not launch a process.
 
-Each bot receives only `GRAMLAB_BOT_API` and `GRAMLAB_BOT_TOKEN` for its local API connection.
+Each bot receives only `GRAMLAB_BOT_API` and `GRAMLAB_BOT_TOKEN` for its local API connection,
+in addition to the explicit environment from its trusted runtime profile. A profile override uses
+that profile's Python executable and read-only dependency closure. The outer trusted supervisor can
+see the union needed to create nested mounts, but each bot component receives only its own selected
+closure; bot restarts retain the same selection.
 The scenario receives its separate control endpoint, capability and world identity. Each component
 has private files and PID/mount namespaces. The supervisor owns the world database and services;
 consumer code cannot read their files through `/work` or `/proc`. Provisioned profile environment
@@ -125,9 +146,11 @@ After normal execution, scenario/bot failure, timeout or unavailable runtime sta
 retains `result.json` and `report.html`, with world state/history/events when world creation
 succeeded. Process logs are redacted before the supervisor stores `observation.json`; the final
 JSON and HTML also receive credential redaction. Full semantic evidence remains in `result.json`;
-HTML sections over 128 KiB show a labeled 16 KiB preview. The report records source hashes, the
-runtime profile fingerprint and the immutable Python executable. `profile.json`, `run-input.json`,
-the copied sources, private component files and the SQLite world remain local for diagnosis.
+HTML sections over 128 KiB show a labeled 16 KiB preview. The result records source hashes, the
+GramLab runtime profile fingerprint and a SHA-256 fingerprint for every bot profile override,
+without adding profile paths to portable manifest inputs. `profile.json`, optional
+`bot-profiles.json`, `run-input.json`, the copied sources, private component files and the SQLite
+world remain local for diagnosis.
 
 Keep run directories ignored. Arbitrary consumer-created files are not automatically sanitized
 exports; review them before sharing. Neither the JSON nor the report claims that arbitrary secret
@@ -144,9 +167,10 @@ guest boot duration. Neither is an individual Bot API latency measurement.
 ## Verification
 
 [Runner tests](../../tests/test_runner.py) invoke the actual CLI inside the outer network guard.
-They verify the complete private scenario/real-bot exchange, nested entries and selected data,
-input rejection, separate concurrent worlds, environment clearing, redacted failure state, bot
-failure, output bounds, runtime unavailability and timeout cleanup of a detached descendant.
+They verify the complete private scenario/real-bot exchange, profile-only bot dependencies,
+per-bot closure isolation, profile-binding rejection, nested entries and selected data, input
+rejection, separate concurrent worlds, environment clearing, redacted failure state, bot failure,
+output bounds, runtime unavailability and timeout cleanup of a detached descendant.
 A large-world case preserves complete JSON evidence while keeping HTML bounded. The
 [control tests](../../tests/test_world_control.py) verify scoped, read-only named bot identities.
 The documented two-conversation example also runs through the installed console entry point.

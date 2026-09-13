@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from gramlab._captures import _rich_text
 from gramlab._client_bridge_schema import require_runtime_bridge_version
@@ -154,8 +154,12 @@ class Android:
         deadline: float,
         secrets: list[str],
         bridge_version: int = 3,
+        theme: Literal["light", "dark"] = "light",
     ) -> None:
         self._bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
+        if theme not in ("light", "dark"):
+            raise ValueError("Android theme must be light or dark")
+        self._theme = theme
         self.profile = profile
         self.deadline = deadline
         self.secrets = secrets
@@ -166,6 +170,8 @@ class Android:
         self._persona: int | None = None
         self._capability = ""
         self._active_chat: int | None = None
+        self._recording: subprocess.Popen[bytes] | None = None
+        self._recording_operation: str | None = None
 
     def _remaining(self, limit: float) -> float:
         remaining = min(limit, self.deadline - time.monotonic())
@@ -231,6 +237,11 @@ class Android:
             raise RuntimeError("Dedicated emulator filesystem isolation failed")
         return result
 
+    def _apply_theme(self) -> None:
+        night_mode = "yes" if self._theme == "dark" else "no"
+        self._adb("shell", "cmd", "uimode", "night", night_mode)
+        self.observations["theme"] = self._theme
+
     def start(self) -> None:
         if self._guest is not None:
             return
@@ -284,6 +295,7 @@ class Android:
         self.observations["network"] = network
         self._adb("shell", "wm", "size", "320x640")
         self._adb("shell", "wm", "density", "160")
+        self._apply_theme()
         self.observations["display"] = "320x640, 160 dpi; default fonts and app animation settings"
         graphics = self._adb("shell", "dumpsys", "SurfaceFlinger").stdout
         self.observations["graphics"] = next(
@@ -297,18 +309,85 @@ class Android:
             (line.strip() for line in package.splitlines() if "versionName=" in line), "unavailable"
         )
         self._bridge = self._stack.enter_context(ClientBridge(Path("world")))
+        self._start_failure_video("run")
 
     def capture(self, chat: dict[str, Any], label: str, contains: list[str]) -> dict[str, Any]:
+        self._start_failure_video("capture")
         try:
-            return self._capture(chat, label, contains)
+            result = self._capture(chat, label, contains)
         except Exception as error:
             self._record_failure("capture", error)
             raise
+        self._finish_failure_video(retain=False)
+        self._start_failure_video("run")
+        return result
+
+    def _start_failure_video(self, operation: str) -> None:
+        if not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", operation):
+            raise ValueError("Invalid Android recording operation")
+        self._finish_failure_video(retain=False)
+        remote = "/data/local/tmp/gramlab-failure.mp4"
+        self._adb("shell", "rm", "-f", remote, check=False)
+        try:
+            self._recording = subprocess.Popen(  # noqa: S603 — trusted ADB and fixed guest path
+                [
+                    self.profile.executables["adb"],
+                    "-s",
+                    "emulator-5554",
+                    "shell",
+                    "screenrecord",
+                    "--time-limit",
+                    "180",
+                    remote,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self._recording_operation = operation
+        except OSError:
+            self._recording = None
+            self._recording_operation = None
+            self.observations["failure_video"] = "Recording could not be started"
+
+    def _finish_failure_video(self, *, retain: bool) -> None:
+        recording = getattr(self, "_recording", None)
+        operation = getattr(self, "_recording_operation", None)
+        if recording is None:
+            return
+        remote = "/data/local/tmp/gramlab-failure.mp4"
+        if recording.poll() is None:
+            self._adb("shell", "pkill", "-INT", "screenrecord", timeout=5, check=False)
+            try:
+                recording.wait(timeout=self._remaining(5))
+            except subprocess.TimeoutExpired:
+                self.observations["failure_video"] = "Recording did not stop before timeout"
+        self._recording = None
+        self._recording_operation = None
+        if retain and operation is not None:
+            path = Path("captures") / f"failure-{operation}.mp4"
+            pulled = self._adb("pull", remote, path.as_posix(), timeout=15, check=False)
+            if pulled.returncode == 0 and path.is_file():
+                raw = path.read_bytes()
+                if 12 <= len(raw) <= 100_000_000 and raw[4:8] == b"ftyp":
+                    self.observations["failure_video"] = path.as_posix()
+                else:
+                    path.unlink()
+                    self.observations["failure_video"] = "Recording was not a bounded MP4"
+            else:
+                self.observations["failure_video"] = "Recording could not be retained"
+        self._adb("shell", "rm", "-f", remote, timeout=5, check=False)
 
     def _record_failure(self, operation: str, error: Exception) -> None:
+        self._finish_failure_video(retain=True)
         self.observations[operation + "_failure"] = _Redactor(self.secrets).text(str(error))
         if self._guest is not None and self._guest.poll() is None:
             try:
+                crash = self._adb(
+                    "logcat", "-b", "crash", "-d", "-v", "brief", timeout=5, check=False
+                )
+                self.observations["failure_crash_log"] = _Redactor(self.secrets).text(
+                    crash.stdout[-65536:]
+                )
                 log = self._adb("logcat", "-d", "-t", "300", "-v", "brief", timeout=5, check=False)
                 self.observations["failure_logcat"] = _Redactor(self.secrets).text(
                     log.stdout[-65536:]
@@ -385,6 +464,13 @@ class Android:
         ui_deadline = min(self.deadline, time.monotonic() + 45)
         ui = ""
         while time.monotonic() < ui_deadline:
+            client = self._adb("shell", "pidof", "org.gramlab.android", timeout=5, check=False)
+            if client.returncode == 1 and not client.stdout.strip():
+                error = RuntimeError("Dedicated Android client exited while waiting for UI")
+                self._record_failure("client_exit", error)
+                raise error
+            if client.returncode != 0:
+                raise RuntimeError("Dedicated Android client process status was unavailable")
             self._adb("shell", "uiautomator", "dump", "/data/local/tmp/gramlab-capture.xml")
             ui = self._adb("shell", "cat", "/data/local/tmp/gramlab-capture.xml").stdout
             # UIAutomator produces this XML inside the dedicated guest; no external entities.
@@ -710,5 +796,6 @@ class Android:
             time.sleep(0.05)
         raise RuntimeError("Native inline input produced no matching callback before timeout")
 
-    def close(self) -> None:
+    def close(self, *, retain_failure: bool = False) -> None:
+        self._finish_failure_video(retain=retain_failure)
         self._stack.close()

@@ -879,6 +879,7 @@ def test_cli_preserves_default_and_explicit_bridge_selection(
         profile: RuntimeProfile,
         android_profile: RuntimeProfile | None,
         android_apk: Path | None,
+        android_theme: str,
         bridge_version: int,
     ) -> str:
         selected.update(
@@ -887,6 +888,7 @@ def test_cli_preserves_default_and_explicit_bridge_selection(
             profile=profile,
             android_profile=android_profile,
             android_apk=android_apk,
+            android_theme=android_theme,
             bridge_version=bridge_version,
         )
         return "passed"
@@ -912,6 +914,7 @@ def test_cli_preserves_default_and_explicit_bridge_selection(
         "profile": profile(),
         "android_profile": None,
         "android_apk": None,
+        "android_theme": "light",
         "bridge_version": expected,
     }
 

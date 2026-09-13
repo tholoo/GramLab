@@ -253,7 +253,11 @@ def test_rich_http_send_edit_reopen_and_complete_events(tmp_path: Path, form):
             server,
             token,
             "sendRichMessage",
-            {"chat_id": 1, "rich_message": {**initial, "skip_entity_detection": True}},
+            {
+                "chat_id": 1,
+                "rich_message": {**initial, "skip_entity_detection": True},
+                "disable_notification": False,
+            },
             form=form,
         ) == (200, {"ok": True, "result": api_message(initial)})
         with World.open(directory) as world:
@@ -282,8 +286,48 @@ def test_rich_http_send_edit_reopen_and_complete_events(tmp_path: Path, form):
         assert world.history(1) == [final]
         assert world.client_snapshot(1)["messages"] == [final]
         events = [event for event in world.events() if event["type"].startswith("message.")]
-        assert [event["data"] for event in events] == [first, final]
         assert [event["type"] for event in events] == ["message.created", "message.edited"]
+        assert [event["data"] for event in events] == [first, final]
+
+
+@pytest.mark.parametrize("form", [False, True])
+def test_rich_http_preserves_navigation_button_actions(tmp_path: Path, form):
+    directory = tmp_path / "world"
+    token, _ = setup_world(directory)
+    navigation = {
+        "blocks": [
+            {
+                "type": "buttons",
+                "buttons": [
+                    {
+                        "text": "Add to a group",
+                        "style": "primary",
+                        "url": "https://t.me/example_bot?startgroup=true",
+                    },
+                    {
+                        "text": "Choose a chat",
+                        "switch_inline_query_chosen_chat": {
+                            "query": "connect4",
+                            "allow_user_chats": True,
+                            "allow_bot_chats": False,
+                            "allow_group_chats": True,
+                            "allow_channel_chats": False,
+                        },
+                    },
+                ],
+            }
+        ]
+    }
+    with BotAPIServer(directory) as server:
+        assert request(
+            server,
+            token,
+            "sendRichMessage",
+            {"chat_id": 1, "rich_message": {**navigation, "skip_entity_detection": True}},
+            form=form,
+        ) == (200, {"ok": True, "result": api_message(navigation)})
+    with World.open(directory) as world:
+        assert world.history(1)[0]["rich_message"] == navigation
 
 
 @pytest.mark.parametrize("form", [False, True])
@@ -593,6 +637,26 @@ def test_list_http_send_edit_callback_differences_and_reopen(tmp_path: Path, for
         {"blocks": [{"type": "paragraph", "text": "\ud800"}], "skip_entity_detection": True},
         {
             "blocks": [{"type": "paragraph", "text": "x", "unknown": True}],
+            "skip_entity_detection": True,
+        },
+        {
+            "blocks": [
+                {"type": "buttons", "buttons": [{"text": "x", "url": 3}]},
+            ],
+            "skip_entity_detection": True,
+        },
+        {
+            "blocks": [
+                {
+                    "type": "buttons",
+                    "buttons": [
+                        {
+                            "text": "x",
+                            "switch_inline_query_chosen_chat": {"allow_user_chats": "yes"},
+                        }
+                    ],
+                },
+            ],
             "skip_entity_detection": True,
         },
         {

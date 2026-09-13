@@ -8,6 +8,7 @@ import selectors
 import subprocess
 import threading
 import time
+from collections.abc import Mapping
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,10 +50,18 @@ class _Instance:
 
 
 class Processes:
-    def __init__(self, sandbox: Sandbox, *, deadline: float, bots: set[str]) -> None:
+    def __init__(
+        self,
+        sandbox: Sandbox,
+        *,
+        deadline: float,
+        bots: set[str],
+        bot_sandboxes: Mapping[str, Sandbox] | None = None,
+    ) -> None:
         self.sandbox = sandbox
         self.deadline = deadline
         self.bots = bots
+        self.bot_sandboxes = dict(bot_sandboxes or {})
         self.failure: str | None = None
         self.records: dict[str, Any] = {}
         self.lifecycle: list[dict[str, Any]] = []
@@ -103,11 +112,12 @@ class Processes:
         if remaining <= 0:
             raise TimeoutError("Consumer run deadline expired")
         directory, program, environment = self._programs[name]
+        sandbox = self.bot_sandboxes.get(name.removeprefix("bot:"), self.sandbox)
         context = ExitStack()
         self._stack.callback(context.close)
         process = context.enter_context(
-            self.sandbox.component(
-                [self.sandbox.profile.python, "-u", "/work/" + program["entry"]],
+            sandbox.component(
+                [sandbox.profile.python, "-u", "/work/" + program["entry"]],
                 data=directory,
                 environment={"PYTHONPATH": "/work", **environment},
                 startup_timeout=min(10, remaining),

@@ -2,16 +2,18 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 
-def project(directory: Path, scenario: str | None = None):
+def project(directory: Path, scenario: str | None = None) -> Path:
     directory.mkdir()
     (directory / "run.toml").write_text("""schema = 1
 seed = 7
@@ -50,14 +52,43 @@ print("Scenario verified")
     return directory / "run.toml"
 
 
-def invoke(manifest: Path, output: Path):
+def invoke(manifest: Path, output: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603 — actual CLI argv, no shell or consumer import
-        [sys.executable, "-m", "gramlab", "run", str(manifest), "--output", str(output)],
+        [
+            sys.executable,
+            "-m",
+            "gramlab",
+            "run",
+            str(manifest),
+            "--output",
+            str(output),
+            *arguments,
+        ],
         capture_output=True,
         text=True,
         timeout=30,
         env=os.environ.copy(),
     )
+
+
+def runtime_profile_with_dependency(
+    tmp_path: Path, *, name: str = "consumer", forbidden: Path | None = None
+) -> Path:
+    dependency = tmp_path / f"{name}-runtime"
+    dependency.mkdir()
+    (dependency / "consumer_dependency.py").write_text(f'PREFIX = "Echo: "\nMARKER = {name!r}\n')
+    source = json.loads(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]).read_text())
+    store_paths = tmp_path / f"{name}-store-paths"
+    store_paths.write_text(Path(source["storePaths"]).read_text() + dependency.as_posix() + "\n")
+    source["storePaths"] = store_paths.as_posix()
+    source["environment"] = {
+        "CONSUMER_DEPENDENCY_ROOT": dependency.as_posix(),
+        "EXPECTED_MARKER": name,
+        **({"FORBIDDEN_ROOT": forbidden.as_posix()} if forbidden is not None else {}),
+    }
+    profile = tmp_path / f"{name}-profile.json"
+    profile.write_text(json.dumps(source))
+    return profile
 
 
 def test_public_run_command_executes_private_scenario_and_real_bot(tmp_path: Path):
@@ -82,6 +113,175 @@ def test_public_run_command_executes_private_scenario_and_real_bot(tmp_path: Pat
     assert ":gramlab_" not in report
     assert "Scenario verified" in recorded["processes"]["scenario"]["stdout"]
     assert not (output / "scenario" / "ambient-secret.txt").exists()
+
+
+def test_android_theme_is_validated_and_recorded_before_guest_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gramlab.runner import run
+    from gramlab.runtime import RuntimeProfile
+
+    manifest = project(tmp_path / "project")
+    manifest.write_text('mode = "headless-android"\n' + manifest.read_text())
+    apk = tmp_path / "client.apk"
+    apk.write_bytes(b"PK\x03\x04approved")
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    android_profile = replace(
+        profile,
+        executables={
+            **profile.executables,
+            "adb": "adb",
+            "emulator": "emulator",
+            "avdmanager": "avdmanager",
+        },
+    )
+
+    def supervise(_self, _command, *, data: Path, **_kwargs):
+        (data / "observation.json").write_text(
+            json.dumps({"failure": None, "processes": {}, "captures": [], "android": {}})
+        )
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr("gramlab.runner.Sandbox.supervise", supervise)
+    output = tmp_path / "dark-run"
+
+    outcome = run(
+        manifest,
+        output,
+        profile=profile,
+        android_profile=android_profile,
+        android_apk=apk,
+        android_theme="dark",
+    )
+
+    assert outcome == "incomplete"
+    recorded = json.loads((output / "result.json").read_text())
+    assert recorded["configuration"]["android"]["theme"] == "dark"
+
+    with pytest.raises(ValueError, match="Android theme must be light or dark"):
+        run(
+            manifest,
+            tmp_path / "invalid-run",
+            profile=profile,
+            android_profile=android_profile,
+            android_apk=apk,
+            android_theme="sepia",
+        )
+    assert not (tmp_path / "invalid-run").exists()
+
+
+def test_bot_can_use_its_own_trusted_runtime_profile(tmp_path: Path):
+    manifest = project(tmp_path / "project")
+    bot = manifest.parent / "bot.py"
+    bot.write_text(
+        "import os, sys\n"
+        'sys.path.insert(0, os.environ["CONSUMER_DEPENDENCY_ROOT"])\n'
+        "from consumer_dependency import PREFIX\n"
+        + bot.read_text().replace('"Echo: " + message["text"]', 'PREFIX + message["text"]')
+    )
+    profile = runtime_profile_with_dependency(tmp_path)
+    output = tmp_path / "run"
+
+    result = invoke(manifest, output, "--bot-profile", f"echo={profile}")
+
+    assert result.returncode == 0, result.stderr
+    recorded = json.loads((output / "result.json").read_text())
+    assert recorded["outcome"] == "passed"
+    assert set(recorded["bot_runtime_profiles"]) == {"echo"}
+    fingerprint = recorded["bot_runtime_profiles"]["echo"]
+    assert re.fullmatch(r"[0-9a-f]{64}", fingerprint)
+    assert fingerprint in (output / "report.html").read_text()
+    assert recorded["histories"]["1"][1]["text"] == "Echo: سلام hello"
+
+
+def test_python_runner_keeps_per_bot_runtime_profiles_isolated(tmp_path: Path):
+    from gramlab.runner import run
+    from gramlab.runtime import RuntimeProfile
+
+    project_root = tmp_path / "project"
+    manifest = project(
+        project_root,
+        """import time
+from gramlab import Scenario
+lab = Scenario.from_environment()
+deadline = time.monotonic() + 5
+for name in ("first", "second"):
+    while lab.bot_status(name)["state"] == "running":
+        if time.monotonic() >= deadline:
+            raise AssertionError("Bot did not finish its profile check")
+        time.sleep(0.01)
+    status = lab.bot_status(name)
+    if status["state"] != "exited" or status["exit_code"] != 0:
+        raise AssertionError(f"Bot profile check failed: {status}")
+print("Both bot runtime profiles remained isolated")
+""",
+    )
+    manifest.write_text(
+        manifest.read_text().replace(
+            "[bots.echo]\n",
+            '[bots.first]\nentry = "bot.py"\nfiles = ["bot.py"]\n[bots.second]\n',
+        )
+    )
+    first_root = tmp_path / "first-runtime"
+    second_root = tmp_path / "second-runtime"
+    first_path = runtime_profile_with_dependency(tmp_path, name="first", forbidden=second_root)
+    second_path = runtime_profile_with_dependency(tmp_path, name="second", forbidden=first_root)
+    (project_root / "bot.py").write_text(
+        """import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ["CONSUMER_DEPENDENCY_ROOT"])
+from consumer_dependency import MARKER
+if MARKER != os.environ["EXPECTED_MARKER"]:
+    raise RuntimeError("Wrong profile dependency")
+if Path(os.environ["FORBIDDEN_ROOT"]).exists():
+    raise RuntimeError("Another bot's profile dependency is visible")
+print(f"Profile {MARKER} verified")
+"""
+    )
+    default_profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    output = tmp_path / "run"
+
+    outcome = run(
+        manifest,
+        output,
+        profile=default_profile,
+        bot_profiles={
+            "first": RuntimeProfile.load(first_path),
+            "second": RuntimeProfile.load(second_path),
+        },
+    )
+
+    assert outcome == "passed"
+    recorded = json.loads((output / "result.json").read_text())
+    assert set(recorded["bot_runtime_profiles"]) == {"first", "second"}
+    assert "Profile first verified" in recorded["processes"]["bot:first"]["stdout"]
+    assert "Profile second verified" in recorded["processes"]["bot:second"]["stdout"]
+
+
+@pytest.mark.parametrize("reason", ["unknown", "duplicate"])
+def test_invalid_bot_runtime_profile_bindings_fail_before_output(tmp_path: Path, reason: str):
+    manifest = project(tmp_path / "project")
+    output = tmp_path / "run"
+    arguments: tuple[str, ...]
+    if reason == "unknown":
+        profile = runtime_profile_with_dependency(tmp_path)
+        arguments = ("--bot-profile", f"absent={profile}")
+        expected = "undeclared aliases: absent"
+    else:
+        arguments = (
+            "--bot-profile",
+            "echo=/missing/first.json",
+            "--bot-profile",
+            "echo=/missing/second.json",
+        )
+        expected = "repeated for echo"
+
+    result = invoke(manifest, output, *arguments)
+
+    assert result.returncode == 2
+    assert expected in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
 
 
 def test_nested_entry_can_import_sdk_and_explicit_data(tmp_path: Path):

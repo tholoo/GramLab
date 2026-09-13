@@ -79,8 +79,9 @@ not a generic runtime collector or replay format.
 
 The only timing measurements in this report are Android ActivityManager cold-launch `TotalTime`
 values. They exclude guest boot and do not measure bot latency, rendering throughput or injected
-delay. Automatic failure collection, consumer log/state hooks, concurrent workload reports,
-percentiles and separated latency diagnosis remain open.
+delay. The consumer runner now retains bounded failure video and crash/recent logcat observations
+for failed Android runs. Consumer-defined log/state hooks, concurrent workload reports, percentiles
+and separated latency diagnosis remain open.
 
 Verification: seven report tests cover hostile HTML, credential fixtures, original PNG bytes,
 invalid and oversized image data, invalid report values, exclusive publication and racing writers.

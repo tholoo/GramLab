@@ -9,8 +9,15 @@ _WRAPPERS = frozenset(
     "bold italic underline strikethrough spoiler subscript superscript marked code".split()
 )
 _LINK_FIELDS = {"url": "url", "email_address": "email_address", "phone_number": "phone_number"}
-_GENERATED_TEXT = frozenset(("mention", "hashtag", "cashtag", "bot_command", "bank_card_number"))
-_ACTIONS = frozenset(("callback_data", "copy_text", "disabled"))
+_GENERATED_TEXT = {
+    "mention": "username",
+    "hashtag": "hashtag",
+    "cashtag": "cashtag",
+    "bot_command": "bot_command",
+    "bank_card_number": "bank_card_number",
+}
+_TARGET_ACTIONS = frozenset(("callback_data", "copy_text", "disabled"))
+_ACTIONS = _TARGET_ACTIONS | {"url", "switch_inline_query_chosen_chat"}
 
 Path = list[str | int]
 Occurrence = dict[str, Any]
@@ -60,6 +67,8 @@ def _button(value: Any, path: Path, result: list[Occurrence]) -> None:
     if "style" in item and not isinstance(item["style"], str):
         raise ValueError("Unsupported canonical rich button")
     action = next(iter(item.keys() & _ACTIONS))
+    if action not in _TARGET_ACTIONS:
+        return
     if action == "callback_data" and not isinstance(item[action], str):
         raise ValueError("Unsupported canonical rich button")
     if action == "copy_text":
@@ -107,7 +116,8 @@ def _text(value: Any, path: Path, result: list[Occurrence]) -> None:
     elif kind == "text_mention":
         _fields(item, {"type", "text", "user_id"}, {"type", "text", "user_id"}, "text")
     elif kind in _GENERATED_TEXT:
-        _fields(item, {"type", "text"}, {"type", "text"}, "text")
+        metadata = _GENERATED_TEXT[kind]
+        _fields(item, {"type", "text", metadata}, {"type", "text", metadata}, "text")
     else:
         raise ValueError("Unsupported canonical rich text")
     _text(item["text"], [*path, "text"], result)

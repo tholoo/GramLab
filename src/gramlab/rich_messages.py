@@ -50,11 +50,17 @@ _REMOVED_CHARACTERS = frozenset(
 )
 _DIRECTION_MARKERS = frozenset(("\u200e", "\u200f"))
 _STRING_STOP_BYTES = 34_996
-_BUTTON_ACTIONS = frozenset(("callback_data", "copy_text", "disabled"))
-_BUTTON_STYLES = frozenset(("default", "primary", "danger", "success", "link"))
-_GENERATED_TEXT_TYPES = frozenset(
-    ("mention", "hashtag", "cashtag", "bot_command", "bank_card_number")
+_BUTTON_ACTIONS = frozenset(
+    ("url", "callback_data", "switch_inline_query_chosen_chat", "copy_text", "disabled")
 )
+_BUTTON_STYLES = frozenset(("default", "primary", "danger", "success", "link"))
+_GENERATED_TEXT_FIELDS = {
+    "mention": "username",
+    "hashtag": "hashtag",
+    "cashtag": "cashtag",
+    "bot_command": "bot_command",
+    "bank_card_number": "bank_card_number",
+}
 _CANDIDATE_PRIORITY = {
     "email_address": 0,
     "url": 1,
@@ -296,6 +302,12 @@ def _detected_text(value: str) -> Any:
             node["email_address"] = candidate.metadata
         elif candidate.kind == "phone_number":
             node["phone_number"] = candidate.metadata
+        elif candidate.kind == "bank_card_number":
+            node["bank_card_number"] = "".join(
+                character for character in displayed if character.isdigit()
+            )
+        elif candidate.kind in _GENERATED_TEXT_FIELDS:
+            node[_GENERATED_TEXT_FIELDS[candidate.kind]] = displayed[1:]
         parts.append(node)
         consumed = candidate.end
     if consumed < len(value):
@@ -400,11 +412,44 @@ def _button(value: Any) -> dict[str, Any]:
         result["style"] = style
 
     action = next(iter(actions))
-    if action == "callback_data":
+    if action == "url":
+        url = obj[action]
+        if not isinstance(url, str) or not url:
+            raise ValueError("Rich button URL must be a non-empty string")
+        result[action] = _clean_string(url)
+    elif action == "callback_data":
         data = obj[action]
         if not isinstance(data, str) or not 1 <= len(data.encode("utf-8")) <= 64:
             raise ValueError("Rich button callback data must contain 1 to 64 UTF-8 bytes")
         result[action] = data
+    elif action == "switch_inline_query_chosen_chat":
+        chosen = _object(
+            obj[action],
+            set(),
+            {
+                "query",
+                "allow_user_chats",
+                "allow_bot_chats",
+                "allow_group_chats",
+                "allow_channel_chats",
+            },
+        )
+        normalized: dict[str, Any] = {}
+        if "query" in chosen:
+            if not isinstance(chosen["query"], str):
+                raise ValueError("Chosen-chat inline query must be a string")
+            normalized["query"] = _clean_string(chosen["query"])
+        for name in (
+            "allow_user_chats",
+            "allow_bot_chats",
+            "allow_group_chats",
+            "allow_channel_chats",
+        ):
+            if name in chosen:
+                if type(chosen[name]) is not bool:
+                    raise ValueError("Chosen-chat filters must be booleans")
+                normalized[name] = chosen[name]
+        result[action] = normalized
     elif action == "copy_text":
         copy = _object(obj[action], {"text"}, set())
         text = copy["text"]
@@ -456,11 +501,16 @@ def _text(
     if isinstance(value, dict) and value.get("type") == "button":
         obj = _object(value, {"type", "button"}, set())
         return {"type": "button", "button": _button(obj["button"])}
-    if isinstance(value, dict) and value.get("type") in _GENERATED_TEXT_TYPES:
-        obj = _object(value, {"type", "text"}, set())
+    if isinstance(value, dict) and value.get("type") in _GENERATED_TEXT_FIELDS:
+        kind = value["type"]
+        metadata = _GENERATED_TEXT_FIELDS[kind]
+        obj = _object(value, {"type", "text"}, {metadata})
+        if metadata in obj and not isinstance(obj[metadata], str):
+            raise ValueError(f"Rich {kind} metadata must be a string")
         return {
-            "type": obj["type"],
+            "type": kind,
             "text": _text(obj["text"], mention_resolver, detect=False),
+            metadata: _clean_string(obj.get(metadata, "")),
         }
     if (
         isinstance(value, dict)

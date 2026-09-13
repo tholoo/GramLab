@@ -229,7 +229,12 @@ def _dispatch(
         "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
         "deletewebhook": {"drop_pending_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
-        "sendrichmessage": {"chat_id", "rich_message", "reply_markup"},
+        "sendrichmessage": {
+            "chat_id",
+            "rich_message",
+            "reply_markup",
+            "disable_notification",
+        },
         "sendphoto": {"chat_id", "photo", "caption", "caption_entities", "reply_markup"},
         "senddocument": {
             "chat_id",

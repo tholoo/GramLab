@@ -188,6 +188,8 @@ def test_contained_scenario_taps_current_semantic_inline_keyboards(tmp_path: Pat
             "gramlab",
             "run",
             str(project / "run.toml"),
+            "--bridge-version",
+            "4",
             "--output",
             str(output),
         ],

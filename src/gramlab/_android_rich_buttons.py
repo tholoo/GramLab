@@ -165,6 +165,7 @@ class AndroidRichInput:
         self._record: dict[str, Any] | None = None
         self._activation: dict[str, Any] | None = None
         self._nonce: str | None = None
+        self._observed_sample: dict[str, Any] | None = None
         self._operations: dict[str, dict[str, Any]] = {}
         self._live: str | None = None
 
@@ -243,6 +244,17 @@ class AndroidRichInput:
             current = self.android._adb("shell", "dumpsys", "window", "displays").stdout
             _require(re.findall(focus_pattern, current) == focused)
         return int(pids[0]), int(seconds * 1000)
+
+    def _stable_guest_state(self) -> tuple[int, int]:
+        """Retry only transient WindowManager sampling before any guest input."""
+        end = min(self.android.deadline, time.monotonic() + 1)
+        while True:
+            try:
+                return self._guest_state()
+            except ValueError as error:
+                if str(error) != "target_unavailable" or time.monotonic() >= end:
+                    raise
+                time.sleep(0.05)
 
     def _owned_popup(self, focused: tuple[str, str, str], pid: int) -> None:
         packages = self.android._adb(
@@ -436,13 +448,14 @@ class AndroidRichInput:
                 _require(all(t["reason"] != "window_unfocused" for t in sample["targets"]))
                 self._current(record)
                 self._nonce = str(sample["client_nonce"])
+                self._observed_sample = copy.deepcopy(sample)
                 return self._nonce
             except (ValueError, RuntimeError, FileNotFoundError):
                 if time.monotonic() >= end:
                     raise
                 time.sleep(0.05)
 
-    def _fresh(self, state: dict[str, Any]) -> dict[str, Any]:
+    def _fresh(self, state: dict[str, Any], *, require_recent_draw: bool = True) -> dict[str, Any]:
         snapshot = self._current(state["record"])
         _require(snapshot["world_id"] == state["arm"]["world_id"], "client_restarted")
         _require(
@@ -454,10 +467,14 @@ class AndroidRichInput:
         sample = self._observation(
             self._read("rich-button-observation.json"), nonce=state["arm"]["client_nonce"]
         )
-        pid, now = self._guest_state()
+        state["candidate_observation"] = sample
+        pid, now = self._stable_guest_state()
         _require(pid == sample["pid"] == state["pid"], "client_restarted")
         _require(sample["generation"] >= state["observation"]["generation"])
-        _require(0 <= now - sample["drawn_uptime_ms"] <= 5000)
+        _require(
+            0 <= now - sample["drawn_uptime_ms"]
+            and (not require_recent_draw or now - sample["drawn_uptime_ms"] <= 5000)
+        )
         _require(sample["available"])
         found = [
             target for target in sample["targets"] if target["path"] == state["target"]["path"]
@@ -474,6 +491,43 @@ class AndroidRichInput:
         _require(0 <= left < right <= 320 and 0 <= top < bottom <= 640)
         state["now"] = now
         return sample
+
+    def _settled_fresh(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Wait briefly for native scroll/layout publication before any touch."""
+
+        end = min(self.android.deadline, time.monotonic() + 1)
+        while True:
+            try:
+                return self._fresh(state)
+            except ValueError as error:
+                sample = state.get("candidate_observation")
+                retained = state.get("observed_observation")
+                if (
+                    str(error) == "target_unavailable"
+                    and isinstance(sample, dict)
+                    and sample == retained
+                ):
+                    stable = self._fresh(state, require_recent_draw=False)
+                    _require(stable == retained)
+                    return stable
+                targets = sample.get("targets", []) if isinstance(sample, dict) else []
+                selected = [
+                    target
+                    for target in targets
+                    if isinstance(target, dict) and target.get("path") == state["target"]["path"]
+                ]
+                settling = (
+                    str(error) == "target_unavailable"
+                    and isinstance(sample, dict)
+                    and sample.get("available") is True
+                    and len(selected) == 1
+                    and selected[0].get("available") is False
+                    and selected[0].get("reason")
+                    in {"message_not_drawn", "offscreen", "clipped", "window_unfocused"}
+                )
+                if not settling or time.monotonic() >= end:
+                    raise
+                time.sleep(0.05)
 
     def _retain(self, state: dict[str, Any], kind: str, sample: dict[str, Any]) -> str:
         raw = _encoded(sample)
@@ -493,7 +547,7 @@ class AndroidRichInput:
         _require(_token(receipt["operation_id"]) and _token(client_nonce))
         _require(receipt["operation_id"] not in self._operations and self._live is None)
         _require(client_nonce == self._nonce and self._record is not None, "client_restarted")
-        if self._record is None or self._activation is None:
+        if self._record is None or self._activation is None or self._observed_sample is None:
             raise ValueError("client_restarted")
         target = receipt["target"]
         _fields(
@@ -525,6 +579,7 @@ class AndroidRichInput:
             "record": copy.deepcopy(record),
             "pid": sample["pid"],
             "observation": sample,
+            "observed_observation": copy.deepcopy(self._observed_sample),
             "directory": directory,
             "evidence": {
                 "mode": "headless-android",
@@ -538,7 +593,7 @@ class AndroidRichInput:
             "effect": None,
             "quiet_since": None,
         }
-        sample = self._fresh(state)
+        sample = self._settled_fresh(state)
         state["observation"] = sample
         arm["observation_generation"] = sample["generation"]
         selected = next(t for t in sample["targets"] if t["path"] == target["path"])
@@ -549,7 +604,10 @@ class AndroidRichInput:
         capture = directory / "before.png"
         self._capture_original(capture)
         state["evidence"]["native"]["captures"].append(capture.as_posix())
-        self._fresh(state)
+        # Screencap can take longer than the draw-recency window on a loaded emulator.
+        # The original frame plus unchanged process, focus, activation, geometry, and
+        # World revision are the post-capture freshness evidence at this boundary.
+        self._fresh(state, require_recent_draw=False)
         self._operations[receipt["operation_id"]] = state
         self._live = receipt["operation_id"]
         try:
@@ -573,7 +631,9 @@ class AndroidRichInput:
                 _require(time.monotonic() < end)
                 time.sleep(0.05)
             state["baseline"] = effect["clipboard"]
-            state["observation"] = self._fresh(state)
+            # The native arm acknowledgement is newer UI-thread evidence than the
+            # unchanged draw timestamp retained across a slow original screenshot.
+            state["observation"] = self._fresh(state, require_recent_draw=False)
             with World.open(Path("world")) as world:
                 state["world_before"] = world.client_snapshot(
                     arm["user_id"], version=self.android._bridge_version
