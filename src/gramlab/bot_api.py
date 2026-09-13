@@ -55,12 +55,29 @@ def _public_rich(world: World, bot_id: int, value: Any) -> Any:
     return value
 
 
-def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
+def _message(
+    world: World, bot_id: int | dict[str, Any], message: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    if message is None:
+        if not isinstance(bot_id, dict):
+            raise TypeError("Message body is required")
+        message = bot_id
+        legacy_chat = world.get_chat(message["chat_id"])
+        if legacy_chat["type"] != "private":
+            raise ValueError("Group Bot API projection requires an explicit bot")
+        selected_bot_id = int(legacy_chat["bot_id"])
+    else:
+        if type(bot_id) is not int:
+            raise TypeError("Bot ID must be an integer")
+        selected_bot_id = bot_id
     chat = world.get_chat(message["chat_id"])
-    user = world.get_user(chat["user_id"])
-    api_chat = {"id": user["id"], "type": "private", "first_name": user["first_name"]}
-    if "username" in user:
-        api_chat["username"] = user["username"]
+    if chat["type"] == "supergroup":
+        api_chat = {"id": chat["id"], "type": "supergroup", "title": chat["title"]}
+    else:
+        user = world.get_user(chat["user_id"])
+        api_chat = {"id": user["id"], "type": "private", "first_name": user["first_name"]}
+        if "username" in user:
+            api_chat["username"] = user["username"]
     result = {
         "message_id": message["id"],
         "from": world.get_user(message["sender_id"]),
@@ -70,15 +87,15 @@ def _message(world: World, message: dict[str, Any]) -> dict[str, Any]:
     if "media_group_id" in message:
         result["media_group_id"] = message["media_group_id"]
     if "rich_message" in message:
-        result["rich_message"] = _public_rich(world, int(chat["bot_id"]), message["rich_message"])
+        result["rich_message"] = _public_rich(world, selected_bot_id, message["rich_message"])
     elif "photo" in message:
-        result["photo"] = [world.photo_size(int(chat["bot_id"]), message["photo"]["asset_id"])]
+        result["photo"] = [world.photo_size(selected_bot_id, message["photo"]["asset_id"])]
         for field in ("caption", "caption_entities"):
             if field in message:
                 result[field] = message[field]
     elif "document" in message:
         result["document"] = world.document_file(
-            int(chat["bot_id"]), message["document"]["document_id"]
+            selected_bot_id, message["document"]["document_id"]
         )
         for field in ("caption", "caption_entities"):
             if field in message:
@@ -107,9 +124,12 @@ def _boolean(value: Any, name: str) -> bool:
     return value
 
 
-def _update(world: World, update: dict[str, Any]) -> dict[str, Any]:
+def _update(world: World, bot_id: int, update: dict[str, Any]) -> dict[str, Any]:
     if "message" in update:
-        return {"update_id": update["update_id"], "message": _message(world, update["message"])}
+        return {
+            "update_id": update["update_id"],
+            "message": _message(world, bot_id, update["message"]),
+        }
     if "callback_query" in update:
         callback = update["callback_query"]
         return {
@@ -117,7 +137,7 @@ def _update(world: World, update: dict[str, Any]) -> dict[str, Any]:
             "callback_query": {
                 "id": callback["id"],
                 "from": world.get_user(callback["user_id"]),
-                "message": _message(world, callback["message"]),
+                "message": _message(world, bot_id, callback["message"]),
                 "chat_instance": callback["chat_instance"],
                 "data": callback["data"],
             },
@@ -203,7 +223,7 @@ class _Polling:
                     offset = max(0, offset)
                     remaining = deadline - time.monotonic()
                     if updates or remaining <= 0:
-                        return [_update(world, update) for update in updates]
+                        return [_update(world, bot_id, update) for update in updates]
                 # Writers may live in another process; reread committed world state without
                 # holding a database transaction or the ownership lock during the wait.
                 cancelled.wait(min(0.05, remaining))
@@ -227,6 +247,7 @@ def _dispatch(
     supported = {
         "getme": set(),
         "getupdates": {"offset", "limit", "timeout", "allowed_updates"},
+        "getchatmember": {"chat_id", "user_id"},
         "deletewebhook": {"drop_pending_updates"},
         "sendmessage": {"chat_id", "text", "reply_markup", "entities"},
         "sendrichmessage": {
@@ -287,6 +308,11 @@ def _dispatch(
             raise ValueError("file_id is required")
         info, _ = world.bot_file(bot_id, parameters["file_id"])
         return {key: info[key] for key in ("file_id", "file_unique_id", "file_size", "file_path")}
+    if method == "getchatmember":
+        if set(parameters) != {"chat_id", "user_id"}:
+            raise ValueError("chat_id and user_id are required")
+        chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        return world.get_chat_member(chat["id"], _integer(parameters["user_id"], "user_id"))
     if method == "deletewebhook":
         if "drop_pending_updates" in parameters and _boolean(
             parameters["drop_pending_updates"], "drop_pending_updates"
@@ -339,9 +365,9 @@ def _dispatch(
             }
         else:
             typed_album_uploads = {name: upload.data for name, upload in (uploads or {}).items()}
-        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
         return [
-            _message(world, message)
+            _message(world, bot_id, message)
             for message in world.send_media_group(
                 chat_id=chat["id"],
                 sender_id=bot_id,
@@ -354,7 +380,7 @@ def _dispatch(
     if method in ("editmessagecaption", "editmessagemedia"):
         if "message_id" not in parameters:
             raise ValueError("message_id is required")
-        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
         message_id = _integer(parameters["message_id"], "message_id")
         if method == "editmessagecaption":
             if uploads:
@@ -366,6 +392,7 @@ def _dispatch(
                 raise ValueError("GRAMLAB_UNSUPPORTED: captions above media")
             return _message(
                 world,
+                bot_id,
                 world.edit_caption(
                     chat_id=chat["id"],
                     message_id=message_id,
@@ -410,6 +437,7 @@ def _dispatch(
                 require_supported_default_document(attached)
         return _message(
             world,
+            bot_id,
             world.edit_media(
                 chat_id=chat["id"],
                 message_id=message_id,
@@ -439,9 +467,10 @@ def _dispatch(
             attached = document_uploads.get(media.removeprefix("attach://"))
             if attached is not None:
                 require_supported_default_document(attached)
-        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
         return _message(
             world,
+            bot_id,
             world.send_document(
                 chat_id=chat["id"],
                 sender_id=bot_id,
@@ -455,9 +484,10 @@ def _dispatch(
     if method == "sendphoto":
         if "chat_id" not in parameters or "photo" not in parameters:
             raise ValueError("chat_id and photo are required")
-        chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+        chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
         return _message(
             world,
+            bot_id,
             world.send_photo(
                 chat_id=chat["id"],
                 sender_id=bot_id,
@@ -475,12 +505,13 @@ def _dispatch(
             raise ValueError("GRAMLAB_UNSUPPORTED: combined text and rich content")
     elif method == "sendrichmessage" or "text" not in parameters:
         raise ValueError("rich_message or text is required")
-    chat = world.private_chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
+    chat = world.chat_for_bot(bot_id, _integer(parameters["chat_id"], "chat_id"))
     if method == "editmessagetext":
         if "message_id" not in parameters:
             raise ValueError("message_id is required")
         return _message(
             world,
+            bot_id,
             world.edit_message(
                 chat_id=chat["id"],
                 message_id=_integer(parameters["message_id"], "message_id"),
@@ -495,6 +526,7 @@ def _dispatch(
     if method == "sendrichmessage":
         return _message(
             world,
+            bot_id,
             world.send_rich_message(
                 chat_id=chat["id"],
                 sender_id=bot_id,
@@ -505,6 +537,7 @@ def _dispatch(
         )
     return _message(
         world,
+        bot_id,
         world.send_message(
             chat_id=chat["id"],
             sender_id=bot_id,

@@ -25,22 +25,28 @@ def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _parameters(value: dict[str, Any]) -> None:
     for name, item in value.items():
-        if name in {"first_name", "text", "data", "request_id", "callback_id"}:
+        if name in {"first_name", "title", "text", "data", "request_id", "callback_id"}:
             valid = isinstance(item, str)
         elif name in {"username", "language_code"}:
             valid = item is None or isinstance(item, str)
         elif name == "is_bot":
             valid = type(item) is bool
+        elif name == "chat_id":
+            valid = type(item) is int and item != 0 and -(2**63) < item < 2**63
         elif name in {
             "user_id",
             "bot_id",
-            "chat_id",
+            "creator_id",
             "sender_id",
             "message_id",
             "seconds",
             "after",
         }:
             valid = type(item) is int and 0 <= item < 2**63
+        elif name in {"member_ids", "bot_ids"}:
+            valid = isinstance(item, list) and all(
+                type(identifier) is int and 0 < identifier < 2**63 for identifier in item
+            )
         else:
             continue  # World method binding and entity/keyboard validation reject other shapes.
         if not valid:
@@ -169,6 +175,8 @@ class WorldControl:
                             "bots": lambda: dict(named_bots),
                             "create_user": world.create_user,
                             "open_private_chat": world.open_private_chat,
+                            "create_group_chat": world.create_group_chat,
+                            "get_chat_member": world.get_chat_member,
                             "send_message": world.send_message,
                             "advance_time": world.advance_time,
                             "history": world.history,

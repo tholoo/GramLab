@@ -49,8 +49,19 @@ def _count(value: int) -> int:
     return value
 
 
-def _integer(body: dict[str, Any], field: str, context: str, *, positive: bool = True) -> int:
+def _integer(
+    body: dict[str, Any],
+    field: str,
+    context: str,
+    *,
+    positive: bool = True,
+    signed: bool = False,
+) -> int:
     value = body.get(field)
+    if signed:
+        if type(value) is not int or value == 0 or not -(2**63) < value < 2**63:
+            raise ScenarioFlowError(f"{context} returned an invalid {field}")
+        return value
     minimum = 1 if positive else 0
     if type(value) is not int or not minimum <= value < 2**63:
         raise ScenarioFlowError(f"{context} returned an invalid {field}")
@@ -144,7 +155,7 @@ class BotStatus:
 
 @dataclass(frozen=True, slots=True)
 class Conversation:
-    """One private user/bot chat with identity and common operations already bound."""
+    """One private or group chat with an acting user and bot already bound."""
 
     _scenario: Scenario = field(repr=False, compare=False)
     user: User
@@ -264,6 +275,7 @@ class InlineButton:
             message_id=self.message.id,
             row=self.row,
             column=self.column,
+            user_id=conversation.user.id,
             timeout=timeout,
         )
         return InlineAction(self, copy.deepcopy(body))
@@ -385,9 +397,26 @@ def conversation_from_result(
     return Conversation(scenario, user, bot, identifier, copy.deepcopy(body))
 
 
+def group_conversation_from_result(
+    scenario: Scenario, user: User, bot: Bot, body: dict[str, Any]
+) -> Conversation:
+    identifier = _integer(body, "id", "Group conversation", signed=True)
+    memberships = body.get("members")
+    if (
+        body.get("type") != "supergroup"
+        or not isinstance(body.get("title"), str)
+        or not isinstance(memberships, list)
+        or not {user.id, bot.id}.issubset(
+            {member.get("user_id") for member in memberships if isinstance(member, dict)}
+        )
+    ):
+        raise ScenarioFlowError("Group conversation returned invalid participant identity")
+    return Conversation(scenario, user, bot, identifier, copy.deepcopy(body))
+
+
 def _message(conversation: Conversation, body: dict[str, Any]) -> Message:
     identifier = _integer(body, "id", "Message")
-    chat_id = _integer(body, "chat_id", "Message")
+    chat_id = _integer(body, "chat_id", "Message", signed=True)
     sender_id = _integer(body, "sender_id", "Message")
     if chat_id != conversation.id or sender_id not in (conversation.user.id, conversation.bot.id):
         raise ScenarioFlowError("Message returned invalid conversation identity")
@@ -409,7 +438,7 @@ def _message(conversation: Conversation, body: dict[str, Any]) -> Message:
 def _callback(conversation: Conversation, body: dict[str, Any]) -> Callback:
     identifier = _text(body, "id", "Callback")
     user_id = _integer(body, "user_id", "Callback")
-    chat_id = _integer(body, "chat_id", "Callback")
+    chat_id = _integer(body, "chat_id", "Callback", signed=True)
     data = _text(body, "data", "Callback")
     answer = body.get("answer")
     if (

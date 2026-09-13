@@ -34,6 +34,11 @@ to that exact `Scenario` instance; passing it to another instance fails before a
 chat and participant identities. History is an immutable tuple of `Message` observations. A
 message owns `inline_button(row, column)`, whose `tap()` result exposes a `Callback` handle.
 
+`Scenario.group()` creates a durable synthetic group and binds the member who performs subsequent
+`Conversation.send()` and simulated callback actions. A distinct creator can be supplied without
+changing the acting member. The complete contract and simulation-only fidelity boundary are in
+[synthetic group conversations](group-conversations.md).
+
 `Conversation.wait_for_messages()`, `Callback.wait_until_answered()` and
 `Bot.wait_for_state()` repeatedly perform only the corresponding read operation. They never retry
 an input or another uncertain write. Each requires a positive finite timeout and raises
@@ -59,12 +64,14 @@ The public package exports `Scenario`, `ScenarioError`, `ScenarioWaitTimeout`,
 
 ## Raw operations
 
-`Scenario` still exposes the original twenty JSON-shaped operations:
+`Scenario` still exposes the original JSON-shaped operations and the additive group operations:
 
 | Method | Effect or result |
 | --- | --- |
 | `create_user` | Create a virtual participant or bot identity |
 | `open_private_chat` | Open the existing private user/bot conversation model |
+| `create_group_chat` | Create a titled group with explicit user and bot memberships |
+| `get_chat_member` | Read one modeled group membership and virtual-user identity |
 | `send_message` | Create a synthetic message, including supported entities/keyboard fields |
 | `register_custom_emoji` | Register immutable local WebP/WebM bytes with a durable request ID |
 | `advance_time` | Advance the explicit world clock by integer seconds |
@@ -156,7 +163,8 @@ bound the complete scenario lifetime. There is no connection pool or automatic p
 The [flow tests](../../tests/test_scenario_flows.py) exercise the typed interface through real local
 HTTP, including handle ownership, immutable message history, inline callbacks, captures, bot status,
 bounded waits and timeout evidence. The contained [echo](../../examples/echo) and
-[inline-button](../../examples/inline) scenarios import from `gramlab` and use typed flows, proving
+[inline-button](../../examples/inline) scenarios and the [group](../../examples/group) scenario
+import from `gramlab` and use typed flows, proving
 the runner-supplied SDK includes the complete module.
 
 The lower-level [client tests](../../tests/test_scenario_client.py) use real local HTTP. A relay lets the

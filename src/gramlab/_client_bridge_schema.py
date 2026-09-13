@@ -146,7 +146,13 @@ class ClientBridgeSchema:
             chats = [
                 self._world.get_chat(row[0])
                 for row in self._connection.execute(
-                    "SELECT id FROM chats WHERE user_id=? ORDER BY id", (user_id,)
+                    "SELECT chats.id FROM chats WHERE "
+                    "(chats.user_id=? AND NOT EXISTS "
+                    "(SELECT 1 FROM group_chats WHERE group_chats.chat_id=chats.id)) "
+                    "OR EXISTS (SELECT 1 FROM chat_members "
+                    "WHERE chat_members.chat_id=chats.id AND chat_members.user_id=?) "
+                    "ORDER BY chats.id",
+                    (user_id, user_id),
                 )
             ]
             try:
@@ -165,7 +171,20 @@ class ClientBridgeSchema:
                     "now": now,
                     "users": [
                         self._world.get_user(identifier)
-                        for identifier in sorted({user_id, *(chat["bot_id"] for chat in chats)})
+                        for identifier in sorted(
+                            {
+                                user_id,
+                                *(
+                                    identifier
+                                    for chat in chats
+                                    for identifier in (
+                                        [chat["bot_id"]]
+                                        if chat["type"] == "private"
+                                        else [member["user_id"] for member in chat["members"]]
+                                    )
+                                ),
+                            }
+                        )
                     ],
                     "chats": chats,
                     "messages": messages,

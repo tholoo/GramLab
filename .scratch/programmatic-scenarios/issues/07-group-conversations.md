@@ -1,8 +1,8 @@
 # Add synthetic group conversations
 
 Type: task
-Status: ready-for-agent
-Work state: claimed
+Status: resolved
+Work state: resolved
 Blocked by: none
 
 Add a generic group-chat and membership model to the simulated World so installed consumers can
@@ -37,3 +37,13 @@ shared client bridge can represent the same group without a private-chat approxi
 
 Approved on 2026-09-13 to enable high-value cross-role consumer scenarios. The public seams are the
 World, local Bot API, authenticated scenario control, typed scenario SDK, and contained runner.
+
+Resolved on 2026-09-13 with schema 11, generic supergroup membership and multi-bot delivery,
+member-scoped client snapshots, Bot API group envelopes and `getChatMember`, group callbacks and
+edits, control/typed SDK support, and the contained `examples/group` restart journey. Red-first
+failures covered missing World creation, the one-recipient client journal, missing Bot API group
+projection, missing typed flow, group callback assumptions, and group bot edits. The neighboring
+66-case contract set passes. The complete contained non-Android gate passes 1,615 tests at 88.92%
+coverage; full Ruff lint/format, the primary 64-file type check, scoped strict typing, configuration,
+297 local Markdown links, diff validation, and the consumer-privacy scan pass. Android was not run
+and native group support is not claimed because the adapter remains private-chat-only.

@@ -41,7 +41,7 @@ Successful responses contain `schema`, `world_id` and `result`. Result values us
 world shapes, including internal chat/message IDs; they are not Bot API response objects.
 An explicit operation table exposes only:
 
-- `create_user`, `open_private_chat` and `send_message`;
+- `create_user`, `open_private_chat`, `create_group_chat`, `get_chat_member`, and `send_message`;
 - `create_callback` and `get_callback`;
 - `advance_time`, `history`, `snapshot` and `events`.
 
@@ -64,7 +64,7 @@ socket timeout. Disconnects produce no access tracebacks, and service exit joins
 ## Ordering and recovery limits
 
 Each operation uses the existing public world transaction; multiple HTTP writers share SQLite's
-committed event order. This does not introduce a new state authority or change the storage schema.
+committed event order. The control service does not introduce a second state authority.
 `snapshot` retains its existing metadata/users/chats shape; history and events are separate reads,
 not an atomic bundle. Android continues using its persona snapshot/event interface.
 
@@ -73,6 +73,10 @@ operations are not deduplicated. If a connection fails after sending a mutation,
 treat the outcome as uncertain and inspect state rather than automatically retrying. A durable
 general command journal remains open; the [SDK exception](scenario-sdk.md#failure-contract) now
 explicitly carries this uncertainty and never triggers an automatic retry.
+
+Group creation is an additive schema-1 operation. Negative group chat IDs are accepted by group
+history, sends, callbacks, membership reads, captures, and simulation interactions. See
+[synthetic group conversations](group-conversations.md) for membership and fidelity limits.
 
 ## Evidence and reproduction
 

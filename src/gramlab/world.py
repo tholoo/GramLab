@@ -71,7 +71,7 @@ _CALLBACK_TABLE = """
 _CLIENT_CHANGES_TABLE = """
     CREATE TABLE client_changes (
         user_id INTEGER NOT NULL REFERENCES users(id), position INTEGER NOT NULL,
-        event_sequence INTEGER NOT NULL UNIQUE REFERENCES events(sequence),
+        event_sequence INTEGER NOT NULL REFERENCES events(sequence),
         PRIMARY KEY(user_id, position)
     )
 """
@@ -82,6 +82,13 @@ _CLIENT_SENDS_TABLE = """
         request_body TEXT NOT NULL, body TEXT NOT NULL, position INTEGER NOT NULL,
         PRIMARY KEY(user_id, chat_id, request_id),
         FOREIGN KEY(user_id, position) REFERENCES client_changes(user_id, position)
+    )
+"""
+_CHATS_TABLE = """
+    CREATE TABLE chats (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        bot_id INTEGER NOT NULL REFERENCES users(id)
     )
 """
 
@@ -124,6 +131,15 @@ _MEDIA_GROUP_MEMBERS_TABLE = (
     "PRIMARY KEY(group_id, ordinal), UNIQUE(chat_id, message_id), "
     "FOREIGN KEY(group_id, chat_id) REFERENCES media_groups(id, chat_id), "
     "FOREIGN KEY(chat_id, message_id) REFERENCES messages(chat_id, id))"
+)
+_GROUP_CHATS_TABLE = (
+    "CREATE TABLE group_chats (chat_id INTEGER PRIMARY KEY REFERENCES chats(id), "
+    "title TEXT NOT NULL)"
+)
+_CHAT_MEMBERS_TABLE = (
+    "CREATE TABLE chat_members (chat_id INTEGER NOT NULL REFERENCES group_chats(chat_id), "
+    "user_id INTEGER NOT NULL REFERENCES users(id), status TEXT NOT NULL "
+    "CHECK(status IN ('creator','administrator','member')), PRIMARY KEY(chat_id, user_id))"
 )
 
 
@@ -186,12 +202,7 @@ class World:
                 CREATE TABLE client_tokens (
                     digest TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id)
                 );
-                CREATE TABLE chats (
-                    id INTEGER PRIMARY KEY,
-                    user_id INTEGER NOT NULL REFERENCES users(id),
-                    bot_id INTEGER NOT NULL REFERENCES users(id),
-                    UNIQUE(user_id, bot_id)
-                );
+                {_CHATS_TABLE};
                 CREATE TABLE messages (
                     chat_id INTEGER NOT NULL REFERENCES chats(id),
                     id INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(chat_id, id)
@@ -253,7 +264,9 @@ class World:
                 INSERT INTO media_group_counter VALUES (1, 0);
                 {_MEDIA_GROUPS_TABLE};
                 {_MEDIA_GROUP_MEMBERS_TABLE};
-                PRAGMA user_version=10;
+                {_GROUP_CHATS_TABLE};
+                {_CHAT_MEMBERS_TABLE};
+                PRAGMA user_version=11;
             """  # noqa: S608
                 )
                 connection.execute(
@@ -409,7 +422,41 @@ class World:
                         if connection.execute("PRAGMA foreign_key_check").fetchall():
                             raise ValueError("World album migration violates foreign keys")
                         connection.execute("PRAGMA user_version=10")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 10:
+            if connection.execute("PRAGMA user_version").fetchone()[0] == 10:
+                connection.execute("PRAGMA foreign_keys=OFF")
+                try:
+                    with connection:
+                        connection.execute("BEGIN IMMEDIATE")
+                        if connection.execute("PRAGMA user_version").fetchone()[0] == 10:
+                            connection.execute(
+                                "CREATE TEMP TABLE client_changes_v10 AS "
+                                "SELECT user_id, position, event_sequence FROM client_changes"
+                            )
+                            connection.execute(
+                                "CREATE TEMP TABLE chats_v10 AS "
+                                "SELECT id, user_id, bot_id FROM chats"
+                            )
+                            connection.execute("DROP TABLE client_changes")
+                            connection.execute("DROP TABLE chats")
+                            connection.execute(_CHATS_TABLE)
+                            connection.execute(
+                                "INSERT INTO chats SELECT id, user_id, bot_id FROM chats_v10"
+                            )
+                            connection.execute("DROP TABLE chats_v10")
+                            connection.execute(_CLIENT_CHANGES_TABLE)
+                            connection.execute(
+                                "INSERT INTO client_changes "
+                                "SELECT user_id, position, event_sequence FROM client_changes_v10"
+                            )
+                            connection.execute("DROP TABLE client_changes_v10")
+                            connection.execute(_GROUP_CHATS_TABLE)
+                            connection.execute(_CHAT_MEMBERS_TABLE)
+                            if connection.execute("PRAGMA foreign_key_check").fetchall():
+                                raise ValueError("World group-chat migration violates foreign keys")
+                            connection.execute("PRAGMA user_version=11")
+                finally:
+                    connection.execute("PRAGMA foreign_keys=ON")
+            if connection.execute("PRAGMA user_version").fetchone()[0] != 11:
                 raise ValueError("Unsupported world schema")
         except BaseException:
             connection.close()
@@ -464,15 +511,83 @@ class World:
         if user["is_bot"] or not bot["is_bot"]:
             raise ValueError("Private bot chats require a virtual user and a bot")
         with self._connection:
-            inserted = self._connection.execute(
-                "INSERT OR IGNORE INTO chats(user_id, bot_id) VALUES (?, ?)", (user_id, bot_id)
-            )
+            self._connection.execute("BEGIN IMMEDIATE")
             row = self._connection.execute(
-                "SELECT id FROM chats WHERE user_id=? AND bot_id=?", (user_id, bot_id)
+                "SELECT id FROM chats WHERE user_id=? AND bot_id=? AND NOT EXISTS "
+                "(SELECT 1 FROM group_chats WHERE group_chats.chat_id=chats.id)",
+                (user_id, bot_id),
             ).fetchone()
+            inserted = row is None
+            if inserted:
+                cursor = self._connection.execute(
+                    "INSERT INTO chats(user_id, bot_id) VALUES (?, ?)", (user_id, bot_id)
+                )
+                row = (cursor.lastrowid,)
             chat = {"id": row[0], "type": "private", "user_id": user_id, "bot_id": bot_id}
-            if inserted.rowcount:
+            if inserted:
                 self._emit("chat.created", chat)
+        return chat
+
+    def create_group_chat(
+        self,
+        *,
+        title: str,
+        creator_id: int,
+        member_ids: list[int],
+        bot_ids: list[int],
+    ) -> dict[str, Any]:
+        if not isinstance(title, str) or not 1 <= len(title.strip()) <= 255:
+            raise ValueError("Group title must contain 1 to 255 characters")
+        title.encode("utf-8", errors="strict")
+        if not isinstance(member_ids, list) or not isinstance(bot_ids, list) or not bot_ids:
+            raise ValueError("Group members and at least one bot must be explicit lists")
+        identifiers = [creator_id, *member_ids, *bot_ids]
+        if any(type(identifier) is not int or identifier <= 0 for identifier in identifiers):
+            raise ValueError("Group member IDs must be positive integers")
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError("Group memberships must not repeat")
+        creator = self.get_user(creator_id)
+        members = [self.get_user(identifier) for identifier in member_ids]
+        bots = [self.get_user(identifier) for identifier in bot_ids]
+        if creator["is_bot"] or any(member["is_bot"] for member in members):
+            raise ValueError("Group creator and virtual members must not be bots")
+        if any(not bot["is_bot"] for bot in bots):
+            raise ValueError("Group bot memberships require virtual bots")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat_id = int(
+                self._connection.execute(
+                    "SELECT MIN(COALESCE(MIN(id), 0)-1, -1) FROM chats"
+                ).fetchone()[0]
+            )
+            self._connection.execute(
+                "INSERT INTO chats(id, user_id, bot_id) VALUES (?, ?, ?)",
+                (chat_id, creator_id, bot_ids[0]),
+            )
+            self._connection.execute(
+                "INSERT INTO group_chats(chat_id, title) VALUES (?, ?)",
+                (chat_id, title.strip()),
+            )
+            membership_rows = [
+                (creator_id, "creator"),
+                *((identifier, "member") for identifier in member_ids),
+                *((identifier, "member") for identifier in bot_ids),
+            ]
+            memberships = [
+                {"user_id": identifier, "status": status}
+                for identifier, status in sorted(membership_rows)
+            ]
+            self._connection.executemany(
+                "INSERT INTO chat_members(chat_id, user_id, status) VALUES (?, ?, ?)",
+                ((chat_id, item["user_id"], item["status"]) for item in memberships),
+            )
+            chat = {
+                "id": chat_id,
+                "type": "supergroup",
+                "title": title.strip(),
+                "members": memberships,
+            }
+            self._emit("chat.created", chat)
         return chat
 
     def get_user(self, user_id: int) -> dict[str, Any]:
@@ -508,18 +623,60 @@ class World:
         if type(user_id) is not int or user_id <= 0:
             raise ValueError("Invalid private chat ID")
         row = self._connection.execute(
-            "SELECT id FROM chats WHERE bot_id=? AND user_id=?", (bot_id, user_id)
+            "SELECT id FROM chats WHERE bot_id=? AND user_id=? AND NOT EXISTS "
+            "(SELECT 1 FROM group_chats WHERE group_chats.chat_id=chats.id)",
+            (bot_id, user_id),
         ).fetchone()
         if row is None:
             raise ValueError("Private chat is not available to this bot")
         return self.get_chat(row[0])
+
+    def chat_for_bot(self, bot_id: int, chat_id: int) -> dict[str, Any]:
+        bot = self.get_user(bot_id)
+        if not bot["is_bot"]:
+            raise ValueError("Only virtual bots can access Bot API chats")
+        if type(chat_id) is not int or chat_id == 0 or not -(2**63) < chat_id < 2**63:
+            raise ValueError("Invalid chat ID")
+        if chat_id > 0:
+            return self.private_chat_for_bot(bot_id, chat_id)
+        chat = self.get_chat(chat_id)
+        member = self._connection.execute(
+            "SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?",
+            (chat_id, bot_id),
+        ).fetchone()
+        if chat["type"] != "supergroup" or member is None:
+            raise ValueError("Group chat is not available to this bot")
+        return chat
+
+    def _require_chat_bot(self, chat_id: int, bot_id: int) -> dict[str, Any]:
+        chat = self.get_chat(chat_id)
+        if chat["type"] == "private":
+            if bot_id != chat["bot_id"]:
+                raise ValueError("Private chat is not available to this bot")
+            return chat
+        if not self.get_user(bot_id)["is_bot"] or not any(
+            member["user_id"] == bot_id for member in chat["members"]
+        ):
+            raise ValueError("Group chat is not available to this bot")
+        return chat
 
     def client_visible_users(self, user_id: int) -> list[dict[str, Any]]:
         identifiers = {user_id}
         identifiers.update(
             row[0]
             for row in self._connection.execute(
-                "SELECT bot_id FROM chats WHERE user_id=?", (user_id,)
+                "SELECT bot_id FROM chats WHERE user_id=? AND NOT EXISTS "
+                "(SELECT 1 FROM group_chats WHERE group_chats.chat_id=chats.id)",
+                (user_id,),
+            )
+        )
+        identifiers.update(
+            row[0]
+            for row in self._connection.execute(
+                "SELECT peer.user_id FROM chat_members AS own "
+                "JOIN chat_members AS peer ON peer.chat_id=own.chat_id "
+                "WHERE own.user_id=?",
+                (user_id,),
             )
         )
         return [self.get_user(identifier) for identifier in sorted(identifiers)]
@@ -598,14 +755,47 @@ class World:
         ]
 
     def get_chat(self, chat_id: int) -> dict[str, Any]:
-        if type(chat_id) is not int or not 0 < chat_id < 2**63:
+        if type(chat_id) is not int or chat_id == 0 or not -(2**63) < chat_id < 2**63:
             raise ValueError("Invalid chat ID")
+        group = self._connection.execute(
+            "SELECT title FROM group_chats WHERE chat_id=?", (chat_id,)
+        ).fetchone()
+        if group is not None:
+            memberships = [
+                {"user_id": row[0], "status": row[1]}
+                for row in self._connection.execute(
+                    "SELECT user_id, status FROM chat_members WHERE chat_id=? ORDER BY user_id",
+                    (chat_id,),
+                )
+            ]
+            return {
+                "id": chat_id,
+                "type": "supergroup",
+                "title": group[0],
+                "members": memberships,
+            }
         row = self._connection.execute(
             "SELECT user_id, bot_id FROM chats WHERE id=?", (chat_id,)
         ).fetchone()
         if row is None:
             raise ValueError("Unknown chat")
         return {"id": chat_id, "type": "private", "user_id": row[0], "bot_id": row[1]}
+
+    def get_chat_member(self, chat_id: int, user_id: int) -> dict[str, Any]:
+        chat = self.get_chat(chat_id)
+        if chat["type"] != "supergroup":
+            raise ValueError("Chat membership lookup requires a group")
+        user = self.get_user(user_id)
+        row = self._connection.execute(
+            "SELECT status FROM chat_members WHERE chat_id=? AND user_id=?",
+            (chat_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("User is not a member of this group")
+        result = {"user": user, "status": row[0]}
+        if row[0] in {"creator", "administrator"}:
+            result["is_anonymous"] = False
+        return result
 
     def register_custom_emoji(
         self,
@@ -776,8 +966,18 @@ class World:
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            if reply_markup is not None and sender_id != self.get_chat(chat_id)["bot_id"]:
-                raise ValueError("Only bots can attach inline keyboards")
+            if reply_markup is not None:
+                chat = self.get_chat(chat_id)
+                allowed_bot = (
+                    sender_id == chat["bot_id"]
+                    if chat["type"] == "private"
+                    else any(
+                        member["user_id"] == sender_id and self.get_user(sender_id)["is_bot"]
+                        for member in chat["members"]
+                    )
+                )
+                if not allowed_bot:
+                    raise ValueError("Only bots can attach inline keyboards")
             content: dict[str, Any] = {"text": text}
             if keyboard is not None:
                 content["reply_markup"] = keyboard
@@ -799,8 +999,9 @@ class World:
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            if sender_id != self.get_chat(chat_id)["bot_id"]:
+            if not self.get_user(sender_id)["is_bot"]:
                 raise ValueError("Only bots can send rich messages")
+            self._require_chat_bot(chat_id, sender_id)
             used: set[str] = set()
 
             def resolve(value: Any) -> dict[str, Any]:
@@ -989,9 +1190,7 @@ class World:
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            chat = self.get_chat(chat_id)
-            if bot_id != chat["bot_id"]:
-                raise ValueError("Private chat is not available to this bot")
+            self._require_chat_bot(chat_id, bot_id)
             message = self.get_message(chat_id, message_id)
             if "photo" in message:
                 raise ValueError("GRAMLAB_UNSUPPORTED: editing ordinary photo messages")
@@ -1065,9 +1264,7 @@ class World:
         reply_markup: dict[str, Any] | None,
     ) -> dict[str, Any]:
         message = self.get_message(chat_id, message_id)
-        chat = self.get_chat(chat_id)
-        if bot_id != chat["bot_id"]:
-            raise ValueError("Private chat is not available to this bot")
+        self._require_chat_bot(chat_id, bot_id)
         if message["sender_id"] != bot_id:
             raise ValueError("Only the sending bot can edit this message")
         if "media_group_id" in message:
@@ -1271,9 +1468,7 @@ class World:
         keyboard = _inline_keyboard(reply_markup)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            chat = self.get_chat(chat_id)
-            if sender_id != chat["bot_id"]:
-                raise ValueError("Only chat bots can send photos")
+            self._require_chat_bot(chat_id, sender_id)
             media = photo.get("media") if isinstance(photo, dict) else None
             expected = (
                 {media.removeprefix("attach://")}
@@ -1384,9 +1579,7 @@ class World:
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            chat = self.get_chat(chat_id)
-            if sender_id != chat["bot_id"]:
-                raise ValueError("Only chat bots can send media groups")
+            self._require_chat_bot(chat_id, sender_id)
             resolved: list[dict[str, Any]] = []
             logical_size = 0
             for item_kind, value, caption, formatting in prepared:
@@ -1544,9 +1737,7 @@ class World:
             raise ValueError("Document uploads must exactly match the attachment")
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            chat = self.get_chat(chat_id)
-            if sender_id != chat["bot_id"]:
-                raise ValueError("Only chat bots can send documents")
+            self._require_chat_bot(chat_id, sender_id)
             resolved = self._resolve_document(sender_id, document, uploads)
             content: dict[str, Any] = {"text": "", "document": resolved}
             if caption is not None:
@@ -1753,10 +1944,17 @@ class World:
             raise ValueError("Callback data must contain 1 to 64 UTF-8 bytes")
         self.get_user(user_id)
         chat = self.get_chat(chat_id)
-        if chat["user_id"] != user_id:
+        if chat["type"] == "private":
+            available = chat["user_id"] == user_id
+        else:
+            available = any(member["user_id"] == user_id for member in chat["members"])
+        if not available:
             raise ValueError("Callback chat is not available to this persona")
         message = self.get_message(chat_id, message_id)
-        if message["sender_id"] != chat["bot_id"]:
+        bot_id = message["sender_id"]
+        if not self.get_user(bot_id)["is_bot"] or (
+            chat["type"] == "private" and bot_id != chat["bot_id"]
+        ):
             raise ValueError("Callbacks require a message sent by the chat bot")
         command = json.dumps(
             {"chat_id": chat_id, "message_id": message_id, "data": data}, sort_keys=True
@@ -1788,7 +1986,7 @@ class World:
             (
                 callback["id"],
                 user_id,
-                chat["bot_id"],
+                bot_id,
                 request_id,
                 command,
                 json.dumps(callback),
@@ -1801,7 +1999,7 @@ class World:
         self._connection.execute(
             "INSERT INTO callback_revisions VALUES (?, ?)", (callback["id"], revision)
         )
-        self._enqueue_update(chat["bot_id"], "callback_query", callback)
+        self._enqueue_update(bot_id, "callback_query", callback)
         self._emit("callback.created", callback)
         return callback | {"answer": None}
 
@@ -1931,10 +2129,8 @@ class World:
                 for row in self._connection.execute("SELECT id, body FROM users ORDER BY id")
             ],
             "chats": [
-                {"id": row[0], "type": "private", "user_id": row[1], "bot_id": row[2]}
-                for row in self._connection.execute(
-                    "SELECT id, user_id, bot_id FROM chats ORDER BY id"
-                )
+                self.get_chat(row[0])
+                for row in self._connection.execute("SELECT id FROM chats ORDER BY id")
             ],
         }
 

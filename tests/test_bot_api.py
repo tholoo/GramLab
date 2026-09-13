@@ -29,6 +29,76 @@ def request(server, token, method, parameters=None, *, raw=None, verb="POST"):
         connection.close()
 
 
+def test_group_updates_membership_and_replies_use_the_public_group_chat(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=19, now=100) as world:
+        owner = world.create_user(first_name="Mina", username="mina")
+        member = world.create_user(first_name="Arman", username="arman")
+        bot = world.create_user(first_name="Helper", username="helper_bot", is_bot=True)
+        outsider = world.create_user(first_name="Other", username="other_bot", is_bot=True)
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=owner["id"],
+            member_ids=[member["id"]],
+            bot_ids=[bot["id"]],
+        )
+        token = world.issue_bot_token(bot["id"])
+        outsider_token = world.issue_bot_token(outsider["id"])
+        world.send_message(chat_id=group["id"], sender_id=member["id"], text="Hello group")
+
+    public_chat = {"id": -1, "type": "supergroup", "title": "Study group"}
+    with BotAPIServer(directory) as server:
+        assert request(server, token, "getUpdates") == (
+            200,
+            {
+                "ok": True,
+                "result": [
+                    {
+                        "update_id": 1,
+                        "message": {
+                            "message_id": 1,
+                            "from": member,
+                            "chat": public_chat,
+                            "date": 100,
+                            "text": "Hello group",
+                        },
+                    }
+                ],
+            },
+        )
+        assert request(server, token, "getChatMember", {"chat_id": -1, "user_id": owner["id"]}) == (
+            200,
+            {
+                "ok": True,
+                "result": {"user": owner, "status": "creator", "is_anonymous": False},
+            },
+        )
+        assert request(server, token, "sendMessage", {"chat_id": -1, "text": "Welcome"}) == (
+            200,
+            {
+                "ok": True,
+                "result": {
+                    "message_id": 2,
+                    "from": bot,
+                    "chat": public_chat,
+                    "date": 100,
+                    "text": "Welcome",
+                },
+            },
+        )
+        assert request(server, outsider_token, "sendMessage", {"chat_id": -1, "text": "No"}) == (
+            400,
+            {
+                "ok": False,
+                "error_code": 400,
+                "description": "Group chat is not available to this bot",
+            },
+        )
+
+    with World.open(directory) as world:
+        assert [message["text"] for message in world.history(-1)] == ["Hello group", "Welcome"]
+
+
 def test_inline_callback_keyboard_survives_http_persistence_and_rejects_invalid_bytes(
     tmp_path: Path,
 ) -> None:

@@ -130,6 +130,56 @@ def test_public_flow_binds_people_conversations_messages_and_callbacks(tmp_path:
         )
 
 
+def test_public_flow_binds_a_group_actor_and_uses_that_actor_for_callbacks(tmp_path: Path) -> None:
+    from gramlab import Scenario
+
+    directory = tmp_path / "world"
+    with World.create(directory, seed=8, now=100) as world:
+        bot_id = world.create_user(first_name="Echo", is_bot=True)["id"]
+    interactions = Interactions(directory, lock=threading.Lock())
+
+    with WorldControl(
+        directory,
+        bots={"echo": bot_id},
+        tap_inline_button=interactions.tap_inline_button,
+    ) as control:
+        lab = Scenario(control.base_url, capability=control.capability, world_id=control.world_id)
+        owner = lab.user("Mina")
+        actor = lab.user("Arman")
+        group = lab.group(
+            "Study group",
+            user=actor,
+            bot="echo",
+            creator=owner,
+        )
+
+        assert group.id == -1
+        assert group.raw == {
+            "id": -1,
+            "type": "supergroup",
+            "title": "Study group",
+            "members": [
+                {"user_id": bot_id, "status": "member"},
+                {"user_id": owner.id, "status": "creator"},
+                {"user_id": actor.id, "status": "member"},
+            ],
+        }
+        assert group.send("Hello").sender_id == actor.id
+        lab.send_message(
+            chat_id=group.id,
+            sender_id=bot_id,
+            text="Choose",
+            reply_markup={"inline_keyboard": [[{"text": "Continue", "callback_data": "continue"}]]},
+        )
+        callback = group.wait_for_messages(2, timeout=1)[1].inline_button(0, 0).tap().callback
+        assert (callback.user_id, callback.chat_id, callback.data) == (
+            actor.id,
+            group.id,
+            "continue",
+        )
+        assert interactions.virtual_persona == actor.id
+
+
 def test_flow_waits_are_bounded_and_report_the_last_safe_observation(tmp_path: Path) -> None:
     from gramlab import Scenario, ScenarioWaitTimeout
 

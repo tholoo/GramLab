@@ -64,15 +64,17 @@ def test_populated_v9_migrates_atomically_under_concurrent_openers_and_reopens(
             return int(connection.execute("PRAGMA user_version").fetchone()[0])
 
     with ThreadPoolExecutor(max_workers=2) as workers:
-        assert list(workers.map(open_world, range(2))) == [10, 10]
+        assert list(workers.map(open_world, range(2))) == [11, 11]
     assert legacy_rows(directory) | {} == before | {
+        "chat_members": [],
+        "group_chats": [],
         "media_group_counter": [(1, 0)],
         "media_group_members": [],
         "media_groups": [],
     }
     with closing(sqlite3.connect(directory / "world.sqlite3")) as connection:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-        assert connection.execute("PRAGMA user_version").fetchone() == (10,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (11,)
     with World.open(directory) as reopened:
         result = reopened.send_media_group(
             chat_id=1,
@@ -127,7 +129,7 @@ def test_interrupted_v9_migration_rolls_back_and_retries(
     assert database_state(directory) == before
     with World.open(directory):
         pass
-    assert database_state(directory)[0] == 10
+    assert database_state(directory)[0] == 11
 
 
 def test_fresh_schema_has_exact_album_constraints(tmp_path: Path) -> None:
@@ -136,7 +138,7 @@ def test_fresh_schema_has_exact_album_constraints(tmp_path: Path) -> None:
         pass
     with closing(sqlite3.connect(directory / "world.sqlite3")) as connection:
         connection.execute("PRAGMA foreign_keys=ON")
-        assert connection.execute("PRAGMA user_version").fetchone() == (10,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (11,)
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT * FROM media_group_counter").fetchall() == [(1, 0)]
         with pytest.raises(sqlite3.IntegrityError):
