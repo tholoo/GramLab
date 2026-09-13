@@ -770,13 +770,15 @@ def test_patch_and_fixture_freeze_bridge_v6_album_invariants() -> None:
         < patch.index("eventCursor = recovered.messagePosition;")
     )
     series = Path("clients/android/patches/series").read_text().splitlines()
-    assert series[-3:] == [
+    assert series[-4:] == [
         "0031-rich-auto-detection.patch",
         "0032-atomic-media-groups.patch",
         "0033-rich-navigation-buttons.patch",
+        "0034-synthetic-group-chats.patch",
     ]
     assert series.count("0032-atomic-media-groups.patch") == 1
     assert series.count("0033-rich-navigation-buttons.patch") == 1
+    assert series.count("0034-synthetic-group-chats.patch") == 1
     java = Path("tests/fixtures/android_media_groups/MediaGroupsCodecProbe.java").read_text()
     assert java.startswith("// SPDX-License-Identifier: GPL-2.0-or-later\n")
     assert 'Class.forName("org.telegram.gramlab.BridgeProbe")' in java

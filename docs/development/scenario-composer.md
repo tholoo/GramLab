@@ -37,10 +37,12 @@ Android results additionally retain input targeting/verification evidence, obser
 output when a launch occurred and elapsed duration. A retained first-use screen has no new launch
 output. Input duration includes launch/observation and is not a gesture-only latency measurement.
 
-The chat determines the virtual sender. Invalid chat IDs, unsupported input, stale Start Bot
-requests and typing into a new empty conversation fail before input. Composer, Start Bot and
-inline-button actions share the 64-record per-run limit and the same renderer lock as captures.
-Shared scenario clients can call concurrently, but actual guest actions execute serially.
+The chat determines the virtual sender. Private chats use their sole user; supergroups require the
+explicit bound member from `Scenario.group()`. A bot or unrelated persona cannot compose for the
+group. Invalid chat IDs, unsupported input, stale Start Bot requests and typing into a new empty
+conversation fail before input. Composer, Start Bot and inline-button actions share the 64-record
+per-run limit and the same renderer lock as captures. Shared scenario clients can call concurrently,
+but actual guest actions execute serially.
 
 Each call is a new physical or virtual action. Equal text sent twice receives distinct send
 identities. The SDK never retries after a lost response. Transport loss and backend errors report

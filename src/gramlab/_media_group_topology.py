@@ -142,7 +142,8 @@ class MediaGroupTopology:
             type(message_id) is not int
             or not 0 < message_id < 2**63
             or type(chat_id) is not int
-            or not 0 < chat_id < 2**63
+            or chat_id == 0
+            or not -(2**63) < chat_id < 2**63
             or type(sender_id) is not int
             or not 0 < sender_id < 2**63
         ):

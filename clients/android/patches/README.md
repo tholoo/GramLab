@@ -9,10 +9,9 @@ the upstream source headers. [`COPYING`](COPYING) contains the upstream GPLv2 li
 Original preparation tooling and notes retain the root MIT license. This does not relicense the
 client's separately licensed dependencies or establish distribution readiness.
 
-The current `series` contains exactly 32 patches and ends with atomic media-group delivery. The
-retained normal30 APK remains evidence for the first 30 entries only; patches 0031 and 0032 require
-the same fresh build and their focused native codec runs. No APK or binary download is distributed
-by this repository. The filenames below are presented in application order.
+The current `series` contains exactly 34 patches and ends with synthetic group-chat support. No APK
+or binary download is distributed by this repository. The filenames below are presented in
+application order.
 
 `0001-build-preparation.patch` selects only the shared client library, its existing JLatexMath
 dependency and a distinct `org.gramlab.android` application module. It pins the Gradle distribution
@@ -265,3 +264,14 @@ GramLab scenario input targets. The patch applies to the pinned source with zero
 the rebuilt APK SHA-256 is
 `23d71d51e9db7e901d44df5381f1b2b8489fef844513f00403c7792c146059c0`. Focused native codec and
 repository-owned consumer light/dark rendering checks pass.
+
+`0034-synthetic-group-chats.patch` maps a version-6 synthetic supergroup to an original Telegram
+megagroup/channel dialog. A collision-free native channel ID sits above the snapshot's visible user
+IDs while the authenticated map retains the world's negative chat ID at the public boundary.
+Snapshot history includes the group title, complete visible participant set, explicit default send
+permissions and native chat dependency. Message, callback, composer and history routing use the
+common user/channel peer boundary; group sends admit Telegram's `inputPeerUserFromMessage` only
+when its group, persona and authored source message all match. The patch changes three adapter/probe
+files and leaves original UI/resources/input handlers unchanged. The offline APK SHA-256 is
+`432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f`; focused native codec and
+public callback/edit/composer/restart acceptance pass with inspected original screenshots.

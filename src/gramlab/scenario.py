@@ -464,7 +464,13 @@ class Scenario:
         )
 
     def capture_chat(
-        self, *, chat_id: int, label: str, contains: list[str], timeout: float = 180
+        self,
+        *,
+        chat_id: int,
+        label: str,
+        contains: list[str],
+        user_id: int | None = None,
+        timeout: float = 180,
     ) -> dict[str, Any]:
         """Retain chat evidence, with original screenshots when Android mode is selected."""
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
@@ -473,7 +479,12 @@ class Scenario:
             dict[str, Any],
             self._request(
                 "capture_chat",
-                {"chat_id": chat_id, "label": label, "contains": contains},
+                {
+                    "chat_id": chat_id,
+                    "label": label,
+                    "contains": contains,
+                    **({"user_id": user_id} if user_id is not None else {}),
+                },
                 timeout=timeout,
             ),
         )
@@ -539,7 +550,9 @@ class Scenario:
             self._request("tap_rich_button", {"target_id": target_id}, timeout=timeout),
         )
 
-    def type_message(self, *, chat_id: int, text: str, timeout: float = 180) -> dict[str, Any]:
+    def type_message(
+        self, *, chat_id: int, text: str, user_id: int | None = None, timeout: float = 180
+    ) -> dict[str, Any]:
         """Compose and send text, retaining raw input and accepted send receipts.
 
         Android uses the original editable node and Send control. Each call is a new action;
@@ -550,16 +563,30 @@ class Scenario:
             raise ValueError("Composer input timeout must be finite and positive")
         return cast(
             dict[str, Any],
-            self._request("type_message", {"chat_id": chat_id, "text": text}, timeout=timeout),
+            self._request(
+                "type_message",
+                {
+                    "chat_id": chat_id,
+                    "text": text,
+                    **({"user_id": user_id} if user_id is not None else {}),
+                },
+                timeout=timeout,
+            ),
         )
 
-    def start_bot_chat(self, *, chat_id: int, timeout: float = 180) -> dict[str, Any]:
+    def start_bot_chat(
+        self, *, chat_id: int, user_id: int | None = None, timeout: float = 180
+    ) -> dict[str, Any]:
         """Press Start Bot in a new conversation, producing the ordinary /start message."""
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("Start Bot timeout must be finite and positive")
         return cast(
             dict[str, Any],
-            self._request("start_bot_chat", {"chat_id": chat_id}, timeout=timeout),
+            self._request(
+                "start_bot_chat",
+                {"chat_id": chat_id, **({"user_id": user_id} if user_id is not None else {})},
+                timeout=timeout,
+            ),
         )
 
     def events(self, *, after: int = 0) -> list[dict[str, Any]]:

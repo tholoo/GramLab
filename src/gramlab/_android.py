@@ -107,14 +107,19 @@ def _inline_matches(
     message: dict[str, Any],
     native_text: str,
     document_descriptor: dict[str, Any] | None = None,
+    *,
+    group: bool = False,
 ) -> bool:
     if "rich_message" not in message:
         if message["text"]:
             # Match the complete authored text before the pinned receipt metadata.
             # A prefix match makes a one-line message indistinguishable from a
             # different multiline message with the same first line.
+            prefix = r"[^\n]+\n" if group else ""
             return (
-                re.fullmatch(re.escape(message["text"]) + r"\nReceived at [^\n]+\n", native_text)
+                re.fullmatch(
+                    prefix + re.escape(message["text"]) + r"\nReceived at [^\n]+\n", native_text
+                )
                 is not None
             )
         if not message.get("caption"):
@@ -392,8 +397,23 @@ class Android:
                 self.observations["failure_logcat"] = _Redactor(self.secrets).text(
                     log.stdout[-65536:]
                 )
+                trace = self._adb(
+                    "shell",
+                    "run-as",
+                    "org.gramlab.android",
+                    "cat",
+                    "files/gramlab/trace.jsonl",
+                    timeout=5,
+                    check=False,
+                )
+                self.observations["failure_trace"] = (
+                    _Redactor(self.secrets).text(trace.stdout[-65536:])
+                    if trace.returncode == 0
+                    else "Unavailable"
+                )
             except (OSError, subprocess.TimeoutExpired):
                 self.observations["failure_logcat"] = "Unavailable before the run deadline"
+                self.observations["failure_trace"] = "Unavailable before the run deadline"
 
     def _open_chat(
         self, chat: dict[str, Any], *, before_launch: Callable[[], None] | None = None
@@ -422,6 +442,14 @@ class Android:
             self.secrets.append(self._capability)
             self._persona = chat["user_id"]
         with World.open(Path("world")) as world:
+            native_channel_id = None
+            if chat["type"] == "supergroup":
+                visible = world.client_snapshot(chat["user_id"], version=self._bridge_version)[
+                    "users"
+                ]
+                native_channel_id = max(user["id"] for user in visible) - chat["id"]
+                if native_channel_id >= 2**63:
+                    raise RuntimeError("Group identity exceeds the native Android range")
             configuration = {
                 "endpoint": self._bridge.base_url.replace("127.0.0.1", "10.0.2.2"),
                 "capability": self._capability,
@@ -441,6 +469,14 @@ class Android:
         )
         if before_launch is not None:
             before_launch()
+        target = (
+            ("chatId", native_channel_id)
+            if chat["type"] == "supergroup"
+            else (
+                "userId",
+                chat["bot_id"],
+            )
+        )
         launched = self._adb(
             "shell",
             "am",
@@ -451,8 +487,8 @@ class Android:
             "-a",
             "com.tmessages.openchat",
             "--el",
-            "userId",
-            str(chat["bot_id"]),
+            target[0],
+            str(target[1]),
             timeout=40,
         )
         if "Status: ok" not in launched.stdout:
@@ -471,8 +507,18 @@ class Android:
                 raise error
             if client.returncode != 0:
                 raise RuntimeError("Dedicated Android client process status was unavailable")
-            self._adb("shell", "uiautomator", "dump", "/data/local/tmp/gramlab-capture.xml")
-            ui = self._adb("shell", "cat", "/data/local/tmp/gramlab-capture.xml").stdout
+            dumped = self._adb(
+                "shell",
+                "uiautomator",
+                "dump",
+                "/data/local/tmp/gramlab-capture.xml",
+                check=False,
+            )
+            captured = self._adb("shell", "cat", "/data/local/tmp/gramlab-capture.xml", check=False)
+            if dumped.returncode != 0 or captured.returncode != 0:
+                time.sleep(0.2)
+                continue
+            ui = captured.stdout
             # UIAutomator produces this XML inside the dedicated guest; no external entities.
             nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314
             editors = [
@@ -507,7 +553,11 @@ class Android:
         started = time.monotonic()
         launched = self._open_chat(chat)
         with World.open(Path("world")) as world:
-            title = world.get_user(chat["bot_id"])["first_name"]
+            title = (
+                chat["title"]
+                if chat["type"] == "supergroup"
+                else world.get_user(chat["bot_id"])["first_name"]
+            )
         ui = self._wait_ui(contains or [title])
         nodes = list(ET.fromstring(ui).iter("node"))  # noqa: S314 — dedicated UIAutomator XML
         redactor = _Redactor(self.secrets)
@@ -569,10 +619,19 @@ class Android:
             None if text is None and self._active_chat == chat["id"] else self._open_chat(chat)
         )
         with World.open(Path("world")) as world:
-            title = world.get_user(chat["bot_id"])["first_name"]
+            title = (
+                chat["title"]
+                if chat["type"] == "supergroup"
+                else world.get_user(chat["bot_id"])["first_name"]
+            )
         ui = self._wait_ui([title], start_control=True) if text is None else self._wait_ui([title])
         with World.open(Path("world")) as world:
-            if world.get_chat(chat["id"]) != chat:
+            canonical_chat = (
+                {key: value for key, value in chat.items() if key != "user_id"}
+                if chat["type"] == "supergroup"
+                else chat
+            )
+            if world.get_chat(chat["id"]) != canonical_chat:
                 raise RuntimeError("Composer chat changed before input")
             if text is None and world.history(chat["id"]):
                 raise RuntimeError("Start Bot conversation changed before input")
@@ -718,7 +777,12 @@ class Android:
                 node
                 for node in tree.iter("node")
                 if node.get("package") == "org.gramlab.android"
-                and _inline_matches(message, node.get("text", ""), document_descriptor)
+                and _inline_matches(
+                    message,
+                    node.get("text", ""),
+                    document_descriptor,
+                    group=chat["type"] == "supergroup",
+                )
             ]
             if len(rows) > 1:
                 raise RuntimeError("Inline message identity must have one accessible match")
@@ -753,7 +817,12 @@ class Android:
                     item_descriptor = world.granted_document(
                         chat["user_id"], item["document"]["document_id"]
                     )[0]
-                if _inline_matches(item, native_text, item_descriptor):
+                if _inline_matches(
+                    item,
+                    native_text,
+                    item_descriptor,
+                    group=chat["type"] == "supergroup",
+                ):
                     same_text.append(item)
             if len(same_text) != 1:
                 raise RuntimeError("Inline message text is ambiguous in this chat")

@@ -126,6 +126,67 @@ def test_group_member_message_reaches_each_bot_and_survives_restart(tmp_path: Pa
         assert restarted.history(group["id"]) == [incoming]
 
 
+def test_group_member_client_send_is_idempotent_and_survives_restart(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=32, now=1_700_000_000) as world:
+        owner = world.create_user(first_name="Mina")
+        member = world.create_user(first_name="Arman")
+        bot = world.create_user(first_name="Helper", is_bot=True)
+        outsider = world.create_user(first_name="Outsider")
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=owner["id"],
+            member_ids=[member["id"]],
+            bot_ids=[bot["id"]],
+        )
+        sent = world.send_client_message(
+            user_id=member["id"],
+            chat_id=group["id"],
+            request_id="member-native-send",
+            text="Sent from the group client",
+            version=6,
+        )
+        assert sent["message"] == {
+            "id": 1,
+            "chat_id": -1,
+            "sender_id": member["id"],
+            "date": 1_700_000_000,
+            "text": "Sent from the group client",
+        }
+        assert (
+            world.send_client_message(
+                user_id=member["id"],
+                chat_id=group["id"],
+                request_id="member-native-send",
+                text="Sent from the group client",
+                version=6,
+            )
+            == sent
+        )
+        for rejected_user in (bot["id"], outsider["id"]):
+            with pytest.raises(ValueError, match="not available to this persona"):
+                world.send_client_message(
+                    user_id=rejected_user,
+                    chat_id=group["id"],
+                    request_id=f"rejected-{rejected_user}",
+                    text="No",
+                    version=6,
+                )
+
+    with World.open(directory) as restarted:
+        assert (
+            restarted.send_client_message(
+                user_id=member["id"],
+                chat_id=group["id"],
+                request_id="member-native-send",
+                text="Sent from the group client",
+                version=6,
+            )
+            == sent
+        )
+        assert restarted.history(group["id"]) == [sent["message"]]
+
+
 def test_group_creation_rejects_ambiguous_or_invalid_memberships(tmp_path: Path) -> None:
     with World.create(tmp_path / "world", seed=33, now=1_700_000_000) as world:
         owner = world.create_user(first_name="Mina")
@@ -219,3 +280,24 @@ def test_group_member_callback_targets_the_group_bot_message(tmp_path: Path) -> 
                 data="continue",
                 request_id="outsider-callback",
             )
+
+
+def test_group_messages_are_valid_complete_bridge_v6_snapshot_inputs(tmp_path: Path) -> None:
+    with World.create(tmp_path / "world", seed=34, now=1_700_000_000) as world:
+        owner = world.create_user(first_name="Mina")
+        member = world.create_user(first_name="Arman")
+        bot = world.create_user(first_name="Helper", is_bot=True)
+        group = world.create_group_chat(
+            title="Study group",
+            creator_id=owner["id"],
+            member_ids=[member["id"]],
+            bot_ids=[bot["id"]],
+        )
+        expected = world.send_message(
+            chat_id=group["id"], sender_id=bot["id"], text="Ready for the group"
+        )
+
+        snapshot = world.client_snapshot(member["id"], version=6)
+
+        assert snapshot["chats"] == [group]
+        assert snapshot["messages"] == [expected]

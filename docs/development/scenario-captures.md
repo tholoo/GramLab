@@ -41,8 +41,9 @@ AVD with private files; it does not attach to a personal device.
 Android starts a bounded local screen recording for failure diagnosis. Successful operations
 discard it; a failed capture or run retains `captures/failure-capture.mp4` or
 `captures/failure-run.mp4` when the guest produced a valid bounded MP4. A vanished client also
-records the crash log buffer and recent logcat text. These are synthetic local artifacts and are
-not embedded as playable media in the HTML report.
+records the crash log buffer, recent logcat text and the bounded redacted GramLab semantic request
+trace when it remains readable. These are synthetic local artifacts and are not embedded as
+playable media in the HTML report.
 
 ## Capture contract
 
@@ -80,9 +81,10 @@ exhausted limits are rejected before changing capture evidence. Existing capture
 overwritten. Callers cannot supply an ADB command, guest path or host output path.
 
 The persistent supervisor starts the guest before consumer processes. Each capture opens the
-selected user's chat. Changing persona clears only this run's dedicated client data and supplies
-a new persona capability. Capturing the same persona cold-restarts the client without clearing
-its cache. Captures are serialized. Do not create the guest from a short-lived HTTP handler:
+selected user's chat; a group capture requires its explicitly bound member. Changing persona clears
+only this run's dedicated client data and supplies a new persona capability. Capturing the same
+persona cold-restarts the client without clearing its cache. Captures are serialized. Do not create
+the guest from a short-lived HTTP handler:
 that caused it to die between requests and is covered by the repeated-capture integration test.
 
 The capture socket timeout defaults to 180 seconds and can be adjusted; the manifest's whole-run

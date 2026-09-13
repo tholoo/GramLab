@@ -1,10 +1,10 @@
 # Android build preparation
 
-Status: the current source preparation applies the complete ordered 30-patch queue to the pinned
-Telegram Android revision. A reviewed local x86_64 normal30 APK has complete source provenance and
-passes the recorded bridge-v5 document workflows in the original client. The repository does not
-contain or publish that APK; its retained hash is evidence, not a download or a promise that a new
-locally signed build will be byte-identical.
+Status: the current source preparation applies the complete ordered 34-patch queue to the pinned
+Telegram Android revision. A reviewed local x86_64 build through patch 0034 has complete source
+provenance and passes the recorded bridge-v6 group workflow in the original client. The repository
+does not contain or publish that APK; its retained hash is evidence, not a download or a promise
+that a new locally signed build will be byte-identical.
 
 Read [licensing](licensing.md), [upstream maintenance](upstream.md), and
 [offline safety](offline-safety.md) first. Dependency provisioning can access public registries;
@@ -144,6 +144,13 @@ The build does not expose KVM or start an emulator. A missing cache entry must f
 separately and repeat the contained build after reviewing any dependency changes.
 
 ## Current evidence
+
+- Patch 0034's reviewed three-file stage applies with exact pre/postimage SHA-256 manifests and no
+  fuzz or offsets. Its locally built offline APK SHA-256 is
+  `432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f`; the focused group codec and
+  public callback/edit/composer/restart run pass on Android profile SHA-256
+  `fe878c649232bd571a1a64f075a79c11f5db19d30b6e3b04c9573307da83c68f`. See
+  [synthetic group conversations](group-conversations.md) for scope and retained evidence.
 
 - The retained normal30 source-provenance record names upstream revision
   `62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c` and contains all 30 ordered patch filenames and

@@ -78,7 +78,9 @@ class Captures:
         self.failed = False
         self._lock = lock if lock is not None else threading.Lock()
 
-    def capture_chat(self, *, chat_id: int, label: str, contains: list[str]) -> dict[str, Any]:
+    def capture_chat(
+        self, *, chat_id: int, label: str, contains: list[str], user_id: int | None = None
+    ) -> dict[str, Any]:
         if (
             type(chat_id) is not int
             or not isinstance(label, str)
@@ -96,6 +98,13 @@ class Captures:
                 chats = [chat for chat in world.snapshot()["chats"] if chat["id"] == chat_id]
                 if not chats:
                     raise ValueError("Capture chat does not exist")
+                chat = chats[0]
+                selected_user = chat["user_id"] if chat["type"] == "private" else user_id
+                if selected_user is None or (
+                    chat["type"] == "supergroup"
+                    and not any(member["user_id"] == selected_user for member in chat["members"])
+                ):
+                    raise ValueError("Capture requires a group member persona")
                 history = world.history(chat_id)
             if not contains and history:
                 raise ValueError("An empty expected-text list requires an empty chat")
@@ -112,7 +121,11 @@ class Captures:
             }
             if self.render is not None:
                 try:
-                    record["android"] = self.render(chats[0], label, contains)
+                    record["android"] = self.render(
+                        chat if chat["type"] == "private" else chat | {"user_id": selected_user},
+                        label,
+                        contains,
+                    )
                     record["rendered"] = True
                 except Exception as error:
                     self.failed = True

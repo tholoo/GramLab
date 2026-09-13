@@ -81,21 +81,39 @@ class Interactions:
             self._rich_reserved -= 1
             self.records.append(receipt)
 
-    def type_message(self, *, chat_id: int, text: str) -> dict[str, Any]:
-        return self._composer_action(chat_id, text, composer_text(text), start=False)
+    def type_message(
+        self, *, chat_id: int, text: str, user_id: int | None = None
+    ) -> dict[str, Any]:
+        return self._composer_action(
+            chat_id, text, composer_text(text), user_id=user_id, start=False
+        )
 
-    def start_bot_chat(self, *, chat_id: int) -> dict[str, Any]:
-        return self._composer_action(chat_id, "/start", {"text": "/start"}, start=True)
+    def start_bot_chat(self, *, chat_id: int, user_id: int | None = None) -> dict[str, Any]:
+        return self._composer_action(
+            chat_id, "/start", {"text": "/start"}, user_id=user_id, start=True
+        )
 
     def _composer_action(
-        self, chat_id: int, text: str, message: dict[str, Any], *, start: bool
+        self,
+        chat_id: int,
+        text: str,
+        message: dict[str, Any],
+        *,
+        user_id: int | None,
+        start: bool,
     ) -> dict[str, Any]:
-        if type(chat_id) is not int or not 0 < chat_id < 2**63:
-            raise ValueError("Composer requires a positive integer chat identifier")
+        if type(chat_id) is not int or chat_id == 0 or not -(2**63) < chat_id < 2**63:
+            raise ValueError("Composer requires a signed nonzero integer chat identifier")
         with self._lock:
             self._check_capacity()
             with World.open(self.directory) as world:
                 chat = world.get_chat(chat_id)
+                selected_user = chat["user_id"] if chat["type"] == "private" else user_id
+                if selected_user is None or (
+                    chat["type"] == "supergroup"
+                    and not any(member["user_id"] == selected_user for member in chat["members"])
+                ):
+                    raise ValueError("Composer requires a group member persona")
                 history = world.history(chat_id)
                 if start and history:
                     raise ValueError("Start Bot requires a new empty conversation")
@@ -108,10 +126,10 @@ class Interactions:
                     "native": self.compose is not None,
                 }
                 if self.compose is None:
-                    self.select_virtual_persona(chat["user_id"])
+                    self.select_virtual_persona(selected_user)
                     record["sends"] = [
                         world.send_client_message(
-                            user_id=chat["user_id"],
+                            user_id=selected_user,
                             chat_id=chat_id,
                             request_id=uuid.uuid4().hex,
                             **message,
@@ -122,9 +140,23 @@ class Interactions:
                         if start:
                             if self.start_chat is None:
                                 raise RuntimeError("Native Start Bot handler is unavailable")
-                            record.update(self.start_chat(chat))
+                            record.update(
+                                self.start_chat(
+                                    chat
+                                    if chat["type"] == "private"
+                                    else chat | {"user_id": selected_user}
+                                )
+                            )
                         else:
-                            record.update(self.compose(chat, text, message))
+                            record.update(
+                                self.compose(
+                                    chat
+                                    if chat["type"] == "private"
+                                    else chat | {"user_id": selected_user},
+                                    text,
+                                    message,
+                                )
+                            )
                     except Exception as error:
                         self.failed = True
                         record["failure"] = type(error).__name__
@@ -190,10 +222,15 @@ class Interactions:
                         version=self._bridge_version,
                     )
                 else:
-                    if chat["type"] == "supergroup":
-                        raise ValueError("Android group interactions are not yet supported")
                     try:
-                        observed = self.tap(chat, message, row, column)
+                        observed = self.tap(
+                            chat
+                            if chat["type"] == "private"
+                            else chat | {"user_id": selected_user},
+                            message,
+                            row,
+                            column,
+                        )
                         record.update(observed)
                         record["native"] = True
                     except Exception as error:

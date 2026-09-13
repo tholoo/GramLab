@@ -71,6 +71,19 @@ def test_plain_multiline_identity_does_not_match_another_messages_first_line() -
     assert not _inline_matches(first_line_only, native_text)
 
 
+def test_group_inline_identity_requires_one_sender_line_and_complete_message() -> None:
+    message = {"text": "Ready for the group"}
+    native = "helper\nReady for the group\nReceived at 10:13 PM\n"
+
+    assert _inline_matches(message, native, group=True)
+    assert not _inline_matches(message, native)
+    assert not _inline_matches(
+        message,
+        "helper\nReady for another group\nReceived at 10:13 PM\n",
+        group=True,
+    )
+
+
 def _stage_versioned_message(world: World, kind: str) -> tuple[dict[str, Any], int]:
     user = world.create_user(first_name="Sara")
     bot = world.create_user(first_name="Bot", is_bot=True)

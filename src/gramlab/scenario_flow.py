@@ -206,18 +206,28 @@ class Conversation:
             chat_id=self.id,
             label=label,
             contains=contains,
+            **({"user_id": self.user.id} if self._body["type"] == "supergroup" else {}),
             timeout=timeout,
         )
         return _capture(self, body)
 
     def type(self, text: str, *, timeout: float = 180) -> InteractionReceipt:
         """Enter text through the selected client mode and retain its receipt."""
-        body = self._scenario.type_message(chat_id=self.id, text=text, timeout=timeout)
+        body = self._scenario.type_message(
+            chat_id=self.id,
+            text=text,
+            **({"user_id": self.user.id} if self._body["type"] == "supergroup" else {}),
+            timeout=timeout,
+        )
         return InteractionReceipt(self, copy.deepcopy(body))
 
     def start(self, *, timeout: float = 180) -> InteractionReceipt:
         """Press Start Bot through the selected client mode and retain its receipt."""
-        body = self._scenario.start_bot_chat(chat_id=self.id, timeout=timeout)
+        body = self._scenario.start_bot_chat(
+            chat_id=self.id,
+            **({"user_id": self.user.id} if self._body["type"] == "supergroup" else {}),
+            timeout=timeout,
+        )
         return InteractionReceipt(self, copy.deepcopy(body))
 
 

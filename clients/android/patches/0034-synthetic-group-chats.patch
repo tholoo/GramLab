@@ -1,0 +1,548 @@
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+index 2df822c..2864925 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabBridge.java
+@@ -42,11 +42,14 @@ public final class GramLabBridge {
+         public final TLRPC.TL_messages_dialogs dialogs;
+         public final Map<Long, TLRPC.TL_messages_messages> histories;
+         public final Map<Long, Long> chatIdsByPeer;
++        private final Map<Long, ChatBinding> chats;
++        private final Set<Long> requiredUsers;
+ 
+         private Snapshot(String worldId, long persona, long cursor, int now, int messagePosition,
+                 ArrayList<SendResult> sends,
+                 TLRPC.TL_messages_dialogs dialogs,
+                 Map<Long, TLRPC.TL_messages_messages> histories, Map<Long, Long> chatIdsByPeer,
++                Map<Long, ChatBinding> chats, Set<Long> requiredUsers,
+                 IdentityKnowledge identities) {
+             this.identities = identities;
+             this.worldId = worldId;
+@@ -58,6 +61,8 @@ public final class GramLabBridge {
+             this.dialogs = dialogs;
+             this.histories = Collections.unmodifiableMap(histories);
+             this.chatIdsByPeer = Collections.unmodifiableMap(chatIdsByPeer);
++            this.chats = Collections.unmodifiableMap(chats);
++            this.requiredUsers = Collections.unmodifiableSet(requiredUsers);
+         }
+     }
+ 
+@@ -83,6 +88,14 @@ public final class GramLabBridge {
+         return result;
+     }
+ 
++    static long chatIdentifier(JSONObject value, String key) throws JSONException {
++        Object number = value.opt(key);
++        require(number instanceof Integer || number instanceof Long);
++        long result = ((Number) number).longValue();
++        require(result != 0 && result != Long.MIN_VALUE);
++        return result;
++    }
++
+     private static long nonnegative(JSONObject value, String key) throws JSONException {
+         Object number = value.get(key);
+         require(number instanceof Integer || number instanceof Long);
+@@ -103,6 +116,33 @@ public final class GramLabBridge {
+         return peer;
+     }
+ 
++    private static TLRPC.TL_peerChannel channelPeer(long dialogId) {
++        require(dialogId < 0 && dialogId != Long.MIN_VALUE);
++        TLRPC.TL_peerChannel peer = new TLRPC.TL_peerChannel();
++        peer.channel_id = -dialogId;
++        return peer;
++    }
++
++    public static long dialogId(TLRPC.InputPeer peer) {
++        if (peer instanceof TLRPC.TL_inputPeerUser && peer.user_id > 0) return peer.user_id;
++        if (peer instanceof TLRPC.TL_inputPeerChannel && peer.channel_id > 0) return -peer.channel_id;
++        throw new UnsupportedOperationException();
++    }
++
++    private static final class ChatBinding {
++        final long chatId;
++        final long dialogId;
++        final Set<Long> participants;
++        final Set<Long> bots;
++
++        ChatBinding(long chatId, long dialogId, Set<Long> participants, Set<Long> bots) {
++            this.chatId = chatId;
++            this.dialogId = dialogId;
++            this.participants = Collections.unmodifiableSet(participants);
++            this.bots = Collections.unmodifiableSet(bots);
++        }
++    }
++
+     private static void messageFields(JSONObject record, int version) {
+         if (version == 6) {
+             fields(record, "id", "chat_id", "sender_id", "date", "text", "reply_markup", "edit_date",
+@@ -128,7 +168,7 @@ public final class GramLabBridge {
+         }
+     }
+ 
+-    private static TLRPC.TL_message message(JSONObject record, long persona, long bot,
++    private static TLRPC.TL_message message(JSONObject record, long persona, ChatBinding chat,
+             Set<Long> mentionUsers, long revision, int version) throws JSONException {
+         messageFields(record, version);
+         boolean hasPhoto = record.has("photo");
+@@ -140,7 +180,7 @@ public final class GramLabBridge {
+         require(!hasMedia || !record.has("entities"));
+         require(!record.has("rich_message") || !hasMedia && !record.has("caption") && !record.has("caption_entities"));
+         long sender = identifier(record, "sender_id");
+-        require(sender == persona || sender == bot);
++        require(chat.participants.contains(sender));
+         TLRPC.TL_message message = new TLRPC.TL_message();
+         message.id = integer(record, "id");
+         require(message.id > 0);
+@@ -149,17 +189,18 @@ public final class GramLabBridge {
+         // No peer read receipt exists in the supported world profile. Keep the stock
+         // send acknowledgment's unread state when rebuilding the replica from history.
+         message.unread = message.out;
+-        message.peer_id = peer(message.out ? bot : persona);
+-        message.dialog_id = bot;
++        message.peer_id = chat.dialogId < 0 ? channelPeer(chat.dialogId)
++                : peer(message.out ? chat.dialogId : persona);
++        message.dialog_id = chat.dialogId;
+         message.date = integer(record, "date");
+         message.message = record.getString("text");
+         if (record.has("rich_message")) {
+-            require(sender == bot && message.message.isEmpty() && !record.has("entities"));
++            require(chat.bots.contains(sender) && message.message.isEmpty() && !record.has("entities"));
+             message.rich_message = GramLabRichMessage.decode(record.getJSONObject("rich_message"), mentionUsers, revision);
+             message.flags2 |= 1 << 13;
+         } else require(hasMedia || !message.message.isEmpty());
+         if (record.has("photo")) {
+-            require(sender == bot && message.message.isEmpty() && !record.has("rich_message"));
++            require(chat.bots.contains(sender) && message.message.isEmpty() && !record.has("rich_message"));
+             JSONObject photoRecord = record.getJSONObject("photo");
+             fields(photoRecord, "asset_id");
+             TLRPC.TL_messageMediaPhoto media = new TLRPC.TL_messageMediaPhoto();
+@@ -171,7 +212,7 @@ public final class GramLabBridge {
+                 message.message = record.getString("caption");
+             }
+         } else if (hasDocument) {
+-            require(sender == bot && message.message.isEmpty() && !record.has("rich_message"));
++            require(chat.bots.contains(sender) && message.message.isEmpty() && !record.has("rich_message"));
+             JSONObject documentRecord = record.getJSONObject("document");
+             fields(documentRecord, "document_id");
+             require(documentRecord.length() == 1);
+@@ -187,7 +228,7 @@ public final class GramLabBridge {
+         message.flags = (1 << 8) | (1 << 9);
+         long mediaGroupId = mediaGroupIdentifier(record, version);
+         if (mediaGroupId != 0) {
+-            require(sender == bot && hasMedia && !record.has("edit_date"));
++            require(chat.bots.contains(sender) && hasMedia && !record.has("edit_date"));
+             message.grouped_id = mediaGroupId;
+             message.flags |= 1 << 17;
+         }
+@@ -206,7 +247,7 @@ public final class GramLabBridge {
+             message.flags |= 1 << 15;
+         }
+         if (record.has("reply_markup")) {
+-            require(sender == bot);
++            require(chat.bots.contains(sender));
+             message.reply_markup = keyboard(record.getJSONObject("reply_markup"));
+             message.flags |= 1 << 6;
+         }
+@@ -232,7 +273,7 @@ public final class GramLabBridge {
+             String changeType) throws JSONException {
+         long groupId = mediaGroupIdentifier(record, version);
+         String kind = record.has("photo") ? "photo" : record.has("document") ? "document" : "none";
+-        return new GroupMember(groupId, identifier(record, "chat_id"), integer(record, "id"),
++        return new GroupMember(groupId, chatIdentifier(record, "chat_id"), integer(record, "id"),
+                 position, kind, changeType);
+     }
+ 
+@@ -503,33 +544,89 @@ public final class GramLabBridge {
+         identities.validate(dependencies);
+         Map<Long, TLRPC.User> users = dependencies.users;
+         dialogs.users.addAll(users.values());
++        long maximumUserId = 0;
++        for (Long userId : users.keySet()) maximumUserId = Math.max(maximumUserId, userId);
+         JSONArray records;
+         Map<Long, Long> peersByChat = new LinkedHashMap<>();
+         Map<Long, Long> chatIdsByPeer = new LinkedHashMap<>();
++        Map<Long, ChatBinding> chats = new LinkedHashMap<>();
++        Set<Long> requiredUsers = new HashSet<>();
+         Map<Long, TLRPC.TL_messages_messages> histories = new LinkedHashMap<>();
+         Map<Long, TLRPC.TL_dialog> dialogsByChat = new LinkedHashMap<>();
+         records = body.getJSONArray("chats");
+         for (int index = 0; index < records.length(); index++) {
+             JSONObject record = records.getJSONObject(index);
+-            fields(record, "id", "type", "user_id", "bot_id");
+-            long chat = identifier(record, "id");
+-            long bot = identifier(record, "bot_id");
+-            require("private".equals(record.getString("type"))
+-                    && identifier(record, "user_id") == persona && users.containsKey(bot)
+-                    && users.get(bot).bot && !peersByChat.containsKey(chat)
+-                    && !chatIdsByPeer.containsKey(bot));
+-            peersByChat.put(chat, bot);
+-            chatIdsByPeer.put(bot, chat);
++            require(record.opt("type") instanceof String);
++            String type = record.getString("type");
++            long chat = chatIdentifier(record, "id");
++            long dialogId;
++            Set<Long> participants = new HashSet<>();
++            Set<Long> bots = new HashSet<>();
++            TLRPC.Chat nativeChat = null;
++            if ("private".equals(type)) {
++                fields(record, "id", "type", "user_id", "bot_id");
++                long bot = identifier(record, "bot_id");
++                require(chat > 0 && identifier(record, "user_id") == persona
++                        && users.containsKey(bot) && users.get(bot).bot);
++                dialogId = bot;
++                participants.add(persona);
++                participants.add(bot);
++                bots.add(bot);
++            } else if ("supergroup".equals(type)) {
++                fields(record, "id", "type", "title", "members");
++                require(version == 6 && chat < 0 && record.opt("title") instanceof String);
++                String title = record.getString("title");
++                require(!title.trim().isEmpty());
++                JSONArray members = record.getJSONArray("members");
++                int creators = 0;
++                long previousMember = 0;
++                for (int memberIndex = 0; memberIndex < members.length(); memberIndex++) {
++                    JSONObject member = members.getJSONObject(memberIndex);
++                    fields(member, "user_id", "status");
++                    long memberId = identifier(member, "user_id");
++                    require(memberId > previousMember && users.containsKey(memberId)
++                            && member.opt("status") instanceof String);
++                    previousMember = memberId;
++                    String status = member.getString("status");
++                    require("creator".equals(status) || "member".equals(status));
++                    if ("creator".equals(status)) creators++;
++                    participants.add(memberId);
++                    if (users.get(memberId).bot) bots.add(memberId);
++                }
++                require(creators == 1 && participants.contains(persona) && !bots.isEmpty());
++                require(maximumUserId <= Long.MAX_VALUE + chat);
++                long channelId = maximumUserId - chat;
++                dialogId = -channelId;
++                TLRPC.TL_channel channel = new TLRPC.TL_channel();
++                channel.id = channelId;
++                channel.title = title;
++                channel.photo = new TLRPC.TL_chatPhotoEmpty();
++                channel.date = now;
++                channel.megagroup = true;
++                channel.participants_count = participants.size();
++                channel.default_banned_rights = new TLRPC.TL_chatBannedRights();
++                channel.flags |= 1 << 17;
++                channel.flags |= 1 << 18;
++                nativeChat = channel;
++                dialogs.chats.add(channel);
++            } else throw new IllegalArgumentException("GRAMLAB_BRIDGE_INVALID_DATA");
++            require(!peersByChat.containsKey(chat) && !chatIdsByPeer.containsKey(dialogId));
++            ChatBinding binding = new ChatBinding(chat, dialogId, participants, bots);
++            chats.put(chat, binding);
++            requiredUsers.addAll(participants);
++            peersByChat.put(chat, dialogId);
++            chatIdsByPeer.put(dialogId, chat);
+             TLRPC.TL_messages_messages history = new TLRPC.TL_messages_messages();
+             if (version >= 3) history.users.addAll(users.values());
+             else {
+                 history.users.add(users.get(persona));
+-                history.users.add(users.get(bot));
++                history.users.add(users.get(dialogId));
+             }
+-            histories.put(bot, history);
++            if (nativeChat != null) history.chats.add(nativeChat);
++            histories.put(dialogId, history);
+             TLRPC.TL_dialog dialog = new TLRPC.TL_dialog();
+-            dialog.id = bot;
+-            dialog.peer = peer(bot);
++            dialog.id = dialogId;
++            dialog.peer = dialogId < 0 ? channelPeer(dialogId) : peer(dialogId);
+             dialog.notify_settings = new TLRPC.TL_peerNotifySettings();
+             dialogsByChat.put(chat, dialog);
+             dialogs.dialogs.add(dialog);
+@@ -550,18 +647,18 @@ public final class GramLabBridge {
+             if (revisions != null) {
+                 JSONObject revision = revisions.getJSONObject(index);
+                 fields(revision, "chat_id", "message_id", "revision");
+-                require(identifier(revision, "chat_id") == identifier(record, "chat_id")
++                require(chatIdentifier(revision, "chat_id") == chatIdentifier(record, "chat_id")
+                         && identifier(revision, "message_id") == identifier(record, "id"));
+                 revisionValue = identifier(revision, "revision");
+             }
+-            long chat = identifier(record, "chat_id");
++            long chat = chatIdentifier(record, "chat_id");
+             require(peersByChat.containsKey(chat));
+-            long bot = peersByChat.get(chat);
+-            TLRPC.TL_message message = message(record, persona, bot,
++            long dialogId = peersByChat.get(chat);
++            TLRPC.TL_message message = message(record, persona, chats.get(chat),
+                     version >= 3 ? users.keySet() : null, revisionValue, version);
+             require(seen.get(chat).add(message.id));
+             snapshotTopology.add(groupMember(record, version, revisionValue, null));
+-            histories.get(bot).messages.add(message);
++            histories.get(dialogId).messages.add(message);
+         }
+         if (version == 6) validateCompleteGroups(snapshotTopology);
+         for (Map.Entry<Long, Long> entry : peersByChat.entrySet()) {
+@@ -575,7 +672,7 @@ public final class GramLabBridge {
+         }
+         ArrayList<SendResult> sends = new ArrayList<>();
+         Snapshot result = new Snapshot(worldId, persona, cursor, now, integer(body, "message_position"),
+-                sends, dialogs, histories, chatIdsByPeer, identities);
++                sends, dialogs, histories, chatIdsByPeer, chats, requiredUsers, identities);
+         records = body.getJSONArray("sends");
+         int previous = 0;
+         for (int index = 0; index < records.length(); index++) {
+@@ -760,7 +857,7 @@ public final class GramLabBridge {
+ 
+     private static UserDependencies dependencyUsers(JSONArray records, Snapshot state) throws JSONException {
+         UserDependencies result = parseUsers(records, state.persona, true);
+-        require(result.users.keySet().containsAll(state.chatIdsByPeer.keySet()));
++        require(result.users.keySet().containsAll(state.requiredUsers));
+         state.identities.validate(result);
+         return result;
+     }
+@@ -779,12 +876,28 @@ public final class GramLabBridge {
+         int position = integer(record, "position");
+         require(position > 0);
+         JSONObject data = record.getJSONObject("message");
+-        long peer = peerForChat(state, identifier(data, "chat_id"));
+-        TLRPC.TL_message message = message(data, state.persona, peer, null, 0, version);
++        long chat = chatIdentifier(data, "chat_id");
++        long peer = peerForChat(state, chat);
++        TLRPC.TL_message message = message(data, state.persona, state.chats.get(chat), null, 0, version);
+         require(message.out && message.edit_date == 0);
+         return new SendResult(id, position, peer, message);
+     }
+ 
++    private static boolean personaSendAs(Snapshot state, long dialogId, TLRPC.InputPeer sendAs) {
++        if (sendAs == null || sendAs instanceof TLRPC.TL_inputPeerSelf) return true;
++        if (sendAs instanceof TLRPC.TL_inputPeerUser) return sendAs.user_id == state.persona;
++        if (!(sendAs instanceof TLRPC.TL_inputPeerUserFromMessage)
++                || sendAs.user_id != state.persona || sendAs.msg_id <= 0 || sendAs.peer == null
++                || dialogId(sendAs.peer) != dialogId) return false;
++        TLRPC.TL_messages_messages history = state.histories.get(dialogId);
++        if (history == null) return false;
++        for (TLRPC.Message message : history.messages) {
++            if (message.id == sendAs.msg_id && message.from_id instanceof TLRPC.TL_peerUser
++                    && message.from_id.user_id == state.persona) return true;
++        }
++        return false;
++    }
++
+     public static EventBatch events(JSONObject configuration, Snapshot state, long after, int limit) throws Exception {
+         boundState(configuration, state);
+         require(after >= 0 && after <= Integer.MAX_VALUE && limit > 0 && limit <= 1000);
+@@ -818,8 +931,9 @@ public final class GramLabBridge {
+             previous = position;
+             String type = record.getString("type");
+             JSONObject data = record.getJSONObject("data");
+-            long peer = peerForChat(state, identifier(data, "chat_id"));
+-            TLRPC.TL_message message = message(data, state.persona, peer,
++            long chat = chatIdentifier(data, "chat_id");
++            long peer = peerForChat(state, chat);
++            TLRPC.TL_message message = message(data, state.persona, state.chats.get(chat),
+                     dependencies == null ? null : dependencies.users.keySet(),
+                     version >= 3 ? identifier(record, "revision") : 0, version);
+             TLRPC.Update update;
+@@ -929,21 +1043,21 @@ public final class GramLabBridge {
+ 
+     public static SendResult send(JSONObject configuration, Snapshot state,
+             TLRPC.TL_messages_sendMessage query) throws Exception {
+-        if (!(query.peer instanceof TLRPC.TL_inputPeerUser) || (query.flags & ~((1 << 1) | (1 << 3) | (1 << 7) | (1 << 13))) != 0
++        long dialogId = dialogId(query.peer);
++        if ((query.flags & ~((1 << 1) | (1 << 3) | (1 << 7) | (1 << 13))) != 0
+                 || query.silent || query.background || query.noforwards || query.update_stickersets_order
+                 || query.invert_media || query.allow_paid_floodskip || query.reply_to != null
+                 || query.reply_markup != null || query.schedule_date != 0 || query.schedule_repeat_period != 0
+-                || query.send_as != null && !(query.send_as instanceof TLRPC.TL_inputPeerSelf)
+-                    && !(query.send_as instanceof TLRPC.TL_inputPeerUser && query.send_as.user_id == state.persona)
++                || !personaSendAs(state, dialogId, query.send_as)
+                 || query.quick_reply_shortcut != null || query.effect != 0
+                 || query.allow_paid_stars != 0 || query.suggested_post != null || query.rich_message != null
+                 || query.ephemeralReceiverBotId != 0) throw new UnsupportedOperationException();
+-        require(state.chatIdsByPeer.containsKey(query.peer.user_id) && query.random_id != 0
++        require(state.chatIdsByPeer.containsKey(dialogId) && query.random_id != 0
+                 && query.message != null && !query.message.isEmpty()
+                 && query.message.codePointCount(0, query.message.length()) <= 4096
+                 && query.message.equals(new String(query.message.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8)));
+         JSONArray entities = outgoingEntities(query.entities, query.message);
+-        long chat = state.chatIdsByPeer.get(query.peer.user_id);
++        long chat = state.chatIdsByPeer.get(dialogId);
+         String id = Long.toString(query.random_id);
+         JSONObject parameters = new JSONObject().put("request_id", id).put("chat_id", chat)
+                 .put("text", query.message).put("entities", entities);
+@@ -957,7 +1071,7 @@ public final class GramLabBridge {
+                 body.getJSONArray("assets"), body.getJSONArray("custom_emoji"), body.getJSONArray("documents")) : null) {
+         UserDependencies dependencies = version >= 5 ? dependencyUsers(body.getJSONArray("users"), state) : null;
+         SendResult result = sendResult(body.getJSONObject("send"), state, version);
+-        require(result.requestId.equals(id) && result.peer == query.peer.user_id
++        require(result.requestId.equals(id) && result.peer == dialogId
+                 && result.message.message.equals(query.message));
+         require(outgoingEntities(result.message.entities, result.message.message).toString().equals(entities.toString()));
+         if (mediaScope != null) mediaScope.requireExactDependencies();
+@@ -987,14 +1101,15 @@ public final class GramLabBridge {
+     public static TLRPC.TL_messages_botCallbackAnswer callback(JSONObject configuration, Snapshot state,
+             TLRPC.TL_messages_getBotCallbackAnswer query) throws Exception {
+         boundState(configuration, state);
+-        if (query.peer == null || !state.chatIdsByPeer.containsKey(query.peer.user_id)
++        long dialogId = dialogId(query.peer);
++        if (!state.chatIdsByPeer.containsKey(dialogId)
+                 || query.game || query.password != null || (query.flags & ~1) != 0) {
+             throw new UnsupportedOperationException();
+         }
+         require(query.msg_id > 0 && query.data != null && query.data.length > 0 && query.data.length <= 64);
+         String data = new String(query.data, StandardCharsets.UTF_8);
+         require(Arrays.equals(query.data, data.getBytes(StandardCharsets.UTF_8)));
+-        long chat = state.chatIdsByPeer.get(query.peer.user_id);
++        long chat = state.chatIdsByPeer.get(dialogId);
+         String gramLabRequestId = UUID.randomUUID().toString();
+         GramLabButtonObserver.httpRequest(query, gramLabRequestId);
+         JSONObject parameters = new JSONObject().put("request_id", gramLabRequestId)
+@@ -1017,12 +1132,12 @@ public final class GramLabBridge {
+             fields(record, "id", "user_id", "chat_id", "message", "data", "chat_instance", "answer");
+             require(record.has("answer") && record.opt("chat_instance") instanceof String);
+             TLRPC.TL_message captured = message(record.getJSONObject("message"), state.persona,
+-                    query.peer.user_id, dependencies == null ? null : dependencies.users.keySet(),
++                    state.chats.get(chat), dependencies == null ? null : dependencies.users.keySet(),
+                     version >= 3 ? identifier(body, "message_revision") : 0, version);
+             String receivedId = record.getString("id");
+             require(captured.id == query.msg_id && receivedId.matches("[A-Za-z0-9_-]{1,128}") && (id == null || id.equals(receivedId)));
+             id = receivedId;
+-            require(identifier(record, "user_id") == state.persona && identifier(record, "chat_id") == chat
++            require(identifier(record, "user_id") == state.persona && chatIdentifier(record, "chat_id") == chat
+                     && identifier(record.getJSONObject("message"), "id") == query.msg_id
+                     && data.equals(record.getString("data")));
+             TLRPC.TL_messages_botCallbackAnswer callbackAnswer = record.isNull("answer") ? null : answer(record.getJSONObject("answer"));
+diff --git a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+index ecb0aac..8d103bd 100644
+--- a/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
++++ b/TMessagesProj/src/main/java/org/telegram/gramlab/GramLabRuntime.java
+@@ -126,6 +126,7 @@ public final class GramLabRuntime {
+     private static void reconcileSnapshot(GramLabBridge.Snapshot current) {
+         // ChatActivity resolves its peer from the controller before requesting history.
+         MessagesController.getInstance(0).putUsers(current.dialogs.users, false);
++        MessagesController.getInstance(0).putChats(current.dialogs.chats, false);
+         // Seed the normal dialog cache before ChatActivity asks for cached history.
+         // check=2 preserves existing pinned state and closes only the supplied message hole.
+         MessagesStorage storage = MessagesStorage.getInstance(0);
+@@ -324,7 +325,14 @@ public final class GramLabRuntime {
+         trace("request", method, account, token);
+         if (account == 0 && request instanceof TLRPC.TL_messages_sendMessage) {
+             TLRPC.TL_messages_sendMessage query = (TLRPC.TL_messages_sendMessage) request;
+-            owner.sendKey = sendKey(query.peer == null ? 0 : query.peer.user_id, Long.toString(query.random_id));
++            trace("send_shape", "flags=" + query.flags
++                    + ",send_as=" + (query.send_as == null
++                            ? "null" : query.send_as.getClass().getSimpleName())
++                    + ",reply=" + (query.reply_to != null)
++                    + ",noforwards=" + query.noforwards
++                    + ",invert=" + query.invert_media, account, token);
++            owner.sendKey = sendKey(query.peer == null ? 0 : GramLabBridge.dialogId(query.peer),
++                    Long.toString(query.random_id));
+             // Native retries are serialized by the stock send helper; retain one in-flight owner.
+             if (sending.putIfAbsent(owner.sendKey, owner) != null) {
+                 Utilities.stageQueue.postRunnable(() -> {
+@@ -441,14 +449,16 @@ public final class GramLabRuntime {
+         }
+         if (request instanceof TLRPC.TL_messages_getHistory) {
+             TLRPC.TL_messages_getHistory query = (TLRPC.TL_messages_getHistory) request;
+-            if (query.peer == null || query.peer.user_id == 0 || query.add_offset != 0
++            long dialogId = GramLabBridge.dialogId(query.peer);
++            if (query.add_offset != 0
+                     || query.offset_date != 0 || query.limit <= 0 || query.limit > 100) {
+                 throw new UnsupportedOperationException();
+             }
+-            TLRPC.TL_messages_messages source = current.histories.get(query.peer.user_id);
++            TLRPC.TL_messages_messages source = current.histories.get(dialogId);
+             if (source == null) throw new IllegalArgumentException();
+             TLRPC.TL_messages_messages result = new TLRPC.TL_messages_messages();
+             result.users.addAll(source.users);
++            result.chats.addAll(source.chats);
+             for (TLRPC.Message message : source.messages) {
+                 if (query.offset_id > 0 && message.id >= query.offset_id
+                         || query.max_id > 0 && message.id >= query.max_id
+diff --git a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+index 9c76851..dbeea65 100644
+--- a/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
++++ b/TMessagesProj_GramLab/src/main/java/org/telegram/gramlab/BridgeProbe.java
+@@ -385,8 +385,11 @@ public final class BridgeProbe {
+     private static JSONObject observeMessage(TLRPC.Message message) throws Exception {
+         JSONObject observed = new JSONObject().put("id", message.id)
+                 .put("sender_id", message.from_id.user_id)
+-                .put("recipient_id", message.peer_id.user_id).put("out", message.out)
+-                .put("date", message.date).put("text", message.message);
++                .put("out", message.out).put("date", message.date).put("text", message.message);
++        if (message.peer_id instanceof TLRPC.TL_peerChannel) {
++            observed.put("recipient_chat_id", message.peer_id.channel_id)
++                    .put("dialog_id", -message.peer_id.channel_id);
++        } else observed.put("recipient_id", message.peer_id.user_id);
+         boolean grouped = (message.flags & (1 << 17)) != 0;
+         if (grouped != (message.grouped_id > 0)) {
+             throw new IllegalStateException("GRAMLAB_PROBE_UNEXPECTED_GROUP_FLAG");
+@@ -426,6 +429,18 @@ public final class BridgeProbe {
+         return users;
+     }
+ 
++    private static JSONArray observeChats(java.util.List<TLRPC.Chat> values) throws Exception {
++        JSONArray chats = new JSONArray();
++        for (TLRPC.Chat chat : values) {
++            chats.put(new JSONObject().put("id", chat.id).put("title", chat.title)
++                    .put("megagroup", chat.megagroup)
++                    .put("default_send_plain_allowed", chat.default_banned_rights != null
++                            && !chat.default_banned_rights.send_plain)
++                    .put("participants_count", chat.participants_count));
++        }
++        return chats;
++    }
++
+     private static JSONArray observeUpdates(java.util.List<TLRPC.Update> values) throws Exception {
+         JSONArray result = new JSONArray();
+         for (TLRPC.Update value : values) {
+@@ -500,8 +515,12 @@ public final class BridgeProbe {
+         JSONArray users = observeUsers(dialogs.users);
+         JSONArray conversations = new JSONArray();
+         for (TLRPC.Dialog dialog : dialogs.dialogs) {
+-            conversations.put(new JSONObject().put("peer_id", dialog.peer.user_id)
+-                    .put("top_message", dialog.top_message));
++            if (dialog.peer instanceof TLRPC.TL_peerChannel) {
++                conversations.put(new JSONObject().put("peer_type", "channel")
++                        .put("peer_id", dialog.peer.channel_id).put("dialog_id", -dialog.peer.channel_id)
++                        .put("top_message", dialog.top_message));
++            } else conversations.put(new JSONObject().put("peer_id", dialog.peer.user_id)
++                        .put("top_message", dialog.top_message));
+         }
+         JSONArray messages = new JSONArray();
+         JSONArray historyUsers = new JSONArray();
+@@ -524,6 +543,7 @@ public final class BridgeProbe {
+                 .put("cursor", snapshot.cursor).put("now", snapshot.now).put("users", users)
+                 .put("dialogs", conversations).put("messages", messages)
+                 .put("dialog_message_count", dialogs.messages.size());
++        if (!dialogs.chats.isEmpty()) observation.put("chats", observeChats(dialogs.chats));
+         if (args.length > 1) observation.put("history_users", historyUsers);
+         if (rejectedReconnect != null) observation.put("rejected_reconnect", rejectedReconnect);
+         if (groupRecovery != null) observation.put("media_group_resnapshot", groupRecovery);
+@@ -586,6 +606,29 @@ public final class BridgeProbe {
+                     .put("pts", acknowledged.pts).put("pts_count", acknowledged.pts_count)
+                     .put("date", acknowledged.date));
+         }
++        if (args.length > 1 && "group".equals(args[1])) {
++            TLRPC.TL_messages_sendMessage query = new TLRPC.TL_messages_sendMessage();
++            query.peer = new TLRPC.TL_inputPeerChannel(); query.peer.channel_id = 4;
++            query.send_as = new TLRPC.TL_inputPeerUserFromMessage();
++            query.send_as.user_id = snapshot.persona;
++            query.send_as.peer = new TLRPC.TL_inputPeerChannel();
++            query.send_as.peer.channel_id = 4;
++            query.send_as.msg_id = 1;
++            query.random_id = 42;
++            query.message = "native group send";
++            GramLabBridge.SendResult sent = GramLabBridge.send(config, snapshot, query);
++            TLRPC.TL_updateShortSentMessage acknowledged = sent.acknowledgment();
++            observation.put("group_send", new JSONObject().put("id", acknowledged.id)
++                    .put("pts", acknowledged.pts).put("pts_count", acknowledged.pts_count)
++                    .put("date", acknowledged.date));
++            query.send_as.msg_id = 2;
++            try {
++                GramLabBridge.send(config, snapshot, query);
++                observation.put("rejected_group_send_as", "accepted");
++            } catch (UnsupportedOperationException rejected) {
++                observation.put("rejected_group_send_as", rejected.getClass().getSimpleName());
++            }
++        }
+         if (args.length > 1 && "custom-emoji-documents".equals(args[1])) {
+             JSONArray input = new JSONArray(new String(Files.readAllBytes(Paths.get(args[2])), StandardCharsets.UTF_8));
+             java.util.ArrayList<Long> requested = new java.util.ArrayList<>();

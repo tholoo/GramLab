@@ -45,12 +45,37 @@ currently binds one configured bot because a conversation action needs one unamb
 
 The runnable [group example](../../examples/group) proves distinct creator/member identities,
 `getChatMember`, real contained Bot API delivery, member-owned callback, bot edit/answer, bot
-restart, post-restart delivery, exact history, lifecycle evidence, and semantic captures.
+restart, post-restart delivery, exact history, lifecycle evidence, and semantic captures. In
+headless Android it uses the same member binding for capture, callback and composer input.
+
+## Headless Android projection
+
+Bridge version 6 projects each visible supergroup to an original Telegram megagroup/channel. The
+native channel ID is allocated above every user ID in that persona snapshot so Telegram never
+confuses a member with the channel owner; the authenticated adapter map converts it back to the
+durable negative World chat ID for every callback and send. The snapshot carries the title,
+participants, visible users, history and explicit writable default permissions. Existing private
+chat envelopes and their native peer path are unchanged.
+
+The original composer may represent a group member as `inputPeerUserFromMessage`. GramLab accepts
+that form only when the embedded channel is the target group, the user is the selected persona and
+the referenced history message was authored by that persona. A bot-authored or cross-group
+reference fails before semantic send. Group capture/input APIs likewise require an explicit member
+persona; bots and unrelated users cannot act as the client.
+
+The focused native codec serializes the complete group, decodes its writable permission record,
+performs one member send and rejects a bot-authored identity reference. The public Android example
+then performs a real member callback, observes the bot edit, types another member message through
+the original composer, restarts the bot and cold-launches the app. Its final four-message history
+and three original screenshots agree, Android reports zero accounts and both guest egress probes
+remain blocked. The reviewed local APK is identified by SHA-256
+`432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f` and Android profile SHA-256
+`fe878c649232bd571a1a64f075a79c11f5db19d30b6e3b04c9573307da83c68f`.
 
 ## Evidence boundary
 
-This capability is simulation-only. It proves authoritative state, membership, update envelopes,
-consumer behavior, restart persistence, and semantic captures. The current Android client bridge
-still projects private chats only, so headless Android group runs reject rather than silently
-substituting a private chat. No screenshot, native input, or external Telegram conformance claim
-follows from the simulation example.
+Simulation proves authoritative state, membership, update envelopes, consumer behavior and restart
+persistence. Headless Android additionally proves the documented projection and original-client
+behavior for the pinned local build; it does not establish external Telegram service conformance,
+arbitrary admin permissions, channels/topics, multiple simultaneous clients or production network
+behavior. No APK is distributed by this repository.

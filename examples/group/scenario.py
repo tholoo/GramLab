@@ -32,7 +32,7 @@ initial = lab.bot("helper").status()
 stopped = lab.stop_bot("helper", generation=initial.generation)
 started = lab.start_bot("helper", generation=stopped["generation"])
 expect(started["generation"] == initial.generation + 1, "Wrong replacement generation")
-group.send("after restart")
+group.type("after restart")
 restarted_reply = group.wait_for_messages(4, timeout=10)[-1]
 expect(restarted_reply.text == "Ready for the group", "Group delivery failed after bot restart")
 group.capture("group-restarted", contains=["after restart", "Ready for the group"])

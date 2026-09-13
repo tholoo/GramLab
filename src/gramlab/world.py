@@ -1052,7 +1052,13 @@ class World:
         command = json.dumps({"text": text, "entities": formatting}, sort_keys=True)
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
-            if self.get_user(user_id)["is_bot"] or self.get_chat(chat_id)["user_id"] != user_id:
+            chat = self.get_chat(chat_id)
+            authorized = (
+                chat["user_id"] == user_id
+                if chat["type"] == "private"
+                else any(member["user_id"] == user_id for member in chat["members"])
+            )
+            if self.get_user(user_id)["is_bot"] or not authorized:
                 raise ValueError("Client send is not available to this persona")
             previous = self._connection.execute(
                 "SELECT request_body, body FROM client_sends "

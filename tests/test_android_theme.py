@@ -59,6 +59,14 @@ def test_android_ui_wait_records_crash_buffer_when_client_exits() -> None:
         "Dedicated Android client exited while waiting for UI"
     )
     assert android.observations["failure_crash_log"] == "native crash detail"
+    assert android.observations["failure_trace"] == "recent main log"
+    assert (
+        "shell",
+        "run-as",
+        "org.gramlab.android",
+        "cat",
+        "files/gramlab/trace.jsonl",
+    ) in calls
     assert ("shell", "uiautomator", "dump", "/data/local/tmp/gramlab-capture.xml") not in calls
 
 
