@@ -2,16 +2,28 @@
 
 ## Synthetic group checkpoint
 
-Programmatic-scenarios ticket 07 adds generic simulation-only supergroups through the World, local
-Bot API, schema-1 control service, typed scenario SDK, and contained runner. Schema 11 migrates the
-client journal to allow one event to reach several members and removes the chat table's private-pair
-uniqueness assumption while preserving explicit private-chat deduplication. The runnable group
-example proves distinct creator/member identities, `getChatMember`, member-to-bot delivery,
-callback/edit/answer, a real bot restart, post-restart delivery, histories and semantic captures.
-The neighboring 66-case collection and the full 1,615-case non-Android gate pass at 88.92%
-coverage. Full Ruff, primary and scoped strict typing, configuration, 297 local Markdown links,
-and the privacy scan pass. The Android bridge remains private-only; no native group evidence is
-claimed.
+Programmatic-scenarios tickets 07 and 08 now provide synthetic supergroups through the World,
+local Bot API, schema-1 control service, typed scenario SDK, contained runner and original Android
+client. Bridge v6 preserves the durable negative World group ID while the authenticated adapter
+uses a non-colliding native channel ID, complete users/chat/history objects and explicit writable
+permissions. Existing private-chat envelopes and their native path remain unchanged.
+
+The public group example now performs a real member callback, bot edit, original-composer send,
+bot restart, reply and cold client relaunch. The retained final run under
+`artifacts/group-android-native-11/` passes exact four-message history, zero accounts and blocked
+guest egress; all three original screenshots were inspected and show no false admin/Owner label.
+The final APK SHA-256 is
+`432168246376d98c3bd4eaebb791771401023946a5ef2c3f8f0c55291209c92f` and the Android profile
+SHA-256 is `fe878c649232bd571a1a64f075a79c11f5db19d30b6e3b04c9573307da83c68f`.
+Patch 0034 stages exactly three adapter/probe Java files without fuzz or offsets and builds
+offline. The complete non-Android gate passes 1,619 tests at 88.83% coverage; focused group,
+private-bridge, native codec, Ruff and strict typing checks also pass. Ticket 08 contains the
+red-first chronology and exact artifact identifiers.
+
+Next action: after explicit remote-publication approval, publish the task branch for integration.
+The next product choice can then be made from the still-unsupported admin transitions, channels,
+topics, multiple simultaneous clients, HTML parse modes, grouped-media edits or Mini Apps; native
+group support does not silently broaden any of those boundaries.
 
 ## Objective and authorization
 

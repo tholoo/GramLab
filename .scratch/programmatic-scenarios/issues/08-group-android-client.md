@@ -1,8 +1,8 @@
 # Render synthetic groups in the Android client
 
 Type: task
-Status: complete
-Work state: complete
+Status: resolved
+Work state: resolved
 Blocked by: 07-group-conversations.md
 
 Project the existing generic synthetic-group model through the authenticated client bridge and the
