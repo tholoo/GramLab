@@ -61,22 +61,10 @@ network namespace, loopback endpoints and credentials. Simultaneous invocations 
 
 `gramlab playground start` runs the same declared setup scenario but, after that scenario exits,
 captures its World and consumer files as a baseline, restarts the declared bots, and keeps their
-offline supervisor alive. Add `--web` to open a loopback browser client with clickable
-conversations, rich buttons, a message composer, bot addition, reset and stop:
+offline supervisor alive. Start is a foreground owner; control it from another terminal:
 
 ```sh
-gramlab playground start run.toml --output artifacts/playground --web
-```
-
-The page polls the authoritative World, so bot replies and edits appear without reloading. A chat's
-actor selector contains its seeded human participants. Pressing Enter sends the composer text;
-Shift+Enter adds a line. Use `--no-open` with `--web` to print the private loopback URL without
-launching a browser. The browser client is a semantic control surface and does not claim Telegram
-rendering fidelity. Headless Android remains the original-client evidence boundary.
-
-The same controls remain available from another terminal:
-
-```sh
+gramlab playground start run.toml --output artifacts/playground
 gramlab playground status --output artifacts/playground
 gramlab playground send --output artifacts/playground --chat-id -1 --actor-id 3 --text /game
 gramlab playground tap --output artifacts/playground --chat-id -1 --actor-id 3 --label Continue
@@ -90,12 +78,9 @@ gramlab playground stop --output artifacts/playground
 
 The control file is a private regular file containing the run identity, one random capability and
 the fixed relative Unix-socket name. The owner rejects missing, malformed, wrong-run and wrong-
-capability commands. The browser server binds only to `127.0.0.1`, keeps that capability out of the
-page, uses a separate random URL path and rejects cross-origin mutations. A second start cannot
-reuse an existing output. Stop removes the live control files, writes the normal redacted
-result/report, and is safe to repeat against that completed result. Interrupting the foreground
-owner also removes those controls and writes a failed, retryable report instead of leaving a false
-running state.
+capability commands. A second start cannot reuse an existing output. Stop removes the live control
+files, writes the normal redacted result/report, and is safe to repeat against that completed
+result.
 
 `send` applies the normal scenario composer contract as the explicit synthetic actor. `tap` selects
 one unambiguous rich button with the exact visible label from the newest matching message. In
@@ -218,7 +203,7 @@ exports; review them before sharing. Neither the JSON nor the report claims that
 encodings or secrets supplied as ordinary prose can always be detected.
 
 `simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
-command. The persistent playground adds browser and command-line interaction without adding an
+command. The persistent playground adds command-driven interaction without adding an
 `interactive-android` manifest mode. [SDK inline-button input](scenario-input.md)
 and [Start Bot/composer input](scenario-composer.md) are supported within their documented profiles;
 broader composer fidelity, client restarts and faults, expanded dependency packaging and workload
