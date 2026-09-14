@@ -11,7 +11,7 @@ import stat
 import subprocess
 import time
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import asdict, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
@@ -154,6 +154,7 @@ def run(
     bridge_version: int = 3,
     bot_profiles: Mapping[str, RuntimeProfile] | None = None,
     playground: bool = False,
+    playground_ready_bots: Collection[str] = (),
     display_socket: Path | None = None,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
@@ -161,6 +162,13 @@ def run(
         raise ValueError("Android theme must be light or dark")
     bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
     config, inputs = _inputs(manifest)
+    ready_bots = set(playground_ready_bots)
+    if not playground and ready_bots:
+        raise ValueError("Polling readiness is only valid for a playground")
+    unknown_ready_bots = ready_bots - config["bots"].keys()
+    if unknown_ready_bots:
+        names = ", ".join(sorted(unknown_ready_bots))
+        raise ValueError(f"Polling readiness targets undeclared aliases: {names}")
     bot_profiles = dict(bot_profiles or {})
     unknown_profiles = bot_profiles.keys() - config["bots"].keys()
     if unknown_profiles:
@@ -169,6 +177,7 @@ def run(
     config["bridge_version"] = bridge_version
     if playground:
         config["playground"] = True
+        config["playground_ready_bots"] = sorted(ready_bots)
     apk = None
     android_json = None
     selected_profile = profile

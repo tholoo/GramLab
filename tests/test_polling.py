@@ -42,6 +42,19 @@ def test_empty_long_poll_waits_without_advancing_world_time(tmp_path: Path) -> N
         assert world.events() == before
 
 
+def test_server_reports_only_bots_that_reached_the_polling_boundary(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    token = polling_world(directory)
+    with BotAPIServer(directory) as server, ThreadPoolExecutor(max_workers=1) as worker:
+        assert server.polling_bot_ids() == frozenset()
+        waiting = worker.submit(request, server, token, "getUpdates", {"offset": 2, "timeout": 2})
+        wait_for_confirmation(directory, waiting)
+        assert server.polling_bot_ids() == frozenset({2})
+        with World.open(directory) as world:
+            world.send_message(chat_id=1, sender_id=1, text="release readiness poll")
+        assert waiting.result(timeout=3)[0] == 200
+
+
 def polling_world(directory: Path) -> str:
     with World.create(directory, seed=7, now=100) as world:
         world.create_user(first_name="Alice")

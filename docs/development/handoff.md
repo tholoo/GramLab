@@ -2,6 +2,14 @@
 
 ## Interactive Android playground checkpoint
 
+The playground startup follow-up runs declared bots and semantic setup concurrently with the clean
+Android boot, waits only for explicitly selected bots to reach polling, then attaches native input
+and renders the final setup capture once. Same-persona native navigation keeps the running client
+process, and the emulator now uses four bounded virtual cores. A downstream real-client acceptance
+reached its live control boundary in 47.8 seconds rather than roughly 149 seconds while preserving
+all seeded chats and menus. Snapshot caching was rejected after the pinned software-rendered
+emulator failed strict reload tests; no unstable cache path remains.
+
 Programmatic-scenarios ticket 12 adds `interactive-android` to the public runner and persistent
 playground. The original Telegram client still runs in an isolated headless emulator; a separately
 contained scrcpy component exposes that guest screen as a normal clickable desktop window. The

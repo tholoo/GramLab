@@ -82,6 +82,14 @@ capability commands. A second start cannot reuse an existing output. Stop remove
 files, writes the normal redacted result/report, and is safe to repeat against that completed
 result.
 
+Trusted integrations may nominate declared bots that must reach the Bot API polling boundary before
+the setup scenario starts. Playground setup uses semantic input and capture while Android boots in
+parallel; once both are ready, later controls switch to native input and the final setup capture is
+rendered once in the original client. This preserves a real running Android surface without paying
+for every deterministic seed action through accessibility. The private emulator uses a bounded
+four-core cold boot. It deliberately does not reuse AVD snapshots: snapshots are unreliable with
+the isolated software renderer, and a strict attempted reload on the pinned emulator failed.
+
 `send` applies the normal scenario composer contract as the explicit synthetic actor. `tap` selects
 one unambiguous rich button with the exact visible label from the newest matching message. In
 headless Android mode those operations use the existing original composer and native rich-button

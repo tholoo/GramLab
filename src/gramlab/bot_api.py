@@ -187,7 +187,12 @@ class _Polling:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._waiting: dict[int, threading.Event] = {}
+        self._started: set[int] = set()
         self._stopping = False
+
+    def started_bot_ids(self) -> frozenset[int]:
+        with self._lock:
+            return frozenset(self._started)
 
     def stop(self) -> None:
         with self._lock:
@@ -207,6 +212,7 @@ class _Polling:
         cancelled = threading.Event()
         deadline = time.monotonic() + timeout
         with self._lock:
+            self._started.add(bot_id)
             if previous := self._waiting.get(bot_id):
                 previous.set()
             self._waiting[bot_id] = cancelled
@@ -817,6 +823,10 @@ class BotAPIServer:
     @property
     def base_url(self) -> str:
         return f"http://127.0.0.1:{self._server.server_port}"
+
+    def polling_bot_ids(self) -> frozenset[int]:
+        """Return bots that reached authenticated getUpdates polling."""
+        return self._polling.started_bot_ids()
 
     def __enter__(self) -> Self:
         self._thread.start()

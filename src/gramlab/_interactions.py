@@ -39,6 +39,21 @@ class Interactions:
         self.virtual_persona: int | None = None
         self.virtual_client_nonce = uuid.uuid4().hex
 
+    def attach_native(
+        self,
+        *,
+        tap: Callable[..., dict[str, Any]],
+        compose: Callable[..., dict[str, Any]],
+        start_chat: Callable[..., dict[str, Any]],
+    ) -> None:
+        """Route subsequent input through a renderer attached after semantic setup."""
+        with self._lock:
+            if self.tap is not None or self.compose is not None or self.start_chat is not None:
+                raise RuntimeError("Native interaction handlers are already attached")
+            self.tap = tap
+            self.compose = compose
+            self.start_chat = start_chat
+
     def select_virtual_persona(self, user_id: int) -> str:
         """Select the simulated client under the shared input lock."""
         if self.virtual_persona != user_id:

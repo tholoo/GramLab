@@ -47,3 +47,11 @@ through its native composer, observed the real bot response, restored the exact 
 stopped with a passing result. Its setup also exercised an original rendered rich-button callback.
 Direct window interaction is supported; native member-picker administration remains outside the
 contract, and the authenticated `add-bot` control is documented as a World transition.
+
+A 2026-09-14 startup follow-up removed Android UI replay from deterministic setup. Declared bots
+can be selected as polling prerequisites, semantic setup proceeds while the clean Android guest
+boots, and native input plus the final rendered capture attach afterward. Same-persona navigation
+keeps the client process alive and the private guest receives four bounded virtual cores. The
+downstream playground reached readiness in 47.8 seconds with its exact seeded state, down from
+roughly 149 seconds. Reusable emulator snapshots were tested and rejected because the pinned
+software-rendered emulator could not create and strictly reload them reliably.

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import threading
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, cast
 
@@ -124,21 +125,18 @@ def execute() -> None:
             interactive=config["mode"] == "interactive-android",
         )
     renderer_lock = threading.Lock()
-    captures = Captures(
-        Path("world"), lock=renderer_lock, render=android.capture if android is not None else None
-    )
+    captures = Captures(Path("world"), lock=renderer_lock)
     interactions = Interactions(
         Path("world"),
         lock=renderer_lock,
         bridge_version=config["bridge_version"],
-        tap=android.tap_inline_button if android is not None else None,
-        compose=android.type_message if android is not None else None,
-        start_chat=android.start_bot_chat if android is not None else None,
     )
     rich = None
     process_epochs: list[dict[str, Any]] = []
     playground_lifecycle: list[dict[str, Any]] = []
     processes: Processes | None = None
+    android_executor: ThreadPoolExecutor | None = None
+    android_start: Future[None] | None = None
 
     def make_processes(deadline: float) -> Processes:
         return Processes(
@@ -149,16 +147,10 @@ def execute() -> None:
         )
 
     try:
-        native_rich = None
+        rich = RichInteractions(Path("world"), lock=renderer_lock, interactions=interactions)
         if android is not None:
-            from gramlab._android_rich_buttons import AndroidRichInput
-
-            native_rich = AndroidRichInput(android)
-        rich = RichInteractions(
-            Path("world"), lock=renderer_lock, interactions=interactions, native=native_rich
-        )
-        if android is not None:
-            android.start()
+            android_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="android-start")
+            android_start = android_executor.submit(android.start)
         with BotAPIServer(Path("world")) as api:
             bot_programs: dict[str, Program] = {
                 f"bot:{alias}": (
@@ -169,6 +161,17 @@ def execute() -> None:
                 for alias, program in config["bots"].items()
             }
             processes = make_processes(setup_deadline)
+            processes.start(bot_programs)
+            ready_ids = {bots[alias] for alias in config.get("playground_ready_bots", [])}
+            while not ready_ids <= api.polling_bot_ids():
+                processes.poll()
+                if processes.failure:
+                    raise RuntimeError("Playground bot failed before polling readiness")
+                if android_start is not None and android_start.done():
+                    android_start.result()
+                if time.monotonic() >= setup_deadline:
+                    raise TimeoutError("Playground bots did not reach polling readiness")
+                time.sleep(0.02)
             with WorldControl(
                 Path("world"),
                 bots=bots,
@@ -183,18 +186,33 @@ def execute() -> None:
                 start_bot=processes.start_bot,
             ) as setup_control:
                 secrets.append(setup_control.capability)
-                programs = dict(bot_programs)
-                programs["scenario"] = (
-                    Path("scenario"),
-                    config["scenario"],
+                processes.wait_for_scenario(
                     {
-                        "GRAMLAB_CONTROL_ENDPOINT": setup_control.base_url,
-                        "GRAMLAB_CONTROL_CAPABILITY": setup_control.capability,
-                        "GRAMLAB_WORLD_ID": setup_control.world_id,
-                    },
+                        "scenario": (
+                            Path("scenario"),
+                            config["scenario"],
+                            {
+                                "GRAMLAB_CONTROL_ENDPOINT": setup_control.base_url,
+                                "GRAMLAB_CONTROL_CAPABILITY": setup_control.capability,
+                                "GRAMLAB_WORLD_ID": setup_control.world_id,
+                            },
+                        )
+                    }
                 )
-                processes.wait_for_scenario(programs)
             failure = processes.failure
+            if android_start is not None and failure is None:
+                if android is None:
+                    raise RuntimeError("Android startup lost its runtime owner")
+                android_start.result(timeout=max(0, setup_deadline - time.monotonic()))
+                from gramlab._android_rich_buttons import AndroidRichInput
+
+                interactions.attach_native(
+                    tap=android.tap_inline_button,
+                    compose=android.type_message,
+                    start_chat=android.start_bot_chat,
+                )
+                rich.attach_native(AndroidRichInput(android))
+                captures.attach_renderer(android.capture, render_latest=True)
             processes.close()
             process_epochs.append({"phase": "setup", "processes": processes.records})
             if failure:
@@ -360,6 +378,8 @@ def execute() -> None:
     except (OSError, RuntimeError, ValueError):
         failure = failure or "component_startup_failed"
     finally:
+        if android_executor is not None:
+            android_executor.shutdown(wait=True, cancel_futures=True)
         if processes is not None:
             processes.close()
             process_epochs.append({"phase": "final", "processes": processes.records})

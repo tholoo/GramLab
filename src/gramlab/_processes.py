@@ -210,7 +210,16 @@ class Processes:
         """Launch one owned generation without surrendering supervisor ownership."""
         if self._programs or self._instances:
             raise RuntimeError("Consumer processes have already started")
-        self._programs = programs
+        self._programs = dict(programs)
+        for name in programs:
+            self._launch(name, 1)
+
+    def _start_additional(self, programs: dict[str, Program]) -> None:
+        if not self._programs or not self._instances:
+            raise RuntimeError("Initial consumer processes have not started")
+        if self._programs.keys() & programs.keys():
+            raise RuntimeError("Consumer process name is already owned")
+        self._programs.update(programs)
         for name in programs:
             self._launch(name, 1)
 
@@ -234,7 +243,10 @@ class Processes:
 
     def wait_for_scenario(self, programs: dict[str, Program]) -> None:
         """Run a finite setup scenario while retaining bots for owner-directed cleanup."""
-        self.start(programs)
+        if self._programs:
+            self._start_additional(programs)
+        else:
+            self.start(programs)
         while True:
             self.poll()
             if self.failure or self.scenario_finished():

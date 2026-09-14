@@ -2,13 +2,58 @@
 
 import json
 import os
+import threading
 from pathlib import Path
 
 import pytest
 from test_runner import invoke, project
 
+from gramlab._captures import Captures
 from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
+from gramlab.world import World
+
+
+def test_semantic_setup_replays_only_its_final_capture_when_renderer_attaches(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=7, now=100) as world:
+        owner = world.create_user(first_name="Mina")
+        anchor = world.create_user(first_name="Anchor", is_bot=True)
+        first = world.create_group_chat(
+            title="First", creator_id=owner["id"], member_ids=[], bot_ids=[anchor["id"]]
+        )
+        final = world.create_group_chat(
+            title="Final", creator_id=owner["id"], member_ids=[], bot_ids=[anchor["id"]]
+        )
+    captures = Captures(directory, lock=threading.Lock())
+    captures.capture_chat(chat_id=first["id"], user_id=owner["id"], label="first", contains=[])
+    captures.capture_chat(chat_id=final["id"], user_id=owner["id"], label="ready", contains=[])
+    rendered: list[tuple[int, str, list[str]]] = []
+
+    def render(chat, label, contains):
+        rendered.append((chat["id"], label, contains))
+        return {"launch": "warm"}
+
+    captures.attach_renderer(render, render_latest=True)
+
+    assert rendered == [(final["id"], "ready", [])]
+    assert captures.records == [
+        {
+            "chat_id": first["id"],
+            "label": "first",
+            "history": [],
+            "rendered": False,
+        },
+        {
+            "chat_id": final["id"],
+            "label": "ready",
+            "history": [],
+            "rendered": True,
+            "android": {"launch": "warm"},
+        },
+    ]
 
 
 def test_scenario_capture_retains_the_complete_requested_chat(tmp_path: Path):
