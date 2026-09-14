@@ -36,3 +36,6 @@ alone does not satisfy this specification. Do not freeze the experimental SDK as
 - [05: Android Unicode input tooling references](issues/05-input-tooling-references.md)
 - [06: Public scenario flows and typed handles](issues/06-scenario-flows.md)
 - [07: Synthetic group conversations](issues/07-group-conversations.md)
+- [08: Android group client](issues/08-group-android-client.md)
+- [09: Group rich input](issues/09-group-rich-input.md)
+- [10: Interactive playground lifecycle](issues/10-interactive-playground.md)
