@@ -107,10 +107,11 @@ or stitched: requested text must be visible together. Screens retain normal stat
 app animations. They are observations, not deterministic golden images or proof of arbitrary
 secret detection in pixels.
 
-`interactive-android` remains explicitly unsupported. [SDK inline-button taps](scenario-input.md)
-now use actual client input, as do [Start Bot and supported composer text](scenario-composer.md).
-Live viewing, broader composer fidelity, more lifecycle/fault commands and
-multi-guest scheduling remain active work. Separate [callback/recovery tests](android-callbacks.md)
+`interactive-android` exposes the same isolated original client through one explicit local display
+socket and a contained scrcpy viewer. [SDK inline-button taps](scenario-input.md) use actual client
+input, as do [Start Bot and supported composer text](scenario-composer.md). Native Telegram
+membership administration, broader composer fidelity, more lifecycle/fault commands and multi-guest
+scheduling remain active work. Separate [callback/recovery tests](android-callbacks.md)
 establish live UI update/recovery behavior; captures alone do not prove that behavior.
 
 ## Verification

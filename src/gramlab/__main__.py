@@ -6,6 +6,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from gramlab.playground import request as playground_request
 from gramlab.runner import run
@@ -143,42 +144,20 @@ def main() -> int:
             RuntimeProfile.load(args.android_profile) if args.android_profile else None
         )
         bot_profiles = _bot_profiles(args.bot_profile)
+        options: dict[str, Any] = {
+            "profile": profile,
+            "android_profile": android_profile,
+            "android_apk": args.android_apk,
+            "android_theme": args.android_theme,
+            "bridge_version": args.bridge_version,
+        }
+        if bot_profiles or args.command == "playground":
+            options["bot_profiles"] = bot_profiles
         if args.command == "playground":
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-                bot_profiles=bot_profiles,
-                playground=True,
-                display_socket=args.display_socket,
-            )
-        elif bot_profiles:
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-                bot_profiles=bot_profiles,
-                display_socket=args.display_socket,
-            )
-        else:
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-                display_socket=args.display_socket,
-            )
+            options["playground"] = True
+        if args.display_socket is not None:
+            options["display_socket"] = args.display_socket
+        outcome = run(args.manifest, args.output, **options)
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"gramlab: cannot prepare run ({type(error).__name__}): {error}", file=sys.stderr)
         return 2

@@ -7,8 +7,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    interactive = sys.argv[1:2] == ["--interactive"]
-    emulator, avdmanager, image_package = sys.argv[2:] if interactive else sys.argv[1:]
+    emulator, avdmanager, image_package = sys.argv[1:]
     for variable in ("HOME", "ANDROID_USER_HOME", "ANDROID_AVD_HOME", "XDG_CACHE_HOME"):
         Path(os.environ[variable]).mkdir(parents=True, exist_ok=True)
     print("Creating dedicated AVD from the cached system image", file=sys.stderr, flush=True)
@@ -37,6 +36,7 @@ def main() -> None:
         emulator,
         "-avd",
         "gramlab-probe",
+        "-no-window",
         "-no-audio",
         "-no-boot-anim",
         "-no-snapshot",
@@ -62,8 +62,6 @@ def main() -> None:
         "-feature",
         "-WiFiPacketStream",
     ]
-    if not interactive:
-        command[3:3] = ["-no-window"]
     with Path("emulator.log").open("w") as log:
         os.dup2(log.fileno(), 1)
         os.dup2(log.fileno(), 2)

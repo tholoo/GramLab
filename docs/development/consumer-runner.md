@@ -85,15 +85,26 @@ result.
 `send` applies the normal scenario composer contract as the explicit synthetic actor. `tap` selects
 one unambiguous rich button with the exact visible label from the newest matching message. In
 headless Android mode those operations use the existing original composer and native rich-button
-input; simulation uses their semantic equivalents. This interface does not display an emulator
-window. `capture` applies the normal semantic expected-text check and retains an immediate PNG in
-Android mode.
+input; simulation uses their semantic equivalents. With `mode = "interactive-android"`, start also
+requires `--display-socket`, an Android runtime profile containing `scrcpy`, and a reviewed APK. It
+opens the original Telegram Android screen in a clickable desktop window while keeping the emulator
+headless and isolated internally. The selected Unix display socket is the only host display path
+mounted into the viewer; guest IPv4 and IPv6 egress remain blocked. `capture` applies the normal
+semantic expected-text check and retains an immediate PNG in Android mode.
+
+The visible window accepts ordinary pointer and keyboard interaction through scrcpy. Its Telegram
+composer and rendered controls act on the same authoritative World as the command helpers. The
+`tap` helper is deliberately stricter than a human click: it rejects a target unless GramLab can
+map current original-client geometry and effect evidence. A layout rejected by that evidence seam
+can still remain visibly clickable for manual review.
 
 `add-bot` resolves one unique seeded group title, configured bot alias and seeded actor username.
 The actor must already be the group's creator or administrator and the selected bot must be absent.
 Acceptance inserts the membership atomically and queues the ordinary `my_chat_member` update; the
 real consumer can then answer in that group. Consumers that need a target-free group can seed it
 with another declared inert bot until Android supports a zero-bot synthetic group.
+This operation is an authenticated World transition, not a native Telegram administration screen;
+the interactive client does not yet support adding the bot through Telegram's member picker.
 
 Reset first terminates each consumer namespace and all of its descendants. It then replaces only
 the owned World and bot directories from the post-setup baseline, restarts the declared bots and
@@ -202,9 +213,9 @@ Keep run directories ignored. Arbitrary consumer-created files are not automatic
 exports; review them before sharing. Neither the JSON nor the report claims that arbitrary secret
 encodings or secrets supplied as ordinary prose can always be detected.
 
-`simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
-command. The persistent playground adds command-driven interaction without adding an
-`interactive-android` manifest mode. [SDK inline-button input](scenario-input.md)
+`simulation-only`, [headless Android captures](scenario-captures.md), and `interactive-android` are
+connected to this command. Interactive Android additionally exposes the same original client through
+the explicitly selected local display socket. [SDK inline-button input](scenario-input.md)
 and [Start Bot/composer input](scenario-composer.md) are supported within their documented profiles;
 broader composer fidelity, client restarts and faults, expanded dependency packaging and workload
 diagnostics remain active work.

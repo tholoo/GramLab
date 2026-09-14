@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import json
 import os
+import signal
+import socket
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
+
+from gramlab.playground import PlaygroundControl, request
 
 
 def _project(directory: Path) -> Path:
@@ -223,6 +228,88 @@ def _wait_for_text(output: Path, chat_id: int, text: str) -> dict[str, Any]:
             return status
         time.sleep(0.05)
     raise AssertionError(f"Playground chat never contained {text!r}")
+
+
+def test_disconnected_helper_cannot_stop_a_playground_after_dispatch(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def dispatch(operation: str, _parameters: dict[str, Any]) -> dict[str, str]:
+        calls.append(operation)
+        return {"state": "running"}
+
+    with PlaygroundControl(
+        tmp_path,
+        run_id="00000000-0000-0000-0000-000000000000",
+        dispatch=dispatch,
+    ) as control:
+        payload = json.dumps(
+            {
+                "schema": 1,
+                "run_id": control.run_id,
+                "capability": control.capability,
+                "operation": "status",
+                "parameters": {},
+            }
+        ).encode()
+        abandoned = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        abandoned.connect(str(control.path))
+        abandoned.sendall(payload)
+        abandoned.shutdown(socket.SHUT_WR)
+        abandoned.close()
+
+        assert control.poll() is False
+        assert calls == ["status"]
+
+        with ThreadPoolExecutor(max_workers=1) as workers:
+            healthy = workers.submit(request, tmp_path, "status")
+            deadline = time.monotonic() + 2
+            while not healthy.done():
+                assert time.monotonic() < deadline
+                control.poll()
+            assert healthy.result() == {"state": "running"}
+        assert calls == ["status", "status"]
+
+
+def test_interrupted_playground_removes_stale_controls_and_writes_a_retryable_report(
+    tmp_path: Path,
+) -> None:
+    manifest = _project(tmp_path / "project")
+    output = tmp_path / "playground"
+    start = subprocess.Popen(  # noqa: S603 - public CLI under the enclosing network guard
+        [
+            sys.executable,
+            "-m",
+            "gramlab",
+            "playground",
+            "start",
+            str(manifest),
+            "--output",
+            str(output),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=os.environ.copy(),
+    )
+    try:
+        deadline = time.monotonic() + 15
+        while not (output / "playground-control.json").is_file():
+            assert start.poll() is None, start.communicate()
+            assert time.monotonic() < deadline, "Playground did not become ready"
+            time.sleep(0.05)
+
+        start.send_signal(signal.SIGINT)
+        assert start.wait(timeout=15) == 1
+        assert not (output / "playground-control.json").exists()
+        assert not (output / "playground.sock").exists()
+        result = json.loads((output / "result.json").read_text())
+        assert result["outcome"] == "failed"
+        assert result["failure"] == "supervisor_interrupted"
+        assert (output / "report.html").is_file()
+    finally:
+        if start.poll() is None:
+            start.kill()
+            start.wait(timeout=10)
 
 
 def test_public_playground_adds_real_bot_resets_exact_state_and_stops(tmp_path: Path) -> None:

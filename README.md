@@ -10,9 +10,10 @@ Test Telegram bots locally and inspect their messages in the actual Telegram And
 No Telegram account or production token is needed.
 
 **Experimental.** Text, callbacks, rich messages, photos, documents, albums and custom emoji have
-tested original-Android workflows. A persistent command-driven playground supports seeded state,
-messages, rich-button input, bot addition and reset. Mini Apps, HTML parse modes, grouped-media
-edits, external Telegram conformance and a live emulator window remain unfinished.
+tested original-Android workflows. A persistent playground supports seeded state, a visible and
+clickable original Android client, messages, rich-button input, bot addition and reset. Mini Apps,
+HTML parse modes, grouped-media edits, external Telegram conformance and native Telegram
+membership administration remain unfinished.
 See the
 [compatibility matrix](https://github.com/tholoo/GramLab/blob/main/docs/compatibility/matrix.md)
 for the supported scope.

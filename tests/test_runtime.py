@@ -143,6 +143,69 @@ print(json.dumps({'readable': readable, 'leaked_fds': leaked_fds,
     assert secret.read_text() == "synthetic parent sentinel"
 
 
+def test_supervisor_receives_only_the_selected_display_socket(tmp_path: Path) -> None:
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    display_directory = tmp_path / "host-displays"
+    display_directory.mkdir()
+    selected_path = display_directory / "X7"
+    ambient_path = display_directory / "X8"
+    with (
+        socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as selected,
+        socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as ambient,
+    ):
+        selected.bind(str(selected_path))
+        selected.listen()
+        ambient.bind(str(ambient_path))
+        ambient.listen()
+        data = tmp_path / "run"
+        data.mkdir()
+        result = Sandbox(profile).supervise(
+            [
+                profile.python,
+                "-c",
+                """
+import json, os, pathlib, socket, sys
+directory = pathlib.Path('/tmp/.X11-unix')
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.connect(str(directory / 'X0'))
+    client.sendall(b'selected display')
+print(json.dumps({'display': os.environ.get('DISPLAY'),
+                  'qt': os.environ.get('QT_QPA_PLATFORM'),
+                  'sockets': sorted(item.name for item in directory.iterdir()),
+                  'ambient_host_path_visible': pathlib.Path(sys.argv[1]).exists()}))
+""",
+                str(ambient_path),
+            ],
+            data=data,
+            display_socket=selected_path,
+            timeout=5,
+        )
+        assert result.returncode == 0, result.stderr
+        connection, _ = selected.accept()
+        with connection:
+            assert connection.recv(32) == b"selected display"
+    assert json.loads(result.stdout) == {
+        "display": ":0",
+        "qt": "xcb",
+        "sockets": ["X0"],
+        "ambient_host_path_visible": False,
+    }
+
+
+def test_display_path_must_be_an_existing_unix_socket(tmp_path: Path) -> None:
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    ordinary_file = tmp_path / "not-a-socket"
+    ordinary_file.write_text("not a display")
+    data = tmp_path / "run"
+    data.mkdir()
+    with pytest.raises(ValueError, match="Unix socket"):
+        Sandbox(profile).supervise(
+            [profile.python, "-c", "raise AssertionError('must not start')"],
+            data=data,
+            display_socket=ordinary_file,
+        )
+
+
 @pytest.mark.parametrize("finish", ["exit", "timeout"])
 def test_detached_descendants_die_with_the_run(tmp_path: Path, finish: str) -> None:
     profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))

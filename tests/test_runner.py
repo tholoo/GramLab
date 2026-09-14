@@ -189,6 +189,7 @@ def test_interactive_android_selects_one_explicit_display_socket(
             "adb": "adb",
             "emulator": "emulator",
             "avdmanager": "avdmanager",
+            "scrcpy": "scrcpy",
         },
     )
     display = tmp_path / "X7"
@@ -219,6 +220,41 @@ def test_interactive_android_selects_one_explicit_display_socket(
     recorded = json.loads((tmp_path / "interactive-run" / "result.json").read_text())
     assert recorded["mode"] == "interactive-android"
     assert recorded["configuration"]["android"]["display"] == "X7"
+
+
+def test_interactive_android_rejects_a_profile_without_the_screen_viewer(
+    tmp_path: Path,
+) -> None:
+    from gramlab.runner import run
+    from gramlab.runtime import RuntimeProfile
+
+    manifest = project(tmp_path / "project")
+    manifest.write_text('mode = "interactive-android"\n' + manifest.read_text())
+    apk = tmp_path / "client.apk"
+    apk.write_bytes(b"PK\x03\x04approved")
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    android_profile = replace(
+        profile,
+        executables={
+            **profile.executables,
+            "adb": "adb",
+            "emulator": "emulator",
+            "avdmanager": "avdmanager",
+        },
+    )
+    display = tmp_path / "X7"
+    with socket.socket(socket.AF_UNIX) as listener:
+        listener.bind(display.as_posix())
+        with pytest.raises(ValueError, match="scrcpy"):
+            run(
+                manifest,
+                tmp_path / "interactive-run",
+                profile=profile,
+                android_profile=android_profile,
+                android_apk=apk,
+                display_socket=display,
+            )
+    assert not (tmp_path / "interactive-run").exists()
 
 
 def test_public_playground_cli_forwards_the_selected_display_socket(

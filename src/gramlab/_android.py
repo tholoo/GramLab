@@ -179,6 +179,7 @@ class Android:
         self._active_chat: int | None = None
         self._recording: subprocess.Popen[bytes] | None = None
         self._recording_operation: str | None = None
+        self._viewer: subprocess.Popen[str] | None = None
 
     def _remaining(self, limit: float) -> float:
         remaining = min(limit, self.deadline - time.monotonic())
@@ -266,14 +267,11 @@ class Android:
             self.profile.executables["avdmanager"],
             IMAGE_PACKAGE,
         ]
-        if self._interactive:
-            command.insert(2, "--interactive")
         self._guest = self._stack.enter_context(
             Sandbox(self.profile).component(
                 command,
                 data=data,
                 kvm=True,
-                display_socket=(_SANDBOX_X11_SOCKET if self._interactive else None),
                 startup_timeout=self._remaining(10),
             )
         )
@@ -315,6 +313,30 @@ class Android:
         self._adb("install", "--no-streaming", "/work/client.apk", timeout=60)
         self._adb("push", "/work/client.apk", "/data/local/tmp/composer-client.apk", timeout=30)
         self._adb("shell", "chmod", "0444", "/data/local/tmp/composer-client.apk")
+        if self._interactive:
+            viewer = Path("viewer")
+            (viewer / "home").mkdir(parents=True)
+            self._viewer = self._stack.enter_context(
+                Sandbox(self.profile).component(
+                    [
+                        self.profile.executables["scrcpy"],
+                        "--serial",
+                        "emulator-5554",
+                        "--no-audio",
+                        "--no-clipboard-autosync",
+                        "--stay-awake",
+                        "--window-title",
+                        "GramLab Telegram playground",
+                    ],
+                    data=viewer,
+                    display_socket=_SANDBOX_X11_SOCKET,
+                    startup_timeout=self._remaining(10),
+                )
+            )
+            time.sleep(1)
+            if self._viewer.poll() is not None:
+                raise RuntimeError("Interactive Android screen viewer exited during startup")
+            self.observations["viewer"] = "scrcpy"
         package = self._adb("shell", "dumpsys", "package", "org.gramlab.android").stdout
         self.observations["package_version"] = next(
             (line.strip() for line in package.splitlines() if "versionName=" in line), "unavailable"

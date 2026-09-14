@@ -40,9 +40,9 @@ mutation and UI injection are not acceptance seams.
 
 ## Comments
 
-Approved by the user on 2026-09-14 for an offline Mostly Play development playground with a seeded
-admin-log group, a group containing the bot, a group excluding the bot, and fast baseline reset.
-The reusable lifecycle and reset implementation remains consumer-neutral; Mostly Play owns its
+Approved by the user on 2026-09-14 for an offline consumer development playground with a seeded
+operations group, a group containing the target bot, a group excluding it, and fast baseline reset.
+The reusable lifecycle and reset implementation remains consumer-neutral; each consumer owns its
 separate setup adapter.
 
 Claimed on 2026-09-14 on `task/interactive-playground`. The first implementation slice owns the

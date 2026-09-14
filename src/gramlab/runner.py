@@ -182,6 +182,8 @@ def run(
             raise ValueError("Android requires a trusted Android profile and approved APK")
         if not {"adb", "emulator", "avdmanager"} <= android_profile.executables.keys():
             raise ValueError("Android profile requires adb, emulator and avdmanager")
+        if config["mode"] == "interactive-android" and "scrcpy" not in android_profile.executables:
+            raise ValueError("Interactive Android profile requires scrcpy")
         apk = _source(android_apk.absolute().parent, android_apk.name, limit=256 * 1024 * 1024)
         if not apk.startswith(b"PK\x03\x04"):
             raise ValueError("Android APK must be an already built APK archive")
@@ -252,23 +254,35 @@ def run(
     started = time.monotonic()
     observation: dict[str, Any] = {"failure": "supervisor_failed", "processes": {}}
     try:
-        result = Sandbox(selected_profile).supervise(
-            [
-                profile.python,
-                "-m",
-                "gramlab._playground_run" if playground else "gramlab._run",
-            ],
-            data=output,
-            timeout=(24 * 60 * 60 + 15) if playground else config["timeout"] + 15,
-            kvm=android_mode,
-            display_socket=display_socket,
-        )
+        supervisor = Sandbox(selected_profile)
+        command = [
+            profile.python,
+            "-m",
+            "gramlab._playground_run" if playground else "gramlab._run",
+        ]
+        timeout = (24 * 60 * 60 + 15) if playground else config["timeout"] + 15
+        if display_socket is None:
+            result = supervisor.supervise(command, data=output, timeout=timeout, kvm=android_mode)
+        else:
+            result = supervisor.supervise(
+                command,
+                data=output,
+                timeout=timeout,
+                kvm=android_mode,
+                display_socket=display_socket,
+            )
         if result.returncode == 0:
             observation = json.loads((output / "observation.json").read_text())
     except subprocess.TimeoutExpired:
         observation["failure"] = "supervisor_timeout"
+    except KeyboardInterrupt:
+        observation["failure"] = "supervisor_interrupted"
     except (OSError, RuntimeError):
         observation["failure"] = "supervisor_startup_failed"
+    finally:
+        if playground:
+            (output / "playground-control.json").unlink(missing_ok=True)
+            (output / "playground.sock").unlink(missing_ok=True)
     recovery: dict[str, Any] | None = None
     journal_path = output / "rich-button-journal.jsonl"
     if journal_path.exists():
