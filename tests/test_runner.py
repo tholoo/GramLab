@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 import time
@@ -168,6 +169,96 @@ def test_android_theme_is_validated_and_recorded_before_guest_start(
             android_theme="sepia",
         )
     assert not (tmp_path / "invalid-run").exists()
+
+
+def test_interactive_android_selects_one_explicit_display_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gramlab.runner import run
+    from gramlab.runtime import RuntimeProfile
+
+    manifest = project(tmp_path / "project")
+    manifest.write_text('mode = "interactive-android"\n' + manifest.read_text())
+    apk = tmp_path / "client.apk"
+    apk.write_bytes(b"PK\x03\x04approved")
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    android_profile = replace(
+        profile,
+        executables={
+            **profile.executables,
+            "adb": "adb",
+            "emulator": "emulator",
+            "avdmanager": "avdmanager",
+        },
+    )
+    display = tmp_path / "X7"
+    with socket.socket(socket.AF_UNIX) as listener:
+        listener.bind(display.as_posix())
+        observed: dict[str, object] = {}
+
+        def supervise(_self, _command, *, data: Path, **kwargs):
+            observed.update(kwargs)
+            (data / "observation.json").write_text(
+                json.dumps({"failure": None, "processes": {}, "captures": [], "android": {}})
+            )
+            return subprocess.CompletedProcess([], 0)
+
+        monkeypatch.setattr("gramlab.runner.Sandbox.supervise", supervise)
+        outcome = run(
+            manifest,
+            tmp_path / "interactive-run",
+            profile=profile,
+            android_profile=android_profile,
+            android_apk=apk,
+            display_socket=display,
+        )
+
+    assert outcome == "incomplete"
+    assert observed["display_socket"] == display
+    assert observed["kvm"] is True
+    recorded = json.loads((tmp_path / "interactive-run" / "result.json").read_text())
+    assert recorded["mode"] == "interactive-android"
+    assert recorded["configuration"]["android"]["display"] == "X7"
+
+
+def test_public_playground_cli_forwards_the_selected_display_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gramlab import __main__ as cli
+    from gramlab.runtime import RuntimeProfile
+
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+    manifest = tmp_path / "run.toml"
+    manifest.write_text('mode = "interactive-android"\n')
+    display = tmp_path / "X0"
+    display.touch()
+    recorded: dict[str, object] = {}
+
+    def fake_run(manifest_path, output_path, **kwargs):
+        recorded.update({"manifest": manifest_path, "output": output_path, **kwargs})
+        return "passed"
+
+    monkeypatch.setattr(cli.RuntimeProfile, "load", lambda _path: profile)
+    monkeypatch.setattr(cli, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "gramlab",
+            "playground",
+            "start",
+            str(manifest),
+            "--output",
+            str(tmp_path / "output"),
+            "--profile",
+            str(tmp_path / "profile.json"),
+            "--display-socket",
+            str(display),
+        ],
+    )
+
+    assert cli.main() == 0
+    assert recorded["display_socket"] == display
 
 
 def test_bot_can_use_its_own_trusted_runtime_profile(tmp_path: Path):

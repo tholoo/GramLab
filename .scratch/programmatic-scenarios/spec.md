@@ -40,3 +40,4 @@ alone does not satisfy this specification. Do not freeze the experimental SDK as
 - [09: Group rich input](issues/09-group-rich-input.md)
 - [10: Interactive playground lifecycle](issues/10-interactive-playground.md)
 - [11: Browser playground client](issues/11-browser-playground.md)
+- [12: Interactive Android playground](issues/12-interactive-android-playground.md)

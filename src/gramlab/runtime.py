@@ -13,6 +13,7 @@ import os
 import select
 import signal
 import socket
+import stat
 import subprocess
 import time
 from collections.abc import Iterator, Mapping
@@ -20,6 +21,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO
+
+_SANDBOX_X11_SOCKET = Path(
+    "/tmp/.X11-unix/X0"  # noqa: S108 — private tmpfs path inside each sandbox
+)
 
 
 @dataclass(frozen=True)
@@ -71,14 +76,20 @@ class Sandbox:
             return _run_supervised(arguments, command, data_fd, timeout)
 
     def supervise(
-        self, command: list[str], *, data: Path, timeout: float = 30, kvm: bool = False
+        self,
+        command: list[str],
+        *,
+        data: Path,
+        timeout: float = 30,
+        kvm: bool = False,
+        display_socket: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
         """Run trusted orchestration which may create restricted components on its network.
 
         Scenario/bot code belongs in component(), never directly in this supervisor.
         Only the supervisor can create further user namespaces; components cannot.
         """
-        arguments = self._arguments(kvm=kvm, supervisor=True)
+        arguments = self._arguments(kvm=kvm, supervisor=True, display_socket=display_socket)
         bootstrap = [
             self.profile.python,
             "-c",
@@ -100,6 +111,7 @@ class Sandbox:
         environment: Mapping[str, str] | None = None,
         startup_timeout: float = 10,
         kvm: bool = False,
+        display_socket: Path | None = None,
     ) -> Iterator[subprocess.Popen[str]]:
         """Open a private component inside trusted orchestration's offline network.
 
@@ -114,7 +126,7 @@ class Sandbox:
             raise RuntimeError("Components require a trusted isolated run supervisor")
         if environment and "GRAMLAB_SUPERVISOR_NETNS" in environment:
             raise ValueError("The supervisor namespace marker is reserved")
-        arguments = self._arguments(shared_network=True, kvm=kvm)
+        arguments = self._arguments(shared_network=True, kvm=kvm, display_socket=display_socket)
         for name, value in (environment or {}).items():
             arguments.extend(("--setenv", name, value))
         with _data_directory(data) as data_fd:
@@ -125,7 +137,12 @@ class Sandbox:
                 yield process
 
     def _arguments(
-        self, *, kvm: bool = False, supervisor: bool = False, shared_network: bool = False
+        self,
+        *,
+        kvm: bool = False,
+        supervisor: bool = False,
+        shared_network: bool = False,
+        display_socket: Path | None = None,
     ) -> list[str]:
         arguments = [
             self.profile.bubblewrap,
@@ -176,6 +193,26 @@ class Sandbox:
                 arguments.extend(("--setenv", name, value))
         if kvm:
             arguments.extend(("--dev-bind", "/dev/kvm", "/dev/kvm"))
+        if display_socket is not None:
+            display_socket = display_socket.absolute()
+            metadata = display_socket.lstat()
+            if not stat.S_ISSOCK(metadata.st_mode):
+                raise ValueError("Display path must identify an existing Unix socket")
+            arguments.extend(
+                (
+                    "--dir",
+                    str(_SANDBOX_X11_SOCKET.parent),
+                    "--ro-bind",
+                    str(display_socket),
+                    str(_SANDBOX_X11_SOCKET),
+                    "--setenv",
+                    "DISPLAY",
+                    ":0",
+                    "--setenv",
+                    "QT_QPA_PLATFORM",
+                    "xcb",
+                )
+            )
         return arguments
 
 

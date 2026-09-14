@@ -114,13 +114,14 @@ def execute() -> None:
     secrets = list(tokens.values())
     failure: str | None = None
     android = None
-    if config["mode"] == "headless-android":
+    if config["mode"] in ("headless-android", "interactive-android"):
         android = Android(
             RuntimeProfile(**json.loads(Path("android-profile.json").read_text())),
             deadline=runtime_deadline,
             secrets=secrets,
             bridge_version=config["android"]["bridge_version"],
             theme=config["android"]["theme"],
+            interactive=config["mode"] == "interactive-android",
         )
     renderer_lock = threading.Lock()
     captures = Captures(

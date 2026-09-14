@@ -38,6 +38,9 @@ def main() -> int:
         "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     )
     execute.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    execute.add_argument(
+        "--display-socket", type=Path, help="Explicit local X11 socket for interactive Android"
+    )
     execute.add_argument("--android-theme", choices=("light", "dark"), default="light")
     execute.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
     execute.add_argument(
@@ -59,6 +62,9 @@ def main() -> int:
         "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     )
     start.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    start.add_argument(
+        "--display-socket", type=Path, help="Explicit local X11 socket for interactive Android"
+    )
     start.add_argument("--android-theme", choices=("light", "dark"), default="light")
     start.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
     start.add_argument("--bot-profile", action="append", default=[], metavar="ALIAS=PROFILE")
@@ -170,6 +176,7 @@ def main() -> int:
                     bridge_version=args.bridge_version,
                     bot_profiles=bot_profiles,
                     playground=True,
+                    display_socket=args.display_socket,
                 )
             finally:
                 if browser is not None:
@@ -184,6 +191,7 @@ def main() -> int:
                 android_theme=args.android_theme,
                 bridge_version=args.bridge_version,
                 bot_profiles=bot_profiles,
+                display_socket=args.display_socket,
             )
         else:
             outcome = run(
@@ -194,6 +202,7 @@ def main() -> int:
                 android_apk=args.android_apk,
                 android_theme=args.android_theme,
                 bridge_version=args.bridge_version,
+                display_socket=args.display_socket,
             )
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"gramlab: cannot prepare run ({type(error).__name__}): {error}", file=sys.stderr)
