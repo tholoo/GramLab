@@ -609,6 +609,23 @@ class Android:
             self._record_failure("start_bot_chat", error)
             raise
 
+    def refresh_active_chat(self) -> None:
+        """Reconcile the kept-open original client from the current World snapshot."""
+        if self._persona is None or self._active_chat is None:
+            return
+        with World.open(Path("world")) as world:
+            chat = world.get_chat(self._active_chat)
+            if chat["type"] == "supergroup" and not any(
+                member["user_id"] == self._persona for member in chat["members"]
+            ):
+                raise RuntimeError("Active Android persona is no longer a group member")
+        self._open_chat(chat if chat["type"] == "private" else chat | {"user_id": self._persona})
+
+    def pause_client(self) -> None:
+        """Stop the synthetic client before its authoritative World is replaced."""
+        if self._guest is not None and self._guest.poll() is None:
+            self._adb("shell", "am", "force-stop", "org.gramlab.android")
+
     def _send_composer_action(
         self, chat: dict[str, Any], text: str | None, expected: dict[str, Any]
     ) -> dict[str, Any]:

@@ -1,11 +1,13 @@
 """Public command entry point; consumer code is only executed inside the runtime."""
 
 import argparse
+import json
 import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from gramlab.playground import request as playground_request
 from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
 
@@ -44,7 +46,89 @@ def main() -> int:
         metavar="ALIAS=PROFILE",
         help="Trusted provisioned runtime profile for one declared bot (repeatable)",
     )
+    playground = commands.add_parser(
+        "playground", help="Keep a seeded scenario and its bots available for interaction"
+    )
+    playground_commands = playground.add_subparsers(dest="playground_command", required=True)
+    start = playground_commands.add_parser("start", help="Start one foreground playground owner")
+    start.add_argument("manifest", type=Path)
+    start.add_argument("--output", type=Path, required=True, help="Fresh playground directory")
+    start.add_argument("--profile", type=Path, default=os.environ.get("GRAMLAB_RUNTIME_PROFILE"))
+    start.add_argument(
+        "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
+    )
+    start.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    start.add_argument("--android-theme", choices=("light", "dark"), default="light")
+    start.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
+    start.add_argument("--bot-profile", action="append", default=[], metavar="ALIAS=PROFILE")
+    for operation in ("status", "reset", "stop"):
+        command = playground_commands.add_parser(operation)
+        command.add_argument("--output", type=Path, required=True)
+    add_bot = playground_commands.add_parser(
+        "add-bot", help="Simulate a group creator adding one configured bot"
+    )
+    add_bot.add_argument("--output", type=Path, required=True)
+    add_bot.add_argument("--group", required=True)
+    add_bot.add_argument("--bot", required=True)
+    add_bot.add_argument("--actor", required=True)
+    send = playground_commands.add_parser("send", help="Send text as one synthetic participant")
+    send.add_argument("--output", type=Path, required=True)
+    send.add_argument("--chat-id", type=int, required=True)
+    send.add_argument("--actor-id", type=int, required=True)
+    send.add_argument("--text", required=True)
+    tap = playground_commands.add_parser("tap", help="Press a visible rich button by label")
+    tap.add_argument("--output", type=Path, required=True)
+    tap.add_argument("--chat-id", type=int, required=True)
+    tap.add_argument("--actor-id", type=int, required=True)
+    tap.add_argument("--label", required=True)
+    capture = playground_commands.add_parser(
+        "capture", help="Retain semantic and optional Android evidence for one chat"
+    )
+    capture.add_argument("--output", type=Path, required=True)
+    capture.add_argument("--chat-id", type=int, required=True)
+    capture.add_argument("--actor-id", type=int, required=True)
+    capture.add_argument("--label", required=True)
+    capture.add_argument("--contains", action="append", default=[])
     args = parser.parse_args()
+    if args.command == "playground" and args.playground_command != "start":
+        if args.playground_command == "add-bot":
+            operation = "add_bot"
+            parameters = {"group": args.group, "bot": args.bot, "actor": args.actor}
+        elif args.playground_command == "send":
+            operation = "send"
+            parameters = {
+                "chat_id": args.chat_id,
+                "actor_id": args.actor_id,
+                "text": args.text,
+            }
+        elif args.playground_command == "tap":
+            operation = "tap"
+            parameters = {
+                "chat_id": args.chat_id,
+                "actor_id": args.actor_id,
+                "label": args.label,
+            }
+        elif args.playground_command == "capture":
+            operation = "capture"
+            parameters = {
+                "chat_id": args.chat_id,
+                "actor_id": args.actor_id,
+                "label": args.label,
+                "contains": args.contains,
+            }
+        else:
+            operation = args.playground_command
+            parameters = {}
+        try:
+            result = playground_request(args.output, operation, parameters)
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError) as error:
+            print(
+                f"gramlab: cannot control playground ({type(error).__name__}): {error}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(result, ensure_ascii=True, sort_keys=True))
+        return 0
     if args.profile is None:
         parser.error("Enter the provisioned Nix shell or supply --profile")
     try:
@@ -53,7 +137,19 @@ def main() -> int:
             RuntimeProfile.load(args.android_profile) if args.android_profile else None
         )
         bot_profiles = _bot_profiles(args.bot_profile)
-        if bot_profiles:
+        if args.command == "playground":
+            outcome = run(
+                args.manifest,
+                args.output,
+                profile=profile,
+                android_profile=android_profile,
+                android_apk=args.android_apk,
+                android_theme=args.android_theme,
+                bridge_version=args.bridge_version,
+                bot_profiles=bot_profiles,
+                playground=True,
+            )
+        elif bot_profiles:
             outcome = run(
                 args.manifest,
                 args.output,
