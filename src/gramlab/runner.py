@@ -256,8 +256,14 @@ def run(
             observation = json.loads((output / "observation.json").read_text())
     except subprocess.TimeoutExpired:
         observation["failure"] = "supervisor_timeout"
+    except KeyboardInterrupt:
+        observation["failure"] = "supervisor_interrupted"
     except (OSError, RuntimeError):
         observation["failure"] = "supervisor_startup_failed"
+    finally:
+        if playground:
+            (output / "playground-control.json").unlink(missing_ok=True)
+            (output / "playground.sock").unlink(missing_ok=True)
     recovery: dict[str, Any] | None = None
     journal_path = output / "rich-button-journal.jsonl"
     if journal_path.exists():

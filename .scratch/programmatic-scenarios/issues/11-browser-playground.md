@@ -2,7 +2,7 @@
 
 Type: task
 Status: ready-for-agent
-Work state: claimed
+Work state: resolved
 Blocked by: 10-interactive-playground.md
 
 Add a consumer-neutral loopback web client for an existing persistent playground. The browser
@@ -27,3 +27,18 @@ evidence; headless Android remains the fidelity boundary.
 Approved by the user on 2026-09-14 after the command-driven playground produced no interactive
 window. They explicitly requested a clickable input bar and normal typing/sending instead of
 terminal commands.
+
+Resolved on 2026-09-14. The public `--web --no-open` acceptance loads the page, sends exact composer
+text through the browser boundary, observes the real contained bot's rich reply, presses its
+visible button and observes the edit, adds the configured bot to a different seeded group, then
+proves Reset restores both complete histories and membership before Stop. Cross-origin and unknown-
+actor sends are rejected with exact World equality. A separate lifecycle check proves the browser
+opener receives the random loopback URL. The interrupted-owner regression proves SIGINT removes
+both stale controls and retains a failed `supervisor_interrupted` report.
+
+The focused non-Android playground collection passes 5 tests. Repository Ruff lint and format
+checks, strict package typing and the full contained non-Android gate pass. The gate reports 1,628
+tests at 85.12% coverage. A real consumer integration additionally opened the page in Zen and a
+headless Chromium DOM render showed its four loaded chats, ready state and composer. Android was not
+rerun because the browser is a separate semantic host surface and the original-client path did not
+change. Publication remains subject to explicit remote approval.
