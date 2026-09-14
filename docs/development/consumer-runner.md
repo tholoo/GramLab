@@ -57,6 +57,52 @@ The output directory must be new and its parent must exist without symlinks. Exi
 directories and symlinks are refused. Each run gets a fresh private directory, world identity,
 network namespace, loopback endpoints and credentials. Simultaneous invocations are supported.
 
+## Persistent playground
+
+`gramlab playground start` runs the same declared setup scenario but, after that scenario exits,
+captures its World and consumer files as a baseline, restarts the declared bots, and keeps their
+offline supervisor alive. Start is a foreground owner; control it from another terminal:
+
+```sh
+gramlab playground start run.toml --output artifacts/playground
+gramlab playground status --output artifacts/playground
+gramlab playground send --output artifacts/playground --chat-id -1 --actor-id 3 --text /game
+gramlab playground tap --output artifacts/playground --chat-id -1 --actor-id 3 --label Continue
+gramlab playground capture --output artifacts/playground --chat-id -1 --actor-id 3 \
+  --label current --contains "Ready"
+gramlab playground add-bot --output artifacts/playground \
+  --group "Try the bot" --bot echo --actor mina
+gramlab playground reset --output artifacts/playground
+gramlab playground stop --output artifacts/playground
+```
+
+The control file is a private regular file containing the run identity, one random capability and
+the fixed relative Unix-socket name. The owner rejects missing, malformed, wrong-run and wrong-
+capability commands. A second start cannot reuse an existing output. Stop removes the live control
+files, writes the normal redacted result/report, and is safe to repeat against that completed
+result.
+
+`send` applies the normal scenario composer contract as the explicit synthetic actor. `tap` selects
+one unambiguous rich button with the exact visible label from the newest matching message. In
+headless Android mode those operations use the existing original composer and native rich-button
+input; simulation uses their semantic equivalents. This interface does not display an emulator
+window. `capture` applies the normal semantic expected-text check and retains an immediate PNG in
+Android mode.
+
+`add-bot` resolves one unique seeded group title, configured bot alias and seeded actor username.
+The actor must already be the group's creator or administrator and the selected bot must be absent.
+Acceptance inserts the membership atomically and queues the ordinary `my_chat_member` update; the
+real consumer can then answer in that group. Consumers that need a target-free group can seed it
+with another declared inert bot until Android supports a zero-bot synthetic group.
+
+Reset first terminates each consumer namespace and all of its descendants. It then replaces only
+the owned World and bot directories from the post-setup baseline, restarts the declared bots and
+refreshes the active Android chat when present. Consumer startup may update operational files such
+as heartbeats after restoration; `at_baseline` therefore compares authoritative World state while
+the containment acceptance separately proves that restored consumer files exclude prior mutations
+and that retired descendants cannot write afterward. The playground lifetime is bounded to one
+day even when the setup timeout is shorter.
+
 ## Manifest and inputs
 
 The [example manifest](../../examples/echo/run.toml) declares:
@@ -157,7 +203,8 @@ exports; review them before sharing. Neither the JSON nor the report claims that
 encodings or secrets supplied as ordinary prose can always be detected.
 
 `simulation-only` and [headless Android captures](scenario-captures.md) are connected to this
-command. `interactive-android` fails explicitly during preparation. [SDK inline-button input](scenario-input.md)
+command. The persistent playground adds command-driven interaction without adding an
+`interactive-android` manifest mode. [SDK inline-button input](scenario-input.md)
 and [Start Bot/composer input](scenario-composer.md) are supported within their documented profiles;
 broader composer fidelity, client restarts and faults, expanded dependency packaging and workload
 diagnostics remain active work.

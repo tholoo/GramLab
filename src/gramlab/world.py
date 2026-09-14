@@ -797,6 +797,46 @@ class World:
             result["is_anonymous"] = False
         return result
 
+    def add_bot_to_group(self, *, chat_id: int, bot_id: int, actor_id: int) -> dict[str, Any]:
+        """Apply Telegram's ordinary creator-adds-bot membership transition atomically."""
+        if type(chat_id) is not int or not -(2**63) < chat_id < 0:
+            raise ValueError("Bot addition requires a group chat")
+        if type(bot_id) is not int or type(actor_id) is not int:
+            raise ValueError("Bot addition requires explicit bot and actor identities")
+        bot = self.get_user(bot_id)
+        actor = self.get_user(actor_id)
+        if not bot["is_bot"] or actor["is_bot"]:
+            raise ValueError("Bot addition requires a bot and a non-bot actor")
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            chat = self.get_chat(chat_id)
+            if chat["type"] != "supergroup":
+                raise ValueError("Bot addition requires a group chat")
+            memberships = {item["user_id"]: item["status"] for item in chat["members"]}
+            if memberships.get(actor_id) not in {"creator", "administrator"}:
+                raise ValueError("Only a group creator or administrator can add a bot")
+            if bot_id in memberships:
+                raise ValueError("Bot is already a member of this group")
+            self._connection.execute(
+                "INSERT INTO chat_members(chat_id, user_id, status) VALUES (?, ?, 'member')",
+                (chat_id, bot_id),
+            )
+            now = int(self._connection.execute("SELECT now FROM configuration").fetchone()[0])
+            public_chat = {"id": chat_id, "type": "supergroup", "title": chat["title"]}
+            membership = {
+                "chat": public_chat,
+                "from": actor,
+                "date": now,
+                "old_chat_member": {"user": bot, "status": "left"},
+                "new_chat_member": {"user": bot, "status": "member"},
+            }
+            self._emit(
+                "chat.member_added",
+                {"chat_id": chat_id, "bot_id": bot_id, "actor_id": actor_id},
+            )
+            self._enqueue_update(bot_id, "my_chat_member", membership)
+            return self.get_chat(chat_id)
+
     def register_custom_emoji(
         self,
         *,

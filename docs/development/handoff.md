@@ -1,5 +1,28 @@
 # Next-agent handoff
 
+## Interactive playground checkpoint
+
+Programmatic-scenarios ticket 10 adds a consumer-neutral persistent playground over the public
+runner. A finite setup scenario establishes the baseline, then real bot processes remain available
+through authenticated Unix-socket `status`, `send`, `tap`, `capture`, `add-bot`, `reset` and `stop`
+commands.
+Reset terminates consumer namespaces, restores owned World and bot directories, preserves the run
+identity and refreshes the active Android chat. The public simulation acceptance proves a real
+consumer message and rich callback/edit, creator-authorized bot addition with an ordinary
+`my_chat_member` delivery and reply, exact visible-World reset, removal of consumer file mutations,
+and denial of a detached old-process write. It repeats bot addition after reset, rejects a member
+actor and a tampered capability without stopping the owner, and proves idempotent stop.
+
+The Android path reuses the existing headless original client, composer, rich-button input and
+blocked guest egress boundary. It remains command-driven and does not expose a live emulator
+window. The serialized acceptance passed against patch-35 APK SHA-256
+`fff0c33f6991202b08a63e77a501f3bc188eecda9ae45047bf1cf39400c11521`: addition and reset were
+rendered and captured as PNGs, and guest IPv4/IPv6 remained blocked. The final contained
+non-Android gate passed all 1,625 tests at 85.11% coverage; JUnit SHA-256:
+`0e2043f13346026605dc861daffa17497f88e383548f1d86822caa3a7920618c`. Repository Ruff lint,
+formatting and maintained strict typing scopes pass. Publication remains subject to explicit remote
+approval.
+
 ## Group rich-input checkpoint
 
 Programmatic-scenarios ticket 09 adds generic explicit-member rich-button input for supergroups and
@@ -52,8 +75,9 @@ Simulation and Android share semantic state; only Android supplies rendering/inp
 The full [product inventory](../product/requirements.md) remains the goal. The
 [first operational milestone](operational-milestone.md), covering messages/buttons, rich content,
 photos/files/albums and custom emoji in one representative workflow, is now resolved at its
-approved fidelity boundary. Mini Apps were deferred from that milestone only. Interactive mode and
-broader API/recovery/reporting remain unfinished.
+approved fidelity boundary. Mini Apps were deferred from that milestone only. The command-driven
+persistent playground is implemented; a live emulator window and broader API/recovery/reporting
+remain unfinished.
 
 The user approved the Android foundation and all four media/custom-emoji/mention/rich-button
 designs, and resumed implementation. Follow [ADR0005](../adr/0005-local-media-and-client-interaction-boundaries.md)

@@ -206,27 +206,43 @@ class Processes:
         finally:
             request.done.set()
 
-    def run(self, programs: dict[str, Program]) -> None:
+    def start(self, programs: dict[str, Program]) -> None:
+        """Launch one owned generation without surrendering supervisor ownership."""
+        if self._programs or self._instances:
+            raise RuntimeError("Consumer processes have already started")
         self._programs = programs
+        for name in programs:
+            self._launch(name, 1)
+
+    def poll(self) -> None:
+        """Drain output and service lifecycle work while the owner remains in control."""
+        self._drain()
+        if any(
+            instance.process.poll() not in (None, 0) and not instance.intentional
+            for instance in self._instances.values()
+        ):
+            self.failure = self.failure or "process_failed"
+        if time.monotonic() >= self.deadline:
+            self.failure = self.failure or "timeout"
+        self._dispatch()
+
+    def scenario_finished(self) -> bool:
+        scenario = self._instances.get("scenario")
+        if scenario is None or scenario.process.poll() is None:
+            return False
+        return not any(key.data[0] == "scenario" for key in self._ready.get_map().values())
+
+    def wait_for_scenario(self, programs: dict[str, Program]) -> None:
+        """Run a finite setup scenario while retaining bots for owner-directed cleanup."""
+        self.start(programs)
+        while True:
+            self.poll()
+            if self.failure or self.scenario_finished():
+                return
+
+    def run(self, programs: dict[str, Program]) -> None:
         try:
-            for name in programs:
-                self._launch(name, 1)
-            while True:
-                self._drain()
-                if any(
-                    instance.process.poll() not in (None, 0) and not instance.intentional
-                    for instance in self._instances.values()
-                ):
-                    self.failure = self.failure or "process_failed"
-                if time.monotonic() >= self.deadline:
-                    self.failure = self.failure or "timeout"
-                scenario = self._instances["scenario"].process
-                scenario_streams = any(
-                    key.data[0] == "scenario" for key in self._ready.get_map().values()
-                )
-                if self.failure or (scenario.poll() is not None and not scenario_streams):
-                    break
-                self._dispatch()
+            self.wait_for_scenario(programs)
         finally:
             self.close()
 

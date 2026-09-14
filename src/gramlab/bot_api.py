@@ -142,6 +142,15 @@ def _update(world: World, bot_id: int, update: dict[str, Any]) -> dict[str, Any]
                 "data": callback["data"],
             },
         }
+    if "my_chat_member" in update:
+        membership = update["my_chat_member"]
+        if (
+            not isinstance(membership, dict)
+            or membership.keys() != {"chat", "from", "date", "old_chat_member", "new_chat_member"}
+            or membership["new_chat_member"].get("user", {}).get("id") != bot_id
+        ):
+            raise ValueError("Invalid stored bot membership update")
+        return {"update_id": update["update_id"], "my_chat_member": membership}
     raise ValueError("GRAMLAB_UNSUPPORTED: stored bot update type")
 
 

@@ -151,6 +151,7 @@ def run(
     android_theme: Literal["light", "dark"] = "light",
     bridge_version: int = 3,
     bot_profiles: Mapping[str, RuntimeProfile] | None = None,
+    playground: bool = False,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
     if android_theme not in ("light", "dark"):
@@ -163,6 +164,8 @@ def run(
         names = ", ".join(sorted(unknown_profiles))
         raise ValueError(f"Bot runtime profiles target undeclared aliases: {names}")
     config["bridge_version"] = bridge_version
+    if playground:
+        config["playground"] = True
     apk = None
     android_json = None
     selected_profile = profile
@@ -240,9 +243,13 @@ def run(
     observation: dict[str, Any] = {"failure": "supervisor_failed", "processes": {}}
     try:
         result = Sandbox(selected_profile).supervise(
-            [profile.python, "-m", "gramlab._run"],
+            [
+                profile.python,
+                "-m",
+                "gramlab._playground_run" if playground else "gramlab._run",
+            ],
             data=output,
-            timeout=config["timeout"] + 15,
+            timeout=(24 * 60 * 60 + 15) if playground else config["timeout"] + 15,
             kvm=config["mode"] == "headless-android",
         )
         if result.returncode == 0:
@@ -280,6 +287,8 @@ def run(
         "configuration": {key: value for key, value in config.items() if key != "sources"},
         "profile_sha256": hashlib.sha256(profile_json.encode()).hexdigest(),
     }
+    if playground:
+        evidence["playground"] = observation.get("playground", {})
     if bot_profile_hashes:
         evidence["bot_runtime_profiles"] = bot_profile_hashes
     run_id = "uninitialized"
