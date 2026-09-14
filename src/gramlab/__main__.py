@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from gramlab.playground import request as playground_request
+from gramlab.playground_web import BrowserPlayground
 from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
 
@@ -61,6 +62,10 @@ def main() -> int:
     start.add_argument("--android-theme", choices=("light", "dark"), default="light")
     start.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
     start.add_argument("--bot-profile", action="append", default=[], metavar="ALIAS=PROFILE")
+    start.add_argument("--web", action="store_true", help="Open a clickable loopback chat client")
+    start.add_argument(
+        "--no-open", action="store_true", help="Print the web client URL without opening a browser"
+    )
     for operation in ("status", "reset", "stop"):
         command = playground_commands.add_parser(operation)
         command.add_argument("--output", type=Path, required=True)
@@ -90,6 +95,13 @@ def main() -> int:
     capture.add_argument("--label", required=True)
     capture.add_argument("--contains", action="append", default=[])
     args = parser.parse_args()
+    if (
+        args.command == "playground"
+        and args.playground_command == "start"
+        and args.no_open
+        and not args.web
+    ):
+        parser.error("--no-open requires --web")
     if args.command == "playground" and args.playground_command != "start":
         if args.playground_command == "add-bot":
             operation = "add_bot"
@@ -138,17 +150,30 @@ def main() -> int:
         )
         bot_profiles = _bot_profiles(args.bot_profile)
         if args.command == "playground":
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-                bot_profiles=bot_profiles,
-                playground=True,
+            browser = (
+                BrowserPlayground(args.output, opener=(lambda _url: True))
+                if args.web and args.no_open
+                else BrowserPlayground(args.output)
+                if args.web
+                else None
             )
+            try:
+                if browser is not None:
+                    print(f"Playground UI: {browser.start()}", flush=True)
+                outcome = run(
+                    args.manifest,
+                    args.output,
+                    profile=profile,
+                    android_profile=android_profile,
+                    android_apk=args.android_apk,
+                    android_theme=args.android_theme,
+                    bridge_version=args.bridge_version,
+                    bot_profiles=bot_profiles,
+                    playground=True,
+                )
+            finally:
+                if browser is not None:
+                    browser.close()
         elif bot_profiles:
             outcome = run(
                 args.manifest,
