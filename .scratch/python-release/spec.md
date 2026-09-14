@@ -23,3 +23,4 @@ than widening compatibility without evidence.
 ## Tickets
 
 - [01: First Python prerelease](issues/01-first-python-prerelease.md)
+- [02: Second Python prerelease](issues/02-second-python-prerelease.md)

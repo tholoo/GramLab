@@ -1,6 +1,6 @@
 [project]
 name = "gramlab"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Offline Telegram bot laboratory — experimental runtime foundation"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
