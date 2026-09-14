@@ -77,6 +77,32 @@ class Captures:
         self.records: list[dict[str, Any]] = []
         self.failed = False
         self._lock = lock if lock is not None else threading.Lock()
+        self._targets: list[tuple[dict[str, Any], str, list[str]]] = []
+
+    def attach_renderer(
+        self,
+        render: Callable[[dict[str, Any], str, list[str]], dict[str, Any]],
+        *,
+        render_latest: bool = False,
+    ) -> None:
+        """Attach the real renderer after semantic setup and optionally replay its final capture."""
+        with self._lock:
+            if self.render is not None:
+                raise RuntimeError("Capture renderer is already attached")
+            self.render = render
+            if not render_latest:
+                return
+            if not self.records or not self._targets:
+                raise RuntimeError("Rendered playground setup requires a final capture")
+            record = self.records[-1]
+            chat, label, contains = self._targets[-1]
+            try:
+                record["android"] = render(chat, label, contains)
+                record["rendered"] = True
+            except Exception as error:
+                self.failed = True
+                record["failure"] = type(error).__name__
+                raise RuntimeError("Android capture failed") from None
 
     def capture_chat(
         self, *, chat_id: int, label: str, contains: list[str], user_id: int | None = None
@@ -119,6 +145,13 @@ class Captures:
                 "history": history,
                 "rendered": False,
             }
+            self._targets.append(
+                (
+                    chat if chat["type"] == "private" else chat | {"user_id": selected_user},
+                    label,
+                    list(contains),
+                )
+            )
             if self.render is not None:
                 try:
                     record["android"] = self.render(

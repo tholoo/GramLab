@@ -67,6 +67,13 @@ class RichInteractions:
     def close(self) -> None:
         self.journal.close()
 
+    def attach_native(self, native: NativeRichInput) -> None:
+        """Route subsequent rich input through a renderer attached after semantic setup."""
+        with self._registry_lock:
+            if self._native is not None:
+                raise RuntimeError("Native rich input is already attached")
+            self._native = native
+
     def _fail(self, code: str) -> None:
         self.failed = True
         self.failure = self.failure or code

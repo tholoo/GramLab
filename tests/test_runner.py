@@ -222,6 +222,44 @@ def test_interactive_android_selects_one_explicit_display_socket(
     assert recorded["configuration"]["android"]["display"] == "X7"
 
 
+def test_playground_selects_declared_bots_that_must_reach_polling_before_setup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gramlab.runner import run
+    from gramlab.runtime import RuntimeProfile
+
+    manifest = project(tmp_path / "project")
+    profile = RuntimeProfile.load(Path(os.environ["GRAMLAB_RUNTIME_PROFILE"]))
+
+    def supervise(_self, _command, *, data: Path, **_kwargs):
+        (data / "observation.json").write_text(
+            json.dumps({"failure": None, "processes": {}, "captures": [], "android": {}})
+        )
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr("gramlab.runner.Sandbox.supervise", supervise)
+    outcome = run(
+        manifest,
+        tmp_path / "playground-run",
+        profile=profile,
+        playground=True,
+        playground_ready_bots={"echo"},
+    )
+
+    assert outcome == "incomplete"
+    recorded = json.loads((tmp_path / "playground-run" / "result.json").read_text())
+    assert recorded["configuration"]["playground_ready_bots"] == ["echo"]
+
+    with pytest.raises(ValueError, match="undeclared aliases: missing"):
+        run(
+            manifest,
+            tmp_path / "invalid-playground-run",
+            profile=profile,
+            playground=True,
+            playground_ready_bots={"missing"},
+        )
+
+
 def test_interactive_android_rejects_a_profile_without_the_screen_viewer(
     tmp_path: Path,
 ) -> None:

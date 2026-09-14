@@ -333,6 +333,33 @@ def test_group_member_can_type_the_first_message_without_private_start(tmp_path:
         assert lab.history(group["id"]) == [typed["sends"][0]["message"]]
 
 
+def test_interactions_switch_from_semantic_setup_to_attached_native_input(tmp_path: Path) -> None:
+    directory = tmp_path / "world"
+    with World.create(directory, seed=19, now=1700000000) as world:
+        world.create_user(first_name="Sara")
+        world.create_user(first_name="Composer", is_bot=True)
+        world.open_private_chat(user_id=1, bot_id=2)
+        world.send_message(chat_id=1, sender_id=2, text="Ready")
+    interactions = Interactions(directory, lock=threading.Lock())
+    semantic = interactions.type_message(chat_id=1, text="seeded")
+    native_calls: list[tuple[int, str]] = []
+
+    def compose(chat, text, _expected):
+        native_calls.append((chat["id"], text))
+        return {"android": {"elapsed_ms": 1}, "sends": []}
+
+    interactions.attach_native(
+        tap=lambda *_args, **_kwargs: {},
+        compose=compose,
+        start_chat=lambda *_args, **_kwargs: {},
+    )
+    native = interactions.type_message(chat_id=1, text="interactive")
+
+    assert semantic["native"] is False
+    assert native["native"] is True
+    assert native_calls == [(1, "interactive")]
+
+
 def test_committed_backend_failure_is_uncertain_and_retained_by_control(tmp_path: Path):
     directory = tmp_path / "world"
     with World.create(directory, seed=19, now=1700000000) as world:

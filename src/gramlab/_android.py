@@ -253,7 +253,6 @@ class Android:
     def start(self) -> None:
         if self._guest is not None:
             return
-        started = time.monotonic()
         for variable in ("HOME", "ANDROID_USER_HOME", "ANDROID_AVD_HOME", "XDG_CACHE_HOME"):
             Path(os.environ[variable]).mkdir(parents=True, exist_ok=True)
         data = Path("emulator")
@@ -267,6 +266,7 @@ class Android:
             self.profile.executables["avdmanager"],
             IMAGE_PACKAGE,
         ]
+        started = time.monotonic()
         self._guest = self._stack.enter_context(
             Sandbox(self.profile).component(
                 command,
@@ -450,18 +450,21 @@ class Android:
             raise RuntimeError("Dedicated emulator is not running")
         if self._bridge is None:
             raise RuntimeError("Dedicated client bridge did not start")
-        self._adb("shell", "am", "force-stop", "org.gramlab.android")
-        stop_deadline = min(self.deadline, time.monotonic() + 5)
-        while True:
-            stopped = self._adb("shell", "pidof", "org.gramlab.android", timeout=5, check=False)
-            if stopped.returncode == 1 and not stopped.stdout.strip():
-                break
-            if stopped.returncode != 0:
-                raise RuntimeError("Dedicated client stop status was unavailable")
-            if time.monotonic() >= stop_deadline:
-                raise RuntimeError("Dedicated client app process did not stop")
-            time.sleep(0.05)
-        if self._persona != chat["user_id"]:
+        persona_changed = self._persona != chat["user_id"]
+        cold_launch = persona_changed or before_launch is not None
+        if cold_launch:
+            self._adb("shell", "am", "force-stop", "org.gramlab.android")
+            stop_deadline = min(self.deadline, time.monotonic() + 5)
+            while True:
+                stopped = self._adb("shell", "pidof", "org.gramlab.android", timeout=5, check=False)
+                if stopped.returncode == 1 and not stopped.stdout.strip():
+                    break
+                if stopped.returncode != 0:
+                    raise RuntimeError("Dedicated client stop status was unavailable")
+                if time.monotonic() >= stop_deadline:
+                    raise RuntimeError("Dedicated client app process did not stop")
+                time.sleep(0.05)
+        if persona_changed:
             cleared = self._adb("shell", "pm", "clear", "org.gramlab.android")
             if cleared.stdout.strip() != "Success":
                 raise RuntimeError("Dedicated client persona could not be cleared")

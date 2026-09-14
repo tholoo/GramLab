@@ -6,6 +6,39 @@ import sys
 from pathlib import Path
 
 
+def _emulator_command(emulator: str) -> list[str]:
+    return [
+        emulator,
+        "-avd",
+        "gramlab-probe",
+        "-no-window",
+        "-no-audio",
+        "-no-boot-anim",
+        "-no-snapshot",
+        "-gpu",
+        "swangle",
+        "-accel",
+        "on",
+        "-cores",
+        "4",
+        "-memory",
+        "2048",
+        "-port",
+        "5554",
+        "-camera-back",
+        "none",
+        "-camera-front",
+        "none",
+        "-dns-server",
+        "192.0.2.53",
+        "-no-metrics",
+        # The pinned Netsim forwarding path stalls local TCP handshakes. Keep
+        # Virtio Wi-Fi, using the emulator's built-in forwarding implementation.
+        "-feature",
+        "-WiFiPacketStream",
+    ]
+
+
 def main() -> None:
     emulator, avdmanager, image_package = sys.argv[1:]
     for variable in ("HOME", "ANDROID_USER_HOME", "ANDROID_AVD_HOME", "XDG_CACHE_HOME"):
@@ -32,36 +65,7 @@ def main() -> None:
     Path("avdmanager.log").write_text(prepared.stdout + prepared.stderr)
     if prepared.returncode:
         raise RuntimeError(f"AVD creation failed: {prepared.stdout}\n{prepared.stderr}")
-    command = [
-        emulator,
-        "-avd",
-        "gramlab-probe",
-        "-no-window",
-        "-no-audio",
-        "-no-boot-anim",
-        "-no-snapshot",
-        "-gpu",
-        "swangle",
-        "-accel",
-        "on",
-        "-cores",
-        "2",
-        "-memory",
-        "2048",
-        "-port",
-        "5554",
-        "-camera-back",
-        "none",
-        "-camera-front",
-        "none",
-        "-dns-server",
-        "192.0.2.53",
-        "-no-metrics",
-        # The pinned Netsim forwarding path stalls local TCP handshakes. Keep
-        # Virtio Wi-Fi, using the emulator's built-in forwarding implementation.
-        "-feature",
-        "-WiFiPacketStream",
-    ]
+    command = _emulator_command(emulator)
     with Path("emulator.log").open("w") as log:
         os.dup2(log.fileno(), 1)
         os.dup2(log.fileno(), 2)
