@@ -18,7 +18,7 @@ from gramlab._captures import _rich_text
 from gramlab._client_bridge_schema import require_runtime_bridge_version
 from gramlab.client_bridge import ClientBridge
 from gramlab.reports import _png, _Redactor
-from gramlab.runtime import RuntimeProfile, Sandbox
+from gramlab.runtime import _SANDBOX_X11_SOCKET, RuntimeProfile, Sandbox
 from gramlab.world import World
 
 IMAGE_PACKAGE = "system-images;android-36;default;x86_64"
@@ -160,11 +160,13 @@ class Android:
         secrets: list[str],
         bridge_version: int = 3,
         theme: Literal["light", "dark"] = "light",
+        interactive: bool = False,
     ) -> None:
         self._bridge_version = require_runtime_bridge_version(bridge_version, owner="Android")
         if theme not in ("light", "dark"):
             raise ValueError("Android theme must be light or dark")
         self._theme = theme
+        self._interactive = interactive
         self.profile = profile
         self.deadline = deadline
         self.secrets = secrets
@@ -177,6 +179,7 @@ class Android:
         self._active_chat: int | None = None
         self._recording: subprocess.Popen[bytes] | None = None
         self._recording_operation: str | None = None
+        self._viewer: subprocess.Popen[str] | None = None
 
     def _remaining(self, limit: float) -> float:
         remaining = min(limit, self.deadline - time.monotonic())
@@ -257,15 +260,16 @@ class Android:
         data.mkdir()
         Path("captures").mkdir(mode=0o700)
         (data / "emulator.py").write_bytes((Path(__file__).parent / "_emulator.py").read_bytes())
+        command = [
+            self.profile.python,
+            "/work/emulator.py",
+            self.profile.executables["emulator"],
+            self.profile.executables["avdmanager"],
+            IMAGE_PACKAGE,
+        ]
         self._guest = self._stack.enter_context(
             Sandbox(self.profile).component(
-                [
-                    self.profile.python,
-                    "/work/emulator.py",
-                    self.profile.executables["emulator"],
-                    self.profile.executables["avdmanager"],
-                    IMAGE_PACKAGE,
-                ],
+                command,
                 data=data,
                 kvm=True,
                 startup_timeout=self._remaining(10),
@@ -309,6 +313,30 @@ class Android:
         self._adb("install", "--no-streaming", "/work/client.apk", timeout=60)
         self._adb("push", "/work/client.apk", "/data/local/tmp/composer-client.apk", timeout=30)
         self._adb("shell", "chmod", "0444", "/data/local/tmp/composer-client.apk")
+        if self._interactive:
+            viewer = Path("viewer")
+            (viewer / "home").mkdir(parents=True)
+            self._viewer = self._stack.enter_context(
+                Sandbox(self.profile).component(
+                    [
+                        self.profile.executables["scrcpy"],
+                        "--serial",
+                        "emulator-5554",
+                        "--no-audio",
+                        "--no-clipboard-autosync",
+                        "--stay-awake",
+                        "--window-title",
+                        "GramLab Telegram playground",
+                    ],
+                    data=viewer,
+                    display_socket=_SANDBOX_X11_SOCKET,
+                    startup_timeout=self._remaining(10),
+                )
+            )
+            time.sleep(1)
+            if self._viewer.poll() is not None:
+                raise RuntimeError("Interactive Android screen viewer exited during startup")
+            self.observations["viewer"] = "scrcpy"
         package = self._adb("shell", "dumpsys", "package", "org.gramlab.android").stdout
         self.observations["package_version"] = next(
             (line.strip() for line in package.splitlines() if "versionName=" in line), "unavailable"

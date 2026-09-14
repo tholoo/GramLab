@@ -15,6 +15,7 @@ from uuid import UUID
 
 _REQUEST_LIMIT = 65536
 _RESPONSE_LIMIT = 16 * 1024 * 1024
+_CONTROL_TIMEOUT = 60
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -81,7 +82,9 @@ def request(
     if len(payload) > _REQUEST_LIMIT:
         raise ValueError("Playground command is too large")
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client.settimeout(15)
+    # Native Android operations deliberately wait for original client evidence and
+    # can exceed the short startup/status polling window on a loaded machine.
+    client.settimeout(_CONTROL_TIMEOUT)
     try:
         directory = os.open(output.absolute(), os.O_RDONLY | os.O_DIRECTORY)
         try:
@@ -203,7 +206,12 @@ class PlaygroundControl:
                 stopped = body["operation"] == "stop"
             except (KeyError, TypeError, ValueError, RuntimeError) as error:
                 response = {"error": str(error)}
-            connection.sendall(json.dumps(response, ensure_ascii=True).encode())
+            try:
+                connection.sendall(json.dumps(response, ensure_ascii=True).encode())
+            except (BrokenPipeError, ConnectionResetError):
+                # The accepted operation has already completed. A helper process
+                # disappearing must not tear down the persistent playground owner.
+                pass
             return stopped
 
     def close(self) -> None:

@@ -5,18 +5,17 @@ from __future__ import annotations
 import json
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlsplit
 
 import pytest
 
-from gramlab.playground_web import BrowserPlayground
+from gramlab.playground import PlaygroundControl, request
 
 
 def _project(directory: Path) -> Path:
@@ -231,175 +230,44 @@ def _wait_for_text(output: Path, chat_id: int, text: str) -> dict[str, Any]:
     raise AssertionError(f"Playground chat never contained {text!r}")
 
 
-def _web_json(url: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    body = None if payload is None else json.dumps(payload).encode()
-    request = urllib.request.Request(  # noqa: S310 - test URL is a loopback server
-        url + path,
-        data=body,
-        method="GET" if body is None else "POST",
-        headers=(
-            {}
-            if body is None
-            else {
-                "Content-Type": "application/json",
-                "Origin": f"{urlsplit(url).scheme}://{urlsplit(url).netloc}",
+def test_disconnected_helper_cannot_stop_a_playground_after_dispatch(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def dispatch(operation: str, _parameters: dict[str, Any]) -> dict[str, str]:
+        calls.append(operation)
+        return {"state": "running"}
+
+    with PlaygroundControl(
+        tmp_path,
+        run_id="00000000-0000-0000-0000-000000000000",
+        dispatch=dispatch,
+    ) as control:
+        payload = json.dumps(
+            {
+                "schema": 1,
+                "run_id": control.run_id,
+                "capability": control.capability,
+                "operation": "status",
+                "parameters": {},
             }
-        ),
-    )
-    with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310
-        assert response.headers["Cache-Control"] == "no-store"
-        return cast(dict[str, Any], json.loads(response.read()))
+        ).encode()
+        abandoned = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        abandoned.connect(str(control.path))
+        abandoned.sendall(payload)
+        abandoned.shutdown(socket.SHUT_WR)
+        abandoned.close()
 
+        assert control.poll() is False
+        assert calls == ["status"]
 
-def test_browser_playground_composer_drives_real_bot_and_reset_restores_every_chat(
-    tmp_path: Path,
-) -> None:
-    manifest = _project(tmp_path / "project")
-    output = tmp_path / "playground"
-    start = subprocess.Popen(  # noqa: S603 - public CLI under the enclosing network guard
-        [
-            sys.executable,
-            "-m",
-            "gramlab",
-            "playground",
-            "start",
-            str(manifest),
-            "--output",
-            str(output),
-            "--web",
-            "--no-open",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=os.environ.copy(),
-    )
-    try:
-        assert start.stdout is not None
-        announcement = start.stdout.readline().strip()
-        assert announcement.startswith("Playground UI: http://127.0.0.1:")
-        browser_url = announcement.removeprefix("Playground UI: ")
-        deadline = time.monotonic() + 15
-        while not (output / "playground-control.json").is_file():
-            assert start.poll() is None, start.communicate()
-            assert time.monotonic() < deadline, "Playground did not become ready"
-            time.sleep(0.05)
-
-        with urllib.request.urlopen(browser_url, timeout=5) as response:  # noqa: S310
-            page = response.read().decode()
-            assert response.headers["Content-Security-Policy"].startswith("default-src 'none'")
-        assert '<form id="composer-form"' in page
-        assert '<textarea id="composer"' in page
-        assert '<button id="send" type="submit">Send</button>' in page
-        assert 'composerForm.addEventListener("submit"' in page
-        assert 'return [...new Set(parts)].join("\\n");' in page
-
-        initial = _web_json(browser_url, "api/status")
-        running = _group(initial, "Already running")
-        fresh = _group(initial, "Add target here")
-        target_id = initial["bots"]["target"]
-
-        rejected_request = urllib.request.Request(  # noqa: S310 - fixed loopback server
-            browser_url + "api/send",
-            data=json.dumps(
-                {"chat_id": running["id"], "actor_id": 4, "text": "cross-origin mutation"}
-            ).encode(),
-            method="POST",
-            headers={"Content-Type": "application/json", "Origin": "https://example.invalid"},
-        )
-        with pytest.raises(urllib.error.HTTPError) as rejected:
-            urllib.request.urlopen(rejected_request, timeout=5)  # noqa: S310
-        assert rejected.value.code == 403
-        assert _web_json(browser_url, "api/status") == initial
-
-        with pytest.raises(urllib.error.HTTPError) as unknown_actor:
-            _web_json(
-                browser_url,
-                "api/send",
-                {"chat_id": running["id"], "actor_id": 999, "text": "not a member"},
-            )
-        assert unknown_actor.value.code == 400
-        assert _web_json(browser_url, "api/status") == initial
-
-        _web_json(
-            browser_url,
-            "api/send",
-            {"chat_id": running["id"], "actor_id": 4, "text": "hello from the input bar"},
-        )
-        ready = _wait_for_text(output, running["id"], "")
-        assert [message.get("text") for message in ready["histories"][str(running["id"])]] == [
-            "hello from the input bar",
-            "",
-        ]
-
-        _web_json(
-            browser_url,
-            "api/tap",
-            {"chat_id": running["id"], "actor_id": 4, "label": "Continue"},
-        )
-        continued = _wait_for_text(output, running["id"], "Continued through the playground")
-        assert [message.get("text") for message in continued["histories"][str(running["id"])]] == [
-            "hello from the input bar",
-            "Continued through the playground",
-        ]
-
-        _web_json(
-            browser_url,
-            "api/add-bot",
-            {"group": "Add target here", "bot": "target", "actor": "mina"},
-        )
-        joined = _wait_for_join(output)
-        assert target_id in {
-            member["user_id"] for member in _group(joined, "Add target here")["members"]
-        }
-
-        restored = _web_json(browser_url, "api/reset", {})
-        assert restored["run_id"] == initial["run_id"]
-        assert restored["at_baseline"] is True
-        assert restored["histories"][str(running["id"])] == []
-        assert restored["histories"][str(fresh["id"])] == []
-        assert target_id not in {
-            member["user_id"] for member in _group(restored, "Add target here")["members"]
-        }
-
-        stopped = _web_json(browser_url, "api/stop", {})
-        assert stopped == {"state": "stopping", "run_id": initial["run_id"]}
-        assert start.wait(timeout=15) == 0
-        result = json.loads((output / "result.json").read_text())
-        assert result["outcome"] == "passed"
-        assert [event["operation"] for event in result["playground"]["lifecycle"]] == [
-            "send",
-            "tap",
-            "add_bot",
-            "reset",
-            "stop",
-        ]
-    finally:
-        if start.poll() is None:
-            start.kill()
-            start.wait(timeout=10)
-
-
-def test_browser_playground_opens_the_capability_scoped_loopback_url(tmp_path: Path) -> None:
-    opened: list[str] = []
-
-    def open_url(url: str) -> bool:
-        opened.append(url)
-        return True
-
-    browser = BrowserPlayground(
-        tmp_path / "future-output",
-        title="Consumer playground",
-        preferred_actors={-1: 4},
-        opener=open_url,
-    )
-    try:
-        assert browser.start() == browser.url
-        assert opened == [browser.url]
-        assert browser.url.startswith("http://127.0.0.1:")
-        assert browser.url.endswith("/")
-    finally:
-        browser.close()
+        with ThreadPoolExecutor(max_workers=1) as workers:
+            healthy = workers.submit(request, tmp_path, "status")
+            deadline = time.monotonic() + 2
+            while not healthy.done():
+                assert time.monotonic() < deadline
+                control.poll()
+            assert healthy.result() == {"state": "running"}
+        assert calls == ["status", "status"]
 
 
 def test_interrupted_playground_removes_stale_controls_and_writes_a_retryable_report(

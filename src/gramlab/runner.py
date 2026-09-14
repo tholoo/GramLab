@@ -95,8 +95,10 @@ def _inputs(manifest: Path) -> tuple[dict[str, Any], dict[str, dict[str, bytes]]
         raise ValueError("Run timeout must be positive and at most one day")
     config["timeout"] = timeout
     config.setdefault("mode", "simulation-only")
-    if config["mode"] not in ("simulation-only", "headless-android"):
-        raise ValueError("This runner supports simulation-only and headless-android modes")
+    if config["mode"] not in ("simulation-only", "headless-android", "interactive-android"):
+        raise ValueError(
+            "This runner supports simulation-only, headless-android and interactive-android modes"
+        )
     bots = config.get("bots", {})
     if not isinstance(bots, dict) or len(bots) > 64:
         raise ValueError("Bots must be a table with at most 64 entries")
@@ -152,6 +154,7 @@ def run(
     bridge_version: int = 3,
     bot_profiles: Mapping[str, RuntimeProfile] | None = None,
     playground: bool = False,
+    display_socket: Path | None = None,
 ) -> str:
     """Run a TOML manifest using a trusted, already provisioned runtime profile."""
     if android_theme not in ("light", "dark"):
@@ -169,11 +172,18 @@ def run(
     apk = None
     android_json = None
     selected_profile = profile
-    if config["mode"] == "headless-android":
+    android_mode = config["mode"] in ("headless-android", "interactive-android")
+    if config["mode"] == "interactive-android" and display_socket is None:
+        raise ValueError("Interactive Android requires one explicit X11 display socket")
+    if config["mode"] != "interactive-android" and display_socket is not None:
+        raise ValueError("A display socket is only valid for interactive Android")
+    if android_mode:
         if android_profile is None or android_apk is None:
-            raise ValueError("Headless Android requires a trusted Android profile and approved APK")
+            raise ValueError("Android requires a trusted Android profile and approved APK")
         if not {"adb", "emulator", "avdmanager"} <= android_profile.executables.keys():
             raise ValueError("Android profile requires adb, emulator and avdmanager")
+        if config["mode"] == "interactive-android" and "scrcpy" not in android_profile.executables:
+            raise ValueError("Interactive Android profile requires scrcpy")
         apk = _source(android_apk.absolute().parent, android_apk.name, limit=256 * 1024 * 1024)
         if not apk.startswith(b"PK\x03\x04"):
             raise ValueError("Android APK must be an already built APK archive")
@@ -186,6 +196,8 @@ def run(
             "bridge_version": bridge_version,
             "theme": android_theme,
         }
+        if display_socket is not None:
+            config["android"]["display"] = display_socket.name
     if bot_profiles:
         encoded_bot_profiles = {
             alias: json.dumps(asdict(bot_profile), sort_keys=True, separators=(",", ":"))
@@ -242,16 +254,23 @@ def run(
     started = time.monotonic()
     observation: dict[str, Any] = {"failure": "supervisor_failed", "processes": {}}
     try:
-        result = Sandbox(selected_profile).supervise(
-            [
-                profile.python,
-                "-m",
-                "gramlab._playground_run" if playground else "gramlab._run",
-            ],
-            data=output,
-            timeout=(24 * 60 * 60 + 15) if playground else config["timeout"] + 15,
-            kvm=config["mode"] == "headless-android",
-        )
+        supervisor = Sandbox(selected_profile)
+        command = [
+            profile.python,
+            "-m",
+            "gramlab._playground_run" if playground else "gramlab._run",
+        ]
+        timeout = (24 * 60 * 60 + 15) if playground else config["timeout"] + 15
+        if display_socket is None:
+            result = supervisor.supervise(command, data=output, timeout=timeout, kvm=android_mode)
+        else:
+            result = supervisor.supervise(
+                command,
+                data=output,
+                timeout=timeout,
+                kvm=android_mode,
+                display_socket=display_socket,
+            )
         if result.returncode == 0:
             observation = json.loads((output / "observation.json").read_text())
     except subprocess.TimeoutExpired:
@@ -318,7 +337,10 @@ def run(
         Report(
             run_id=run_id,
             title="Consumer scenario run",
-            mode=cast(Literal["simulation-only", "headless-android"], config["mode"]),
+            mode=cast(
+                Literal["simulation-only", "headless-android", "interactive-android"],
+                config["mode"],
+            ),
             outcome=outcome,
             seed=config["seed"],
             profile={

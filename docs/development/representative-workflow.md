@@ -58,4 +58,4 @@ then passed alone. This is case-level union evidence, not a falsely labeled clea
 The new 74th Android case is the successful representative runner described above.
 
 This milestone does not claim external Telegram conformance, production custom-emoji entitlement,
-HTML parse modes, grouped-media edits, interactive Android mode or Mini Apps.
+HTML parse modes, grouped-media edits, native Telegram membership administration or Mini Apps.

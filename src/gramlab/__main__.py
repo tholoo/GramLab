@@ -6,9 +6,9 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from gramlab.playground import request as playground_request
-from gramlab.playground_web import BrowserPlayground
 from gramlab.runner import run
 from gramlab.runtime import RuntimeProfile
 
@@ -38,6 +38,9 @@ def main() -> int:
         "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     )
     execute.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    execute.add_argument(
+        "--display-socket", type=Path, help="Explicit local X11 socket for interactive Android"
+    )
     execute.add_argument("--android-theme", choices=("light", "dark"), default="light")
     execute.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
     execute.add_argument(
@@ -59,13 +62,12 @@ def main() -> int:
         "--android-profile", type=Path, default=os.environ.get("GRAMLAB_ANDROID_RUNTIME_PROFILE")
     )
     start.add_argument("--android-apk", type=Path, default=os.environ.get("GRAMLAB_ANDROID_APK"))
+    start.add_argument(
+        "--display-socket", type=Path, help="Explicit local X11 socket for interactive Android"
+    )
     start.add_argument("--android-theme", choices=("light", "dark"), default="light")
     start.add_argument("--bridge-version", type=int, choices=(3, 4, 5, 6), default=3)
     start.add_argument("--bot-profile", action="append", default=[], metavar="ALIAS=PROFILE")
-    start.add_argument("--web", action="store_true", help="Open a clickable loopback chat client")
-    start.add_argument(
-        "--no-open", action="store_true", help="Print the web client URL without opening a browser"
-    )
     for operation in ("status", "reset", "stop"):
         command = playground_commands.add_parser(operation)
         command.add_argument("--output", type=Path, required=True)
@@ -95,13 +97,6 @@ def main() -> int:
     capture.add_argument("--label", required=True)
     capture.add_argument("--contains", action="append", default=[])
     args = parser.parse_args()
-    if (
-        args.command == "playground"
-        and args.playground_command == "start"
-        and args.no_open
-        and not args.web
-    ):
-        parser.error("--no-open requires --web")
     if args.command == "playground" and args.playground_command != "start":
         if args.playground_command == "add-bot":
             operation = "add_bot"
@@ -149,52 +144,20 @@ def main() -> int:
             RuntimeProfile.load(args.android_profile) if args.android_profile else None
         )
         bot_profiles = _bot_profiles(args.bot_profile)
+        options: dict[str, Any] = {
+            "profile": profile,
+            "android_profile": android_profile,
+            "android_apk": args.android_apk,
+            "android_theme": args.android_theme,
+            "bridge_version": args.bridge_version,
+        }
+        if bot_profiles or args.command == "playground":
+            options["bot_profiles"] = bot_profiles
         if args.command == "playground":
-            browser = (
-                BrowserPlayground(args.output, opener=(lambda _url: True))
-                if args.web and args.no_open
-                else BrowserPlayground(args.output)
-                if args.web
-                else None
-            )
-            try:
-                if browser is not None:
-                    print(f"Playground UI: {browser.start()}", flush=True)
-                outcome = run(
-                    args.manifest,
-                    args.output,
-                    profile=profile,
-                    android_profile=android_profile,
-                    android_apk=args.android_apk,
-                    android_theme=args.android_theme,
-                    bridge_version=args.bridge_version,
-                    bot_profiles=bot_profiles,
-                    playground=True,
-                )
-            finally:
-                if browser is not None:
-                    browser.close()
-        elif bot_profiles:
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-                bot_profiles=bot_profiles,
-            )
-        else:
-            outcome = run(
-                args.manifest,
-                args.output,
-                profile=profile,
-                android_profile=android_profile,
-                android_apk=args.android_apk,
-                android_theme=args.android_theme,
-                bridge_version=args.bridge_version,
-            )
+            options["playground"] = True
+        if args.display_socket is not None:
+            options["display_socket"] = args.display_socket
+        outcome = run(args.manifest, args.output, **options)
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"gramlab: cannot prepare run ({type(error).__name__}): {error}", file=sys.stderr)
         return 2

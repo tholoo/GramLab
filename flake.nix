@@ -115,6 +115,7 @@
                 ++ (with pkgs; [
                   android.sdk
                   jdk
+                  pkgs.scrcpy
                   gnumake
                   pkg-config
                   ninja
@@ -132,12 +133,14 @@
                 extraPackages = [
                   android.sdk
                   jdk
+                  pkgs.scrcpy
                 ]
                 ++ androidRuntimeTools;
                 executables = {
                   emulator = "${android.home}/emulator/emulator";
                   adb = "${android.home}/platform-tools/adb";
                   avdmanager = "${android.home}/cmdline-tools/${profile.sdk.commandLineTools}/bin/avdmanager";
+                  scrcpy = "${pkgs.scrcpy}/bin/scrcpy";
                 };
                 environment = {
                   JAVA_HOME = jdk.home;

@@ -1,24 +1,28 @@
 # Next-agent handoff
 
-## Browser playground checkpoint
+## Interactive Android playground checkpoint
 
-Programmatic-scenarios ticket 11 adds a consumer-neutral loopback browser client over the existing
-authenticated playground control. It lists seeded chats and actors, renders current text and rich
-button labels, sends composer text, presses callbacks, adds configured bots to eligible groups,
-resets exact state and stops the owner. `gramlab playground start --web` opens it; `--no-open`
-prints the capability-scoped URL for automation. The web capability remains host-side, every
-mutation requires the exact same origin, and all consumer content is inserted as text.
+Programmatic-scenarios ticket 12 adds `interactive-android` to the public runner and persistent
+playground. The original Telegram client still runs in an isolated headless emulator; a separately
+contained scrcpy component exposes that guest screen as a normal clickable desktop window. The
+outer supervisor receives one explicit host X11 socket, and the viewer receives only its fixed
+private remount. Focused tests reject non-socket paths and prove neighboring display sockets and
+ambient host paths remain hidden. The interactive profile requires its pinned scrcpy executable.
 
-The browser is a semantic interaction surface, not Telegram rendering evidence. Headless Android
-remains unchanged and no live emulator window was added. Interrupting a foreground playground now
-removes stale control files and writes a retryable failed report. Focused public acceptance drives
-the browser endpoint through a real contained consumer reply and edit, authorized bot addition,
-complete reset and stop; it also rejects cross-origin and unknown-actor mutations without changing
-the World. The focused playground collection passes 5 non-Android tests. Repository Ruff lint and
-format checks, strict package typing and the complete contained gate pass 1,628 tests at 85.12%
-coverage. Publication remains subject to explicit remote approval.
+The final serialized downstream acceptance opened the visible Telegram client, sent a command
+through the native composer, observed the real consumer response, reset to the exact seeded World,
+and stopped with a passing result. Setup independently exercised an original rendered rich-button
+callback. Guest IPv4 and IPv6 remained blocked. Direct pointer/keyboard interaction is supported;
+native Telegram member-picker administration is not, and `add-bot` remains an explicitly described
+authenticated World transition. Publication remains subject to explicit remote approval.
 
-## Interactive playground checkpoint
+The final contained core gate passes 1,632 tests at 85.65% coverage. Repository-wide Ruff lint and
+format checking, strict typing for every changed source and newly typed test scope, focused Android
+profile/runner tests, and direct Nix formatting/evaluation checks pass. Building the declared Nix
+checks was not completed because the pinned revision's tool closures were not present locally and
+offline realization attempted upstream downloads.
+
+## Earlier persistent playground checkpoint
 
 Programmatic-scenarios ticket 10 adds a consumer-neutral persistent playground over the public
 runner. A finite setup scenario establishes the baseline, then real bot processes remain available
@@ -32,8 +36,7 @@ and denial of a detached old-process write. It repeats bot addition after reset,
 actor and a tampered capability without stopping the owner, and proves idempotent stop.
 
 The Android path reuses the existing headless original client, composer, rich-button input and
-blocked guest egress boundary. It does not expose a live emulator window. The serialized acceptance
-passed against patch-35 APK SHA-256
+blocked guest egress boundary. The earlier serialized acceptance passed against patch-35 APK SHA-256
 `fff0c33f6991202b08a63e77a501f3bc188eecda9ae45047bf1cf39400c11521`: addition and reset were
 rendered and captured as PNGs, and guest IPv4/IPv6 remained blocked. The final contained
 non-Android gate passed all 1,625 tests at 85.11% coverage; JUnit SHA-256:
@@ -93,9 +96,9 @@ Simulation and Android share semantic state; only Android supplies rendering/inp
 The full [product inventory](../product/requirements.md) remains the goal. The
 [first operational milestone](operational-milestone.md), covering messages/buttons, rich content,
 photos/files/albums and custom emoji in one representative workflow, is now resolved at its
-approved fidelity boundary. Mini Apps were deferred from that milestone only. The browser- and
-command-driven persistent playground is implemented; a live emulator window and broader
-API/recovery/reporting remain unfinished.
+approved fidelity boundary. Mini Apps were deferred from that milestone only. The persistent
+playground and live original-client window are implemented; native administration flows and
+broader API/recovery/reporting remain unfinished.
 
 The user approved the Android foundation and all four media/custom-emoji/mention/rich-button
 designs, and resumed implementation. Follow [ADR0005](../adr/0005-local-media-and-client-interaction-boundaries.md)
